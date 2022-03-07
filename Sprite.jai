@@ -127,9 +127,13 @@ draw_sprite :: (sprite: Sprite) {
     glUniform2f(get_uniform_location(default_shader, "uPos"), position.x, position.y);
     glUniform2f(get_uniform_location(default_shader, "uDim"), abs(sprite.width), abs(sprite.height));
     // glUniform2f(get_uniform_location(default_shader, "uOriginalDim"), xx sprite.texture.width, xx sprite.texture.height);
-    glUniform2f(get_uniform_location(default_shader, "uScreenDim"), xx koda.width, xx koda.height);
-    glUniform4f(get_uniform_location(default_shader, "uTint"), sprite.tint.r, sprite.tint.g, sprite.tint.b, sprite.tint.a);
-    glUniform4f(get_uniform_location(default_shader, "uFrame"), texture_frame.x, texture_frame.y, texture_frame.z, texture_frame.w);
+    // glUniform2f(get_uniform_location(default_shader, "uScreenDim"), xx koda.width, xx koda.height);
+    glUniform2f(glGetUniformLocation(koda.shader.program_, "uScreenDim"), xx koda.width, xx koda.height);
+
+    // glUniform4f(get_uniform_location(default_shader, "uTint"), sprite.tint.r, sprite.tint.g, sprite.tint.b, sprite.tint.a);
+    glUniform4f(glGetUniformLocation(koda.shader.program_, "uTint"), sprite.tint.r, sprite.tint.g, sprite.tint.b, sprite.tint.a);
+    // glUniform4f(get_uniform_location(default_shader, "uFrame"), texture_frame.x, texture_frame.y, texture_frame.z, texture_frame.w);
+    glUniform4f(glGetUniformLocation(koda.shader.program_, "uFrame"), texture_frame.x, texture_frame.y, texture_frame.z, texture_frame.w);
 
     glBindVertexArray(sprite.vao_);
     defer glBindVertexArray(0);

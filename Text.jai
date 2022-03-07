@@ -122,9 +122,12 @@ draw_text :: (text: Text) {
     glUniform2f(get_uniform_location(default_shader, "uPos"), text.position.x, text.position.y);
     glUniform2f(get_uniform_location(default_shader, "uDim"), xx koda.width, xx koda.height);
     // glUniform2f(get_uniform_location(default_shader, "uOriginalDim"), xx koda.width, xx koda.height);
-    glUniform2f(get_uniform_location(default_shader, "uScreenDim"), xx koda.width, xx koda.height);
-    glUniform4f(get_uniform_location(default_shader, "uTint"), text.tint.r, text.tint.g, text.tint.b, text.tint.a);
-    glUniform4f(get_uniform_location(default_shader, "uFrame"), 0, 0, 1, 1);
+    // glUniform2f(get_uniform_location(default_shader, "uScreenDim"), xx koda.width, xx koda.height);
+    glUniform2f(glGetUniformLocation(koda.shader.program_, "uScreenDim"), xx koda.width, xx koda.height);
+    // glUniform4f(get_uniform_location(default_shader, "uTint"), text.tint.r, text.tint.g, text.tint.b, text.tint.a);
+    glUniform4f(glGetUniformLocation(koda.shader.program_, "uTint"), text.tint.r, text.tint.g, text.tint.b, text.tint.a);
+    // glUniform4f(get_uniform_location(default_shader, "uFrame"), 0, 0, 1, 1);
+    glUniform4f(glGetUniformLocation(koda.shader.program_, "uFrame"), 0, 0, 1, 1);
 
     glDrawArrays(GL_TRIANGLES, 0, xx vertex_array.count);
 }
