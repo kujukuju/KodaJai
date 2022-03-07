@@ -1,0 +1,147 @@
+
+SpriteID :: #type,distinct int;
+
+Sprite :: struct {
+    id: SpriteID;
+    texture: Texture;
+    vbo_: GLuint;
+    vao_: GLuint;
+    ebo_: GLuint;
+    position: Vector2;
+    width: float;
+    height: float;
+    anchor: Vector2;
+    tint: Color;
+    // texture frame: x, y, width, height
+    texture_frame: Vector4 = .{0, 0, 1, 1};
+}
+
+create_sprite :: (texture: Texture) -> Sprite {
+    return create_sprite(texture, xx texture.width, xx texture.height);
+}
+
+create_sprite :: (texture: Texture, width: float, height: float, anchor: Vector2 = .{0, 0}, tint: Color = .{1, 1, 1, 1}) -> Sprite {
+    sprite: Sprite;
+    sprite.id = cast(SpriteID) claim_index(*sprite_ids, 0);
+    sprite.texture = texture;
+    sprite.position = .{0, 0};
+    sprite.width = width;
+    sprite.height = height;
+    sprite.anchor = anchor;
+    sprite.tint = tint;
+
+    vertices :: float.[
+        // top left
+        -1.0, -1.0,
+        0.0, 0.0,
+        // bottom left
+        -1.0, 1.0,
+        0.0, 1.0,
+        // bottom right
+        1.0, 1.0,
+        1.0, 1.0,
+        // top right
+        1.0, -1.0,
+        1.0, 0.0,
+    ];
+    indices :: u32.[
+        0, 1, 2,
+        0, 2, 3,
+    ];
+
+    // TODO I can probably reuse all this right?
+    glGenVertexArrays(1, *sprite.vao_);
+    glGenBuffers(1, *sprite.vbo_);
+    glGenBuffers(1, *sprite.ebo_);
+
+    glBindVertexArray(sprite.vao_);
+    defer glBindVertexArray(0);
+
+    glBindBuffer(GL_ARRAY_BUFFER, sprite.vbo_);
+    glBufferData(GL_ARRAY_BUFFER, size_of(type_of(vertices)), vertices.data, GL_STATIC_DRAW);
+
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, sprite.ebo_);
+    glBufferData(GL_ELEMENT_ARRAY_BUFFER, size_of(type_of(indices)), indices.data, GL_STATIC_DRAW);
+
+    // position attribute
+    glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 4 * size_of(float), cast(*void) 0);
+    glEnableVertexAttribArray(0);
+
+    // texture coord attribute
+    glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 4 * size_of(float), cast(*void) (2 * size_of(float)));
+    glEnableVertexAttribArray(1);
+
+    return sprite;
+}
+
+// TODO I dont think this needs to be a pointer because the ebo, vbo, vao don't actually use pointers its for arrays right?
+destroy_sprite :: (sprite: *Sprite) {
+    glDeleteBuffers(1, *sprite.ebo_);
+    glDeleteBuffers(1, *sprite.vbo_);
+    glDeleteVertexArrays(1, *sprite.vao_);
+
+    free(*sprite_ids, cast(int) sprite.id);
+}
+
+set_scale :: (sprite: *Sprite, scale: Vector2) {
+    sprite.width = sprite.texture.width * scale.x;
+    sprite.height = sprite.texture.height * scale.y;
+}
+
+draw_sprite :: (sprite: Sprite, position: Vector2) {
+    // TODO don't do it this way?
+    new := sprite;
+    new.position = position;
+
+    draw_sprite(new);
+}
+
+draw_sprite :: (sprite: Sprite) {
+    glActiveTexture(GL_TEXTURE0);
+    glBindTexture(GL_TEXTURE_2D, sprite.texture.texture);
+    defer glBindTexture(GL_TEXTURE_2D, 0);
+
+    use_shader(*default_shader);
+
+    projection := orthographic_projection_matrix(0.0, xx koda.width, xx koda.height, 0.0, -1.0, 1.0); 
+    model := matrix4_identity();
+    view := koda.transform; // matrix4_identity();
+    
+    glUniform1i(get_uniform_location(default_shader, "uTexture"), 0);
+
+    // TODO don't need _11
+    glUniformMatrix4fv(get_uniform_location(default_shader, "projection"), 1, GL_TRUE, xx *projection);
+    glUniformMatrix4fv(get_uniform_location(default_shader, "model"), 1, GL_TRUE, xx *model);
+    glUniformMatrix4fv(get_uniform_location(default_shader, "view"), 1, GL_TRUE, xx *view);
+
+    position := sprite.position - sprite.anchor * xy(abs(sprite.width), abs(sprite.height));
+    texture_frame := sprite.texture_frame;
+    if sprite.width < 0 {
+        texture_frame.x += texture_frame.z;
+        texture_frame.z = -texture_frame.z;
+    }
+    if sprite.height < 0 {
+        texture_frame.y += texture_frame.w;
+        texture_frame.w = -texture_frame.w;
+    }
+    glUniform2f(get_uniform_location(default_shader, "uPos"), position.x, position.y);
+    glUniform2f(get_uniform_location(default_shader, "uDim"), abs(sprite.width), abs(sprite.height));
+    // glUniform2f(get_uniform_location(default_shader, "uOriginalDim"), xx sprite.texture.width, xx sprite.texture.height);
+    glUniform2f(get_uniform_location(default_shader, "uScreenDim"), xx koda.width, xx koda.height);
+    glUniform4f(get_uniform_location(default_shader, "uTint"), sprite.tint.r, sprite.tint.g, sprite.tint.b, sprite.tint.a);
+    glUniform4f(get_uniform_location(default_shader, "uFrame"), texture_frame.x, texture_frame.y, texture_frame.z, texture_frame.w);
+
+    glBindVertexArray(sprite.vao_);
+    defer glBindVertexArray(0);
+
+    glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, null);
+}
+
+#scope_file
+
+sprite_ids: CircleAllocator(u8);
+
+#import "Math";
+#import "JaiMath";
+// #import "KodaPhysics";
+Render :: #import "Render";

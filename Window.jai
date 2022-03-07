@@ -1,0 +1,161 @@
+init :: () {
+    glfwSetErrorCallback(error_callback);
+    if !glfwInit() {
+        print("Exited because glfw could not initialize.\n");
+        exit(-1);
+    }
+
+    // initialize time safely?
+    get_time();
+
+    koda.initialized = true;
+}
+
+create_window :: (title: *u8, width: s32, height: s32) {
+    if !koda.initialized {
+        print("Cannot create window before initializing.\n");
+        return;
+    }
+
+    monitor_width := width;
+    monitor_height := height;
+    monitor := glfwGetPrimaryMonitor();
+    if monitor {
+        video_mode := glfwGetVideoMode(monitor);
+        if video_mode {
+            monitor_width = video_mode.width;
+            monitor_height = video_mode.height;
+        }
+    }
+
+    glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, MINIMUM_GL_MAJOR_VERSION);
+    glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, MINIMUM_GL_MINOR_VERSION);
+    koda.window = glfwCreateWindow(width, height, title, null, null);
+    if !koda.window {
+        glfwTerminate();
+        print("Cannot create window.\n");
+        return;
+    }
+
+    glfwSetWindowPos(koda.window, (monitor_width - width) / 2, (monitor_height - height) / 2);
+
+    glfwMakeContextCurrent(koda.window);
+    gl_load(*gl, glfwGetProcAddress);
+
+    // glfwSetInputMode(koda.window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
+    glfwSetInputMode(koda.window, GLFW_STICKY_MOUSE_BUTTONS, GLFW_TRUE);
+    glfwSetInputMode(koda.window, GLFW_STICKY_KEYS, GLFW_TRUE);
+    // glfwSetCursorPos(koda.window, width / 2.0, height / 2.0);
+    glfwSetScrollCallback(koda.window, scroll_callback);
+
+    set_vsync(false);
+    set_target_fps(0);
+
+    koda.width = width;
+    koda.height = height;
+    koda.last_width_ = width;
+    koda.last_height_ = height;
+    glViewport(0, 0, xx width, xx height);
+
+    glEnable(GL_BLEND);
+    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+
+    glFrontFace(GL_CCW);
+    glDisable(GL_DEPTH_TEST);
+    glDisable(GL_CULL_FACE);
+
+    // TODO
+    // glEnable(GL_SCISSOR_TEST);
+
+    // koda.shader = get_shader_program(DEFAULT_VERTEX_SHADER, DEFAULT_FRAGMENT_SHADER);
+    // default_ellipse_shader = get_shader_program(DEFAULT_ELLIPSE_VERTEX_SHADER, DEFAULT_ELLIPSE_FRAGMENT_SHADER);
+
+    koda.static_sprite_ = create_sprite(.{}, 0, 0);
+}
+
+get_window :: () -> *GLFWwindow {
+    return koda.window;
+}
+
+destroy_window :: () {
+    glfwDestroyWindow(koda.window);
+    glfwTerminate();
+}
+
+set_vsync :: (vsync: bool) {
+    koda.time_tracker.vsync = vsync;
+    glfwSwapInterval(xx (ifx vsync then 1 else 0));
+}
+
+set_target_fps :: (target: float) {
+    koda.time_tracker.target_fps = target;
+}
+
+// update_inputs :: () {
+
+// }
+
+should_exit :: () -> bool {
+    exit := glfwWindowShouldClose(koda.window) == GLFW_TRUE;
+
+    time := get_time();
+    tick_frame_tracker(*koda.frame_tracker, time);
+
+    // TODO sleep_milliseconds is garbage on windows, use something else like locks and threads
+
+    // sleep if desired
+    if !koda.time_tracker.vsync && koda.time_tracker.target_fps > 0 {
+        desired_tick_duration := cast(float64) 1000.0 / cast(float64) koda.time_tracker.target_fps;
+
+        last_loop_time := koda.time_tracker.last_loop_time;
+        if last_loop_time > 0 {
+            last_tick_duration := (time - last_loop_time) * 1000.0;
+            desired_sleep_time := max(desired_tick_duration - last_tick_duration, 0.0);
+
+            if desired_sleep_time > 0 {
+                sleep_milliseconds(cast(s32) desired_sleep_time);
+            }
+        }
+    }
+    koda.time_tracker.last_loop_time = time;
+    
+    // TODO is this the right place for this?
+    if !exit {
+        glfwPollEvents();
+    }
+
+    return exit;
+}
+
+begin :: () {
+    glfwGetFramebufferSize(koda.window, *koda.width, *koda.height);
+    if koda.last_width_ != koda.width || koda.last_height_ != koda.height {
+        glViewport(0, 0, xx koda.width, xx koda.height);
+    }
+}
+
+end :: () {
+    glfwSwapBuffers(koda.window);
+}
+
+clear :: (color: Color) {
+    glClearColor(color.r, color.g, color.b, color.a);
+    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+}
+
+#scope_file
+
+error_callback :: (error: s32, description: *u8) #c_call {
+    new_context: Context;
+    push_context new_context {
+        print("GLFW error: % %\n", error, to_string(description));
+    }
+}
+
+MINIMUM_GL_MAJOR_VERSION: s32 : 3;
+MINIMUM_GL_MINOR_VERSION: s32 : 3;
+
+#import "GL";
+#import "glfw";
+#import "Math";
+#import "Basic";
