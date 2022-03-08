@@ -76,7 +76,7 @@ get_uniform_location :: (shader: Shader, name: *u8) -> GLint {
 }
 
 use_shader :: (shader: *Shader) {
-    if << shader == koda.shader {
+    if koda.shader != null && << shader == << koda.shader {
         // print("Early returning shader apply.\n%\n%\n", shader.vertex, koda.shader.vertex);
         return;
     }
@@ -92,7 +92,7 @@ use_shader :: (shader: *Shader) {
 
     glUseProgram(shader.program_);
 
-    koda.shader = << shader;
+    koda.shader = shader;
 }
 
 #scope_module

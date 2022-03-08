@@ -22,7 +22,7 @@ koda: struct {
     last_height_: s32;
     frame_tracker: FrameTracker;
     time_tracker: TimeTracker;
-    shader: Shader;
+    shader: *Shader;
     transform: Matrix4 = Matrix4Identity;
     static_sprite_: Sprite;
 };
