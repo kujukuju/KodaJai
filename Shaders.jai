@@ -65,18 +65,19 @@ initialize_shader :: (shader: *Shader) -> bool {
 
 get_uniform_location :: (shader: Shader, name: *u8) -> GLint {
     location := glGetUniformLocation(shader.program_, name);
-    print("Shader program. %\n", shader.program_);
-    if location == -1 {
-        print("Could not get uniform location.\n%\n%\n%\n%\n", location, shader.program_, get_string(name), shader.vertex);
-        assert(false);
-    }
+    // TODO apparently we don't care if it returns -1?
+    // print("Shader program. %\n", shader.program_);
+    // if location == -1 {
+    //     print("Could not get uniform location.\n%\n%\n%\n%\n", location, shader.program_, get_string(name), shader.vertex);
+    //     assert(false);
+    // }
 
     return location;
 }
 
 use_shader :: (shader: *Shader) {
     if << shader == koda.shader {
-        print("Early returning shader apply.\n%\n%\n", shader.vertex, koda.shader.vertex);
+        // print("Early returning shader apply.\n%\n%\n", shader.vertex, koda.shader.vertex);
         return;
     }
 
