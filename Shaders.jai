@@ -1,11 +1,233 @@
 Shader :: struct {
     vertex: string;
     fragment: string;
+    uniforms: [] ShaderUniform;
     program_: GLuint;
+}
+
+ShaderUniform :: struct {
+    name: FixedString(128);
+    type: ShaderUniformType;
+    f1: float;
+    f2: Vector2;
+    f3: Vector3;
+    f4: Vector4;
+    s1: s32;
+    s2: [2] s32;
+    s3: [3] s32;
+    s4: [4] s32;
+    vf1: [..] float;
+    vf2: [..] Vector2;
+    vf3: [..] Vector3;
+    vf4: [..] Vector4;
+    vs1: [..] s32;
+    vs2: [..] [2] s32;
+    vs3: [..] [3] s32;
+    vs4: [..] [4] s32;
+    vu1: [..] u32;
+    vu2: [..] [2] u32;
+    vu3: [..] [3] u32;
+    vu4: [..] [4] u32;
+    m2: Matrix2;
+    m3: Matrix3;
+    m4: Matrix4;
+    vm2: [..] Matrix2;
+    vm3: [..] Matrix3;
+    vm4: [..] Matrix4;
+
+}
+
+ShaderUniformType :: enum {
+    F1;
+    F2;
+    F3;
+    F4;
+    S1;
+    S2;
+    S3;
+    S4;
+    VF1;
+    VF2;
+    VF3;
+    VF4;
+    VS1;
+    VS2;
+    VS3;
+    VS4;
+    VU1;
+    VU2;
+    VU3;
+    VU4;
+    M2;
+    M3;
+    M4;
+    VM2;
+    VM3;
+    VM4;
 }
 
 operator == :: (a: Shader, b: Shader) -> bool {
     return a.vertex == b.vertex && a.fragment == b.fragment;
+}
+
+get_uniform :: (shader: *Shader, name: string) -> *ShaderUniform {
+    for i: 0..shader.uniforms.count - 1 {
+        if temp_string(shader.uniforms[i].name) == name {
+            return *shader.uniforms[i];
+        }
+    }
+
+    return null;
+}
+
+add_uniform :: (shader: *Shader, uniform: ShaderUniform) {
+    array_add(*shader.uniforms, uniform);
+}
+
+set_uniform :: (shader: *Shader, name: string, data: float) {
+    uniform_type :: ShaderUniformType.F1;
+
+    uniform: *ShaderUniform = get_uniform(shader, name);
+    if uniform {
+        assert(uniform_type == uniform.type, "Uniform types must match.");
+        uniform.f1 = data;
+    } else {
+        uniform: ShaderUniform;
+        uniform.name = to_fixed_string(name);
+        uniform.type = uniform_type;
+        uniform.f1 = data;
+
+        add_uniform(*shader, uniform);
+    }
+}
+
+set_uniform :: (shader: *Shader, name: string, data: Vector2) {
+    uniform_type :: ShaderUniformType.F2;
+
+    uniform: *ShaderUniform = get_uniform(shader, name);
+    if uniform {
+        assert(uniform_type == uniform.type, "Uniform types must match.");
+        uniform.f2 = data;
+    } else {
+        uniform: ShaderUniform;
+        uniform.name = to_fixed_string(name);
+        uniform.type = uniform_type;
+        uniform.f2 = data;
+
+        add_uniform(*shader, uniform);
+    }
+}
+
+set_uniform :: (shader: *Shader, name: string, data: Vector3) {
+    
+}
+
+set_uniform :: (shader: *Shader, name: string, data: Vector4) {
+    
+}
+
+set_uniform :: (shader: *Shader, name: string, data: s32) {
+    
+}
+
+set_uniform :: (shader: *Shader, name: string, data: [2] s32) {
+    
+}
+
+set_uniform :: (shader: *Shader, name: string, data: [3] s32) {
+    
+}
+
+set_uniform :: (shader: *Shader, name: string, data: [4] s32) {
+    
+}
+
+set_uniform :: (shader: *Shader, name: string, data: u32) {
+    
+}
+
+set_uniform :: (shader: *Shader, name: string, data: [2] u32) {
+    
+}
+
+set_uniform :: (shader: *Shader, name: string, data: [3] u32) {
+    
+}
+
+set_uniform :: (shader: *Shader, name: string, data: [4] u32) {
+    
+}
+
+set_uniform :: (shader: *Shader, name: string, data: [] float) {
+    
+}
+
+set_uniform :: (shader: *Shader, name: string, data: [] Vector2) {
+    
+}
+
+set_uniform :: (shader: *Shader, name: string, data: [] Vector3) {
+    
+}
+
+set_uniform :: (shader: *Shader, name: string, data: [] Vector4) {
+    
+}
+
+set_uniform :: (shader: *Shader, name: string, data: [] s32) {
+    
+}
+
+set_uniform :: (shader: *Shader, name: string, data: [] [2] s32) {
+    
+}
+
+set_uniform :: (shader: *Shader, name: string, data: [] [3] s32) {
+    
+}
+
+set_uniform :: (shader: *Shader, name: string, data: [] [4] s32) {
+    
+}
+
+set_uniform :: (shader: *Shader, name: string, data: [] u32) {
+    
+}
+
+set_uniform :: (shader: *Shader, name: string, data: [] [2] u32) {
+    
+}
+
+set_uniform :: (shader: *Shader, name: string, data: [] [3] u32) {
+    
+}
+
+set_uniform :: (shader: *Shader, name: string, data: [] [4] u32) {
+    
+}
+
+set_uniform :: (shader: *Shader, name: string, data: Matrix2) {
+    
+}
+
+set_uniform :: (shader: *Shader, name: string, data: Matrix3) {
+    
+}
+
+set_uniform :: (shader: *Shader, name: string, data: Matrix4) {
+    
+}
+
+set_uniform :: (shader: *Shader, name: string, data: [] Matrix2) {
+    
+}
+
+set_uniform :: (shader: *Shader, name: string, data: [] Matrix3) {
+    
+}
+
+set_uniform :: (shader: *Shader, name: string, data: [] Matrix4) {
+    
 }
 
 initialize_shader :: (shader: *Shader) -> bool {
@@ -93,6 +315,10 @@ use_shader :: (shader: *Shader) {
     glUseProgram(shader.program_);
 
     koda.shader = shader;
+}
+
+free :: (shader: Shader) {
+
 }
 
 #scope_module

@@ -33,12 +33,14 @@ KODA_ASSET_PATH :: #run tprint("%assets/", #filepath);
 default_shader := Shader.{
     DEFAULT_VERTEX_SHADER,
     DEFAULT_FRAGMENT_SHADER,
+    .[],
     0,
 };
 
 default_ellipse_shader := Shader.{
     DEFAULT_ELLIPSE_VERTEX_SHADER,
     DEFAULT_ELLIPSE_FRAGMENT_SHADER,
+    .[],
     0,
 };
 
