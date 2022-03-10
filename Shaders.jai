@@ -1,43 +1,20 @@
 Shader :: struct {
     vertex: string;
     fragment: string;
-    uniforms: [] ShaderUniform;
+    uniforms: [..] ShaderUniform;
     program_: GLuint;
 }
 
 ShaderUniform :: struct {
-    name: FixedString(128);
+    name: string;
+    location: GLint = -1;
     type: ShaderUniformType;
-    f1: float;
-    f2: Vector2;
-    f3: Vector3;
-    f4: Vector4;
-    s1: s32;
-    s2: [2] s32;
-    s3: [3] s32;
-    s4: [4] s32;
-    vf1: [..] float;
-    vf2: [..] Vector2;
-    vf3: [..] Vector3;
-    vf4: [..] Vector4;
-    vs1: [..] s32;
-    vs2: [..] [2] s32;
-    vs3: [..] [3] s32;
-    vs4: [..] [4] s32;
-    vu1: [..] u32;
-    vu2: [..] [2] u32;
-    vu3: [..] [3] u32;
-    vu4: [..] [4] u32;
-    m2: Matrix2;
-    m3: Matrix3;
-    m4: Matrix4;
-    vm2: [..] Matrix2;
-    vm3: [..] Matrix3;
-    vm4: [..] Matrix4;
-
+    data: *void;
+    size: int;
 }
 
 ShaderUniformType :: enum {
+    Invalid;
     F1;
     F2;
     F3;
@@ -46,6 +23,10 @@ ShaderUniformType :: enum {
     S2;
     S3;
     S4;
+    U1;
+    U2;
+    U3;
+    U4;
     VF1;
     VF2;
     VF3;
@@ -70,164 +51,89 @@ operator == :: (a: Shader, b: Shader) -> bool {
     return a.vertex == b.vertex && a.fragment == b.fragment;
 }
 
-get_uniform :: (shader: *Shader, name: string) -> *ShaderUniform {
-    for i: 0..shader.uniforms.count - 1 {
-        if temp_string(shader.uniforms[i].name) == name {
-            return *shader.uniforms[i];
-        }
+free :: (shader: Shader) {
+    free(shader.vertex);
+    free(shader.fragment);
+    for uniform: shader.uniforms {
+        free(uniform);
     }
 
-    return null;
+    glDeleteProgram(shader.program_);
 }
 
-add_uniform :: (shader: *Shader, uniform: ShaderUniform) {
-    array_add(*shader.uniforms, uniform);
+free :: (uniform: ShaderUniform) {
+    free(uniform.name);
+    free(uniform.data);
 }
 
-set_uniform :: (shader: *Shader, name: string, data: float) {
-    uniform_type :: ShaderUniformType.F1;
-
-    uniform: *ShaderUniform = get_uniform(shader, name);
-    if uniform {
-        assert(uniform_type == uniform.type, "Uniform types must match.");
-        uniform.f1 = data;
-    } else {
-        uniform: ShaderUniform;
-        uniform.name = to_fixed_string(name);
-        uniform.type = uniform_type;
-        uniform.f1 = data;
-
-        add_uniform(*shader, uniform);
+set_uniform :: (shader: *Shader, name: string, data: $T) {
+    #if #run type_info(T).type == .ARRAY {
+        assert(false, "Cannot set a uniform array using this function.");
     }
-}
 
-set_uniform :: (shader: *Shader, name: string, data: Vector2) {
-    uniform_type :: ShaderUniformType.F2;
-
-    uniform: *ShaderUniform = get_uniform(shader, name);
-    if uniform {
-        assert(uniform_type == uniform.type, "Uniform types must match.");
-        uniform.f2 = data;
-    } else {
-        uniform: ShaderUniform;
-        uniform.name = to_fixed_string(name);
-        uniform.type = uniform_type;
-        uniform.f2 = data;
-
-        add_uniform(*shader, uniform);
+    #if #run T == s64 {
+        set_uniform(shader, name, cast(s32) data);
+        return;
     }
+
+    size := size_of(T);
+    type := get_uniform_type(T);
+    set_uniform_data(shader, name, *data, size, type);
 }
 
-set_uniform :: (shader: *Shader, name: string, data: Vector3) {
-    
+set_uniform :: (shader: *Shader, name: string, data: [] $T) {
+    size := data.count * size_of(T);
+    type := get_uniform_array_type(T);
+    set_uniform_data(shader, name, data.data, size, type);
 }
 
-set_uniform :: (shader: *Shader, name: string, data: Vector4) {
-    
+get_uniform_type :: ($T: Type) -> ShaderUniformType {
+    #insert #run () -> string {
+        if T == float return "return .F1;";
+        if T == Vector2 return "return .F2;";
+        if T == Vector3 return "return .F3;";
+        if T == Vector4 return "return .F4;";
+        if T == Color return "return .F4;";
+        if T == s32 return "return .S1;";
+        if T == [2] s32 return "return .S2;";
+        if T == [3] s32 return "return .S3;";
+        if T == [4] s32 return "return .S4;";
+        if T == u32 return "return .U1;";
+        if T == [2] u32 return "return .U2;";
+        if T == [3] u32 return "return .U3;";
+        if T == [4] u32 return "return .U4;";
+        if T == Matrix2 return "return .M2;";
+        if T == Matrix3 return "return .M3;";
+        if T == Matrix4 return "return .M4;";
+        // print("Invalid uniform type: %\n", T);
+        return #string DONE
+        assert(false, tprint("Invalid unform type. %", T));
+        return .Invalid;
+        DONE;
+    }();
 }
 
-set_uniform :: (shader: *Shader, name: string, data: s32) {
-    
-}
-
-set_uniform :: (shader: *Shader, name: string, data: [2] s32) {
-    
-}
-
-set_uniform :: (shader: *Shader, name: string, data: [3] s32) {
-    
-}
-
-set_uniform :: (shader: *Shader, name: string, data: [4] s32) {
-    
-}
-
-set_uniform :: (shader: *Shader, name: string, data: u32) {
-    
-}
-
-set_uniform :: (shader: *Shader, name: string, data: [2] u32) {
-    
-}
-
-set_uniform :: (shader: *Shader, name: string, data: [3] u32) {
-    
-}
-
-set_uniform :: (shader: *Shader, name: string, data: [4] u32) {
-    
-}
-
-set_uniform :: (shader: *Shader, name: string, data: [] float) {
-    
-}
-
-set_uniform :: (shader: *Shader, name: string, data: [] Vector2) {
-    
-}
-
-set_uniform :: (shader: *Shader, name: string, data: [] Vector3) {
-    
-}
-
-set_uniform :: (shader: *Shader, name: string, data: [] Vector4) {
-    
-}
-
-set_uniform :: (shader: *Shader, name: string, data: [] s32) {
-    
-}
-
-set_uniform :: (shader: *Shader, name: string, data: [] [2] s32) {
-    
-}
-
-set_uniform :: (shader: *Shader, name: string, data: [] [3] s32) {
-    
-}
-
-set_uniform :: (shader: *Shader, name: string, data: [] [4] s32) {
-    
-}
-
-set_uniform :: (shader: *Shader, name: string, data: [] u32) {
-    
-}
-
-set_uniform :: (shader: *Shader, name: string, data: [] [2] u32) {
-    
-}
-
-set_uniform :: (shader: *Shader, name: string, data: [] [3] u32) {
-    
-}
-
-set_uniform :: (shader: *Shader, name: string, data: [] [4] u32) {
-    
-}
-
-set_uniform :: (shader: *Shader, name: string, data: Matrix2) {
-    
-}
-
-set_uniform :: (shader: *Shader, name: string, data: Matrix3) {
-    
-}
-
-set_uniform :: (shader: *Shader, name: string, data: Matrix4) {
-    
-}
-
-set_uniform :: (shader: *Shader, name: string, data: [] Matrix2) {
-    
-}
-
-set_uniform :: (shader: *Shader, name: string, data: [] Matrix3) {
-    
-}
-
-set_uniform :: (shader: *Shader, name: string, data: [] Matrix4) {
-    
+get_uniform_array_type :: ($T: Type) -> ShaderUniformType {
+    #insert #run () -> string {
+        if T == float return "return .VF1;";
+        if T == Vector2 return "return .VF2;";
+        if T == Vector3 return "return .VF3;";
+        if T == Vector4 return "return .VF4;";
+        if T == s32 return "return .VS1;";
+        if T == [2] s32 return "return .VS2;";
+        if T == [3] s32 return "return .VS3;";
+        if T == [4] s32 return "return .VS4;";
+        if T == u32 return "return .VU1;";
+        if T == [2] u32 return "return .VU2;";
+        if T == [3] u32 return "return .VU3;";
+        if T == [4] u32 return "return .VU4;";
+        if T == Matrix2 return "return .VM2;";
+        if T == Matrix3 return "return .VM3;";
+        if T == Matrix4 return "return .VM4;";
+        
+        print("Uniform array type: %\n", T);
+        assert(false, "Invalid uniform array type.");
+    }();
 }
 
 initialize_shader :: (shader: *Shader) -> bool {
@@ -285,6 +191,7 @@ initialize_shader :: (shader: *Shader) -> bool {
     return true;
 }
 
+// TODO delete
 get_uniform_location :: (shader: Shader, name: *u8) -> GLint {
     location := glGetUniformLocation(shader.program_, name);
     // TODO apparently we don't care if it returns -1?
@@ -298,11 +205,6 @@ get_uniform_location :: (shader: Shader, name: *u8) -> GLint {
 }
 
 use_shader :: (shader: *Shader) {
-    if koda.shader != null && << shader == << koda.shader {
-        // print("Early returning shader apply.\n%\n%\n", shader.vertex, koda.shader.vertex);
-        return;
-    }
-
     if !shader.program_ {
         print("Initializing shader.\n%\n", shader.vertex);
         
@@ -310,6 +212,15 @@ use_shader :: (shader: *Shader) {
             print("Error applying shader. %\n", << shader);
             return;
         }
+
+        for *uniform: shader.uniforms {
+            update_uniform_location(<< shader, uniform);
+        }
+    }
+
+    if koda.shader != null && << shader == << koda.shader {
+        // print("Early returning shader apply.\n%\n%\n", shader.vertex, koda.shader.vertex);
+        return;
     }
 
     glUseProgram(shader.program_);
@@ -317,8 +228,10 @@ use_shader :: (shader: *Shader) {
     koda.shader = shader;
 }
 
-free :: (shader: Shader) {
-
+apply_uniforms :: (shader: Shader) {
+    for uniform: shader.uniforms {
+        apply_uniform(uniform);
+    }
 }
 
 #scope_module
@@ -419,5 +332,152 @@ void main() {
 DONE
 
 #scope_file
+
+get_uniform :: (shader: *Shader, name: string) -> *ShaderUniform {
+    for i: 0..shader.uniforms.count - 1 {
+        if shader.uniforms[i].name == name {
+            return *shader.uniforms[i];
+        }
+    }
+
+    return null;
+}
+
+set_uniform_data :: (shader: *Shader, name: string, pointer: *void, size: int, type: ShaderUniformType) {
+    uniform: *ShaderUniform = get_uniform(shader, name);
+    if !uniform {
+        empty: ShaderUniform;
+        empty.name = copy_string(name);
+        empty.type = type;
+        empty.data = alloc(size);
+        empty.size = size;
+
+        array_add(*shader.uniforms, empty);
+        uniform = *shader.uniforms[shader.uniforms.count - 1];
+    } else {
+        assert(uniform.type == type, "You cannot change the types of uniforms between calls.");
+        assert(uniform.size == size, "I don't think you can change the size of uniforms between calls?");
+    }
+
+    update_uniform_location(<< shader, uniform);
+
+    // if uniform.size != size {
+        // free(uniform.data);
+        // uniform.data = alloc(size);
+        // uniform.size = size;
+    // }
+
+    memcpy(uniform.data, pointer, size);
+}
+
+update_uniform_location :: (shader: Shader, uniform: *ShaderUniform) {
+    if uniform.location != -1 || shader.program_ == 0 {
+        return;
+    }
+
+    name := temp_c_string(uniform.name);
+    uniform.location = glGetUniformLocation(shader.program_, name);
+}
+
+apply_uniform :: (uniform: ShaderUniform) {
+    if uniform.location == -1 {
+        return;
+    }
+
+    if uniform.type == {
+        case .F1;
+            data := << cast(*float) uniform.data;
+            glUniform1f(uniform.location, data);
+        case .F2;
+            data := cast(*Vector2) uniform.data;
+            glUniform2f(uniform.location, data.x, data.y);
+        case .F3;
+            data := cast(*Vector3) uniform.data;
+            glUniform3f(uniform.location, data.x, data.y, data.z);
+        case .F4;
+            data := cast(*Vector4) uniform.data;
+            glUniform4f(uniform.location, data.x, data.y, data.z, data.w);
+        case .S1;
+            data := << cast(*s32) uniform.data;
+            glUniform1i(uniform.location, data);
+        case .S2;
+            data := << cast(*[2] s32) uniform.data;
+            glUniform2i(uniform.location, data[0], data[1]);
+        case .S3;
+            data := << cast(*[3] s32) uniform.data;
+            glUniform3i(uniform.location, data[0], data[1], data[2]);
+        case .S4;
+            data := << cast(*[4] s32) uniform.data;
+            glUniform4i(uniform.location, data[0], data[1], data[2], data[3]);
+        case .U1;
+            data := << cast(*u32) uniform.data;
+            glUniform1ui(uniform.location, data);
+        case .U2;
+            data := << cast(*[2] u32) uniform.data;
+            glUniform2ui(uniform.location, data[0], data[1]);
+        case .U3;
+            data := << cast(*[3] u32) uniform.data;
+            glUniform3ui(uniform.location, data[0], data[1], data[2]);
+        case .U4;
+            data := << cast(*[4] u32) uniform.data;
+            glUniform4ui(uniform.location, data[0], data[1], data[2], data[3]);
+        case .VF1;
+            data := cast(*float) uniform.data;
+            glUniform1fv(uniform.location, cast(u32) uniform.size / size_of(float), data);
+        case .VF2;
+            data := cast(*float) uniform.data;
+            glUniform2fv(uniform.location, cast(u32) uniform.size / size_of(Vector2), data);
+        case .VF3;
+            data := cast(*float) uniform.data;
+            glUniform3fv(uniform.location, cast(u32) uniform.size / size_of(Vector3), data);
+        case .VF4;
+            data := cast(*float) uniform.data;
+            glUniform4fv(uniform.location, cast(u32) uniform.size / size_of(Vector4), data);
+        case .VS1;
+            data := cast(*s32) uniform.data;
+            glUniform1iv(uniform.location, cast(u32) uniform.size / size_of(s32), data);
+        case .VS2;
+            data := cast(*s32) uniform.data;
+            glUniform2iv(uniform.location, cast(u32) uniform.size / size_of([2] s32), data);
+        case .VS3;
+            data := cast(*s32) uniform.data;
+            glUniform3iv(uniform.location, cast(u32) uniform.size / size_of([3] s32), data);
+        case .VS4;
+            data := cast(*s32) uniform.data;
+            glUniform4iv(uniform.location, cast(u32) uniform.size / size_of([4] s32), data);
+        case .VU1;
+            data := cast(*u32) uniform.data;
+            glUniform1uiv(uniform.location, cast(u32) uniform.size / size_of(u32), data);
+        case .VU2;
+            data := cast(*u32) uniform.data;
+            glUniform2uiv(uniform.location, cast(u32) uniform.size / size_of([2] u32), data);
+        case .VU3;
+            data := cast(*u32) uniform.data;
+            glUniform3uiv(uniform.location, cast(u32) uniform.size / size_of([3] u32), data);
+        case .VU4;
+            data := cast(*u32) uniform.data;
+            glUniform4uiv(uniform.location, cast(u32) uniform.size / size_of([4] u32), data);
+        case .M2;
+            data := cast(*float) uniform.data;
+            glUniform2fv(uniform.location, 1, data);
+        case .M3;
+            data := cast(*float) uniform.data;
+            glUniform3fv(uniform.location, 1, data);
+        case .M4;
+            data := cast(*float) uniform.data;
+            glUniform4fv(uniform.location, 1, data);
+        case .VM2;
+            data := cast(*float) uniform.data;
+            glUniform2fv(uniform.location, cast(u32) uniform.size / size_of(Matrix2), data);
+        case .VM3;
+            data := cast(*float) uniform.data;
+            glUniform3fv(uniform.location, cast(u32) uniform.size / size_of(Matrix3), data);
+        case .VM4;
+            data := cast(*float) uniform.data;
+            glUniform4fv(uniform.location, cast(u32) uniform.size / size_of(Matrix4), data);
+        case;
+            assert(false, "Unknown uniform type.");
+    }
+}
 
 #import "Basic";

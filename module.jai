@@ -1,6 +1,8 @@
 #load "AnimatedSprite.jai";
 #load "CircleAllocator.jai";
 #load "Color.jai";
+#load "DefaultEllipseShader.jai";
+#load "DefaultShader.jai";
 #load "Enums.jai";
 #load "FramedSprite.jai";
 #load "Input.jai";
@@ -30,19 +32,8 @@ koda: struct {
 KODA_ASSET_PATH :: #run tprint("%assets/", #filepath);
 #run print("Koda asset path: %\n", KODA_ASSET_PATH);
 
-default_shader := Shader.{
-    DEFAULT_VERTEX_SHADER,
-    DEFAULT_FRAGMENT_SHADER,
-    .[],
-    0,
-};
-
-default_ellipse_shader := Shader.{
-    DEFAULT_ELLIPSE_VERTEX_SHADER,
-    DEFAULT_ELLIPSE_FRAGMENT_SHADER,
-    .[],
-    0,
-};
+default_shader: DefaultShader;
+default_ellipse_shader: DefaultEllipseShader;
 
 #scope_file
 
