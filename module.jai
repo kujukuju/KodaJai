@@ -9,6 +9,7 @@
 #load "Shaders.jai";
 #load "Shapes.jai";
 #load "Sprite.jai";
+#load "SwapBuffer.jai";
 #load "Text.jai";
 #load "Texture.jai";
 #load "Time.jai";

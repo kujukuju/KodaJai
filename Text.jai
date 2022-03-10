@@ -113,21 +113,19 @@ draw_text :: (text: Text) {
     model := matrix4_identity();
     view := koda.transform;
 
-    glUniform1i(get_uniform_location(default_shader, "uTexture"), 0);
+    set_uniform(*default_shader, "uTexture", 0);
 
-    glUniformMatrix4fv(get_uniform_location(default_shader, "projection"), 1, GL_TRUE, xx *projection);
-    glUniformMatrix4fv(get_uniform_location(default_shader, "model"), 1, GL_TRUE, xx *model);
-    glUniformMatrix4fv(get_uniform_location(default_shader, "view"), 1, GL_TRUE, xx *view);
+    set_uniform(*default_shader, "projection", projection);
+    set_uniform(*default_shader, "model", model);
+    set_uniform(*default_shader, "view", view);
 
-    glUniform2f(get_uniform_location(default_shader, "uPos"), text.position.x, text.position.y);
-    glUniform2f(get_uniform_location(default_shader, "uDim"), xx koda.width, xx koda.height);
-    // glUniform2f(get_uniform_location(default_shader, "uOriginalDim"), xx koda.width, xx koda.height);
-    // glUniform2f(get_uniform_location(default_shader, "uScreenDim"), xx koda.width, xx koda.height);
-    glUniform2f(glGetUniformLocation(koda.shader.program_, "uScreenDim"), xx koda.width, xx koda.height);
-    // glUniform4f(get_uniform_location(default_shader, "uTint"), text.tint.r, text.tint.g, text.tint.b, text.tint.a);
-    glUniform4f(glGetUniformLocation(koda.shader.program_, "uTint"), text.tint.r, text.tint.g, text.tint.b, text.tint.a);
-    // glUniform4f(get_uniform_location(default_shader, "uFrame"), 0, 0, 1, 1);
-    glUniform4f(glGetUniformLocation(koda.shader.program_, "uFrame"), 0, 0, 1, 1);
+    set_uniform(*default_shader, "uPos", text.position);
+    set_uniform(*default_shader, "uDim", xy(xx koda.width, xx koda.height));
+    set_uniform(*default_shader, "uScreenDim", xy(xx koda.width, xx koda.height));
+    set_uniform(*default_shader, "uTint", text.tint);
+    set_uniform(*default_shader, "uFrame", xyzw(0, 0, 1, 1));
+
+    apply_shader_uniforms();
 
     glDrawArrays(GL_TRIANGLES, 0, xx vertex_array.count);
 }

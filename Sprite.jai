@@ -130,7 +130,7 @@ draw_sprite :: (sprite: Sprite) {
     set_uniform(*default_shader, "uTint", sprite.tint);
     set_uniform(*default_shader, "uFrame", texture_frame);
 
-    apply_uniforms(<< koda.shader);
+    apply_shader_uniforms();
 
     glBindVertexArray(sprite.vao_);
     defer glBindVertexArray(0);

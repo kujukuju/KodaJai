@@ -73,18 +73,19 @@ draw_line :: (x1: float, y1: float, x2: float, y2: float, width: float = 1.0, co
     model := matrix4_identity();
     view := koda.transform;
 
-    glUniform1i(get_uniform_location(default_shader, "uTexture"), 0);
+    set_uniform(*default_shader, "uTexture", 0);
 
-    glUniformMatrix4fv(get_uniform_location(default_shader, "projection"), 1, GL_TRUE, xx *projection);
-    glUniformMatrix4fv(get_uniform_location(default_shader, "model"), 1, GL_TRUE, xx *model);
-    glUniformMatrix4fv(get_uniform_location(default_shader, "view"), 1, GL_TRUE, xx *view);
+    set_uniform(*default_shader, "projection", projection);
+    set_uniform(*default_shader, "model", model);
+    set_uniform(*default_shader, "view", view);
 
-    glUniform2f(get_uniform_location(default_shader, "uPos"), 0, 0);
-    glUniform2f(get_uniform_location(default_shader, "uDim"), xx koda.width, xx koda.height);
-    // glUniform2f(get_uniform_location(default_shader, "uOriginalDim"), xx koda.width, xx koda.height);
-    glUniform2f(get_uniform_location(default_shader, "uScreenDim"), xx koda.width, xx koda.height);
-    glUniform4f(get_uniform_location(default_shader, "uTint"), color.r, color.g, color.b, color.a);
-    glUniform4f(get_uniform_location(default_shader, "uFrame"), 0, 0, 1, 1);
+    set_uniform(*default_shader, "uPos", Vector2.{0, 0});
+    set_uniform(*default_shader, "uDim", xy(xx koda.width, xx koda.height));
+    set_uniform(*default_shader, "uOriginalDim", xy(xx koda.width, xx koda.height));
+    set_uniform(*default_shader, "uTint", color);
+    set_uniform(*default_shader, "uFrame", xyzw(0, 0, 1, 1));
+
+    apply_shader_uniforms();
 
     glDrawArrays(GL_TRIANGLES, 0, xx (vertices.count / 2));
 }
@@ -156,18 +157,19 @@ draw_rect :: (top_left: Vector2, dimensions: Vector2, color: Color = .{1, 1, 1, 
     model := matrix4_identity();
     view := koda.transform;
 
-    glUniform1i(get_uniform_location(default_shader, "uTexture"), 0);
+    set_uniform(*default_shader, "uTexture", 0);
 
-    glUniformMatrix4fv(get_uniform_location(default_shader, "projection"), 1, GL_TRUE, xx *projection);
-    glUniformMatrix4fv(get_uniform_location(default_shader, "model"), 1, GL_TRUE, xx *model);
-    glUniformMatrix4fv(get_uniform_location(default_shader, "view"), 1, GL_TRUE, xx *view);
+    set_uniform(*default_shader, "projection", projection);
+    set_uniform(*default_shader, "model", model);
+    set_uniform(*default_shader, "view", view);
 
-    glUniform2f(get_uniform_location(default_shader, "uPos"), 0, 0);
-    glUniform2f(get_uniform_location(default_shader, "uDim"), xx koda.width, xx koda.height);
-    // glUniform2f(get_uniform_location(default_shader, "uOriginalDim"), xx koda.width, xx koda.height);
-    glUniform2f(get_uniform_location(default_shader, "uScreenDim"), xx koda.width, xx koda.height);
-    glUniform4f(get_uniform_location(default_shader, "uTint"), color.r, color.g, color.b, color.a);
-    glUniform4f(get_uniform_location(default_shader, "uFrame"), 0, 0, 1, 1);
+    set_uniform(*default_shader, "uPos", Vector2.{0, 0});
+    set_uniform(*default_shader, "uDim", xy(xx koda.width, xx koda.height));
+    set_uniform(*default_shader, "uScreenDim", xy(xx koda.width, xx koda.height));
+    set_uniform(*default_shader, "uTint", color);
+    set_uniform(*default_shader, "uFrame", xyzw(0, 0, 1, 1));
+
+    apply_shader_uniforms();
 
     glDrawArrays(GL_TRIANGLES, 0, xx (vertices.count / 2));
 
@@ -235,18 +237,19 @@ draw_polygon :: (points: [] Vector2, color: Color = .{1, 1, 1, 1}, border: Color
     model := matrix4_identity();
     view := koda.transform;
 
-    glUniform1i(get_uniform_location(default_shader, "uTexture"), 0);
+    set_uniform(*default_shader, "uTexture", 0);
 
-    glUniformMatrix4fv(get_uniform_location(default_shader, "projection"), 1, GL_TRUE, xx *projection);
-    glUniformMatrix4fv(get_uniform_location(default_shader, "model"), 1, GL_TRUE, xx *model);
-    glUniformMatrix4fv(get_uniform_location(default_shader, "view"), 1, GL_TRUE, xx *view);
+    set_uniform(*default_shader, "projection", projection);
+    set_uniform(*default_shader, "model", model);
+    set_uniform(*default_shader, "view", view);
 
-    glUniform2f(get_uniform_location(default_shader, "uPos"), 0, 0);
-    glUniform2f(get_uniform_location(default_shader, "uDim"), xx koda.width, xx koda.height);
-    // glUniform2f(get_uniform_location(default_shader, "uOriginalDim"), xx koda.width, xx koda.height);
-    glUniform2f(get_uniform_location(default_shader, "uScreenDim"), xx koda.width, xx koda.height);
-    glUniform4f(get_uniform_location(default_shader, "uTint"), color.r, color.g, color.b, color.a);
-    glUniform4f(get_uniform_location(default_shader, "uFrame"), 0, 0, 1, 1);
+    set_uniform(*default_shader, "uPos", Vector2.{0, 0});
+    set_uniform(*default_shader, "uDim", xy(xx koda.width, xx koda.height));
+    set_uniform(*default_shader, "uScreenDim", xy(xx koda.width, xx koda.height));
+    set_uniform(*default_shader, "uTint", color);
+    set_uniform(*default_shader, "uFrame", xyzw(0, 0, 1, 1));
+
+    apply_shader_uniforms();
 
     glDrawArrays(GL_TRIANGLE_FAN, 0, xx (vertices.count / 2));
 
@@ -345,17 +348,17 @@ draw_ellipse :: (center: Vector2, dimensions: Vector2, color: Color = .{1, 1, 1,
     model := matrix4_identity();
     view := koda.transform;
 
-    glUniformMatrix4fv(get_uniform_location(default_ellipse_shader, "projection"), 1, GL_TRUE, xx *projection);
-    glUniformMatrix4fv(get_uniform_location(default_ellipse_shader, "model"), 1, GL_TRUE, xx *model);
-    glUniformMatrix4fv(get_uniform_location(default_ellipse_shader, "view"), 1, GL_TRUE, xx *view);
+    set_uniform(*default_ellipse_shader, "projection", projection);
+    set_uniform(*default_ellipse_shader, "model", model);
+    set_uniform(*default_ellipse_shader, "view", view);
 
-    glUniform2f(get_uniform_location(default_ellipse_shader, "uPos"), 0, 0);
-    glUniform2f(get_uniform_location(default_ellipse_shader, "uDim"), xx koda.width, xx koda.height);
-    // glUniform2f(get_uniform_location(default_ellipse_shader, "uOriginalDim"), xx koda.width, xx koda.height);
-    glUniform2f(get_uniform_location(default_ellipse_shader, "uScreenDim"), xx koda.width, xx koda.height);
-    glUniform4f(get_uniform_location(default_ellipse_shader, "uTint"), color.r, color.g, color.b, color.a);
-    glUniform4f(get_uniform_location(default_ellipse_shader, "uBorderTint"), border.r, border.g, border.b, border.a);
-    glUniform4f(get_uniform_location(default_ellipse_shader, "uFrame"), 0, 0, 1, 1);
+    set_uniform(*default_ellipse_shader, "uPos", Vector2.{0, 0});
+    set_uniform(*default_ellipse_shader, "uDim", xy(xx koda.width, xx koda.height));
+    set_uniform(*default_ellipse_shader, "uScreenDim", xy(xx koda.width, xx koda.height));
+    set_uniform(*default_ellipse_shader, "uTint", color);
+    set_uniform(*default_ellipse_shader, "uFrame", xyzw(0, 0, 1, 1));
+
+    apply_shader_uniforms();
 
     glDrawArrays(GL_TRIANGLES, 0, xx (vertices.count / 2));
 }
