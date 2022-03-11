@@ -10,7 +10,8 @@ create_swap_buffer :: (size: int) -> SwapBuffer {
     // should I update to glCreateBuffers?
     glGenBuffers(1, *buffer.buffer);
     glBindBuffer(GL_TEXTURE_BUFFER, buffer.buffer);
-    glNamedBufferData(buffer.buffer, size, null, DYNAMIC_DRAW);
+    glTexBuffer(GL_TEXTURE_BUFFER, GL_R8, buffer.buffer);
+    glNamedBufferData(buffer.buffer, size, null, GL_DYNAMIC_DRAW);
 
     return buffer;
 }
@@ -20,9 +21,9 @@ destroy_swap_buffer :: (buffer: *SwapBuffer) {
     glDeleteBuffers(1, *buffer.buffer);
 }
 
-set_swap_buffer_data :: (buffer: SwapBuffer, data: [] u8) {
-    assert(buffer.size == data.size, "Buffer size must be the same.");
+set_swap_buffer_data :: (buffer: *SwapBuffer, data: [] u8) {
+    assert(buffer.size == data.count, tprint("Buffer size must be the same. % %\n", buffer.size, data.count));
 
-    glNamedBufferData(buffer.buffer, buffer.size, null, DYNAMIC_DRAW);
+    glNamedBufferData(buffer.buffer, buffer.size, null, GL_DYNAMIC_DRAW);
     glNamedBufferSubData(buffer.buffer, 0, buffer.size, data.data);
 }

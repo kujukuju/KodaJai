@@ -204,7 +204,7 @@ initialize_shader :: (shader: *Shader) -> bool {
     defer glDeleteShader(shader_f);
 
     if !success_v || !success_f || !shader.program_ {
-        print("[Shader] Failure initalizing shader. %\n", << shader);
+        print("[Shader] Failure initalizing shader.\n");
         assert(false);
         // return false;
     }
