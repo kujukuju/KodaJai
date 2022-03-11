@@ -4,13 +4,17 @@ SwapBuffer :: struct {
 }
 
 create_swap_buffer :: (size: int) -> SwapBuffer {
+    return create_swap_buffer(size, GL_R8);
+}
+
+create_swap_buffer :: (size: int, format: GLenum) -> SwapBuffer {
     buffer: SwapBuffer;
     buffer.size = size;
     
     // should I update to glCreateBuffers?
     glGenBuffers(1, *buffer.buffer);
     glBindBuffer(GL_TEXTURE_BUFFER, buffer.buffer);
-    glTexBuffer(GL_TEXTURE_BUFFER, GL_R8, buffer.buffer);
+    glTexBuffer(GL_TEXTURE_BUFFER, format, buffer.buffer);
     glNamedBufferData(buffer.buffer, size, null, GL_DYNAMIC_DRAW);
 
     return buffer;
