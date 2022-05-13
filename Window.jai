@@ -61,8 +61,8 @@ create_window :: (title: *u8, width: s32, height: s32) {
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
     glFrontFace(GL_CCW);
-    glDisable(GL_DEPTH_TEST);
-    glDisable(GL_CULL_FACE);
+    glEnable(GL_DEPTH_TEST);
+    glEnable(GL_CULL_FACE);
 
     // TODO
     // glEnable(GL_SCISSOR_TEST);
@@ -89,6 +89,42 @@ set_vsync :: (vsync: bool) {
 
 set_target_fps :: (target: float) {
     koda.time_tracker.target_fps = target;
+}
+
+set_front_face :: (ccw: bool) {
+    if ccw {
+        glFrontFace(GL_CCW);
+    } else {
+        glFrontFace(GL_CW);
+    }
+}
+
+set_depth_test :: (enabled: bool) {
+    if enabled {
+        glEnable(GL_DEPTH_TEST);
+    } else {
+        glDisable(GL_DEPTH_TEST);
+    }
+}
+
+set_cull_face :: (enabled: bool) {
+    if enabled {
+        glEnable(GL_CULL_FACE);
+    } else {
+        glDisable(GL_CULL_FACE);
+    }
+}
+
+set_mouse_captured :: (enabled: bool) {
+    if enabled {
+        glfwSetInputMode(koda.window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
+        glfwSetInputMode(koda.window, GLFW_STICKY_MOUSE_BUTTONS, GLFW_TRUE);
+        glfwSetInputMode(koda.window, GLFW_STICKY_KEYS, GLFW_TRUE);
+    } else {
+        glfwSetInputMode(koda.window, GLFW_CURSOR, GLFW_CURSOR_NORMAL);
+        glfwSetInputMode(koda.window, GLFW_STICKY_MOUSE_BUTTONS, GLFW_FALSE);
+        glfwSetInputMode(koda.window, GLFW_STICKY_KEYS, GLFW_FALSE);
+    }
 }
 
 // update_inputs :: () {

@@ -1,0 +1,3 @@
+Material :: struct {
+    texture: Texture;
+}

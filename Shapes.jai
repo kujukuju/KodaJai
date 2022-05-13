@@ -70,7 +70,7 @@ draw_line :: (x1: float, y1: float, x2: float, y2: float, width: float = 1.0, co
     use_shader(*default_shader);
 
     projection := orthographic_projection_matrix(0.0, xx koda.width, xx koda.height, 0.0, -1.0, 1.0); 
-    model := matrix4_identity();
+    model := Matrix4_Identity;
     view := koda.transform;
 
     set_uniform(*default_shader, "uTexture", 0);
@@ -154,7 +154,7 @@ draw_rect :: (top_left: Vector2, dimensions: Vector2, color: Color = .{1, 1, 1, 
     use_shader(*default_shader);
 
     projection := orthographic_projection_matrix(0.0, xx koda.width, xx koda.height, 0.0, -1.0, 1.0); 
-    model := matrix4_identity();
+    model := Matrix4_Identity;
     view := koda.transform;
 
     set_uniform(*default_shader, "uTexture", 0);
@@ -234,7 +234,7 @@ draw_polygon :: (points: [] Vector2, color: Color = .{1, 1, 1, 1}, border: Color
     use_shader(*default_shader);
 
     projection := orthographic_projection_matrix(0.0, xx koda.width, xx koda.height, 0.0, -1.0, 1.0); 
-    model := matrix4_identity();
+    model := Matrix4_Identity;
     view := koda.transform;
 
     set_uniform(*default_shader, "uTexture", 0);
@@ -345,7 +345,7 @@ draw_ellipse :: (center: Vector2, dimensions: Vector2, color: Color = .{1, 1, 1,
     use_shader(*default_ellipse_shader);
 
     projection := orthographic_projection_matrix(0.0, xx koda.width, xx koda.height, 0.0, -1.0, 1.0); 
-    model := matrix4_identity();
+    model := Matrix4_Identity;
     view := koda.transform;
 
     set_uniform(*default_ellipse_shader, "projection", projection);
@@ -356,6 +356,7 @@ draw_ellipse :: (center: Vector2, dimensions: Vector2, color: Color = .{1, 1, 1,
     set_uniform(*default_ellipse_shader, "uDim", xy(xx koda.width, xx koda.height));
     set_uniform(*default_ellipse_shader, "uScreenDim", xy(xx koda.width, xx koda.height));
     set_uniform(*default_ellipse_shader, "uTint", color);
+    set_uniform(*default_ellipse_shader, "uBorderTint", border);
     set_uniform(*default_ellipse_shader, "uFrame", xyzw(0, 0, 1, 1));
 
     apply_shader_uniforms();

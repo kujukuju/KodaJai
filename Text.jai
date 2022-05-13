@@ -110,7 +110,7 @@ draw_text :: (text: Text) {
     use_shader(*default_shader);
 
     projection := orthographic_projection_matrix(0.0, xx koda.width, xx koda.height, 0.0, -1.0, 1.0); 
-    model := matrix4_identity();
+    model := Matrix4_Identity;
     view := koda.transform;
 
     set_uniform(*default_shader, "uTexture", 0);

@@ -1,11 +1,20 @@
+#load "2d/Camera2.jai";
+
+#load "3d/Camera3.jai";
+#load "3d/Geometry.jai";
+#load "3d/GeometryVertex.jai";
+#load "3d/Mesh.jai";
+
 #load "AnimatedSprite.jai";
 #load "CircleAllocator.jai";
 #load "Color.jai";
 #load "DefaultEllipseShader.jai";
 #load "DefaultShader.jai";
+#load "DefaultShader3.jai";
 #load "Enums.jai";
 #load "FramedSprite.jai";
 #load "Input.jai";
+#load "Material.jai";
 #load "Shaders.jai";
 #load "Shapes.jai";
 #load "Sprite.jai";
@@ -34,8 +43,11 @@ KODA_ASSET_PATH :: #run tprint("%assets/", #filepath);
 #run print("Koda asset path: %\n", KODA_ASSET_PATH);
 
 default_shader: DefaultShader;
+default_shader3: DefaultShader3;
 default_ellipse_shader: DefaultEllipseShader;
+serializer: Serializer;
 
 #scope_file
 
 #load "Operators.jai";
+#load "../JaiSerializer/module.jai";
