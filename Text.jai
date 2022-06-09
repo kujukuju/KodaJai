@@ -31,7 +31,7 @@ draw_text :: (text: Text, position: Vector2) {
 }
 
 draw_text :: (text: Text) {
-    if !text.text {
+    if !text.text { 
         return;
     }
 

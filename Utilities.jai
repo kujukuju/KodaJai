@@ -17,7 +17,7 @@ get_string :: (s: *u8) -> string {
 get_default_text :: () -> Text {
     if !default_loaded {
         default_loaded = true;
-        default_text = create_text("", KODA_ASSET_PATH, "TriplexSans-Bold.otf", 24);
+        default_text = create_text("", get_koda_asset_path(), "TriplexSans-Bold.otf", 24);
     }
 
     return default_text;
@@ -26,7 +26,7 @@ get_default_text :: () -> Text {
 get_white_texture :: () -> Texture {
     if !white_texture_loaded {
         white_texture_loaded = true;
-        white_texture = load_texture(tprint("%white.png", KODA_ASSET_PATH));
+        white_texture = load_texture(tprint("%white.png", get_koda_asset_path()));
     }
 
     return white_texture;

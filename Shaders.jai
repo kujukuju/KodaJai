@@ -68,7 +68,8 @@ free :: (uniform: ShaderUniform) {
 
 set_uniform :: (shader: *Shader, name: string, data: $T) {
     #if #run type_info(T).type == .ARRAY {
-        assert(false, "Cannot set a uniform array using this function.");
+        // TODO I wish I didn't have to do this
+        set_uniform_array(shader, name, data);
     } else #if #run T == s64 {
         set_uniform(shader, name, cast(s32) data);
     } else {
@@ -78,7 +79,7 @@ set_uniform :: (shader: *Shader, name: string, data: $T) {
     }
 }
 
-set_uniform :: (shader: *Shader, name: string, data: [] $T) {
+set_uniform_array :: (shader: *Shader, name: string, data: [] $T) {
     size := data.count * size_of(T);
     type := get_uniform_array_type(T);
     set_uniform_data(shader, name, data.data, size, type);

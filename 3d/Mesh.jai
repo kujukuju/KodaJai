@@ -20,11 +20,11 @@ add_material :: (mesh: *Mesh, material: Material) {
     array_add(*mesh.materials, material);
 }
 
-draw_mesh :: (mesh: Mesh, position: Vector3, rotation: Quaternion) {
+draw_mesh :: (mesh: Mesh, position: Vector3 = .{}, rotation: Quaternion = .{}) {
     use_shader(*default_shader3);
 
     projection := make_frustum_matrix(-1.92, 1.92, -1.08, 1.08, 1.4, -1.4);
-    model := Matrix4_Identity;
+    model := make_translation_matrix4(position); // Matrix4_Identity;
     view := koda.transform;
 
     set_uniform(*default_shader3, "projection", projection);
@@ -44,4 +44,5 @@ draw_mesh :: (mesh: Mesh, position: Vector3, rotation: Quaternion) {
     glBindVertexArray(mesh.geometry.vao_);
     glDrawElements(GL_TRIANGLES, xx mesh.geometry.vertex_indices.count, GL_UNSIGNED_INT, xx 0);
     glBindVertexArray(0);
+    glBindTexture(GL_TEXTURE_2D, 0);
 }

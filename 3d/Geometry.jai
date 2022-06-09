@@ -5,38 +5,17 @@ Geometry :: struct {
 
     name: string;
     vertices: [..] GeometryVertex;
-    // vertices: [] Vector3;
-    // normal: [] Vector3;
-    // texture_coords: [] Vector3;
     vertex_indices: [..] u32;
-    // normal_indices: [] int;
-    // texure_indices: [] int;
 }
 
-gen_geometry :: (geometry: *Geometry) {
-    glGenVertexArrays(1, *geometry.vao_);
-    glGenBuffers(1, *geometry.vbo_);
-    glGenBuffers(1, *geometry.ebo_);
-  
-    glBindVertexArray(geometry.vao_);
+free :: (geometry: *Geometry) {
+    glDeleteBuffers(1, *geometry.ebo_);
+    glDeleteBuffers(1, *geometry.vbo_);
+    glDeleteVertexArrays(1, *geometry.vao_);
 
-    glBindBuffer(GL_ARRAY_BUFFER, geometry.vbo_);
-    glBufferData(GL_ARRAY_BUFFER, geometry.vertices.count * size_of(GeometryVertex), geometry.vertices.data, GL_STATIC_DRAW);  
-
-    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, geometry.ebo_);
-    glBufferData(GL_ELEMENT_ARRAY_BUFFER, geometry.vertex_indices.count * size_of(u32), geometry.vertex_indices.data, GL_STATIC_DRAW);
-
-    // vertex positions
-    glEnableVertexAttribArray(0);
-    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, size_of(GeometryVertex), cast(*void) 0);
-    // vertex normals
-    glEnableVertexAttribArray(1);
-    glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, size_of(GeometryVertex), cast(*void) size_of(Vector3));
-    // vertex texture coords
-    glEnableVertexAttribArray(2);
-    glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, size_of(GeometryVertex), cast(*void) (size_of(Vector3) + size_of(Vector3)));
-
-    glBindVertexArray(0);
+    free(geometry.name);
+    array_free(geometry.vertices);
+    array_free(geometry.vertex_indices);
 }
 
 load_serialized_geometry :: (path: string) -> Geometry, bool {
@@ -169,6 +148,34 @@ load_single_obj :: (path: string) -> Geometry, bool {
     gen_geometry(*geometry);
 
     return geometry, true;
+}
+
+#scope_module
+
+gen_geometry :: (geometry: *Geometry) {
+    glGenVertexArrays(1, *geometry.vao_);
+    glGenBuffers(1, *geometry.vbo_);
+    glGenBuffers(1, *geometry.ebo_);
+  
+    glBindVertexArray(geometry.vao_);
+
+    glBindBuffer(GL_ARRAY_BUFFER, geometry.vbo_);
+    glBufferData(GL_ARRAY_BUFFER, geometry.vertices.count * size_of(GeometryVertex), geometry.vertices.data, GL_STATIC_DRAW);  
+
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, geometry.ebo_);
+    glBufferData(GL_ELEMENT_ARRAY_BUFFER, geometry.vertex_indices.count * size_of(u32), geometry.vertex_indices.data, GL_STATIC_DRAW);
+
+    // vertex positions
+    glEnableVertexAttribArray(0);
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, size_of(GeometryVertex), cast(*void) 0);
+    // vertex normals
+    glEnableVertexAttribArray(1);
+    glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, size_of(GeometryVertex), cast(*void) size_of(Vector3));
+    // vertex texture coords
+    glEnableVertexAttribArray(2);
+    glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, size_of(GeometryVertex), cast(*void) (size_of(Vector3) + size_of(Vector3)));
+
+    glBindVertexArray(0);
 }
 
 #scope_file
