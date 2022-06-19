@@ -18,7 +18,7 @@ TextureData :: struct {
 //     return a.texture == b.texture && a.width == b.width && a.height == b.height && a.format == b.format;
 // }
 
-load_texture :: (path: string) -> Texture {
+load_texture :: (path: string) -> Texture, bool {
     texture_data: TextureData;
     // temp context
     texture_data = load_data(path);
@@ -26,27 +26,25 @@ load_texture :: (path: string) -> Texture {
 
     if texture_data.data == null {
         print("Could not load texture. %\n", path);
-        assert(false && "Could not load texture.");
-        return .{};
+        return .{}, false;
     }
 
-    return gen_texture(texture_data);
+    return gen_texture(texture_data), true;
 }
 
-load_thumbnail_texture :: (path: string, width: s32, height: s32, preserve_ratio: bool = true) -> Texture {
+load_thumbnail_texture :: (path: string, width: s32, height: s32, preserve_ratio: bool = true) -> Texture, bool {
     texture_data := load_data(path);
     defer stbi_image_free(texture_data.data);
 
     if texture_data.data == null {
         print("Could not load texture. %\n", path);
-        assert(false && "Could not load texture.");
-        return .{};
+        return .{}, false;
     }
 
     thumbnail_texture_data := scale_data(texture_data, width, height, preserve_ratio);
     defer free(thumbnail_texture_data.data);
 
-    return gen_texture(thumbnail_texture_data);
+    return gen_texture(thumbnail_texture_data), true;
 }
 
 load_data :: (path: string) -> TextureData {
@@ -58,7 +56,6 @@ load_data :: (path: string) -> TextureData {
 
     if !success {
         print("Could not load texture data. %\n", path);
-        assert(false && "Could not load texture data.");
         return .{};
     }
 
