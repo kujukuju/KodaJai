@@ -13,6 +13,13 @@ ClientInput :: struct {
 
     scroll_delta_x: float64;
     scroll_delta_y: float64;
+
+    controller_active: bool;
+    controller_left: Vector2;
+    controller_right: Vector2;
+    controller_project_joysticks: bool = true;
+    controller_buttons: [BUTTON_COUNT] InputState;
+    released_controller_buttons: [BUTTON_COUNT] bool;
 }
 
 InputState :: enum_flags u8 {
@@ -41,6 +48,26 @@ Input :: enum {
 
 INPUT_COUNT :: #run enum_count(Input);
 
+Button :: enum {
+    A;
+    B;
+    X;
+    Y;
+    LEFT_BUMPER;
+    RIGHT_BUMPER;
+    BACK;
+    START;
+    GUIDE;
+    LEFT_JOYSTICK;
+    RIGHT_JOYSTICK;
+    DPAD_UP;
+    DPAD_RIGHT;
+    DPAD_DOWN;
+    DPAD_LEFT;
+}
+
+BUTTON_COUNT :: #run enum_count(Button);
+
 key_map: [INPUT_COUNT] s32 = .[
     GLFW_KEY_W,
     GLFW_KEY_A,
@@ -58,6 +85,24 @@ key_map: [INPUT_COUNT] s32 = .[
     GLFW_KEY_DELETE,
 ];
 
+// button_map: [BUTTON_COUNT] s32 = .[
+//     GLFW_GAMEPAD_BUTTON_A,
+//     GLFW_GAMEPAD_BUTTON_B,
+//     GLFW_GAMEPAD_BUTTON_X,
+//     GLFW_GAMEPAD_BUTTON_Y,
+//     GLFW_GAMEPAD_BUTTON_LEFT_BUMPER,
+//     GLFW_GAMEPAD_BUTTON_RIGHT_BUMPER,
+//     GLFW_GAMEPAD_BUTTON_BACK,
+//     GLFW_GAMEPAD_BUTTON_START,
+//     GLFW_GAMEPAD_BUTTON_GUIDE,
+//     GLFW_GAMEPAD_BUTTON_LEFT_THUMB,
+//     GLFW_GAMEPAD_BUTTON_RIGHT_THUMB,
+//     GLFW_GAMEPAD_BUTTON_DPAD_UP,
+//     GLFW_GAMEPAD_BUTTON_DPAD_RIGHT,
+//     GLFW_GAMEPAD_BUTTON_DPAD_DOWN,
+//     GLFW_GAMEPAD_BUTTON_DPAD_LEFT,
+// ];
+
 input: ClientInput;
 
 raw_mouse_x: float64 = 0.0 / 2;
@@ -69,6 +114,8 @@ mouse_captured := true;
 
 accumulated_scroll: [2] float64;
 
+joystick_padding := 0.2;
+
 scroll_callback :: (window: *GLFWwindow, x_offset: float64, y_offset: float64) #c_call {
     accumulated_scroll[0] += x_offset;
     accumulated_scroll[1] += y_offset;
@@ -76,7 +123,67 @@ scroll_callback :: (window: *GLFWwindow, x_offset: float64, y_offset: float64) #
 
 update_inputs :: () {
     // TODO should this be called here?
-    // glfwPollEvents();
+
+    for joystick: GLFW_JOYSTICK_1..GLFW_JOYSTICK_LAST {
+        if !glfwJoystickPresent(xx joystick) {
+            continue;
+        }
+
+        if !glfwJoystickIsGamepad(xx joystick) {
+            continue;
+        }
+
+        state: GLFWgamepadstate;
+        if !glfwGetGamepadState(xx joystick, *state) {
+            continue;
+        }
+
+        for index: 0..BUTTON_COUNT - 1 {
+            button_down := cast(bool) (state.buttons[index] & GLFW_PRESS);
+            input.released_controller_buttons[index] = input.controller_buttons[index] && !button_down;
+
+            // clear the start value
+            input.controller_buttons[index] &= ~InputState.START;
+
+            // set the start value if this is a new input
+            if button_down & !input.controller_buttons[index] {
+                input.keys[index] |= InputState.START;
+            }
+            
+            if button_down {
+                input.controller_buttons[index] |= InputState.DOWN;
+                input.controller_active = true;
+            } else {
+                input.controller_buttons[index] &= ~InputState.DOWN;
+            }
+        }
+
+        input.controller_left.x = state.axes[GLFW_GAMEPAD_AXIS_LEFT_X];
+        input.controller_left.y = state.axes[GLFW_GAMEPAD_AXIS_LEFT_Y];
+        input.controller_right.x = state.axes[GLFW_GAMEPAD_AXIS_RIGHT_X];
+        input.controller_right.y = state.axes[GLFW_GAMEPAD_AXIS_RIGHT_Y];
+
+        length_left := length(input.controller_left) * (1.0 + joystick_padding * 2) - joystick_padding;
+        length_left = min(max(length_left, 0.0), 1.0);
+        input.controller_left = normalize(input.controller_left) * length_left;
+
+        length_right := length(input.controller_right) * (1.0 + joystick_padding * 2) - joystick_padding;
+        length_right = min(max(length_right, 0.0), 1.0);
+        input.controller_right = normalize(input.controller_right) * length_right;
+
+        if input.controller_project_joysticks {
+            if length_left > 0 {
+                angle := atan2(input.controller_left.y, input.controller_left.x);
+                denom := max(abs(cos(angle)), abs(sin(angle)));
+                input.controller_left /= denom;
+            }
+            if length_right > 0 {
+                angle := atan2(input.controller_right.y, input.controller_right.x);
+                denom := max(abs(cos(angle)), abs(sin(angle)));
+                input.controller_right /= denom;
+            }
+        }
+    }
 
     last_raw_mouse_x := raw_mouse_x;
     last_raw_mouse_y := raw_mouse_y;
@@ -137,6 +244,7 @@ update_inputs :: () {
         
         if key_down {
             input.keys[index] |= InputState.DOWN;
+            input.controller_active = false;
         } else {
             input.keys[index] &= ~InputState.DOWN;
         }
