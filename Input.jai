@@ -147,7 +147,7 @@ update_inputs :: () {
 
             // set the start value if this is a new input
             if button_down & !input.controller_buttons[index] {
-                input.keys[index] |= InputState.START;
+                input.controller_buttons[index] |= InputState.START;
             }
             
             if button_down {

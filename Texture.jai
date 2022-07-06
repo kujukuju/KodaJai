@@ -157,11 +157,22 @@ gen_texture :: (data: TextureData) -> Texture {
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST_MIPMAP_LINEAR);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
 
+    four_divisible := (texture.width * texture.height) % 4 == 0;
+
     if texture.format == .PIXELFORMAT_UNCOMPRESSED_GRAYSCALE {
+        if !four_divisible {
+            glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
+        }
         glTexImage2D(GL_TEXTURE_2D, 0, GL_RED, xx texture.width, xx texture.height, 0, GL_RED, GL_UNSIGNED_BYTE, data.data);
     } else if texture.format == .PIXELFORMAT_UNCOMPRESSED_GRAY_ALPHA {
+        if !four_divisible {
+            glPixelStorei(GL_UNPACK_ALIGNMENT, 2);
+        }
         glTexImage2D(GL_TEXTURE_2D, 0, GL_RG, xx texture.width, xx texture.height, 0, GL_RG, GL_UNSIGNED_BYTE, data.data);
     } else if texture.format == .PIXELFORMAT_UNCOMPRESSED_R8G8B8 {
+        if !four_divisible {
+            glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
+        }
         glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, xx texture.width, xx texture.height, 0, GL_RGB, GL_UNSIGNED_BYTE, data.data);
     } else if texture.format == .PIXELFORMAT_UNCOMPRESSED_R8G8B8A8 {
         glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, xx texture.width, xx texture.height, 0, GL_RGBA, GL_UNSIGNED_BYTE, data.data);
