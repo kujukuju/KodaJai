@@ -281,7 +281,7 @@ apply_uniform :: (uniform: ShaderUniform) {
         return;
     }
 
-    if uniform.type == {
+    if #complete uniform.type == {
         case .F1;
             data := << cast(*float) uniform.data;
             glUniform1f(uniform.location, data);
@@ -372,6 +372,8 @@ apply_uniform :: (uniform: ShaderUniform) {
         case .VM4;
             data := cast(*float) uniform.data;
             glUniformMatrix4fv(uniform.location, cast(u32) uniform.size / size_of(Matrix4), GL_TRUE, data);
+        case .Invalid;
+            assert(false, "Invalid uniform type.");
         case;
             assert(false, "Unknown uniform type.");
     }

@@ -19,13 +19,23 @@ TextureData :: struct {
 // }
 
 load_texture :: (path: string) -> Texture, bool {
-    texture_data: TextureData;
-    // temp context
-    texture_data = load_data(path);
+    file, success := read_entire_file(path, false);
+    defer free(file);
+
+    bytes: [] u8;
+    bytes.data = file.data;
+    bytes.count = file.count;
+
+    texture, loaded := load_texture(bytes);
+    return texture, loaded;
+}
+
+load_texture :: (bytes: [] u8) -> Texture, bool {
+    texture_data := load_data(bytes);
     defer stbi_image_free(texture_data.data);
 
     if texture_data.data == null {
-        print("Could not load texture. %\n", path);
+        print("Could not load texture.\n");
         return .{}, false;
     }
 
@@ -33,11 +43,23 @@ load_texture :: (path: string) -> Texture, bool {
 }
 
 load_thumbnail_texture :: (path: string, width: s32, height: s32, preserve_ratio: bool = true) -> Texture, bool {
-    texture_data := load_data(path);
+    file, success := read_entire_file(path, false);
+    defer free(file);
+
+    bytes: [] u8;
+    bytes.data = file.data;
+    bytes.count = file.count;
+
+    texture, loaded := load_thumbnail_texture(bytes, width, height, preserve_ratio);
+    return texture, loaded;
+}
+
+load_thumbnail_texture :: (bytes: [] u8, width: s32, height: s32, preserve_ratio: bool = true) -> Texture, bool {
+    texture_data := load_data(bytes);
     defer stbi_image_free(texture_data.data);
 
     if texture_data.data == null {
-        print("Could not load texture. %\n", path);
+        print("Could not load texture.\n");
         return .{}, false;
     }
 
@@ -47,35 +69,24 @@ load_thumbnail_texture :: (path: string, width: s32, height: s32, preserve_ratio
     return gen_texture(thumbnail_texture_data), true;
 }
 
-load_data :: (path: string) -> TextureData {
-    data: string;
-    success: bool;
-    // temp context
-    data, success = read_entire_file(path, false);
-    defer free(data);
-
-    if !success {
-        print("Could not load texture data. %\n", path);
-        return .{};
-    }
-
+load_data :: (data: [] u8) -> TextureData {
     texture_data: TextureData;
     comp: s32;
     texture_data.data = stbi_load_from_memory(data.data, xx data.count, *texture_data.width, *texture_data.height, *comp, 0);
     if !texture_data.data {
-        print("Could not parse texture data. %\n", path);
+        print("Could not parse texture data.\n");
         assert(false && "Could not parse texture data.");
         return .{};
     }
     
     if comp == 1 {
-        texture_data.format = .PIXELFORMAT_UNCOMPRESSED_GRAYSCALE;
+        texture_data.format = .Gray;
     } else if comp == 2 {
-        texture_data.format = .PIXELFORMAT_UNCOMPRESSED_GRAY_ALPHA;
+        texture_data.format = .GrayAlpha;
     } else if comp == 3 {
-        texture_data.format = .PIXELFORMAT_UNCOMPRESSED_R8G8B8;
+        texture_data.format = .RGB;
     } else if comp == 4 {
-        texture_data.format = .PIXELFORMAT_UNCOMPRESSED_R8G8B8A8;
+        texture_data.format = .RGBA;
     }
 
     return texture_data;
@@ -84,13 +95,13 @@ load_data :: (path: string) -> TextureData {
 scale_data :: (data: TextureData, width: s32, height: s32, preserve_ratio: bool = true) -> TextureData {
     byte_count := 0;
     if data.format == {
-        case .PIXELFORMAT_UNCOMPRESSED_GRAYSCALE;
+        case .Gray;
             byte_count = 1;
-        case .PIXELFORMAT_UNCOMPRESSED_GRAY_ALPHA;
+        case .GrayAlpha;
             byte_count = 2;
-        case .PIXELFORMAT_UNCOMPRESSED_R8G8B8;
+        case .RGB;
             byte_count = 3;
-        case .PIXELFORMAT_UNCOMPRESSED_R8G8B8A8;
+        case .RGBA;
             byte_count = 4;
     }
 
@@ -159,22 +170,23 @@ gen_texture :: (data: TextureData) -> Texture {
 
     four_divisible := (texture.width * texture.height) % 4 == 0;
 
-    if texture.format == .PIXELFORMAT_UNCOMPRESSED_GRAYSCALE {
+    if texture.format == .Gray {
         if !four_divisible {
             glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
         }
         glTexImage2D(GL_TEXTURE_2D, 0, GL_RED, xx texture.width, xx texture.height, 0, GL_RED, GL_UNSIGNED_BYTE, data.data);
-    } else if texture.format == .PIXELFORMAT_UNCOMPRESSED_GRAY_ALPHA {
+    } else if texture.format == .GrayAlpha {
         if !four_divisible {
             glPixelStorei(GL_UNPACK_ALIGNMENT, 2);
         }
         glTexImage2D(GL_TEXTURE_2D, 0, GL_RG, xx texture.width, xx texture.height, 0, GL_RG, GL_UNSIGNED_BYTE, data.data);
-    } else if texture.format == .PIXELFORMAT_UNCOMPRESSED_R8G8B8 {
+    } else if texture.format == .RGB {
         if !four_divisible {
             glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
         }
         glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, xx texture.width, xx texture.height, 0, GL_RGB, GL_UNSIGNED_BYTE, data.data);
-    } else if texture.format == .PIXELFORMAT_UNCOMPRESSED_R8G8B8A8 {
+    } else if texture.format == .RGBA {
+        glPixelStorei(GL_UNPACK_ALIGNMENT, 4);
         glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, xx texture.width, xx texture.height, 0, GL_RGBA, GL_UNSIGNED_BYTE, data.data);
     }
     

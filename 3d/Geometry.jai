@@ -18,6 +18,32 @@ free :: (geometry: *Geometry) {
     array_free(geometry.vertex_indices);
 }
 
+load_or_save_serialized_geometry :: (serialized_path: string, obj_path: string) -> Geometry, bool {
+    if !file_exists(serialized_path) {
+    }
+
+    file, success := read_entire_file(serialized_path);
+    defer free(file);
+    if !success {
+        // TODO should be load_multiple_obj
+        geometry, success := load_single_obj(obj_path);
+        if !success {
+            return .{}, false;
+        }
+
+        bytes := serialize_geometry(geometry);
+        write_entire_file(serialized_path, bytes.data, bytes.count);
+
+        return geometry, true;
+    }
+
+    view: [] u8;
+    view.data = file.data;
+    view.count = file.count;
+
+    return deserialized_geometry(view), true;
+}
+
 load_serialized_geometry :: (path: string) -> Geometry, bool {
     file, success := read_entire_file(path);
     defer free(file);

@@ -1,0 +1,3 @@
+RenderTexture :: struct {
+    
+}

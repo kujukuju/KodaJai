@@ -1,4 +1,11 @@
+#load "2d/AnimatedSprite.jai";
 #load "2d/Camera2.jai";
+#load "2d/FramedSprite.jai";
+#load "2d/Image.jai";
+#load "2d/PixelFormat.jai";
+#load "2d/RenderTexture.jai";
+#load "2d/Sprite.jai";
+#load "2d/Texture.jai";
 
 #load "3d/Camera3.jai";
 #load "3d/Geometry.jai";
@@ -7,23 +14,20 @@
 #load "3d/Shapes3.jai";
 #load "3d/SphereGeometry.jai";
 
-#load "AnimatedSprite.jai";
 #load "CircleAllocator.jai";
 #load "Color.jai";
 #load "DefaultEllipseShader.jai";
 #load "DefaultShader.jai";
 #load "DefaultShader3.jai";
-#load "Enums.jai";
-#load "FramedSprite.jai";
+#load "FontShader.jai";
 #load "Input.jai";
 #load "InstancedShader3.jai";
 #load "Material.jai";
+#load "Point2.jai";
 #load "Shaders.jai";
 #load "Shapes.jai";
-#load "Sprite.jai";
 #load "SwapBuffer.jai";
 #load "Text.jai";
-#load "Texture.jai";
 #load "Time.jai";
 #load "Utilities.jai";
 #load "Window.jai";
@@ -42,11 +46,11 @@ koda: struct {
     static_sprite_: Sprite;
 };
 
-get_koda_asset_path :: () -> string {
-    library_path := tprint("%/assets/", get_working_directory());
-    print("asset path is %\n", library_path);
-    return library_path;
-}
+// get_koda_asset_path :: () -> string {
+//     library_path := tprint("%/assets/", get_working_directory());
+//     print("asset path is %\n", library_path);
+//     return library_path;
+// }
 
 // KODA_ASSET_PATH := #run () -> string {
 //     if file_exists(library_path) {
@@ -61,9 +65,13 @@ default_shader: DefaultShader;
 default_shader3: DefaultShader3;
 instanced_shader3: InstancedShader3;
 default_ellipse_shader: DefaultEllipseShader;
+default_font_shader: FontShader;
 serializer: Serializer;
 
 #scope_file
+
+#load "assets/TriplexSansBold.jai";
+#load "assets/White.jai";
 
 #import "File_Utilities";
 #load "Operators.jai";

@@ -17,6 +17,7 @@ create_animated_sprite :: (sprite: Sprite, columns: int, frameCount: int, frame:
 
     return animated;
 }
+
 draw_sprite :: (sprite: AnimatedSprite, position: Vector2) {
     // TODO don't do it this way?
     new := sprite;
