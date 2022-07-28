@@ -80,6 +80,7 @@ draw_line :: (x1: float, y1: float, x2: float, y2: float, width: float = 1.0, co
     set_uniform(*default_shader, "view", view);
 
     set_uniform(*default_shader, "uPos", Vector2.{0, 0});
+    set_uniform(*default_shader, "uRot", 0.0);
     set_uniform(*default_shader, "uDim", xy(xx koda.width, xx koda.height));
     set_uniform(*default_shader, "uOriginalDim", xy(xx koda.width, xx koda.height));
     set_uniform(*default_shader, "uTint", color);
@@ -164,6 +165,7 @@ draw_rect :: (top_left: Vector2, dimensions: Vector2, color: Color = .{1, 1, 1, 
     set_uniform(*default_shader, "view", view);
 
     set_uniform(*default_shader, "uPos", Vector2.{0, 0});
+    set_uniform(*default_shader, "uRot", 0.0);
     set_uniform(*default_shader, "uDim", xy(xx koda.width, xx koda.height));
     set_uniform(*default_shader, "uScreenDim", xy(xx koda.width, xx koda.height));
     set_uniform(*default_shader, "uTint", color);
@@ -244,6 +246,7 @@ draw_polygon :: (points: [] Vector2, color: Color = .{1, 1, 1, 1}, border: Color
     set_uniform(*default_shader, "view", view);
 
     set_uniform(*default_shader, "uPos", Vector2.{0, 0});
+    set_uniform(*default_shader, "uRot", 0.0);
     set_uniform(*default_shader, "uDim", xy(xx koda.width, xx koda.height));
     set_uniform(*default_shader, "uScreenDim", xy(xx koda.width, xx koda.height));
     set_uniform(*default_shader, "uTint", color);

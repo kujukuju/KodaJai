@@ -161,32 +161,30 @@ gen_texture :: (data: TextureData) -> Texture {
 
     glGenTextures(1, *texture.texture);
     glBindTexture(GL_TEXTURE_2D, texture.texture);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);	
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);	
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
     // glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
     // glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST_MIPMAP_LINEAR);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
 
+    eight_divible :=  (texture.width * texture.height) % 8 == 0;
     four_divisible := (texture.width * texture.height) % 4 == 0;
+    two_divisible := (texture.width * texture.height) % 2 == 0;
+    pixel_store: s32;
+    if eight_divible then pixel_store = 8;
+    else if four_divisible then pixel_store = 4;
+    else if two_divisible then pixel_store = 2;
+    else pixel_store = 1;
 
+    glPixelStorei(GL_PACK_ALIGNMENT, pixel_store);
     if texture.format == .Gray {
-        if !four_divisible {
-            glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
-        }
         glTexImage2D(GL_TEXTURE_2D, 0, GL_RED, xx texture.width, xx texture.height, 0, GL_RED, GL_UNSIGNED_BYTE, data.data);
     } else if texture.format == .GrayAlpha {
-        if !four_divisible {
-            glPixelStorei(GL_UNPACK_ALIGNMENT, 2);
-        }
         glTexImage2D(GL_TEXTURE_2D, 0, GL_RG, xx texture.width, xx texture.height, 0, GL_RG, GL_UNSIGNED_BYTE, data.data);
     } else if texture.format == .RGB {
-        if !four_divisible {
-            glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
-        }
         glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, xx texture.width, xx texture.height, 0, GL_RGB, GL_UNSIGNED_BYTE, data.data);
     } else if texture.format == .RGBA {
-        glPixelStorei(GL_UNPACK_ALIGNMENT, 4);
         glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, xx texture.width, xx texture.height, 0, GL_RGBA, GL_UNSIGNED_BYTE, data.data);
     }
     
@@ -199,11 +197,12 @@ free :: (texture: Texture) {
     glDeleteTextures(1, *texture.texture);
 }
 
-draw_texture :: (texture: Texture, position: Vector2) {
+draw_texture :: (texture: Texture, position: Vector2, rotation: float = 0, scale: Vector2 = .{1, 1}) {
     koda.static_sprite_.texture = texture;
-    koda.static_sprite_.width = xx texture.width;
-    koda.static_sprite_.height = xx texture.height;
+    koda.static_sprite_.width = texture.width * scale.x;
+    koda.static_sprite_.height = texture.height * scale.y;
     koda.static_sprite_.position = position;
+    koda.static_sprite_.rotation = rotation;
 
     draw_sprite(koda.static_sprite_);
 }

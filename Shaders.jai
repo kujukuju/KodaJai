@@ -15,6 +15,7 @@ ShaderUniform :: struct {
 
 ShaderUniformType :: enum {
     Invalid;
+    Texture;
     F1;
     F2;
     F3;
@@ -27,6 +28,7 @@ ShaderUniformType :: enum {
     U2;
     U3;
     U4;
+    VTexture;
     VF1;
     VF2;
     VF3;
@@ -67,11 +69,13 @@ free :: (uniform: ShaderUniform) {
 }
 
 set_uniform :: (shader: *Shader, name: string, data: $T) {
-    #if #run type_info(T).type == .ARRAY {
-        // TODO I wish I didn't have to do this
-        set_uniform_array(shader, name, data);
-    } else #if #run T == s64 {
+    #if #run T == s64 {
         set_uniform(shader, name, cast(s32) data);
+    } else #if #run (cast(*Type_Info) T).type == .ARRAY {
+        array_type :: cast(Type) (cast(*Type_Info_Array) T).element_type;
+        size := data.count * size_of(array_type);
+        type := get_uniform_type(T);
+        set_uniform_data(shader, name, data.data, size, type);
     } else {
         size := size_of(T);
         type := get_uniform_type(T);
@@ -79,11 +83,15 @@ set_uniform :: (shader: *Shader, name: string, data: $T) {
     }
 }
 
-set_uniform_array :: (shader: *Shader, name: string, data: [] $T) {
-    size := data.count * size_of(T);
-    type := get_uniform_array_type(T);
-    set_uniform_data(shader, name, data.data, size, type);
-}
+// set_uniform :: (shader: *Shader, name: string, data: $T) #modify {
+//     return (cast(*Type_Info) T).type == .ARRAY;
+// } {
+//     ARRAY_TYPE :: << (cast(*Type_Info_Array) T).element_type;
+
+//     size := data.count * size_of(T);
+//     type := get_uniform_array_type(T);
+//     set_uniform_data(shader, name, data.data, size, type);
+// }
 
 set_uniform :: (shader: *Shader, name: string, data: SwapBuffer) {
     set_uniform(shader, name, data.buffer);
@@ -91,6 +99,16 @@ set_uniform :: (shader: *Shader, name: string, data: SwapBuffer) {
 
 set_uniform :: (shader: *Shader, name: string, data: Color) {
     set_uniform(shader, name, xyzw(data.r, data.g, data.b, data.a));
+}
+
+set_uniform :: (shader: *Shader, name: string, data: Texture) {
+    assert(false);
+    // set_uniform(shader, name, xyzw(data.r, data.g, data.b, data.a));
+}
+
+set_uniform :: (shader: *Shader, name: string, data: [] Texture) {
+    assert(false);
+    // set_uniform(shader, name, xyzw(data.r, data.g, data.b, data.a));
 }
 
 use_shader :: (shader: *Shader) {
@@ -127,46 +145,42 @@ apply_shader_uniforms :: () {
 
 get_uniform_type :: ($T: Type) -> ShaderUniformType {
     #insert #run () -> string {
-        if T == float return "return .F1;";
-        if T == Vector2 return "return .F2;";
-        if T == Vector3 return "return .F3;";
-        if T == Vector4 return "return .F4;";
-        if T == s32 return "return .S1;";
-        if T == [2] s32 return "return .S2;";
-        if T == [3] s32 return "return .S3;";
-        if T == [4] s32 return "return .S4;";
-        if T == u32 return "return .U1;";
-        if T == [2] u32 return "return .U2;";
-        if T == [3] u32 return "return .U3;";
-        if T == [4] u32 return "return .U4;";
-        if T == Matrix2 return "return .M2;";
-        if T == Matrix3 return "return .M3;";
-        if T == Matrix4 return "return .M4;";
-
-        return #string DONE
-        assert(false, tprint("Invalid unform type. %", T));
-        return .Invalid;
-        DONE;
-    }();
-}
-
-get_uniform_array_type :: ($T: Type) -> ShaderUniformType {
-    #insert #run () -> string {
-        if T == float return "return .VF1;";
-        if T == Vector2 return "return .VF2;";
-        if T == Vector3 return "return .VF3;";
-        if T == Vector4 return "return .VF4;";
-        if T == s32 return "return .VS1;";
-        if T == [2] s32 return "return .VS2;";
-        if T == [3] s32 return "return .VS3;";
-        if T == [4] s32 return "return .VS4;";
-        if T == u32 return "return .VU1;";
-        if T == [2] u32 return "return .VU2;";
-        if T == [3] u32 return "return .VU3;";
-        if T == [4] u32 return "return .VU4;";
-        if T == Matrix2 return "return .VM2;";
-        if T == Matrix3 return "return .VM3;";
-        if T == Matrix4 return "return .VM4;";
+        if (cast(*Type_Info) T).type == .ARRAY {
+            array_type: Type = << cast(*Type) (cast(*Type_Info_Array) T).element_type;
+            if array_type == Texture return "return .Texture;";
+            if array_type == float return "return .F1;";
+            if array_type == Vector2 return "return .F2;";
+            if array_type == Vector3 return "return .F3;";
+            if array_type == Vector4 return "return .F4;";
+            if array_type == s32 return "return .S1;";
+            if array_type == [2] s32 return "return .S2;";
+            if array_type == [3] s32 return "return .S3;";
+            if array_type == [4] s32 return "return .S4;";
+            if array_type == u32 return "return .U1;";
+            if array_type == [2] u32 return "return .U2;";
+            if array_type == [3] u32 return "return .U3;";
+            if array_type == [4] u32 return "return .U4;";
+            if array_type == Matrix2 return "return .M2;";
+            if array_type == Matrix3 return "return .M3;";
+            if array_type == Matrix4 return "return .M4;";
+        } else {
+            if T == Texture return "return .VTexture;";
+            if T == float return "return .VF1;";
+            if T == Vector2 return "return .VF2;";
+            if T == Vector3 return "return .VF3;";
+            if T == Vector4 return "return .VF4;";
+            if T == s32 return "return .VS1;";
+            if T == [2] s32 return "return .VS2;";
+            if T == [3] s32 return "return .VS3;";
+            if T == [4] s32 return "return .VS4;";
+            if T == u32 return "return .VU1;";
+            if T == [2] u32 return "return .VU2;";
+            if T == [3] u32 return "return .VU3;";
+            if T == [4] u32 return "return .VU4;";
+            if T == Matrix2 return "return .VM2;";
+            if T == Matrix3 return "return .VM3;";
+            if T == Matrix4 return "return .VM4;";
+        }
         
         return #string DONE
         assert(false, tprint("Invalid unform type. %", T));
@@ -174,6 +188,34 @@ get_uniform_array_type :: ($T: Type) -> ShaderUniformType {
         DONE;
     }();
 }
+
+// get_uniform_type :: ($T: Type) -> ShaderUniformType #modify {
+//     return ;
+// } {
+//     #insert #run () -> string {
+//         if T == Texture return "return .VTexture;";
+//         if T == float return "return .VF1;";
+//         if T == Vector2 return "return .VF2;";
+//         if T == Vector3 return "return .VF3;";
+//         if T == Vector4 return "return .VF4;";
+//         if T == s32 return "return .VS1;";
+//         if T == [2] s32 return "return .VS2;";
+//         if T == [3] s32 return "return .VS3;";
+//         if T == [4] s32 return "return .VS4;";
+//         if T == u32 return "return .VU1;";
+//         if T == [2] u32 return "return .VU2;";
+//         if T == [3] u32 return "return .VU3;";
+//         if T == [4] u32 return "return .VU4;";
+//         if T == Matrix2 return "return .VM2;";
+//         if T == Matrix3 return "return .VM3;";
+//         if T == Matrix4 return "return .VM4;";
+        
+//         return #string DONE
+//         assert(false, tprint("Invalid unform type. %", T));
+//         return .Invalid;
+//         DONE;
+//     }();
+// }
 
 initialize_shader :: (shader: *Shader) -> bool {
     make_shader_object :: (shader: string, shader_type: GLenum) -> GLuint, bool {
@@ -282,6 +324,9 @@ apply_uniform :: (uniform: ShaderUniform) {
     }
 
     if #complete uniform.type == {
+        case .Texture;
+            data := (cast(*Texture) uniform.data).texture;
+            glUniform1ui(uniform.location, data);
         case .F1;
             data := << cast(*float) uniform.data;
             glUniform1f(uniform.location, data);
@@ -318,6 +363,8 @@ apply_uniform :: (uniform: ShaderUniform) {
         case .U4;
             data := << cast(*[4] u32) uniform.data;
             glUniform4ui(uniform.location, data[0], data[1], data[2], data[3]);
+        case .VTexture;
+            assert(false);
         case .VF1;
             data := cast(*float) uniform.data;
             glUniform1fv(uniform.location, cast(u32) uniform.size / size_of(float), data);

@@ -1,3 +1,7 @@
+## Setup
+Just `#import "KodaJai";`. 
+
+To bake the assets you run `jai ./generate_asset_constants.jai`.
 
 ## Core
 
@@ -139,6 +143,7 @@ Texture :: struct {
     format: PixelFormat;
 }
 Sprite :: struct {
+    using renderable: Renderable;
     texture: Texture;
     position: Vector2;
     rotation: float;
@@ -147,8 +152,6 @@ Sprite :: struct {
     anchor: Vector2;
     tint: Color;
     texture_frame: Vector4;
-    shader: *Shader;
-    pass_tag: u64;
 }
 SpriteAnimation :: struct {
     name: string;
@@ -164,6 +167,7 @@ AnimatedSprite :: struct {
     frame_f: float;
 }
 Container2 :: struct {
+    using renderable: Renderable;
     models: [..] *Sprite;
     position: Vector2;
     rotation: float;
@@ -175,7 +179,7 @@ get_gl_format :: (format: PixelFormat) -> GLenum;
 
 // image
 load_image :: (path: string) -> Image;
-load_image :: (bytes: [] u8) -> Image;
+create_image :: (bytes: [] u8) -> Image;
 create_image :: (image: Image, position: Point2, size: Point2) -> Image;
 create_image :: (texture: Texture) -> Image;
 destroy_image :: (image: Image);
@@ -200,9 +204,9 @@ draw :: (destination: *Image, source: Image);
 draw :: (destination: *Image, source: Image, position: Point2);
 draw :: (destination: *Image, source: Image, dest_position: Point2, dest_size: Point2, source_position: Point2, source_size: Point2);
 
-// texture  
+// texture
 load_texture :: (path: string) -> Texture;
-load_texture :: (bytes: [] u8) -> Texture;
+create_texture :: (bytes: [] u8) -> Texture;
 create_texture :: (image: Image) -> Texture;
 create_texture :: (texture: Texture, frame: Vector4) -> Texture;
 upload_texture :: (texture: Texture);
@@ -234,8 +238,8 @@ create_row_column_frames :: (columns: int, $frame_count: int) -> [frame_count] V
 
 // container2
 destroy_container :: (container: Container2);
-add_child :: (container: *Container2, sprite: *$T);
-remove_child :: (container: *Container2, sprite: *$T);
+add_child :: (container: *Container2, renderable: *$T/Renderable);
+remove_child :: (container: *Container2, renderable: *$T/Renderable);
 draw :: (container: Container2);
 ```
 
@@ -254,22 +258,23 @@ Geometry :: struct {
     vertex_indices: [..] u32;
 }
 Model :: struct {
+    using renderable: Renderable;
     geometry: Geometry;
     textures: [] Texture;
     position: Vector3;
     rotation: Quaternion;
-    shader: *Shader;
-    pass_tag: u64;
 }
 AnimatedModel :: struct; // future base model that accepts animation events, maybe this can handle everything
 BoneAnimatedModel :: struct; // bone animated model
 PoseAnimatedModel :: struct; // key frame animated model by providing multiple poses
 Container3 :: struct {
-    models: [..] *Model;
+    using renderable: Renderable;
+    models: [..] *Renderable;
     position: Vector3;
     rotation: Quaternion;
 }
 
+// camera3
 get_transform :: (camera: Camera3) -> Matrix4;
 get_forward_vector :: (camera: Camera3) -> Vector3;
 get_up_vector :: (camera: Camera3) -> Vector3;
@@ -278,40 +283,80 @@ look_at :: (camera: *Camera3, target: Vector3);
 rotate :: (camera: *Camera3, pitch: float, yaw: float);
 rotate :: (camera: *Camera3, pitch: float, yaw: float, up: Vector3);
 
+// geometry
 load_geometry :: (path: string) -> Geometry;
 load_and_save_serialized_geometry :: (serialized_path: string, fallback_path: string) -> Geometry;
-create_geometry_plane :: (radius: float) -> Geometry;
-create_geometry_plane :: (size: Vector3) -> Geometry;
-create_geometry_cube :: (radius: float) -> Geometry;
-create_geometry_cube :: (size: Vector3) -> Geometry;
-create_geometry_icosphere :: (radius: float, subdivision: int) -> Geometry;
-create_geometry_icosphere :: (size: Vector3, subdivision: int) -> Geometry;
-create_geometry_cylinder :: (radius: float, subdivisions: int) -> Geometry;
-create_geometry_cylinder :: (size: Vector3, subdivisions: int) -> Geometry;
-upload_geometry :: (texture: Texture);
-unload_geometry :: (texture: Texture);
+upload_geometry :: (texture: Geometry);
+unload_geometry :: (texture: Geometry);
 destroy_geometry :: (geometry: Geometry);
 merge_geometry :: (geometry: *Geometry);
 draw_geometry :: (geometry: Geometry, position: Vector3);
 
+// geometry shapes
+create_plane :: (radius: float) -> Geometry;
+create_plane :: (size: Vector3) -> Geometry;
+create_cube :: (radius: float) -> Geometry;
+create_cube :: (size: Vector3) -> Geometry;
+create_icosphere :: (radius: float, subdivision: int) -> Geometry;
+create_icosphere :: (size: Vector3, subdivision: int) -> Geometry;
+create_cylinder :: (radius: float, subdivisions: int) -> Geometry;
+create_cylinder :: (size: Vector3, subdivisions: int) -> Geometry;
+
+// model
 create_model :: (geometry: Geometry) -> Model;
 create_model :: (geometry: Geometry, textures: [] Texture) -> Model;
 upload_model :: (model: Model);
 unload_model :: (model: Model);
 destroy_model :: (model: Model);
 draw_model :: (model: Model);
+
+// container3
+destroy_container :: (container: Container3);
+add_child :: (container: *Container3, renderable: *$T/Renderable);
+remove_child :: (container: *Container3, renderable: *$T/Renderable);
+draw :: (container: Container3);
+```
+
+## Rendering
+```jai
+ShaderUniformType :: enum;
+ShaderUniform :: struct {
+    name: string;
+    location: GLint;
+    type: ShaderUniformType;
+    data: *void;
+    size: int;
+}
+Shader :: struct {
+    vertex: string;
+    fragment: string;
+    uniforms: [..] ShaderUniform;
+    program: GLuint;
+}
 ```
 
 ## Rendering Pipeline
 ```jai
 Pipeline :: struct {
     passes: [] Pass;
+    renderables: [] *Renderable;
 }
 Pass :: struct {
     shader: *Shader;
     textures: [] *Texture;
     render_texture: [] *RenderTexture;
-    pass_tags: u64;
+    pass_tags: u32;
+}
+Renderable :: struct {
+    type: RenderableType;
+    pass_tag: u32;
+    render_priority: int;
+}
+RenderableType :: enum {
+    Sprite;
+    Container2;
+    Model;
+    Container3;
 }
 
 // TODO shaders will have a map of texture names to locations, models will have a list of textures with names, and it will auto bind model textures correctly based on name

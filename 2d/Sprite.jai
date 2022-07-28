@@ -8,6 +8,7 @@ Sprite :: struct {
     vao_: GLuint;
     ebo_: GLuint;
     position: Vector2;
+    rotation: float;
     width: float;
     height: float;
     anchor: Vector2;
@@ -109,23 +110,25 @@ draw_sprite :: (sprite: Sprite) {
     
     set_uniform(*default_shader, "uTexture", 0);
 
-    // TODO don't need _11
     set_uniform(*default_shader, "projection", projection);
     set_uniform(*default_shader, "model", model);
     set_uniform(*default_shader, "view", view);
 
-    position := sprite.position - sprite.anchor * xy(abs(sprite.width), abs(sprite.height));
+    // TODO fix this when inverted x or y only so that the framed is inverted but the sprite vertices arent for ccw culling
+
+    position := sprite.position - sprite.anchor * xy(sprite.width, sprite.height);
     texture_frame := sprite.texture_frame;
-    if sprite.width < 0 {
-        texture_frame.x += texture_frame.z;
-        texture_frame.z = -texture_frame.z;
-    }
-    if sprite.height < 0 {
-        texture_frame.y += texture_frame.w;
-        texture_frame.w = -texture_frame.w;
-    }
+    // if sprite.width < 0 {
+    //     texture_frame.x += texture_frame.z;
+    //     texture_frame.z = -texture_frame.z;
+    // }
+    // if sprite.height < 0 {
+    //     texture_frame.y += texture_frame.w;
+    //     texture_frame.w = -texture_frame.w;
+    // }
     set_uniform(*default_shader, "uPos", position);
-    set_uniform(*default_shader, "uDim", xy(abs(sprite.width), abs(sprite.height)));
+    set_uniform(*default_shader, "uRot", sprite.rotation);
+    set_uniform(*default_shader, "uDim", xy(sprite.width, sprite.height));
     set_uniform(*default_shader, "uScreenDim", xy(xx koda.width, xx koda.height));
     set_uniform(*default_shader, "uTint", sprite.tint);
     set_uniform(*default_shader, "uFrame", texture_frame);

@@ -38,6 +38,7 @@ Input :: enum {
     SPACE;
     SHIFT;
     CONTROL;
+    ALT;
     ESCAPE;
     NUM1;
     NUM2;
@@ -77,6 +78,7 @@ key_map: [INPUT_COUNT] s32 = .[
     GLFW_KEY_SPACE,
     GLFW_KEY_LEFT_SHIFT,
     GLFW_KEY_LEFT_CONTROL,
+    GLFW_KEY_LEFT_ALT,
     GLFW_KEY_ESCAPE,
     GLFW_KEY_1,
     GLFW_KEY_2,
