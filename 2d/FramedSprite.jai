@@ -70,6 +70,7 @@ step_animation :: (framed: *FramedSprite, name: string, frames: float) {
     }
 
     // why doesnt floating mod % mod exist?
+    // TODO min of this and start + count - 1 or something
     framed.frame_f = fmod(frame, frame_count) + animation.start;
     framed.frame = cast(int) framed.frame_f;
 }

@@ -1,5 +1,5 @@
 DefaultShader3 :: struct {
-    using shader: Shader;
+    using #as shader: Shader;
 
     shader.vertex = DEFAULT_VERTEX_SHADER3;
     shader.fragment = DEFAULT_FRAGMENT_SHADER3;

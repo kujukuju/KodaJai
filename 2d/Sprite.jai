@@ -1,20 +1,17 @@
-
-SpriteID :: #type,distinct int;
-
 Sprite :: struct {
-    id: SpriteID;
+    using #as renderable: Renderable;
+    renderable.type = RenderableType.Sprite;
     texture: Texture;
-    vbo_: GLuint;
-    vao_: GLuint;
-    ebo_: GLuint;
     position: Vector2;
     rotation: float;
     width: float;
     height: float;
     anchor: Vector2;
     tint: Color;
-    // texture frame: x, y, width, height
     texture_frame: Vector4 = .{0, 0, 1, 1};
+    vbo_: GLuint;
+    vao_: GLuint;
+    ebo_: GLuint;
 }
 
 create_sprite :: (texture: Texture) -> Sprite {
@@ -23,7 +20,6 @@ create_sprite :: (texture: Texture) -> Sprite {
 
 create_sprite :: (texture: Texture, width: float, height: float, anchor: Vector2 = .{0, 0}, tint: Color = .{1, 1, 1, 1}) -> Sprite {
     sprite: Sprite;
-    sprite.id = cast(SpriteID) claim_index(*sprite_ids, 0);
     sprite.texture = texture;
     sprite.position = .{0, 0};
     sprite.width = width;
@@ -80,8 +76,6 @@ destroy_sprite :: (sprite: *Sprite) {
     glDeleteBuffers(1, *sprite.ebo_);
     glDeleteBuffers(1, *sprite.vbo_);
     glDeleteVertexArrays(1, *sprite.vao_);
-
-    free(*sprite_ids, cast(int) sprite.id);
 }
 
 set_scale :: (sprite: *Sprite, scale: Vector2) {
@@ -143,7 +137,7 @@ draw_sprite :: (sprite: Sprite) {
 
 #scope_file
 
-sprite_ids: CircleAllocator(u8);
+// sprite_ids: CircleAllocator(u8);
 
 #import "Math";
 #import "JaiMath";

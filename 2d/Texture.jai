@@ -2,21 +2,8 @@ Texture :: struct {
     texture: GLuint;
     width: s32;
     height: s32;
-    // mipmaps: s32;
     format: PixelFormat;
 }
-
-TextureData :: struct {
-    data: *u8;
-    width: s32;
-    height: s32;
-    format: PixelFormat;
-}
-
-// not sure how to use this if its defined here because I import this library into a namespace
-// operator == :: (a: Texture, b: Texture) -> bool {
-//     return a.texture == b.texture && a.width == b.width && a.height == b.height && a.format == b.format;
-// }
 
 load_texture :: (path: string) -> Texture, bool {
     file, success := read_entire_file(path, false);
@@ -208,6 +195,13 @@ draw_texture :: (texture: Texture, position: Vector2, rotation: float = 0, scale
 }
 
 #scope_file
+
+TextureData :: struct {
+    data: *u8;
+    width: s32;
+    height: s32;
+    format: PixelFormat;
+}
 
 #import "Basic";
 #import "File";

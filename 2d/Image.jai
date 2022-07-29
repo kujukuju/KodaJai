@@ -16,11 +16,15 @@ load_image :: (path: string) -> Image {
         return .{};
     }
 
+    return create_image(data);
+}
+
+create_image :: (bytes: [] u8) -> Image {
     image: Image;
     comp: s32;
     width: s32;
     height: s32;
-    image.pixels.data = stbi_load_from_memory(data.data, xx data.count, *width, *height, *comp, 0);
+    image.pixels.data = stbi_load_from_memory(bytes.data, xx bytes.count, *width, *height, *comp, 0);
     image.pixels.count = width * height * comp;
     image.width = width;
     image.height = height;
@@ -42,7 +46,6 @@ load_image :: (path: string) -> Image {
     return image;
 }
 
-// untested
 create_image :: (image: Image, position: Point2, size: Point2) -> Image {
     new: Image;
     new.width = size.x;

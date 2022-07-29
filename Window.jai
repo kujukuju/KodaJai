@@ -5,7 +5,7 @@ init :: () {
         exit(-1);
     }
 
-    // initialize time safely?
+    // initialize time
     get_time();
 
     koda.initialized = true;
@@ -152,20 +152,17 @@ set_target_fps :: (target: float) {
     koda.time_tracker.target_fps = target;
 }
 
-get_mouse_captured :: () -> bool {
-    return glfwGetInputMode(koda.window, GLFW_CURSOR) == GLFW_CURSOR_DISABLED;
+get_mouse_capture :: () -> bool {
+    return mouse_capture;
 }
 
-set_mouse_captured :: (enabled: bool) {
-    if enabled {
-        glfwSetInputMode(koda.window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
-        glfwSetInputMode(koda.window, GLFW_STICKY_MOUSE_BUTTONS, GLFW_TRUE);
-        glfwSetInputMode(koda.window, GLFW_STICKY_KEYS, GLFW_TRUE);
-    } else {
-        glfwSetInputMode(koda.window, GLFW_CURSOR, GLFW_CURSOR_NORMAL);
-        glfwSetInputMode(koda.window, GLFW_STICKY_MOUSE_BUTTONS, GLFW_FALSE);
-        glfwSetInputMode(koda.window, GLFW_STICKY_KEYS, GLFW_FALSE);
-    }
+set_mouse_capture :: (capture: bool) {
+    mouse_capture = capture;
+    resolve_mouse_capture();
+}
+
+get_mouse_currently_captured :: () -> bool {
+    return glfwGetInputMode(koda.window, GLFW_CURSOR) == GLFW_CURSOR_DISABLED;
 }
 
 get_front_face_ccw :: () -> bool {
@@ -223,6 +220,11 @@ end_render_target :: () {
 
 }
 
+#scope_module
+
+mouse_capture: bool;
+mouse_currently_captured: bool;
+
 #scope_file
 
 error_callback :: (error: s32, description: *u8) #c_call {
@@ -232,9 +234,8 @@ error_callback :: (error: s32, description: *u8) #c_call {
     }
 }
 
-// 4.4?
-MINIMUM_GL_MAJOR_VERSION: s32 : 3;
-MINIMUM_GL_MINOR_VERSION: s32 : 3;
+MINIMUM_GL_MAJOR_VERSION: s32 : 4;
+MINIMUM_GL_MINOR_VERSION: s32 : 4;
 
 #import "GL";
 #import "JaiGLFW";

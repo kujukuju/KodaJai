@@ -1,5 +1,5 @@
 FontShader :: struct {
-    using shader: Shader;
+    using #as shader: Shader;
 
     shader.vertex = FONT_VERTEX_SHADER;
     shader.fragment = FONT_FRAGMENT_SHADER;

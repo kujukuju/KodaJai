@@ -19,6 +19,7 @@ Point4 :: struct {
     x, y, z, w: int;
 }
 
+// window
 init :: ();
 
 get_window :: () -> *GLFWWindow;
@@ -33,8 +34,9 @@ get_vsync :: () -> bool;
 set_vsync :: (vsync: bool);
 get_target_fps :: () -> float;
 set_target_fps :: (fps: float);
-get_mouse_captured :: () -> bool;
-set_mouse_captured :: (captured: bool);
+get_mouse_capture :: () -> bool;
+set_mouse_capture :: (capture: bool);
+get_mouse_currently_captured :: () -> bool
 get_front_face_ccw :: () -> bool;
 set_front_face_ccw :: (ccw: bool);
 get_depth_test :: () -> bool;
@@ -44,8 +46,8 @@ set_cull_face :: (enabled: bool);
 
 clear :: (color: Color);
 
-begin_render_target :: (render_texture: RenderTexture);
-end_render_target :: ();
+begin_render_target :: (render_texture: RenderTexture); // implement
+end_render_target :: (); // implement
 ```
 
 ## Input
@@ -96,8 +98,8 @@ input: struct {
     controller_active: bool;
     controller_joystick_left: Vector2;
     controller_joystick_right: Vector2;
-    controller: [] InputState;
-    released_controller: [] bool;
+    controller_buttons: [] InputState;
+    released_controller_buttons: [] bool;
 
     mouse_left: InputState;
     released_mouse_left: bool;
@@ -111,11 +113,12 @@ input: struct {
 }
 
 update_inputs :: (); // unsure about this
-clear_input_deltas :: (); // unsure about this
 get_joystick_projected :: () -> bool;
 set_joystick_projected :: (enabled: bool);
 get_joystick_padding :: () -> float;
 set_joystick_padding :: (padding: float);
+get_abort_shortcut :: () -> bool;
+set_abort_shortcut :: (enabled: bool);
 ```
 
 ## 2D
@@ -168,7 +171,7 @@ AnimatedSprite :: struct {
 }
 Container2 :: struct {
     using renderable: Renderable;
-    models: [..] *Sprite;
+    renderables: [..] *Renderable;
     position: Vector2;
     rotation: float;
 }
@@ -179,68 +182,68 @@ get_gl_format :: (format: PixelFormat) -> GLenum;
 
 // image
 load_image :: (path: string) -> Image;
-create_image :: (bytes: [] u8) -> Image;
-create_image :: (image: Image, position: Point2, size: Point2) -> Image;
-create_image :: (texture: Texture) -> Image;
-destroy_image :: (image: Image);
-resize_image :: (image: *Image, size: Point2);
-resize_image_lock_ratio :: (image: *Image, size: Point2);
-crop_image :: (image: *Image, position: Point2, size: Point2);
-clear_image :: (image: *Image);
-clear_image :: (image: *Image, color: Color);
-draw_pixel :: (image: *Image, point: Point2, color: Color);
-draw_rectangle :: (image: *Image, point: Vector2, size: Vector2, color: Color);
-draw_rectangle :: (image: *Image, point: Point2, size: Point2, color: Color);
-draw_line :: (image: *Image, p1: Vector2, p2: Vector2, width: float, color: Color);
-draw_line :: (image: *Image, p1: Point2, p2: Point2, width: int, color: Color);
-draw_circle :: (image: *Image, center: Vector2, radius: float, color: Color);
-draw_circle :: (image: *Image, center: Point2, radius: int, color: Color);
-draw_ellipse :: (image: *Image, center: Vector2, size: Vector2, color: Color);
-draw_ellipse :: (image: *Image, center: Point2, size: Point2, color: Color);
-draw_polygon :: (image: *Image, polygon: [] Vector2, color: Color);
-draw_polygon :: (image: *Image, polygon: [] Point2, color: Color);
-get_pixel :: (image: Image, point: Point2) -> Color;
-draw :: (destination: *Image, source: Image);
-draw :: (destination: *Image, source: Image, position: Point2);
-draw :: (destination: *Image, source: Image, dest_position: Point2, dest_size: Point2, source_position: Point2, source_size: Point2);
+create_image :: (bytes: [] u8) -> Image; // test
+create_image :: (image: Image, position: Point2, size: Point2) -> Image; // test
+create_image :: (texture: Texture) -> Image; // test
+destroy_image :: (image: Image); // test
+resize_image :: (image: *Image, size: Point2); // test
+resize_image_lock_ratio :: (image: *Image, size: Point2); // test
+crop_image :: (image: *Image, position: Point2, size: Point2); // test
+clear_image :: (image: *Image); // test
+clear_image :: (image: *Image, color: Color); // test
+draw_pixel :: (image: *Image, point: Point2, color: Color); // test
+draw_rectangle :: (image: *Image, point: Vector2, size: Vector2, color: Color); // implement
+draw_rectangle :: (image: *Image, point: Point2, size: Point2, color: Color); // implement
+draw_line :: (image: *Image, p1: Vector2, p2: Vector2, width: float, color: Color); // implement
+draw_line :: (image: *Image, p1: Point2, p2: Point2, width: int, color: Color); // implement
+draw_circle :: (image: *Image, center: Vector2, radius: float, color: Color); // implement
+draw_circle :: (image: *Image, center: Point2, radius: int, color: Color); // implement
+draw_ellipse :: (image: *Image, center: Vector2, size: Vector2, color: Color); // implement
+draw_ellipse :: (image: *Image, center: Point2, size: Point2, color: Color); // implement
+draw_polygon :: (image: *Image, polygon: [] Vector2, color: Color); // implement
+draw_polygon :: (image: *Image, polygon: [] Point2, color: Color); // implement
+get_pixel :: (image: Image, point: Point2) -> Color; // implement
+draw :: (destination: *Image, source: Image); // implement
+draw :: (destination: *Image, source: Image, position: Point2); // implement
+draw :: (destination: *Image, source: Image, dest_position: Point2, dest_size: Point2, source_position: Point2, source_size: Point2); // implement
 
 // texture
-load_texture :: (path: string) -> Texture;
-create_texture :: (bytes: [] u8) -> Texture;
-create_texture :: (image: Image) -> Texture;
-create_texture :: (texture: Texture, frame: Vector4) -> Texture;
-upload_texture :: (texture: Texture);
-unload_texture :: (texture: Texture);
-destroy_texture :: (texture: Texture);
-update_texture :: (texture: *Texture, pixels: Image);
-update_texture :: (texture: *Texture, point: Point2, pixels: Image);
-draw :: (texture: Texture, position: Vector2);
-draw :: (texture: Texture, position: Vector2, size: Vector2);
+load_texture :: (path: string) -> Texture; // implement
+create_texture :: (bytes: [] u8) -> Texture; // implement
+create_texture :: (image: Image) -> Texture; // implement
+create_texture :: (texture: Texture, frame: Vector4) -> Texture; // implement
+upload_texture :: (texture: Texture); // implement
+unload_texture :: (texture: Texture); // implement
+destroy_texture :: (texture: Texture); // implement
+update_texture :: (texture: *Texture, pixels: Image); // implement
+update_texture :: (texture: *Texture, point: Point2, pixels: Image); // implement
+draw :: (texture: Texture, position: Vector2); // implement
+draw :: (texture: Texture, position: Vector2, size: Vector2); // implement
 
 // sprite
-create_sprite :: (texture: Texture) -> Sprite;
-destroy_sprite :: (sprite: Sprite);
-draw :: (sprite: Sprite);
+create_sprite :: (texture: Texture) -> Sprite; // implement
+destroy_sprite :: (sprite: Sprite); // implement
+draw :: (sprite: Sprite); // implement
 
 // animated sprite
-create_animated_sprite :: (image: Image, frames: [] Vector4) -> AnimatedSprite;
-create_animated_sprite :: (texture: Texture, frames: [] Vector4) -> AnimatedSprite;
-create_animated_sprite :: (sprite: Sprite, frames: [] Vector4) -> AnimatedSprite;
-destroy_animayed_sprite :: (animated_sprite: AnimatedSprite);
-add_animation :: (animated_sprite: *AnimatedSprite, frame: int, count: int);
-remove_animation :: (animated_sprite: *AnimatedSprite, $name: string);
-goto_animation :: (animated_sprite: *AnimatedSprite, $name: string, frame: int);
-step_animation :: (animated_sprite: *AnimatedSprite, $name: string);
-step_animation :: (animated_sprite: *AnimatedSprite, $name: string, frames: float);
+create_animated_sprite :: (image: Image, frames: [] Vector4) -> AnimatedSprite; // implement
+create_animated_sprite :: (texture: Texture, frames: [] Vector4) -> AnimatedSprite; // implement
+create_animated_sprite :: (sprite: Sprite, frames: [] Vector4) -> AnimatedSprite; // implement
+destroy_animayed_sprite :: (animated_sprite: AnimatedSprite); // implement
+add_animation :: (animated_sprite: *AnimatedSprite, frame: int, count: int); // implement
+remove_animation :: (animated_sprite: *AnimatedSprite, $name: string); // implement
+goto_animation :: (animated_sprite: *AnimatedSprite, $name: string, frame: int); // implement
+step_animation :: (animated_sprite: *AnimatedSprite, $name: string); // implement
+step_animation :: (animated_sprite: *AnimatedSprite, $name: string, frames: float); // implement
 draw :: (animated_sprite: AnimatedSprite);
 
-create_row_column_frames :: (columns: int, $frame_count: int) -> [frame_count] Vector4;
+create_row_column_frames :: (columns: int, $frame_count: int) -> [frame_count] Vector4; // implement
 
 // container2
-destroy_container :: (container: Container2);
-add_child :: (container: *Container2, renderable: *$T/Renderable);
-remove_child :: (container: *Container2, renderable: *$T/Renderable);
-draw :: (container: Container2);
+destroy_container :: (container: Container2); // implement
+add_child :: (container: *Container2, renderable: *$T/Renderable); // implement
+remove_child :: (container: *Container2, renderable: *$T/Renderable); // implement
+draw :: (container: Container2); // implement
 ```
 
 ## 3D
@@ -275,46 +278,46 @@ Container3 :: struct {
 }
 
 // camera3
-get_transform :: (camera: Camera3) -> Matrix4;
-get_forward_vector :: (camera: Camera3) -> Vector3;
-get_up_vector :: (camera: Camera3) -> Vector3;
-get_right_vector :: (camera: Camera3) -> Vector3;
-look_at :: (camera: *Camera3, target: Vector3);
-rotate :: (camera: *Camera3, pitch: float, yaw: float);
-rotate :: (camera: *Camera3, pitch: float, yaw: float, up: Vector3);
+get_transform :: (camera: Camera3) -> Matrix4; // implement
+get_forward_vector :: (camera: Camera3) -> Vector3; // implement
+get_up_vector :: (camera: Camera3) -> Vector3; // implement
+get_right_vector :: (camera: Camera3) -> Vector3; // implement
+look_at :: (camera: *Camera3, target: Vector3); // implement
+rotate :: (camera: *Camera3, pitch: float, yaw: float); // implement
+rotate :: (camera: *Camera3, pitch: float, yaw: float, up: Vector3); // implement
 
 // geometry
-load_geometry :: (path: string) -> Geometry;
-load_and_save_serialized_geometry :: (serialized_path: string, fallback_path: string) -> Geometry;
-upload_geometry :: (texture: Geometry);
-unload_geometry :: (texture: Geometry);
-destroy_geometry :: (geometry: Geometry);
-merge_geometry :: (geometry: *Geometry);
-draw_geometry :: (geometry: Geometry, position: Vector3);
+load_geometry :: (path: string) -> Geometry; // implement
+load_and_save_serialized_geometry :: (serialized_path: string, fallback_path: string) -> Geometry; // implement
+upload_geometry :: (texture: Geometry); // implement
+unload_geometry :: (texture: Geometry); // implement
+destroy_geometry :: (geometry: Geometry); // implement
+merge_geometry :: (geometry: *Geometry); // implement
+draw_geometry :: (geometry: Geometry, position: Vector3); // implement
 
 // geometry shapes
-create_plane :: (radius: float) -> Geometry;
-create_plane :: (size: Vector3) -> Geometry;
-create_cube :: (radius: float) -> Geometry;
-create_cube :: (size: Vector3) -> Geometry;
-create_icosphere :: (radius: float, subdivision: int) -> Geometry;
-create_icosphere :: (size: Vector3, subdivision: int) -> Geometry;
-create_cylinder :: (radius: float, subdivisions: int) -> Geometry;
-create_cylinder :: (size: Vector3, subdivisions: int) -> Geometry;
+create_plane :: (radius: float) -> Geometry; // implement
+create_plane :: (size: Vector3) -> Geometry; // implement
+create_cube :: (radius: float) -> Geometry; // implement
+create_cube :: (size: Vector3) -> Geometry; // implement
+create_icosphere :: (radius: float, subdivision: int) -> Geometry; // implement
+create_icosphere :: (size: Vector3, subdivision: int) -> Geometry; // implement
+create_cylinder :: (radius: float, subdivisions: int) -> Geometry; // implement
+create_cylinder :: (size: Vector3, subdivisions: int) -> Geometry; // implement
 
 // model
-create_model :: (geometry: Geometry) -> Model;
-create_model :: (geometry: Geometry, textures: [] Texture) -> Model;
-upload_model :: (model: Model);
-unload_model :: (model: Model);
-destroy_model :: (model: Model);
-draw_model :: (model: Model);
+create_model :: (geometry: Geometry) -> Model; // implement
+create_model :: (geometry: Geometry, textures: [] Texture) -> Model; // implement
+upload_model :: (model: Model); // implement
+unload_model :: (model: Model); // implement
+destroy_model :: (model: Model); // implement
+draw_model :: (model: Model); // implement
 
 // container3
-destroy_container :: (container: Container3);
-add_child :: (container: *Container3, renderable: *$T/Renderable);
-remove_child :: (container: *Container3, renderable: *$T/Renderable);
-draw :: (container: Container3);
+destroy_container :: (container: Container3); // implement
+add_child :: (container: *Container3, renderable: *$T/Renderable); // implement
+remove_child :: (container: *Container3, renderable: *$T/Renderable); // implement
+draw :: (container: Container3); // implement
 ```
 
 ## Rendering
@@ -339,7 +342,7 @@ Shader :: struct {
 ```jai
 Pipeline :: struct {
     passes: [] Pass;
-    renderables: [] *Renderable;
+    renderables: [..] *Renderable;
 }
 Pass :: struct {
     shader: *Shader;
@@ -361,35 +364,42 @@ RenderableType :: enum {
 
 // TODO shaders will have a map of texture names to locations, models will have a list of textures with names, and it will auto bind model textures correctly based on name
 
+// pipeline
+add_renderable :: (pipeline: *Pipeline, renderable: *Renderable); // implement
+remove_renderable :: (pipeline: *Pipeline, renderable: *Renderable); // implement
+draw :: (pipeline: Pipeline); // implement
+
+// pass
+draw :: (pass: Pass); // implement
 ```
 
 ## 2D Shapes
 ```jai
-draw_line :: (p1: Vector2, p2: Vector2, width: float, color: Color);
-draw_triangle :: (p1: Vector2, p2: Vector2, p3: Vector2, color: Color);
-draw_triangle_lines :: (p1: Vector2, p2: Vector2, p3: Vector2, color: Color);
-draw_rectangle :: (point: Vector2, size: Vector2, color: Color);
-draw_rectangle_lines :: (point: Vector2, size: Vector2, color: Color);
-draw_circle :: (center: Vector2, radius: float, color: Color);
-draw_circle_lines :: (center: Vector2, radius: float, color: Color);
-draw_ellipse :: (center: Vector2, size: Vector2, color: Color);
-draw_ellipse_lines :: (center: Vector2, size: Vector2, color: Color);
-draw_polygon :: (polygon: [] Vector2, color: Color);
-draw_polygon_lines :: (polygon: [] Vector2, color: Color);
+draw_line :: (p1: Vector2, p2: Vector2, width: float, color: Color); // implement
+draw_triangle :: (p1: Vector2, p2: Vector2, p3: Vector2, color: Color); // implement
+draw_triangle_lines :: (p1: Vector2, p2: Vector2, p3: Vector2, color: Color); // implement
+draw_rectangle :: (point: Vector2, size: Vector2, color: Color); // implement
+draw_rectangle_lines :: (point: Vector2, size: Vector2, color: Color); // implement
+draw_circle :: (center: Vector2, radius: float, color: Color); // implement
+draw_circle_lines :: (center: Vector2, radius: float, color: Color); // implement
+draw_ellipse :: (center: Vector2, size: Vector2, color: Color); // implement
+draw_ellipse_lines :: (center: Vector2, size: Vector2, color: Color); // implement
+draw_polygon :: (polygon: [] Vector2, color: Color); // implement
+draw_polygon_lines :: (polygon: [] Vector2, color: Color); // implement
 ```
 
 ## 3D Shapes
 ```jai
-draw_line :: (p1: Vector3, p2: Vector3, color: Color);
-draw_triangle :: (p1: Vector3, p2: Vector3, p3: Vector3, color: Color);
-draw_cube :: (point: Vector3, size: Vector3, color: Color);
-draw_cube_lines :: (point: Vector3, size: Vector3, color: Color);
-draw_sphere :: (center: Vector3, radius: float, color: Color);
-draw_sphere_lines :: (center: Vector3, radius: float, color: Color);
-draw_ellipsoid :: (center: Vector3, size: Vector3, color: Color);
-draw_ellipsoid_lines :: (center: Vector3, size: Vector3, color: Color);
-draw_polyhedron :: (triangles: [] [3] Vector3, color: Color);
-draw_polyhedron_lines :: (triangles: [] [3] Vector3, color: Color);
+draw_line :: (p1: Vector3, p2: Vector3, color: Color); // implement
+draw_triangle :: (p1: Vector3, p2: Vector3, p3: Vector3, color: Color); // implement
+draw_cube :: (point: Vector3, size: Vector3, color: Color); // implement
+draw_cube_lines :: (point: Vector3, size: Vector3, color: Color); // implement
+draw_sphere :: (center: Vector3, radius: float, color: Color); // implement
+draw_sphere_lines :: (center: Vector3, radius: float, color: Color); // implement
+draw_ellipsoid :: (center: Vector3, size: Vector3, color: Color); // implement
+draw_ellipsoid_lines :: (center: Vector3, size: Vector3, color: Color); // implement
+draw_polyhedron :: (triangles: [] [3] Vector3, color: Color); // implement
+draw_polyhedron_lines :: (triangles: [] [3] Vector3, color: Color); // implement
 ```
 
 > NOTES

@@ -2,17 +2,23 @@
 // later might add a way to load animated sprites that are packed
 
 AnimatedSprite :: struct {
-    using sprite: Sprite;
+    using #as sprite: Sprite;
     columns: int;
-    frameCount: int;
+    frame_count: int;
     frame: int;
 }
 
-create_animated_sprite :: (sprite: Sprite, columns: int, frameCount: int, frame: int = 0) -> AnimatedSprite {
+SpriteAnimation :: struct {
+    name: string;
+    start: int;
+    count: int;
+}
+
+create_animated_sprite :: (sprite: Sprite, columns: int, frame_count: int, frame: int = 0) -> AnimatedSprite {
     animated: AnimatedSprite;
     animated.sprite = sprite;
     animated.columns = columns;
-    animated.frameCount = frameCount;
+    animated.frame_count = frame_count;
     animated.frame = frame;
 
     return animated;
@@ -30,7 +36,7 @@ draw_sprite :: (sprite: AnimatedSprite) {
     // TODO dont do it this way
     new := sprite;
 
-    rows := (new.frameCount - 1) / new.columns + 1;
+    rows := (new.frame_count - 1) / new.columns + 1;
 
     row := new.frame / new.columns;
     column := new.frame % new.columns;

@@ -23,7 +23,11 @@
 #load "Input.jai";
 #load "InstancedShader3.jai";
 #load "Material.jai";
+#load "Operators.jai";
+#load "Pass.jai";
+#load "Pipeline.jai";
 #load "Point2.jai";
+#load "Renderable.jai";
 #load "Shaders.jai";
 #load "Shapes.jai";
 #load "SwapBuffer.jai";
