@@ -39,8 +39,6 @@ draw_mesh :: (mesh: Mesh, position: Vector3 = .{}, rotation: Quaternion = .{}) {
     }
     glActiveTexture(GL_TEXTURE0);
 
-    apply_shader_uniforms();
-
     glBindVertexArray(mesh.geometry.vao_);
     glDrawElements(GL_TRIANGLES, xx mesh.geometry.vertex_indices.count, GL_UNSIGNED_INT, xx 0);
     glBindVertexArray(0);

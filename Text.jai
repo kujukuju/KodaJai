@@ -209,8 +209,6 @@ draw_text :: (text: Text) {
         set_uniform(*default_font_shader, "uTint", text.tint);
         set_uniform(*default_font_shader, "uFrame", xyzw(0, 0, 1, 1));
 
-        apply_shader_uniforms();
-
         // render quad
         glDrawArrays(GL_TRIANGLES, 0, xx vertices.count);
 

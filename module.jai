@@ -27,6 +27,8 @@
 #load "Pass.jai";
 #load "Pipeline.jai";
 #load "Point2.jai";
+#load "Point3.jai";
+#load "Point4.jai";
 #load "Renderable.jai";
 #load "Shaders.jai";
 #load "Shapes.jai";
@@ -47,7 +49,7 @@ koda: struct {
     time_tracker: TimeTracker;
     shader: *Shader;
     transform: Matrix4 = Matrix4Identity;
-    static_sprite_: Sprite;
+    active_program: GLuint;
 };
 
 // get_koda_asset_path :: () -> string {
@@ -71,6 +73,10 @@ instanced_shader3: InstancedShader3;
 default_ellipse_shader: DefaultEllipseShader;
 default_font_shader: FontShader;
 serializer: Serializer;
+
+#scope_module
+
+static_sprite: Sprite;
 
 #scope_file
 

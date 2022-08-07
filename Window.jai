@@ -74,7 +74,7 @@ create_window :: (title: *u8, width: s32, height: s32) {
     // koda.shader = get_shader_program(DEFAULT_VERTEX_SHADER, DEFAULT_FRAGMENT_SHADER);
     // default_ellipse_shader = get_shader_program(DEFAULT_ELLIPSE_VERTEX_SHADER, DEFAULT_ELLIPSE_FRAGMENT_SHADER);
 
-    koda.static_sprite_ = create_sprite(.{}, 0, 0);
+    static_sprite = create_sprite(.{}, 0, 0);
 }
 
 destroy_window :: () {

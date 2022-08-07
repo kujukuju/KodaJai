@@ -326,9 +326,8 @@ ShaderUniformType :: enum;
 ShaderUniform :: struct {
     name: string;
     location: GLint;
-    type: ShaderUniformType;
+    type: Type;
     data: *void;
-    size: int;
 }
 Shader :: struct {
     vertex: string;
@@ -336,6 +335,12 @@ Shader :: struct {
     uniforms: [..] ShaderUniform;
     program: GLuint;
 }
+
+// shader
+initialize_shader :: (shader: *Shader); // implement
+destroy_shader :: (shader: Shader); // implement
+set_uniform :: (shader: *Shader, name: string, value: $T); // implement
+use_shader :: (shader: Shader); // implement
 ```
 
 ## Rendering Pipeline

@@ -185,13 +185,13 @@ free :: (texture: Texture) {
 }
 
 draw_texture :: (texture: Texture, position: Vector2, rotation: float = 0, scale: Vector2 = .{1, 1}) {
-    koda.static_sprite_.texture = texture;
-    koda.static_sprite_.width = texture.width * scale.x;
-    koda.static_sprite_.height = texture.height * scale.y;
-    koda.static_sprite_.position = position;
-    koda.static_sprite_.rotation = rotation;
+    static_sprite.texture = texture;
+    static_sprite.width = texture.width * scale.x;
+    static_sprite.height = texture.height * scale.y;
+    static_sprite.position = position;
+    static_sprite.rotation = rotation;
 
-    draw_sprite(koda.static_sprite_);
+    draw_sprite(static_sprite);
 }
 
 #scope_file

@@ -86,8 +86,6 @@ draw_line :: (x1: float, y1: float, x2: float, y2: float, width: float = 1.0, co
     set_uniform(*default_shader, "uTint", color);
     set_uniform(*default_shader, "uFrame", xyzw(0, 0, 1, 1));
 
-    apply_shader_uniforms();
-
     glDrawArrays(GL_TRIANGLES, 0, xx (vertices.count / 2));
 }
 
@@ -171,8 +169,6 @@ draw_rect :: (top_left: Vector2, dimensions: Vector2, color: Color = .{1, 1, 1, 
     set_uniform(*default_shader, "uTint", color);
     set_uniform(*default_shader, "uFrame", xyzw(0, 0, 1, 1));
 
-    apply_shader_uniforms();
-
     glDrawArrays(GL_TRIANGLES, 0, xx (vertices.count / 2));
 
     if border.a != 0 {
@@ -251,8 +247,6 @@ draw_polygon :: (points: [] Vector2, color: Color = .{1, 1, 1, 1}, border: Color
     set_uniform(*default_shader, "uScreenDim", xy(xx koda.width, xx koda.height));
     set_uniform(*default_shader, "uTint", color);
     set_uniform(*default_shader, "uFrame", xyzw(0, 0, 1, 1));
-
-    apply_shader_uniforms();
 
     glDrawArrays(GL_TRIANGLE_FAN, 0, xx (vertices.count / 2));
 
@@ -361,8 +355,6 @@ draw_ellipse :: (center: Vector2, dimensions: Vector2, color: Color = .{1, 1, 1,
     set_uniform(*default_ellipse_shader, "uTint", color);
     set_uniform(*default_ellipse_shader, "uBorderTint", border);
     set_uniform(*default_ellipse_shader, "uFrame", xyzw(0, 0, 1, 1));
-
-    apply_shader_uniforms();
 
     glDrawArrays(GL_TRIANGLES, 0, xx (vertices.count / 2));
 }
