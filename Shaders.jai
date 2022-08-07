@@ -2,8 +2,7 @@ Shader :: struct {
     vertex: string;
     fragment: string;
     uniforms: [..] ShaderUniform;
-    active_: bool;
-    program_: GLuint;
+    program: GLuint;
 }
 
 ShaderUniform :: struct {
@@ -18,7 +17,7 @@ operator == :: (a: Shader, b: Shader) -> bool {
 }
 
 initialize_shader :: (shader: *Shader) {
-    if shader.program_ > 0 {
+    if shader.program > 0 {
         return;
     }
 
@@ -52,25 +51,25 @@ initialize_shader :: (shader: *Shader) {
     if !success_f {
         print("Could not initialized fragment shader.\n");
     }
-    shader.program_ = glCreateProgram();
+    shader.program = glCreateProgram();
 
-    if !success_v || !success_f || !shader.program_ {
-        shader.program_ = 0;
+    if !success_v || !success_f || !shader.program {
+        shader.program = 0;
         print("Failure initalizing shader.\n");
         assert(false, "Failure initializing shader.");
     }
 
-    glAttachShader(shader.program_, shader_v);
-    glAttachShader(shader.program_, shader_f);
-    glLinkProgram(shader.program_);
+    glAttachShader(shader.program, shader_v);
+    glAttachShader(shader.program, shader_f);
+    glLinkProgram(shader.program);
 
     success: GLint;
-    glGetProgramiv(shader.program_, GL_LINK_STATUS, *success);
+    glGetProgramiv(shader.program, GL_LINK_STATUS, *success);
 
     if !success {
-        shader.program_ = 0;
+        shader.program = 0;
         message: [512] u8;
-        glGetProgramInfoLog(shader.program_, 512, null, message.data);
+        glGetProgramInfoLog(shader.program, 512, null, message.data);
         print("Shader error: %\n", to_string(message.data));
         assert(false, "Shader error.");
     }
@@ -82,7 +81,7 @@ destroy_shader :: (shader: Shader) {
     for uniform: shader.uniforms {
         free(uniform.name);
     }
-    glDeleteProgram(shader.program_);
+    glDeleteProgram(shader.program);
 }
 
 get_uniform :: (shader: *Shader, name: string, data: *$T) #modify modify_require_shader_uniform(T) {
@@ -127,17 +126,17 @@ get_uniform :: (shader: *Shader, name: string, data: *$T) #modify modify_require
 }
 
 set_uniform :: (shader: *Shader, name: string, data: $T) #modify modify_require_shader_uniform(T) {
-    if !shader.program_ {
+    if !shader.program {
         initialize_shader(shader);
     }
 
-    if !shader.program_ {
+    if !shader.program {
         return;
     }
 
     uniform := get_uniform(shader, name);
     if !uniform {
-        location := glGetUniformLocation(shader.program_, temp_c_string(name));
+        location := glGetUniformLocation(shader.program, temp_c_string(name));
         if location == -1 {
             return;
         }
@@ -157,6 +156,10 @@ set_uniform :: (shader: *Shader, name: string, data: $T) #modify modify_require_
         memcpy(uniform.data, *data, size_of(s32));
     } else #if #run T == s64 {
         memcpy(uniform.data, *data, size_of(s64));
+    } else #if #run T == float32 {
+        memcpy(uniform.data, *data, size_of(float32));
+    } else #if #run T == float64 {
+        memcpy(uniform.data, *data, size_of(float64));
     } else #if #run T == Vector2 {
         memcpy(uniform.data, *data, size_of(Vector2));
     } else #if #run T == Vector3 {
@@ -182,24 +185,28 @@ set_uniform :: (shader: *Shader, name: string, data: $T) #modify modify_require_
         assert(false, "Shader uniform unhandled type.");
     }
 
-    if koda.active_program == shader.program_ {
+    if koda.active_program == shader.program {
         apply_uniform(uniform.location, data);
     }
 }
 
-use_shader :: (shader: Shader) {
-    if koda.active_program == shader.program_ {
+use_shader :: (shader: *Shader) {
+    if koda.active_program == shader.program {
         return;
     }
 
-    if !shader.program_ {
-        print("Cannot use shader. You must initialized it first.\n");
-        assert(false, "Cannot used initialized shader.");
-        return;
+    if !shader.program {
+        initialize_shader(shader);
+
+        if !shader.program {
+            print("Cannot use shader. You must initialized it first.\n");
+            assert(false, "Cannot used initialized shader.");
+            return;
+        }
     }
 
-    glUseProgram(shader.program_);
-    koda.active_program = shader.program_;
+    glUseProgram(shader.program);
+    koda.active_program = shader.program;
 
     for uniform: shader.uniforms {
         apply_uniform(uniform.location, uniform.data, uniform.type);
@@ -230,6 +237,12 @@ apply_uniform :: (location: GLint, data: *void, type: Type) {
         apply_uniform(location, value);
     } else if type == s64 {
         value := << cast(*s64) data;
+        apply_uniform(location, value);
+    } else if type == float32 {
+        value := << cast(*float32) data;
+        apply_uniform(location, value);
+    } else if type == float64 {
+        value := << cast(*float64) data;
         apply_uniform(location, value);
     } else if type == Vector2 {
         value := << cast(*Vector2) data;
@@ -276,6 +289,10 @@ apply_uniform :: (location: GLint, value: $T) #modify modify_require_shader_unif
         glUniform1i(location, value);
     } else #if #run T == s64 {
         glUniform1i(location, cast(s32) value);
+    } else #if #run T == float32 {
+        glUniform1f(location, value);
+    } else #if #run T == float64 {
+        glUniform1f(location, cast(float32) value);
     } else #if #run T == Vector2 {
         glUniform2fv(location, 1, cast(*float) *value);
     } else #if #run T == Vector3 {
@@ -320,6 +337,10 @@ modify_require_shader_uniform :: (t: Type) #expand {
         `return true;
     } else if t == s64 {
         `return true;
+    } else if t == float32 {
+        `return true;
+    } else if t == float64 {
+        `return true;
     } else if t == Vector2 {
         `return true;
     } else if t == Vector3 {
@@ -342,6 +363,7 @@ modify_require_shader_uniform :: (t: Type) #expand {
         `return true;
     }
 
+    `print("Data type not supported or implemented. %\n", t);
     `return false, "Data type not supported or implemented.";
 }
 

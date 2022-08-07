@@ -29,16 +29,16 @@ create_sprite :: (texture: Texture, width: float, height: float, anchor: Vector2
 
     vertices :: float.[
         // top left
-        -1.0, -1.0,
+        0.0, 0.0,
         0.0, 0.0,
         // bottom left
-        -1.0, 1.0,
+        0.0, 1.0,
         0.0, 1.0,
         // bottom right
         1.0, 1.0,
         1.0, 1.0,
         // top right
-        1.0, -1.0,
+        1.0, 0.0,
         1.0, 0.0,
     ];
     indices :: u32.[
@@ -98,9 +98,18 @@ draw_sprite :: (sprite: Sprite) {
 
     use_shader(*default_shader);
 
+    quaternion: Quaternion;
+    set_from_axis_and_angle(*quaternion, .{0, 0, 1}, sprite.rotation);
+    real_position := sprite.position + rotate(-sprite.anchor * xy(sprite.width, sprite.height), -sprite.rotation);
+
+    // TODO do this matrix math more efficiently than using quaternions... in fact... shouldnt it be using a matrix3 for 2d?
+    // TODO probably just need my own entire matrix2/3/4 library
     projection := orthographic_projection_matrix(0.0, xx koda.width, xx koda.height, 0.0, -1.0, 1.0); 
     model := Matrix4_Identity;
-    view := koda.transform; // matrix4_identity();
+    model = translate(model, xyz(real_position.x, real_position.y, 0));
+    model = rotate(model, quaternion);
+    model = scale(model, xyz(sprite.width, sprite.height, 1.0));
+    view := koda.transform;
     
     set_uniform(*default_shader, "uTexture", 0);
 
@@ -110,22 +119,8 @@ draw_sprite :: (sprite: Sprite) {
 
     // TODO fix this when inverted x or y only so that the framed is inverted but the sprite vertices arent for ccw culling
 
-    position := sprite.position - sprite.anchor * xy(sprite.width, sprite.height);
-    texture_frame := sprite.texture_frame;
-    // if sprite.width < 0 {
-    //     texture_frame.x += texture_frame.z;
-    //     texture_frame.z = -texture_frame.z;
-    // }
-    // if sprite.height < 0 {
-    //     texture_frame.y += texture_frame.w;
-    //     texture_frame.w = -texture_frame.w;
-    // }
-    set_uniform(*default_shader, "uPos", position);
-    set_uniform(*default_shader, "uRot", sprite.rotation);
-    set_uniform(*default_shader, "uDim", xy(sprite.width, sprite.height));
-    set_uniform(*default_shader, "uScreenDim", xy(xx koda.width, xx koda.height));
     set_uniform(*default_shader, "uTint", sprite.tint);
-    set_uniform(*default_shader, "uFrame", texture_frame);
+    set_uniform(*default_shader, "uFrame", sprite.texture_frame);
 
     glBindVertexArray(sprite.vao_);
     defer glBindVertexArray(0);

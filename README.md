@@ -340,7 +340,7 @@ Shader :: struct {
 initialize_shader :: (shader: *Shader); // implement
 destroy_shader :: (shader: Shader); // implement
 set_uniform :: (shader: *Shader, name: string, value: $T); // implement
-use_shader :: (shader: Shader); // implement
+use_shader :: (shader: *Shader); // implement
 ```
 
 ## Rendering Pipeline

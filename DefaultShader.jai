@@ -18,8 +18,8 @@ uniform mat4 projection;
 uniform mat4 view;
 uniform mat4 model;
 
-uniform vec2 uPos;
-uniform float uRot;
+// uniform vec2 uPos;
+// uniform float uRot;
 uniform vec2 uDim;
 // uniform vec2 uOriginalDim;
 uniform vec2 uScreenDim;
@@ -35,12 +35,12 @@ vec2 rotate(vec2 v, float theta) {
 }
 
 void main() {
-    vec2 dimScale = uDim / uScreenDim;
-    vec2 posOffset = uPos / uScreenDim * vec2(2.0, -2.0);
+    // vec2 dimScale = uDim / uScreenDim;
+    // vec2 posOffset = uPos / uScreenDim * vec2(2.0, -2.0);
 
     // gl_Position = vec4(aPos.xy, 0.0, 1.0);
     // gl_Position = projection * view * model * vec4((aPos + vec2(1.0, -1.0)) * dimScale + posOffset - vec2(1.0, -1.0), 0.0, 1.0);
-    gl_Position = projection * view * model * vec4(rotate((aPos + 1.0) / 2.0 * uDim, uRot) + uPos, 0.0, 1.0);
+    gl_Position = projection * view * model * vec4(aPos, 0.0, 1.0);
     
     // vTexCoord = aTexCoord; // aTexCoord * uFrame.zw + uFrame.xy;
     vTexCoord = aTexCoord * uFrame.zw + uFrame.xy;
@@ -57,6 +57,7 @@ uniform sampler2D uTexture;
 uniform vec4 uTint;
 
 void main() {
+    // FragColor = vec4(1.0, 0.0, 0.0, 1.0);
     FragColor = texture(uTexture, vTexCoord) * uTint;
 }
 DONE
