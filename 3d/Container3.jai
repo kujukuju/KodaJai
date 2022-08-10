@@ -1,11 +1,11 @@
-Container2 :: struct {
+Container3 :: struct {
     using #as renderable: Renderable;
     renderables: [..] *Renderable;
-    position: Vector2;
-    rotation: float;
+    position: Vector3;
+    rotation: Quaternion;
 }
 
-destroy_container :: (container: Container2, destroy_children: bool = false) {
+destroy_container :: (container: Container3, destroy_children: bool = false) {
     if destroy_children {
         for child: container.renderables {
             if #complete child.type == {
@@ -24,15 +24,15 @@ destroy_container :: (container: Container2, destroy_children: bool = false) {
     array_free(container.renderables);
 }
 
-add_child :: (container: *Container2, renderable: *$T/Renderable) {
+add_child :: (container: *Container3, renderable: *$T/Renderable) {
     array_add(*container.renderables, renderable);
 }
 
-remove_child :: (container: *Container2, renderable: *$T/Renderable) {
+remove_child :: (container: *Container3, renderable: *$T/Renderable) {
     array_ordered_remove_by_value(*container.renderables, renderable);
 }
 
-draw :: (container: Container2) {
+draw :: (container: Container3) {
     // TODO relative offsets
     for child: container.renderables {
         if #complete child.type == {

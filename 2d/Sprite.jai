@@ -83,17 +83,17 @@ set_scale :: (sprite: *Sprite, scale: Vector2) {
     sprite.height = sprite.texture.height * scale.y;
 }
 
-draw_sprite :: (sprite: Sprite, position: Vector2) {
+draw :: (sprite: Sprite, position: Vector2) {
     // TODO don't do it this way?
     new := sprite;
     new.position = position;
 
-    draw_sprite(new);
+    draw(new);
 }
 
-draw_sprite :: (sprite: Sprite) {
+draw :: (sprite: Sprite) {
     glActiveTexture(GL_TEXTURE0);
-    glBindTexture(GL_TEXTURE_2D, sprite.texture.texture);
+    glBindTexture(GL_TEXTURE_2D, sprite.texture.buffer);
     defer glBindTexture(GL_TEXTURE_2D, 0);
 
     use_shader(*default_shader);

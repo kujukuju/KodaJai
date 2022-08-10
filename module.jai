@@ -1,5 +1,6 @@
 #load "2d/AnimatedSprite.jai";
 #load "2d/Camera2.jai";
+#load "2d/Container2.jai";
 #load "2d/FramedSprite.jai";
 #load "2d/Image.jai";
 #load "2d/PixelFormat.jai";
@@ -8,9 +9,11 @@
 #load "2d/Texture.jai";
 
 #load "3d/Camera3.jai";
+#load "3d/Container3.jai";
 #load "3d/Geometry.jai";
 #load "3d/GeometryVertex.jai";
 #load "3d/Mesh.jai";
+#load "3d/Model.jai";
 #load "3d/Shapes3.jai";
 #load "3d/SphereGeometry.jai";
 

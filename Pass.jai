@@ -5,6 +5,11 @@ Pass :: struct {
     pass_tags: u32;
 }
 
+TextureUniform :: struct {
+    name: string;
+    texture: *Texture;
+}
+
 draw :: (pass: Pass, renderables: [..] *Renderable) {
     for child: renderables {
         if #complete child.type == {

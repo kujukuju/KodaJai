@@ -1,11 +1,11 @@
 Texture :: struct {
-    texture: GLuint;
+    buffer: GLuint;
     width: s32;
     height: s32;
     format: PixelFormat;
 }
 
-load_texture :: (path: string) -> Texture, bool {
+load_texture :: (path: string) -> Texture {
     file, success := read_entire_file(path, false);
     defer free(file);
 
@@ -13,20 +13,19 @@ load_texture :: (path: string) -> Texture, bool {
     bytes.data = file.data;
     bytes.count = file.count;
 
-    texture, loaded := load_texture(bytes);
-    return texture, loaded;
+    return create_texture(bytes);
 }
 
-load_texture :: (bytes: [] u8) -> Texture, bool {
+create_texture :: (bytes: [] u8) -> Texture {
     texture_data := load_data(bytes);
     defer stbi_image_free(texture_data.data);
 
     if texture_data.data == null {
         print("Could not load texture.\n");
-        return .{}, false;
+        return .{};
     }
 
-    return gen_texture(texture_data), true;
+    return gen_texture(texture_data);
 }
 
 load_thumbnail_texture :: (path: string, width: s32, height: s32, preserve_ratio: bool = true) -> Texture, bool {
@@ -146,8 +145,8 @@ gen_texture :: (data: TextureData) -> Texture {
     // texture.mipmaps = 1;
     texture.format = data.format;
 
-    glGenTextures(1, *texture.texture);
-    glBindTexture(GL_TEXTURE_2D, texture.texture);
+    glGenTextures(1, *texture.buffer);
+    glBindTexture(GL_TEXTURE_2D, texture.buffer);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);	
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
     // glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
@@ -181,7 +180,7 @@ gen_texture :: (data: TextureData) -> Texture {
 }
 
 free :: (texture: Texture) {
-    glDeleteTextures(1, *texture.texture);
+    glDeleteTextures(1, *texture.buffer);
 }
 
 draw_texture :: (texture: Texture, position: Vector2, rotation: float = 0, scale: Vector2 = .{1, 1}) {

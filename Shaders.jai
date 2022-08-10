@@ -12,6 +12,32 @@ ShaderUniform :: struct {
     data: *void;
 }
 
+// TODO I need to auto create shaders with all their uniforms and defaults
+// TODO then I can allow textures in passes to have uniform names, and assign them like
+/*
+
+GLint baseImageLoc = glGetUniformLocation(program, "baseImage");
+GLint normalMapLoc = glGetUniformLocation(program, "normalMap");
+GLint shadowMapLoc = glGetUniformLocation(program, "shadowMap");
+
+glUseProgram(program);
+glUniform1i(baseImageLoc, 0); // Texture unit 0 is for base images.
+glUniform1i(normalMapLoc, 2); // Texture unit 2 is for normal maps.
+glUniform1i(shadowMapLoc, 4); // Texture unit 4 is for shadow maps.
+
+// When rendering an object with this program.
+glActiveTexture(GL_TEXTURE0 + 0);
+glBindTexture(GL_TEXTURE_2D, object1BaseImage);
+glBindSampler(0, linearFiltering);
+glActiveTexture(GL_TEXTURE0 + 2);
+glBindTexture(GL_TEXTURE_2D, object1NormalMap);
+glBindSampler(2, linearFiltering); // Same filtering as before
+glActiveTexture(GL_TEXTURE0 + 4);
+glBindTexture(GL_TEXTURE_2D, shadowMap);
+glBindSampler(4, depthComparison); // Special sampler for depth comparisons.
+
+*/
+
 operator == :: (a: Shader, b: Shader) -> bool {
     return a.vertex == b.vertex && a.fragment == b.fragment;
 }
@@ -84,7 +110,7 @@ destroy_shader :: (shader: Shader) {
     glDeleteProgram(shader.program);
 }
 
-get_uniform :: (shader: *Shader, name: string, data: *$T) #modify modify_require_shader_uniform(T) {
+get_uniform :: (shader: Shader, name: string, data: *$T) #modify modify_require_shader_uniform(T) {
     uniform := get_uniform(shader, name);
     if !uniform {
         return;
@@ -223,6 +249,16 @@ get_uniform :: (shader: *Shader, name: string) -> *ShaderUniform {
     }
 
     return null;
+}
+
+get_uniform :: (shader: Shader, name: string) -> ShaderUniform, bool #must {
+    for i: 0..shader.uniforms.count - 1 {
+        if shader.uniforms[i].name == name {
+            return shader.uniforms[i], true;
+        }
+    }
+
+    return .{}, false;
 }
 
 apply_uniform :: (location: GLint, data: *void, type: Type) {

@@ -145,6 +145,10 @@ Texture :: struct {
     height: int;
     format: PixelFormat;
 }
+RenderTexture :: struct {
+    using texture: Texture;
+
+}
 Sprite :: struct {
     using renderable: Renderable;
     texture: Texture;
@@ -223,6 +227,8 @@ draw :: (texture: Texture, position: Vector2, size: Vector2); // implement
 // sprite
 create_sprite :: (texture: Texture) -> Sprite; // implement
 destroy_sprite :: (sprite: Sprite); // implement
+get_scale :: (sprite: Sprite) -> Vector2; // implement
+set_scale :: (sprite: *Sprite, scale: Vector2) // implement
 draw :: (sprite: Sprite); // implement
 
 // animated sprite
@@ -263,7 +269,7 @@ Geometry :: struct {
 Model :: struct {
     using renderable: Renderable;
     geometry: Geometry;
-    textures: [] Texture;
+    textures: [..] Texture;
     position: Vector3;
     rotation: Quaternion;
 }
@@ -276,6 +282,8 @@ Container3 :: struct {
     position: Vector3;
     rotation: Quaternion;
 }
+
+// TODO upload/unload seems to only have to do with geometry?
 
 // camera3
 get_transform :: (camera: Camera3) -> Matrix4; // implement
@@ -293,7 +301,8 @@ upload_geometry :: (texture: Geometry); // implement
 unload_geometry :: (texture: Geometry); // implement
 destroy_geometry :: (geometry: Geometry); // implement
 merge_geometry :: (geometry: *Geometry); // implement
-draw_geometry :: (geometry: Geometry, position: Vector3); // implement
+draw :: (geometry: Geometry); // implement
+draw :: (geometry: Geometry, position: Vector3); // implement
 
 // geometry shapes
 create_plane :: (radius: float) -> Geometry; // implement
@@ -308,10 +317,10 @@ create_cylinder :: (size: Vector3, subdivisions: int) -> Geometry; // implement
 // model
 create_model :: (geometry: Geometry) -> Model; // implement
 create_model :: (geometry: Geometry, textures: [] Texture) -> Model; // implement
-upload_model :: (model: Model); // implement
-unload_model :: (model: Model); // implement
+upload_model :: (model: *Model); // implement
+unload_model :: (model: *Model); // implement
 destroy_model :: (model: Model); // implement
-draw_model :: (model: Model); // implement
+draw :: (model: Model); // implement
 
 // container3
 destroy_container :: (container: Container3); // implement
@@ -337,10 +346,11 @@ Shader :: struct {
 }
 
 // shader
-initialize_shader :: (shader: *Shader); // implement
-destroy_shader :: (shader: Shader); // implement
-set_uniform :: (shader: *Shader, name: string, value: $T); // implement
-use_shader :: (shader: *Shader); // implement
+initialize_shader :: (shader: *Shader);
+destroy_shader :: (shader: Shader);
+get_uniform :: (shader: Shader, name: string, data: *$T);
+set_uniform :: (shader: *Shader, name: string, data: $T);
+use_shader :: (shader: *Shader);
 ```
 
 ## Rendering Pipeline
@@ -368,6 +378,8 @@ RenderableType :: enum {
 }
 
 // TODO shaders will have a map of texture names to locations, models will have a list of textures with names, and it will auto bind model textures correctly based on name
+
+// TODO have to be sure children don't have shader values that correspond to pass texture names
 
 // pipeline
 add_renderable :: (pipeline: *Pipeline, renderable: *Renderable); // implement
