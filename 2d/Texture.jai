@@ -183,14 +183,36 @@ free :: (texture: Texture) {
     glDeleteTextures(1, *texture.buffer);
 }
 
-draw_texture :: (texture: Texture, position: Vector2, rotation: float = 0, scale: Vector2 = .{1, 1}) {
+destroy_texture :: free;
+
+draw :: (texture: Texture, position: Vector2) {
+    static_sprite.texture = texture;
+    static_sprite.width = texture.width;
+    static_sprite.height = texture.height;
+    static_sprite.position = position;
+    static_sprite.rotation = 0;
+
+    draw(static_sprite);
+}
+
+draw :: (texture: Texture, position: Vector2, size: Vector2) {
+    static_sprite.texture = texture;
+    static_sprite.width = size.x;
+    static_sprite.height = size.y;
+    static_sprite.position = position;
+    static_sprite.rotation = 0;
+
+    draw(static_sprite);
+}
+
+draw :: (texture: Texture, position: Vector2, rotation: float = 0, scale: Vector2 = .{1, 1}) {
     static_sprite.texture = texture;
     static_sprite.width = texture.width * scale.x;
     static_sprite.height = texture.height * scale.y;
     static_sprite.position = position;
     static_sprite.rotation = rotation;
 
-    draw_sprite(static_sprite);
+    draw(static_sprite);
 }
 
 #scope_file

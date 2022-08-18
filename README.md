@@ -4,7 +4,6 @@ Just `#import "KodaJai";`.
 To bake the assets you run `jai ./generate_asset_constants.jai`.
 
 ## Core
-
 ```jai
 Color :: struct {
     r, g, b, a: float;
@@ -20,10 +19,10 @@ Point4 :: struct {
 }
 
 // window
-init :: ();
+koda_init :: ();
 
 get_window :: () -> *GLFWWindow;
-create_window :: ();
+create_window :: (name: string, width: int, height: int);
 destroy_window :: ();
 
 should_exit :: () -> bool;
@@ -212,24 +211,26 @@ draw :: (destination: *Image, source: Image, position: Point2); // implement
 draw :: (destination: *Image, source: Image, dest_position: Point2, dest_size: Point2, source_position: Point2, source_size: Point2); // implement
 
 // texture
-load_texture :: (path: string) -> Texture; // implement
-create_texture :: (bytes: [] u8) -> Texture; // implement
+load_texture :: (path: string) -> Texture; // test
+create_texture :: (bytes: [] u8) -> Texture; // test
 create_texture :: (image: Image) -> Texture; // implement
 create_texture :: (texture: Texture, frame: Vector4) -> Texture; // implement
 upload_texture :: (texture: Texture); // implement
 unload_texture :: (texture: Texture); // implement
-destroy_texture :: (texture: Texture); // implement
+destroy_texture :: (texture: Texture); // test
 update_texture :: (texture: *Texture, pixels: Image); // implement
 update_texture :: (texture: *Texture, point: Point2, pixels: Image); // implement
-draw :: (texture: Texture, position: Vector2); // implement
-draw :: (texture: Texture, position: Vector2, size: Vector2); // implement
+draw :: (texture: Texture, position: Vector2); // test
+draw :: (texture: Texture, position: Vector2, size: Vector2); // test
 
 // sprite
 create_sprite :: (texture: Texture) -> Sprite; // implement
 destroy_sprite :: (sprite: Sprite); // implement
-get_scale :: (sprite: Sprite) -> Vector2; // implement
-set_scale :: (sprite: *Sprite, scale: Vector2) // implement
-draw :: (sprite: Sprite); // implement
+get_scale :: (sprite: Sprite) -> Vector2;
+set_scale :: (sprite: *Sprite, scale: Vector2);
+draw :: (sprite: Sprite, position: Vector2);
+draw :: (sprite: Sprite, transform: Matrix4); // implement
+draw :: (sprite: Sprite);
 
 // animated sprite
 create_animated_sprite :: (image: Image, frames: [] Vector4) -> AnimatedSprite; // implement
@@ -243,13 +244,14 @@ step_animation :: (animated_sprite: *AnimatedSprite, $name: string); // implemen
 step_animation :: (animated_sprite: *AnimatedSprite, $name: string, frames: float); // implement
 draw :: (animated_sprite: AnimatedSprite);
 
+// parallax sprite?
 create_row_column_frames :: (columns: int, $frame_count: int) -> [frame_count] Vector4; // implement
 
 // container2
-destroy_container :: (container: Container2); // implement
-add_child :: (container: *Container2, renderable: *$T/Renderable); // implement
-remove_child :: (container: *Container2, renderable: *$T/Renderable); // implement
-draw :: (container: Container2); // implement
+destroy_container :: (container: Container2); // test
+add_child :: (container: *Container2, renderable: *$T/Renderable); // test
+remove_child :: (container: *Container2, renderable: *$T/Renderable); // test
+draw :: (container: Container2); // test
 ```
 
 ## 3D

@@ -28,3 +28,12 @@ vector :: (c: Color) -> Vector4 {
     v.w = c.a;
     return v;
 }
+
+operator * :: (color: Color, value: float) -> Color {
+    out: Color = ---;
+    out.r = color.r * value;
+    out.g = color.g * value;
+    out.b = color.b * value;
+    out.a = color.a * value;
+    return out;
+}

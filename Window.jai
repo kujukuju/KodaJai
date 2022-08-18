@@ -1,4 +1,4 @@
-init :: () {
+koda_init :: () {
     glfwSetErrorCallback(error_callback);
     if !glfwInit() {
         print("Exited because glfw could not initialize.\n");

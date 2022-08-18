@@ -7,7 +7,8 @@ Sprite :: struct {
     width: float;
     height: float;
     anchor: Vector2;
-    tint: Color;
+    tint: Color = .{1, 1, 1, 1};
+    alpha: float = 1;
     texture_frame: Vector4 = .{0, 0, 1, 1};
     vbo_: GLuint;
     vao_: GLuint;
@@ -78,6 +79,10 @@ destroy_sprite :: (sprite: *Sprite) {
     glDeleteVertexArrays(1, *sprite.vao_);
 }
 
+get_scale :: (sprite: Sprite) -> Vector2 {
+    return xy(sprite.width / sprite.texture.width, sprite.height / sprite.texture.height);
+}
+
 set_scale :: (sprite: *Sprite, scale: Vector2) {
     sprite.width = sprite.texture.width * scale.x;
     sprite.height = sprite.texture.height * scale.y;
@@ -89,6 +94,10 @@ draw :: (sprite: Sprite, position: Vector2) {
     new.position = position;
 
     draw(new);
+}
+
+draw :: (sprite: Sprite, transform: Matrix4) {
+
 }
 
 draw :: (sprite: Sprite) {
@@ -119,7 +128,7 @@ draw :: (sprite: Sprite) {
 
     // TODO fix this when inverted x or y only so that the framed is inverted but the sprite vertices arent for ccw culling
 
-    set_uniform(*default_shader, "uTint", sprite.tint);
+    set_uniform(*default_shader, "uTint", sprite.tint * sprite.alpha);
     set_uniform(*default_shader, "uFrame", sprite.texture_frame);
 
     glBindVertexArray(sprite.vao_);

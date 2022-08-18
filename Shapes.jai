@@ -12,20 +12,20 @@ draw_line :: (x1: float, y1: float, x2: float, y2: float, width: float = 1.0, co
     hw := width / 2.0;
 
     left1 := p1 - normal * hw;
-    left1.x /= koda.width;
-    left1.y /= koda.height;
+    // left1.x /= koda.width;
+    // left1.y /= koda.height;
     left1 = left1 * 2.0 - 1.0;
     right1 := p1 + normal * hw;
-    right1.x /= koda.width;
-    right1.y /= koda.height;
+    // right1.x /= koda.width;
+    // right1.y /= koda.height;
     right1 = right1 * 2.0 - 1.0;
     left2 := p2 - normal * hw;
-    left2.x /= koda.width;
-    left2.y /= koda.height;
+    // left2.x /= koda.width;
+    // left2.y /= koda.height;
     left2 = left2 * 2.0 - 1.0;
     right2 := p2 + normal * hw;
-    right2.x /= koda.width;
-    right2.y /= koda.height;
+    // right2.x /= koda.width;
+    // right2.y /= koda.height;
     right2 = right2 * 2.0 - 1.0;
 
     vertices: [12] Vector2;
@@ -43,7 +43,7 @@ draw_line :: (x1: float, y1: float, x2: float, y2: float, width: float = 1.0, co
     vertices[11] = .{1, 0};
 
     white_texture := get_white_texture();
-    glBindTexture(GL_TEXTURE_2D, white_texture.texture);
+    glBindTexture(GL_TEXTURE_2D, white_texture.buffer);
     defer glBindTexture(GL_TEXTURE_2D, 0);
 
     vao: GLuint;
@@ -106,24 +106,24 @@ draw_rect :: (top_left: Vector2, dimensions: Vector2, color: Color = .{1, 1, 1, 
     vertices[10] = xy(bottom_right.x, top_left.y);
     vertices[11] = .{1, 0};
 
-    vertices[0].x /= koda.width;
-    vertices[0].y /= koda.height;
-    vertices[0] = vertices[0] * 2.0 - 1.0;
-    vertices[2].x /= koda.width;
-    vertices[2].y /= koda.height;
-    vertices[2] = vertices[2] * 2.0 - 1.0;
-    vertices[4].x /= koda.width;
-    vertices[4].y /= koda.height;
-    vertices[4] = vertices[4] * 2.0 - 1.0;
-    vertices[6].x /= koda.width;
-    vertices[6].y /= koda.height;
-    vertices[6] = vertices[6] * 2.0 - 1.0;
-    vertices[8].x /= koda.width;
-    vertices[8].y /= koda.height;
-    vertices[8] = vertices[8] * 2.0 - 1.0;
-    vertices[10].x /= koda.width;
-    vertices[10].y /= koda.height;
-    vertices[10] = vertices[10] * 2.0 - 1.0;
+    // vertices[0].x /= koda.width;
+    // vertices[0].y /= koda.height;
+    // vertices[0] = vertices[0] * 2.0 - 1.0;
+    // vertices[2].x /= koda.width;
+    // vertices[2].y /= koda.height;
+    // vertices[2] = vertices[2] * 2.0 - 1.0;
+    // vertices[4].x /= koda.width;
+    // vertices[4].y /= koda.height;
+    // vertices[4] = vertices[4] * 2.0 - 1.0;
+    // vertices[6].x /= koda.width;
+    // vertices[6].y /= koda.height;
+    // vertices[6] = vertices[6] * 2.0 - 1.0;
+    // vertices[8].x /= koda.width;
+    // vertices[8].y /= koda.height;
+    // vertices[8] = vertices[8] * 2.0 - 1.0;
+    // vertices[10].x /= koda.width;
+    // vertices[10].y /= koda.height;
+    // vertices[10] = vertices[10] * 2.0 - 1.0;
 
     white_texture := get_white_texture();
     glBindTexture(GL_TEXTURE_2D, white_texture.texture);
@@ -197,14 +197,11 @@ draw_polygon :: (points: [] Vector2, color: Color = .{1, 1, 1, 1}, border: Color
         percentage := xy(delta.x / range.x, delta.y / range.y);
 
         vertices[i * 2] = points[i];
-        vertices[i * 2].x /= koda.width;
-        vertices[i * 2].y /= koda.height;
-        vertices[i * 2] = vertices[i * 2] * 2.0 - 1.0;
         vertices[i * 2 + 1] = percentage;
     }
 
     white_texture := get_white_texture();
-    glBindTexture(GL_TEXTURE_2D, white_texture.texture);
+    glBindTexture(GL_TEXTURE_2D, white_texture.buffer);
     defer glBindTexture(GL_TEXTURE_2D, 0);
 
     // minor optimization compared to the quad thing, but I should be reusing this vao
@@ -241,10 +238,6 @@ draw_polygon :: (points: [] Vector2, color: Color = .{1, 1, 1, 1}, border: Color
     set_uniform(*default_shader, "model", model);
     set_uniform(*default_shader, "view", view);
 
-    set_uniform(*default_shader, "uPos", Vector2.{0, 0});
-    set_uniform(*default_shader, "uRot", 0.0);
-    set_uniform(*default_shader, "uDim", xy(xx koda.width, xx koda.height));
-    set_uniform(*default_shader, "uScreenDim", xy(xx koda.width, xx koda.height));
     set_uniform(*default_shader, "uTint", color);
     set_uniform(*default_shader, "uFrame", xyzw(0, 0, 1, 1));
 
@@ -299,24 +292,24 @@ draw_ellipse :: (center: Vector2, dimensions: Vector2, color: Color = .{1, 1, 1,
     vertices[10] = xy(bottom_right.x, top_left.y);
     vertices[11] = .{1, 0};
 
-    vertices[0].x /= koda.width;
-    vertices[0].y /= koda.height;
-    vertices[0] = vertices[0] * 2.0 - 1.0;
-    vertices[2].x /= koda.width;
-    vertices[2].y /= koda.height;
-    vertices[2] = vertices[2] * 2.0 - 1.0;
-    vertices[4].x /= koda.width;
-    vertices[4].y /= koda.height;
-    vertices[4] = vertices[4] * 2.0 - 1.0;
-    vertices[6].x /= koda.width;
-    vertices[6].y /= koda.height;
-    vertices[6] = vertices[6] * 2.0 - 1.0;
-    vertices[8].x /= koda.width;
-    vertices[8].y /= koda.height;
-    vertices[8] = vertices[8] * 2.0 - 1.0;
-    vertices[10].x /= koda.width;
-    vertices[10].y /= koda.height;
-    vertices[10] = vertices[10] * 2.0 - 1.0;
+    // vertices[0].x /= koda.width;
+    // vertices[0].y /= koda.height;
+    // vertices[0] = vertices[0] * 2.0 - 1.0;
+    // vertices[2].x /= koda.width;
+    // vertices[2].y /= koda.height;
+    // vertices[2] = vertices[2] * 2.0 - 1.0;
+    // vertices[4].x /= koda.width;
+    // vertices[4].y /= koda.height;
+    // vertices[4] = vertices[4] * 2.0 - 1.0;
+    // vertices[6].x /= koda.width;
+    // vertices[6].y /= koda.height;
+    // vertices[6] = vertices[6] * 2.0 - 1.0;
+    // vertices[8].x /= koda.width;
+    // vertices[8].y /= koda.height;
+    // vertices[8] = vertices[8] * 2.0 - 1.0;
+    // vertices[10].x /= koda.width;
+    // vertices[10].y /= koda.height;
+    // vertices[10] = vertices[10] * 2.0 - 1.0;
 
     vao: GLuint;
     glGenVertexArrays(1, *vao);
