@@ -25,10 +25,7 @@ uniform vec2 uScreenDim;
 uniform vec4 uFrame;
 
 void main() {
-    vec2 dimScale = uDim / uScreenDim;
-    vec2 posOffset = uPos / uScreenDim * vec2(2.0, -2.0);
-
-    gl_Position = projection * view * model * vec4((aPos + 1.0) / 2.0 * uDim + uPos, 0.0, 1.0);
+    gl_Position = projection * view * model * vec4(aPos, 0.0, 1.0);
     
     vTexCoord = aTexCoord * uFrame.zw + uFrame.xy;
 }

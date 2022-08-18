@@ -187,8 +187,8 @@ destroy_texture :: free;
 
 draw :: (texture: Texture, position: Vector2) {
     static_sprite.texture = texture;
-    static_sprite.width = texture.width;
-    static_sprite.height = texture.height;
+    static_sprite.width = xx texture.width;
+    static_sprite.height = xx texture.height;
     static_sprite.position = position;
     static_sprite.rotation = 0;
 

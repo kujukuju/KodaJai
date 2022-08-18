@@ -126,7 +126,7 @@ draw_rect :: (top_left: Vector2, dimensions: Vector2, color: Color = .{1, 1, 1, 
     // vertices[10] = vertices[10] * 2.0 - 1.0;
 
     white_texture := get_white_texture();
-    glBindTexture(GL_TEXTURE_2D, white_texture.texture);
+    glBindTexture(GL_TEXTURE_2D, white_texture.buffer);
     defer glBindTexture(GL_TEXTURE_2D, 0);
 
     vao: GLuint;
@@ -342,11 +342,7 @@ draw_ellipse :: (center: Vector2, dimensions: Vector2, color: Color = .{1, 1, 1,
     set_uniform(*default_ellipse_shader, "model", model);
     set_uniform(*default_ellipse_shader, "view", view);
 
-    set_uniform(*default_ellipse_shader, "uPos", Vector2.{0, 0});
-    set_uniform(*default_ellipse_shader, "uDim", xy(xx koda.width, xx koda.height));
-    set_uniform(*default_ellipse_shader, "uScreenDim", xy(xx koda.width, xx koda.height));
     set_uniform(*default_ellipse_shader, "uTint", color);
-    set_uniform(*default_ellipse_shader, "uBorderTint", border);
     set_uniform(*default_ellipse_shader, "uFrame", xyzw(0, 0, 1, 1));
 
     glDrawArrays(GL_TRIANGLES, 0, xx (vertices.count / 2));

@@ -24,15 +24,15 @@ create_animated_sprite :: (sprite: Sprite, columns: int, frame_count: int, frame
     return animated;
 }
 
-draw_sprite :: (sprite: AnimatedSprite, position: Vector2) {
+draw :: (sprite: AnimatedSprite, position: Vector2) {
     // TODO don't do it this way?
     new := sprite;
     new.position = position;
 
-    draw_sprite(new);
+    draw(new);
 }
 
-draw_sprite :: (sprite: AnimatedSprite) {
+draw :: (sprite: AnimatedSprite) {
     // TODO dont do it this way
     new := sprite;
 
@@ -46,7 +46,7 @@ draw_sprite :: (sprite: AnimatedSprite) {
     new.texture_frame.z = 1.0 / new.columns;
     new.texture_frame.w = 1.0 / rows;
 
-    draw_sprite(new.sprite);
+    draw(new.sprite);
 }
 
 #scope_file

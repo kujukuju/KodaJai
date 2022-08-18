@@ -11,18 +11,18 @@ create_framed_sprite :: (sprite: AnimatedSprite) -> FramedSprite {
     return framed;
 }
 
-draw_sprite :: (framed: FramedSprite, position: Vector2) {
+draw :: (framed: FramedSprite, position: Vector2) {
     // TODO don't do it this way?
     // TODO this doesnt allocate memory... right?
     new := framed;
     new.position = position;
 
-    draw_sprite(new);
+    draw(new);
 }
 
-draw_sprite :: (framed: FramedSprite) {
+draw :: (framed: FramedSprite) {
     // calculate the frame
-    draw_sprite(framed.animated_sprite);
+    draw(framed.animated_sprite);
 }
 
 add_animation :: (framed: *FramedSprite, name: string, start: int, end: int) {
