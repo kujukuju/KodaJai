@@ -168,7 +168,7 @@ AnimatedSprite :: struct {
     using sprite: Sprite;
     columns: int;
     frame_count: int;
-    frame: int;
+    frame: int; // is frame necessary when there's frame_f
     animations: [..] SpriteAnimation;
     frame_f: float;
 }
@@ -268,6 +268,14 @@ Geometry :: struct {
     vertices: [..] GeometryVertex;
     vertex_indices: [..] u32;
 }
+AnimationEasingType :: enum {
+    Linear;
+}
+ModelPoseAnimation :: struct {
+    name: string;
+    poses: [] [..] Vector3;
+    easing: AnimationEasingType;
+}
 Model :: struct {
     using renderable: Renderable;
     geometry: Geometry;
@@ -277,7 +285,11 @@ Model :: struct {
 }
 AnimatedModel :: struct; // future base model that accepts animation events, maybe this can handle everything
 BoneAnimatedModel :: struct; // bone animated model
-PoseAnimatedModel :: struct; // key frame animated model by providing multiple poses
+PoseAnimatedModel :: struct { // key frame animated model by providing multiple poses
+    using model: Model;
+    animations: [] ModelPoseAnimation;
+    frame: float;
+}
 Container3 :: struct {
     using renderable: Renderable;
     models: [..] *Renderable;
@@ -286,6 +298,7 @@ Container3 :: struct {
 }
 
 // TODO upload/unload seems to only have to do with geometry?
+// TODO I want a way to inverse kinematic limit animations so feet can't go through floors
 
 // camera3
 get_transform :: (camera: Camera3) -> Matrix4; // implement
