@@ -261,19 +261,16 @@ update_inputs :: () {
     glfwGetCursorPos(koda.window, *raw_mouse_x, *raw_mouse_y);
     input.mouse_delta_x = raw_mouse_x - last_raw_mouse_x;
     input.mouse_delta_y = raw_mouse_y - last_raw_mouse_y;
-    if !mouse_capture {
-        input.mouse_delta_x = 0;
-        input.mouse_delta_y = 0;
-    }
+    input.mouse_delta_x = 0;
+    input.mouse_delta_y = 0;
+    input.mouse = xy(xx raw_mouse_x, xx raw_mouse_y);
 
     input.scroll_delta_x = accumulated_scroll[0];
     input.scroll_delta_y = accumulated_scroll[1];
     accumulated_scroll[0] = 0;
     accumulated_scroll[1] = 0;
-    if !mouse_capture {
-        input.scroll_delta_x = 0;
-        input.scroll_delta_y = 0;
-    }
+    input.scroll_delta_x = 0;
+    input.scroll_delta_y = 0;
 
     // TODO probably need a more generic way to clear all inputs when not captured
     input.mouse_left &= ~InputState.START;
