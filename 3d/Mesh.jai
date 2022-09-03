@@ -33,7 +33,7 @@ draw_mesh :: (mesh: Mesh, position: Vector3 = .{}, rotation: Quaternion = .{}) {
 
     for i: 0..mesh.materials.count - 1 {
         glActiveTexture(xx (GL_TEXTURE0 + i));
-        glBindTexture(GL_TEXTURE_2D, mesh.materials[i].texture.texture);
+        glBindTexture(GL_TEXTURE_2D, mesh.materials[i].texture.buffer);
 
         set_uniform(*default_shader, tprint("uTexture%", i), i);
     }

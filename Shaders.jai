@@ -145,6 +145,9 @@ get_uniform :: (shader: Shader, name: string, data: *$T) #modify modify_require_
         memcpy(data, uniform.data, size_of(Matrix3));
     } else #if #run T == Matrix4 {
         memcpy(data, uniform.data, size_of(Matrix4));
+    } else #if #run is_fixed_array_of_type(T, Vector3) {
+        array_count :: #run get_fixed_array_count(T);
+        memcpy(data, uniform.data, size_of(Vector3) * array_count);
     } else {
         print("Shader uniform unhandled type. %\n", T);
         assert(false, "Shader uniform unhandled type.");
@@ -206,6 +209,9 @@ set_uniform :: (shader: *Shader, name: string, data: $T) #modify modify_require_
         memcpy(uniform.data, *data, size_of(Matrix3));
     } else #if #run T == Matrix4 {
         memcpy(uniform.data, *data, size_of(Matrix4));
+    } else #if #run is_fixed_array_of_type(T, Vector3) {
+        count :: #run get_fixed_array_count(T);
+        memcpy(uniform.data, *data, size_of(Vector3) * count);
     } else {
         print("Shader uniform unhandled type. %\n", T);
         assert(false, "Shader uniform unhandled type.");
@@ -240,6 +246,48 @@ use_shader :: (shader: *Shader) {
 }
 
 #scope_file
+
+is_fixed_array_of_type :: (array_type: Type, type: Type) -> bool {
+    potential_array_info := cast(*Type_Info) array_type;
+    if potential_array_info.type == .ARRAY {
+        array_info := cast(*Type_Info_Array) potential_array_info;
+        array_type := << cast(*Type) *array_info.element_type;
+
+        if array_info.array_type == .FIXED && array_type == type {
+            return true;
+        } else {
+            return false;
+        }
+    } else {
+        return false;
+    }
+}
+
+// is_fixed_array_of_type :: ($array_type: Type, $type: Type) -> bool {
+//     potential_array_info :: cast(*Type_Info) array_type;
+//     #if potential_array_info.type == .ARRAY {
+//         array_info :: cast(*Type_Info_Array) potential_array_info;
+//         array_type :: << cast(*Type) *array_info.element_type;
+
+//         #if array_info.array_type == .FIXED && array_type == type {
+//             return true;
+//         } else {
+//             return false;
+//         }
+//     } else {
+//         return false;
+//     }
+// }
+
+get_fixed_array_count :: (type: Type) -> int {
+    array_info := cast(*Type_Info_Array) type;
+    return array_info.array_count;
+}
+
+// get_fixed_array_count :: ($type: Type) -> int {
+//     array_info :: cast(*Type_Info_Array) type;
+//     return array_info.array_count;
+// }
 
 get_uniform :: (shader: *Shader, name: string) -> *ShaderUniform {
     for i: 0..shader.uniforms.count - 1 {
@@ -310,9 +358,50 @@ apply_uniform :: (location: GLint, data: *void, type: Type) {
     } else if type == Matrix4 {
         value := << cast(*Matrix4) data;
         apply_uniform(location, value);
+    } else if is_fixed_array_of_type(type, Vector3) {
+        count := get_fixed_array_count(type);
+        value := cast(*Vector3) data;
+        apply_array_uniform(location, value, xx count);
     } else {
         print("Shader uniform unhandled type. %\n", type);
         assert(false, "Shader uniform unhandled type.");
+    }
+}
+
+apply_array_uniform :: (location: GLint, value: *$T, count: u32) #modify modify_require_shader_uniform(T) {
+    #if #run T == u32 {
+        glUniform1uiv(location, count, value);
+    } else #if #run T == u64 {
+        assert(false, "u64 not supported for array uniform types.");
+    } else #if #run T == s32 {
+        glUniform1iv(location, count, value);
+    } else #if #run T == s64 {
+        assert(false, "s64 not supported for array uniform types.");
+    } else #if #run T == float32 {
+        glUniform1fv(location, count, value);
+    } else #if #run T == Vector2 {
+        glUniform2fv(location, count, cast(*float) *value);
+    } else #if #run T == Vector3 {
+        glUniform3fv(location, count, cast(*float) *value);
+    } else #if #run T == Vector4 {
+        glUniform4fv(location, count, cast(*float) *value);
+    } else #if #run T == Point2 {
+        glUniform2iv(location, count, cast(*s32) *value);
+    } else #if #run T == Point3 {
+        glUniform3iv(location, count, cast(*s32) *value);
+    } else #if #run T == Point4 {
+        glUniform4iv(location, count, cast(*s32) *value);
+    } else #if #run T == Color {
+        glUniform4fv(location, count, cast(*float) *value);
+    } else #if #run T == Matrix2 {
+        glUniformMatrix2fv(location, count, true, cast(*float) *value);
+    } else #if #run T == Matrix3 {
+        glUniformMatrix3fv(location, count, true, cast(*float) *value);
+    } else #if #run T == Matrix4 {
+        glUniformMatrix4fv(location, count, true, cast(*float) *value);
+    } else {
+        print("Shader uniform array unhandled type. %\n", T);
+        assert(false, "Shader uniform array unhandled type.");
     }
 }
 
@@ -396,6 +485,8 @@ modify_require_shader_uniform :: (t: Type) #expand {
     } else if t == Matrix3 {
         `return true;
     } else if t == Matrix4 {
+        `return true;
+    } else if is_fixed_array_of_type(t, Vector3) {
         `return true;
     }
 

@@ -1,5 +1,5 @@
 SphereGeometry :: struct {
-    using geometry: Geometry;
+    using #as geometry: Geometry;
 }
 
 create_icosphere :: (radius: float, subdivision: int) -> SphereGeometry {

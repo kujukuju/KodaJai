@@ -27,7 +27,7 @@ draw_spheres :: (positions: [] Vector3, color: Color = .{1, 1, 1, 1}) {
 
     for i: 0..sphere.materials.count - 1 {
         glActiveTexture(xx (GL_TEXTURE0 + i));
-        glBindTexture(GL_TEXTURE_2D, sphere.materials[i].texture.texture);
+        glBindTexture(GL_TEXTURE_2D, sphere.materials[i].texture.buffer);
 
         set_uniform(*instanced_shader3, tprint("uTexture%", i), i);
     }

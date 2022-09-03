@@ -1,5 +1,5 @@
 InstancedShader3 :: struct {
-    using shader: Shader;
+    using #as shader: Shader;
 
     shader.vertex = INSTANCED_VERTEX_SHADER3;
     shader.fragment = INSTANCED_FRAGMENT_SHADER3;
