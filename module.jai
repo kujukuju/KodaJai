@@ -5,6 +5,7 @@
 #load "2d/Image.jai";
 #load "2d/PixelFormat.jai";
 #load "2d/RenderTexture.jai";
+#load "2d/Shapes2.jai";
 #load "2d/Sprite.jai";
 #load "2d/Texture.jai";
 
@@ -24,6 +25,7 @@
 #load "DefaultShader3.jai";
 #load "FontShader.jai";
 #load "Input.jai";
+#load "InstancedShader2.jai";
 #load "InstancedShader3.jai";
 #load "Material.jai";
 #load "Operators.jai";
@@ -34,7 +36,6 @@
 #load "Point4.jai";
 #load "Renderable.jai";
 #load "Shaders.jai";
-#load "Shapes.jai";
 #load "SwapBuffer.jai";
 #load "Text.jai";
 #load "Time.jai";
@@ -72,6 +73,7 @@ koda: struct {
 
 default_shader: DefaultShader;
 default_shader3: DefaultShader3;
+instanced_shader2: InstancedShader2;
 instanced_shader3: InstancedShader3;
 default_ellipse_shader: DefaultEllipseShader;
 default_font_shader: FontShader;

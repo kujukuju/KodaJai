@@ -145,6 +145,9 @@ get_uniform :: (shader: Shader, name: string, data: *$T) #modify modify_require_
         memcpy(data, uniform.data, size_of(Matrix3));
     } else #if #run T == Matrix4 {
         memcpy(data, uniform.data, size_of(Matrix4));
+    } else #if #run is_fixed_array_of_type(T, Vector2) {
+        array_count :: #run get_fixed_array_count(T);
+        memcpy(data, uniform.data, size_of(Vector2) * array_count);
     } else #if #run is_fixed_array_of_type(T, Vector3) {
         array_count :: #run get_fixed_array_count(T);
         memcpy(data, uniform.data, size_of(Vector3) * array_count);
@@ -209,6 +212,9 @@ set_uniform :: (shader: *Shader, name: string, data: $T) #modify modify_require_
         memcpy(uniform.data, *data, size_of(Matrix3));
     } else #if #run T == Matrix4 {
         memcpy(uniform.data, *data, size_of(Matrix4));
+    } else #if #run is_fixed_array_of_type(T, Vector2) {
+        count :: #run get_fixed_array_count(T);
+        memcpy(uniform.data, *data, size_of(Vector2) * count);
     } else #if #run is_fixed_array_of_type(T, Vector3) {
         count :: #run get_fixed_array_count(T);
         memcpy(uniform.data, *data, size_of(Vector3) * count);
@@ -218,7 +224,7 @@ set_uniform :: (shader: *Shader, name: string, data: $T) #modify modify_require_
     }
 
     if koda.active_program == shader.program {
-        apply_uniform(uniform.location, data);
+        apply_uniform(uniform.location, uniform.data, uniform.type);
     }
 }
 
@@ -312,52 +318,56 @@ get_uniform :: (shader: Shader, name: string) -> ShaderUniform, bool #must {
 apply_uniform :: (location: GLint, data: *void, type: Type) {
     if type == u32 {
         value := << cast(*u32) data;
-        apply_uniform(location, value);
+        apply_single_uniform(location, value);
     } else if type == u64 {
         value := << cast(*u64) data;
-        apply_uniform(location, value);
+        apply_single_uniform(location, value);
     } else if type == s32 {
         value := << cast(*s32) data;
-        apply_uniform(location, value);
+        apply_single_uniform(location, value);
     } else if type == s64 {
         value := << cast(*s64) data;
-        apply_uniform(location, value);
+        apply_single_uniform(location, value);
     } else if type == float32 {
         value := << cast(*float32) data;
-        apply_uniform(location, value);
+        apply_single_uniform(location, value);
     } else if type == float64 {
         value := << cast(*float64) data;
-        apply_uniform(location, value);
+        apply_single_uniform(location, value);
     } else if type == Vector2 {
         value := << cast(*Vector2) data;
-        apply_uniform(location, value);
+        apply_single_uniform(location, value);
     } else if type == Vector3 {
         value := << cast(*Vector3) data;
-        apply_uniform(location, value);
+        apply_single_uniform(location, value);
     } else if type == Vector4 {
         value := << cast(*Vector4) data;
-        apply_uniform(location, value);
+        apply_single_uniform(location, value);
     } else if type == Point2 {
         value := << cast(*Point2) data;
-        apply_uniform(location, value);
+        apply_single_uniform(location, value);
     } else if type == Point3 {
         value := << cast(*Point3) data;
-        apply_uniform(location, value);
+        apply_single_uniform(location, value);
     } else if type == Point4 {
         value := << cast(*Point4) data;
-        apply_uniform(location, value);
+        apply_single_uniform(location, value);
     } else if type == Color {
         value := << cast(*Color) data;
-        apply_uniform(location, value);
+        apply_single_uniform(location, value);
     } else if type == Matrix2 {
         value := << cast(*Matrix2) data;
-        apply_uniform(location, value);
+        apply_single_uniform(location, value);
     } else if type == Matrix3 {
         value := << cast(*Matrix3) data;
-        apply_uniform(location, value);
+        apply_single_uniform(location, value);
     } else if type == Matrix4 {
         value := << cast(*Matrix4) data;
-        apply_uniform(location, value);
+        apply_single_uniform(location, value);
+    } else if is_fixed_array_of_type(type, Vector2) {
+        count := get_fixed_array_count(type);
+        value := cast(*Vector2) data;
+        apply_array_uniform(location, value, xx count);
     } else if is_fixed_array_of_type(type, Vector3) {
         count := get_fixed_array_count(type);
         value := cast(*Vector3) data;
@@ -380,32 +390,32 @@ apply_array_uniform :: (location: GLint, value: *$T, count: u32) #modify modify_
     } else #if #run T == float32 {
         glUniform1fv(location, count, value);
     } else #if #run T == Vector2 {
-        glUniform2fv(location, count, cast(*float) *value);
+        glUniform2fv(location, count, cast(*float) value);
     } else #if #run T == Vector3 {
-        glUniform3fv(location, count, cast(*float) *value);
+        glUniform3fv(location, count, cast(*float) value);
     } else #if #run T == Vector4 {
-        glUniform4fv(location, count, cast(*float) *value);
+        glUniform4fv(location, count, cast(*float) value);
     } else #if #run T == Point2 {
-        glUniform2iv(location, count, cast(*s32) *value);
+        glUniform2iv(location, count, cast(*s32) value);
     } else #if #run T == Point3 {
-        glUniform3iv(location, count, cast(*s32) *value);
+        glUniform3iv(location, count, cast(*s32) value);
     } else #if #run T == Point4 {
-        glUniform4iv(location, count, cast(*s32) *value);
+        glUniform4iv(location, count, cast(*s32) value);
     } else #if #run T == Color {
-        glUniform4fv(location, count, cast(*float) *value);
+        glUniform4fv(location, count, cast(*float) value);
     } else #if #run T == Matrix2 {
-        glUniformMatrix2fv(location, count, true, cast(*float) *value);
+        glUniformMatrix2fv(location, count, true, cast(*float) value);
     } else #if #run T == Matrix3 {
-        glUniformMatrix3fv(location, count, true, cast(*float) *value);
+        glUniformMatrix3fv(location, count, true, cast(*float) value);
     } else #if #run T == Matrix4 {
-        glUniformMatrix4fv(location, count, true, cast(*float) *value);
+        glUniformMatrix4fv(location, count, true, cast(*float) value);
     } else {
         print("Shader uniform array unhandled type. %\n", T);
         assert(false, "Shader uniform array unhandled type.");
     }
 }
 
-apply_uniform :: (location: GLint, value: $T) #modify modify_require_shader_uniform(T) {
+apply_single_uniform :: (location: GLint, value: $T) #modify modify_require_shader_uniform(T) {
     #if #run T == u32 {
         glUniform1ui(location, value);
     } else #if #run T == u64 {
@@ -485,6 +495,8 @@ modify_require_shader_uniform :: (t: Type) #expand {
     } else if t == Matrix3 {
         `return true;
     } else if t == Matrix4 {
+        `return true;
+    } else if is_fixed_array_of_type(t, Vector2) {
         `return true;
     } else if is_fixed_array_of_type(t, Vector3) {
         `return true;

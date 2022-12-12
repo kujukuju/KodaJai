@@ -16,7 +16,22 @@ load_image :: (path: string) -> Image {
         return .{};
     }
 
-    return create_image(data);
+    bytes: [] u8;
+    bytes.data = data.data;
+    bytes.count = data.count;
+    return create_image(bytes);
+}
+
+create_image :: (width: int, height: int, format: PixelFormat) -> Image {
+    image: Image;
+    image.width = width;
+    image.height = height;
+    image.format = format;
+    
+    stride := get_stride(format);
+    image.pixels = NewArray(width * height * stride, u8);
+
+    return image;
 }
 
 create_image :: (bytes: [] u8) -> Image {
@@ -29,7 +44,7 @@ create_image :: (bytes: [] u8) -> Image {
     image.width = width;
     image.height = height;
     if !image.pixels.data {
-        print("Could not parse image data. %\n", path);
+        print("Could not parse image data.\n");
         return .{};
     }
     
@@ -85,7 +100,7 @@ create_image :: (texture: Texture) -> Image {
     stride := get_stride(texture.format);
     new.pixels = NewArray(new.width * new.height * stride, u8, false);
 
-    glGetTextureImage(texture.buffer, 0, gl_format, GL_UNSIGNED_BYTE, new.pixels.count, new.pixels.data);
+    glGetTextureImage(texture.buffer, 0, gl_format, GL_UNSIGNED_BYTE, xx new.pixels.count, new.pixels.data);
 
     return new;
 }
@@ -204,7 +219,7 @@ clear_image :: (image: *Image, color: Color) {
 }
 
 draw_pixel :: (image: *Image, point: Point2, color: Color) {
-    if !image.data || point.x < 0 || point.x >= image.width || point.y < 0 || point.y >= image.height {
+    if !image.pixels.data || point.x < 0 || point.y < 0 || point.x >= image.width || point.y >= image.height {
         return;
     }
 
@@ -221,57 +236,131 @@ draw_pixel :: (image: *Image, point: Point2, color: Color) {
 }
 
 draw_rectangle :: (image: *Image, point: Vector2, size: Vector2, color: Color) {
-    
+    draw_rectangle(image, point2(cast(int) point.x, cast(int) point.y), point2(cast(int) size.x, cast(int) size.y), color);
 }
 
 draw_rectangle :: (image: *Image, point: Point2, size: Point2, color: Color) {
+    if !image.pixels.data {
+        return;
+    }
 
+    stride := get_stride(image.format);
+
+    start := max(point, .{0, 0});
+    end := min(point + size, point2(image.width, image.height));
+    for y: start.y..end.y - 1 {
+        for x: start.x..end.x - 1 {
+            index := (y * image.width + x) * stride;
+
+            bytes: [4] u8;
+            bytes.data[0] = cast(u8) round(color.r * 255);
+            bytes.data[1] = cast(u8) round(color.g * 255);
+            bytes.data[2] = cast(u8) round(color.b * 255);
+            bytes.data[3] = cast(u8) round(color.a * 255);
+
+            memcpy(image.pixels.data + index, bytes.data, stride);
+        }
+    }
 }
 
 draw_line :: (image: *Image, p1: Vector2, p2: Vector2, width: float, color: Color) {
-
+    assert(false);
 }
 
 draw_line :: (image: *Image, p1: Point2, p2: Point2, width: int, color: Color) {
-
+    assert(false);
 }
 
 draw_circle :: (image: *Image, center: Vector2, radius: float, color: Color) {
-
+    assert(false);
 }
 
 draw_circle :: (image: *Image, center: Point2, radius: int, color: Color) {
-
+    assert(false);
 }
 
 draw_ellipse :: (image: *Image, center: Vector2, size: Vector2, color: Color) {
-
+    assert(false);
 }
 
 draw_ellipse :: (image: *Image, center: Point2, size: Point2, color: Color) {
-
+    assert(false);
 }
 
 draw_polygon :: (image: *Image, polygon: [] Vector2, color: Color) {
-
+    assert(false);
 }
 
 draw_polygon :: (image: *Image, polygon: [] Point2, color: Color) {
-
+    assert(false);
 }
 
 get_pixel :: (image: Image, point: Point2) -> Color {
+    if point.x < 0 || point.y < 0 || point.x >= image.width || point.y >= image.height {
+        return .{};
+    }
 
+    stride := get_stride(image.format);
+    assert(stride == 4, "Haven't handled anything else yet.");
+    index := image.width * point.y + point.x;
+
+    rgba: [] u8;
+    rgba.data = image.pixels.data + index * stride;
+    rgba.count = 4;
+    c := color(rgba[0], rgba[1], rgba[2], rgba[3]);
+
+    return c;
 }
 
 draw :: (destination: *Image, source: Image) {
-
+    draw(destination, source, .{0, 0});
+    assert(false);
 }
 
 draw :: (destination: *Image, source: Image, position: Point2) {
+    start := max(position, .{0, 0});
+    end := min(point2(destination.width, destination.height), position + point2(source.width, source.height));
+    dimensions := end - start;
+    source_offset := position - start;
 
+    stride := get_stride(destination.format);
+    assert(destination.format == source.format, "I haven't decided yet how I want to handle this.");
+    assert(stride == 4, "I also don't handle anything else yet because of alpha.");
+
+    dest_color_bytes: [] u8;
+    dest_color_bytes.count = stride;
+    source_color_bytes: [] u8;
+    source_color_bytes.count = stride;
+
+    print("% % % %\n", start, end, dimensions, source_offset);
+
+    for y: 0..dimensions.y - 1 {
+        for x: 0..dimensions.x - 1 {
+            point := point2(x, y);
+            dest_point := start + point;
+            source_point := source_offset + point;
+
+            dest_index := (dest_point.y * destination.width + dest_point.x) * stride;
+            source_index := (source_point.y * source.width + source_point.x) * stride;
+
+            dest_color_bytes.data = destination.pixels.data + dest_index;
+            source_color_bytes.data = source.pixels.data + source_index;
+
+            dest_color := color(dest_color_bytes[0], dest_color_bytes[1], dest_color_bytes[2], dest_color_bytes[3]);
+            source_color := color(source_color_bytes[0], source_color_bytes[1], source_color_bytes[2], source_color_bytes[3]);
+            
+            // TODO premultiply for easy math I guess
+            // dest_percent := dest_color.a / (dest_color.a + source_color.a);
+            // source_percent := source_color.a / (dest_color.a + source_color.a);
+
+            dest_color = source_color.a * color(source_color.r, source_color.g, source_color.b, 1.0) + (1.0 - source_color.a) * dest_color; //color(dest_color.r, dest_color.g, dest_color.b, 1.0);
+            dest_bytes := get_bytes(dest_color);
+
+            memcpy(destination.pixels.data + dest_index, dest_bytes.data, stride);
+        }
+    }
 }
 
 draw :: (destination: *Image, source: Image, dest_position: Point2, dest_size: Point2, source_position: Point2, source_size: Point2) {
-
+    assert(false);
 }

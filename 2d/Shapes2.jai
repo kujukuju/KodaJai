@@ -12,21 +12,9 @@ draw_line :: (x1: float, y1: float, x2: float, y2: float, width: float = 1.0, co
     hw := width / 2.0;
 
     left1 := p1 - normal * hw;
-    // left1.x /= koda.width;
-    // left1.y /= koda.height;
-    left1 = left1 * 2.0 - 1.0;
     right1 := p1 + normal * hw;
-    // right1.x /= koda.width;
-    // right1.y /= koda.height;
-    right1 = right1 * 2.0 - 1.0;
     left2 := p2 - normal * hw;
-    // left2.x /= koda.width;
-    // left2.y /= koda.height;
-    left2 = left2 * 2.0 - 1.0;
     right2 := p2 + normal * hw;
-    // right2.x /= koda.width;
-    // right2.y /= koda.height;
-    right2 = right2 * 2.0 - 1.0;
 
     vertices: [12] Vector2;
     vertices[0] = left2;
@@ -79,10 +67,6 @@ draw_line :: (x1: float, y1: float, x2: float, y2: float, width: float = 1.0, co
     set_uniform(*default_shader, "model", model);
     set_uniform(*default_shader, "view", view);
 
-    set_uniform(*default_shader, "uPos", Vector2.{0, 0});
-    set_uniform(*default_shader, "uRot", 0.0);
-    set_uniform(*default_shader, "uDim", xy(xx koda.width, xx koda.height));
-    set_uniform(*default_shader, "uOriginalDim", xy(xx koda.width, xx koda.height));
     set_uniform(*default_shader, "uTint", color);
     set_uniform(*default_shader, "uFrame", xyzw(0, 0, 1, 1));
 
@@ -162,10 +146,6 @@ draw_rect :: (top_left: Vector2, dimensions: Vector2, color: Color = .{1, 1, 1, 
     set_uniform(*default_shader, "model", model);
     set_uniform(*default_shader, "view", view);
 
-    set_uniform(*default_shader, "uPos", Vector2.{0, 0});
-    set_uniform(*default_shader, "uRot", 0.0);
-    set_uniform(*default_shader, "uDim", xy(xx koda.width, xx koda.height));
-    set_uniform(*default_shader, "uScreenDim", xy(xx koda.width, xx koda.height));
     set_uniform(*default_shader, "uTint", color);
     set_uniform(*default_shader, "uFrame", xyzw(0, 0, 1, 1));
 
@@ -346,4 +326,69 @@ draw_ellipse :: (center: Vector2, dimensions: Vector2, color: Color = .{1, 1, 1,
     set_uniform(*default_ellipse_shader, "uFrame", xyzw(0, 0, 1, 1));
 
     glDrawArrays(GL_TRIANGLES, 0, xx (vertices.count / 2));
+}
+
+draw_circles :: (positions: [] Vector2, radius: float, color: Color = .{1, 1, 1, 1}) {
+    top_left := Vector2.{-radius, -radius};
+    bottom_right := Vector2.{radius, radius};
+
+    vertices: [12] Vector2;
+    vertices[0] = top_left;
+    vertices[1] = .{0, 0};
+    vertices[2] = .{top_left.x, bottom_right.y};
+    vertices[3] = .{0, 1};
+    vertices[4] = bottom_right;
+    vertices[5] = .{1, 1};
+    vertices[6] = top_left;
+    vertices[7] = .{0, 0};
+    vertices[8] = bottom_right;
+    vertices[9] = .{1, 1};
+    vertices[10] = .{bottom_right.x, top_left.y};
+    vertices[11] = .{1, 0};
+
+    vao: GLuint;
+    glGenVertexArrays(1, *vao);
+    defer glDeleteVertexArrays(1, *vao);
+    glBindVertexArray(vao);
+    defer glBindVertexArray(0);
+
+    buffer_id: GLuint;
+    glGenBuffers(1, *buffer_id);
+    defer glDeleteBuffers(1, *buffer_id);
+
+    glBindBuffer(GL_ARRAY_BUFFER, buffer_id);
+    glBufferData(GL_ARRAY_BUFFER, size_of(type_of(vertices)), *vertices, GL_DYNAMIC_DRAW);
+
+    glEnableVertexAttribArray(0);
+    defer glDisableVertexAttribArray(0);
+    glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 2 * size_of(Vector2), cast(*void) 0);
+
+    glEnableVertexAttribArray(1);
+    defer glDisableVertexAttribArray(1);
+    glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 2 * size_of(Vector2), cast(*void) size_of(Vector2));
+
+    use_shader(*instanced_shader2);
+
+    projection := orthographic_projection_matrix(0.0, xx koda.width, xx koda.height, 0.0, -1.0, 1.0); 
+    model := Matrix4_Identity;
+    view := koda.transform;
+
+    set_uniform(*instanced_shader2, "projection", projection);
+    set_uniform(*instanced_shader2, "model", model);
+    set_uniform(*instanced_shader2, "view", view);
+
+    set_uniform(*instanced_shader2, "uTint", color);
+
+    // TODO use attributes or whatever instead of looping this shader 1000 times
+    index: int;
+    while index < positions.count {
+        defer index += 1000;
+
+        offsets: [1000] Vector2;
+        remaining_count := min(1000, positions.count - index);
+        memcpy(offsets.data, positions.data + index, remaining_count * size_of(Vector2));
+        set_uniform(*instanced_shader2, "offsets", offsets);
+
+        glDrawArraysInstanced(GL_TRIANGLES, 0, xx (vertices.count / 2), xx remaining_count);
+    }
 }

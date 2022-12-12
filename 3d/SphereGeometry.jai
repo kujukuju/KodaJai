@@ -2,6 +2,8 @@ SphereGeometry :: struct {
     using #as geometry: Geometry;
 }
 
+// TODO probably should just return geometry?
+
 create_icosphere :: (radius: float, subdivision: int) -> SphereGeometry {
     H_ANGLE: float : PI / 180.0 * 72.0;
     V_ANGLE: float : #run atan(1.0 / 2.0);

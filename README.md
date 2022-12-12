@@ -185,6 +185,7 @@ get_gl_format :: (format: PixelFormat) -> GLenum;
 
 // image
 load_image :: (path: string) -> Image;
+create_image :: (width: int, height: int, format: PixelFormat) -> Image
 create_image :: (bytes: [] u8) -> Image; // test
 create_image :: (image: Image, position: Point2, size: Point2) -> Image; // test
 create_image :: (texture: Texture) -> Image; // test
@@ -218,8 +219,8 @@ create_texture :: (texture: Texture, frame: Vector4) -> Texture; // implement
 upload_texture :: (texture: Texture); // implement
 unload_texture :: (texture: Texture); // implement
 destroy_texture :: (texture: Texture); // test
-update_texture :: (texture: *Texture, pixels: Image); // implement
-update_texture :: (texture: *Texture, point: Point2, pixels: Image); // implement
+update_texture :: (texture: *Texture, image: Image); // implement
+update_texture :: (texture: *Texture, point: Point2, image: Image); // implement
 draw :: (texture: Texture, position: Vector2); // test
 draw :: (texture: Texture, position: Vector2, size: Vector2); // test
 

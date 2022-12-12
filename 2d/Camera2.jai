@@ -16,3 +16,8 @@ get_transform :: (using camera: Camera2) -> Matrix4 {
 
     return matrix;
 }
+
+get_mouse_position :: (using camera: Camera2) -> Vector2 {
+    // TODO rotation and scale
+    return input.mouse + camera.position - xy(cast(float) koda.width, cast(float) koda.height) / 2.0;
+}

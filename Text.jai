@@ -96,8 +96,8 @@ create_text :: (content: string, bytes: [] u8, pixel_height: int) -> Text, bool 
         character: Character;
         character.character = cast(u8) c;
         character.texture = texture;
-        character.size = point(face.glyph.bitmap.width, face.glyph.bitmap.rows);
-        character.bearing = point(face.glyph.bitmap_left, face.glyph.bitmap_top);
+        character.size = point2(face.glyph.bitmap.width, face.glyph.bitmap.rows);
+        character.bearing = point2(face.glyph.bitmap_left, face.glyph.bitmap_top);
         character.advance = face.glyph.advance.x;
         text.characters_[c] = character;
 
@@ -143,6 +143,17 @@ draw_text :: (text: Text) {
 
     assert(text.position.x >= 0);
     assert(text.position.y >= 0);
+
+    depth_test := get_depth_test();
+    cull_face := get_cull_face();
+    transform := koda.transform;
+
+    set_depth_test(false);
+    defer set_depth_test(depth_test);
+    set_cull_face(false);
+    defer set_cull_face(cull_face);
+    koda.transform = Matrix4_Identity;
+    defer koda.transform = transform;
 
     scale := 1.0;
 

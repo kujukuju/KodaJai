@@ -44,7 +44,7 @@ draw_spheres :: (positions: [] Vector3, color: Color = .{1, 1, 1, 1}) {
         set_uniform(*instanced_shader3, "offsets", offsets);
 
         glBindVertexArray(sphere.geometry.vao_);
-        glDrawElementsInstanced(GL_TRIANGLES, xx sphere.geometry.vertex_indices.count, GL_UNSIGNED_INT, xx 0, xx positions.count);
+        glDrawElementsInstanced(GL_TRIANGLES, xx sphere.geometry.vertex_indices.count, GL_UNSIGNED_INT, xx 0, xx remaining_count);
     }
 
     glBindVertexArray(0);

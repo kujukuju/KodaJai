@@ -261,8 +261,6 @@ update_inputs :: () {
     glfwGetCursorPos(koda.window, *raw_mouse_x, *raw_mouse_y);
     input.mouse_delta_x = raw_mouse_x - last_raw_mouse_x;
     input.mouse_delta_y = raw_mouse_y - last_raw_mouse_y;
-    input.mouse_delta_x = 0;
-    input.mouse_delta_y = 0;
     input.mouse = xy(xx raw_mouse_x, xx raw_mouse_y);
 
     input.scroll_delta_x = accumulated_scroll[0];

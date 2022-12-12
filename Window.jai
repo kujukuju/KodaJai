@@ -6,7 +6,7 @@ koda_init :: () {
     }
 
     // initialize time
-    get_time();
+    init_time();
 
     koda.initialized = true;
 }
@@ -228,6 +228,7 @@ mouse_currently_captured: bool;
 #scope_file
 
 error_callback :: (error: s32, description: *u8) #c_call {
+    // TODO print color
     new_context: Context;
     push_context new_context {
         print("GLFW error: % %\n", error, to_string(description));

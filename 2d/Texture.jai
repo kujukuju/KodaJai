@@ -28,6 +28,23 @@ create_texture :: (bytes: [] u8) -> Texture {
     return gen_texture(texture_data);
 }
 
+create_texture :: (image: Image) -> Texture {
+    if !image.pixels.data {
+        print("Could not create texture.\n");
+        return .{};
+    }
+
+    texture_data: TextureData;
+    texture_data.data = image.pixels.data;
+    texture_data.width = xx image.width;
+    texture_data.height = xx image.height;
+    texture_data.format = image.format;
+
+    return gen_texture(texture_data);
+}
+
+// TODO update texture more efficiently from image
+
 load_thumbnail_texture :: (path: string, width: s32, height: s32, preserve_ratio: bool = true) -> Texture, bool {
     file, success := read_entire_file(path, false);
     defer free(file);
@@ -184,6 +201,18 @@ free :: (texture: Texture) {
 }
 
 destroy_texture :: free;
+
+update_texture :: (texture: *Texture, image: Image) {
+    assert(texture.width == image.width && texture.height == image.height, "Dimensions must match.");
+    assert(texture.format == image.format, "Formats must match.");
+    
+    glTextureSubImage2D(texture.buffer, 0, 0, 0, xx texture.width, xx texture.height, get_gl_format(texture.format), GL_UNSIGNED_BYTE, image.pixels.data);
+    // glBindBuffer(GL_TEXTURE_BUFFER, texture.buffer);
+    // glBindTexture(GL_TEXTURE_BUFFER, buffer.texture);
+    // // glTexBuffer(GL_TEXTURE_BUFFER, format, buffer.buffer);
+    // glBufferData(GL_TEXTURE_BUFFER, buffer.size, null, GL_DYNAMIC_DRAW);
+    // glBufferSubData(GL_TEXTURE_BUFFER, 0, buffer.size, data.data);
+}
 
 draw :: (texture: Texture, position: Vector2) {
     static_sprite.texture = texture;
