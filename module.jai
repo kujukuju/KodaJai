@@ -1,3 +1,5 @@
+#import "JaiWasmGL";
+
 #load "2d/AnimatedSprite.jai";
 #load "2d/Camera2.jai";
 #load "2d/Container2.jai";

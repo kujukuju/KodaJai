@@ -238,7 +238,6 @@ error_callback :: (error: s32, description: *u8) #c_call {
 MINIMUM_GL_MAJOR_VERSION: s32 : 4;
 MINIMUM_GL_MINOR_VERSION: s32 : 4;
 
-#import "GL";
 #import "JaiGLFW";
 #import "Math";
 #import "Basic";

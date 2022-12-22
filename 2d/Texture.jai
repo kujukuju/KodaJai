@@ -256,4 +256,3 @@ TextureData :: struct {
 #import "Basic";
 #import "File";
 #import "stb_image";
-#import "GL";

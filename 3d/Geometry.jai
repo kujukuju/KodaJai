@@ -19,9 +19,6 @@ free :: (geometry: *Geometry) {
 }
 
 load_or_save_serialized_geometry :: (serialized_path: string, obj_path: string) -> Geometry, bool {
-    if !file_exists(serialized_path) {
-    }
-
     file, success := read_entire_file(serialized_path);
     defer free(file);
     if !success {
@@ -207,4 +204,3 @@ gen_geometry :: (geometry: *Geometry) {
 #scope_file
 
 #import "String";
-#import "GL";

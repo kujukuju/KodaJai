@@ -25,7 +25,7 @@ draw :: (framed: FramedSprite) {
     draw(framed.animated_sprite);
 }
 
-add_animation :: (framed: *FramedSprite, name: string, start: int, end: int) {
+add_animation :: (framed: *FramedSprite, name: string, start: int, end: int, loop: bool = true) {
     for anim: framed.animations {
         if anim.name == name {
             return;
@@ -36,6 +36,7 @@ add_animation :: (framed: *FramedSprite, name: string, start: int, end: int) {
     animation.name = name;
     animation.start = start;
     animation.end = end;
+    animation.loop = loop;
 
     array_add(*framed.animations, animation);
 }
@@ -63,6 +64,7 @@ step_animation :: (framed: *FramedSprite, name: string, frames: float) {
 
     frame_count := animation.end - animation.start + 1.0;
     frame := framed.frame_f - animation.start;
+
     if frame < 0 || frame >= frame_count {
         frame = 0;
     } else {
@@ -71,7 +73,11 @@ step_animation :: (framed: *FramedSprite, name: string, frames: float) {
 
     // why doesnt floating mod % mod exist?
     // TODO min of this and start + count - 1 or something
-    framed.frame_f = fmod(frame, frame_count) + animation.start;
+    if animation.loop {
+        framed.frame_f = fmod(frame, frame_count) + animation.start;
+    } else {
+        framed.frame_f = min(frame, frame_count - 1) + animation.start;
+    }
     framed.frame = cast(int) framed.frame_f;
 }
 
@@ -81,6 +87,7 @@ FramedAnimation :: struct {
     name: string;
     start: int;
     end: int;
+    loop: bool;
 }
 
 find_animation :: (framed: FramedSprite, name: string) -> FramedAnimation, bool {
