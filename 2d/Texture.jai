@@ -78,7 +78,7 @@ load_data :: (data: [] u8) -> TextureData {
     texture_data.data = stbi_load_from_memory(data.data, xx data.count, *texture_data.width, *texture_data.height, *comp, 0);
     if !texture_data.data {
         print("Could not parse texture data.\n");
-        assert(false && "Could not parse texture data.");
+        assert(false, "Could not parse texture data.");
         return .{};
     }
     
