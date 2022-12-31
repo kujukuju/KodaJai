@@ -2,6 +2,7 @@ FramedSprite :: struct {
     using animated_sprite: AnimatedSprite;
     animations: [..] FramedAnimation; // oh well
     frame_f: float;
+    finished: bool;
 }
 
 create_framed_sprite :: (sprite: AnimatedSprite) -> FramedSprite {
@@ -48,8 +49,15 @@ goto_animation :: (framed: *FramedSprite, name: string, frame: int) {
     }
 
     frame_count := animation.end - animation.start + 1;
-    framed.frame_f = cast(float) (frame % frame_count + animation.start);
-    framed.frame = cast(int) framed.frame_f;
+    if animation.loop {
+        framed.frame_f = cast(float) (frame % frame_count + animation.start);
+        framed.frame = cast(int) framed.frame_f;
+        framed.finished = false;
+    } else {
+        framed.frame_f = cast(float) min(frame, frame_count) + animation.start;
+        framed.frame = min(cast(int) framed.frame_f, animation.end);
+        framed.finished = framed.frame_f == frame_count + animation.start;
+    }
 }
 
 step_animation :: (framed: *FramedSprite, name: string) {
@@ -62,23 +70,48 @@ step_animation :: (framed: *FramedSprite, name: string, frames: float) {
         return;
     }
 
+    if framed.frame < animation.start || framed.frame > animation.end {
+        framed.frame = animation.start;
+        // I could subtract frames from here so that the first frame starts at 0
+        // but I think that leads to the first frame being played longer?
+        framed.frame_f = cast(float) animation.start;
+    }
+
     frame_count := animation.end - animation.start + 1.0;
     frame := framed.frame_f - animation.start;
 
-    if frame < 0 || frame >= frame_count {
-        frame = 0;
-    } else {
-        frame += frames;
-    }
+    frame += frames;
 
     // why doesnt floating mod % mod exist?
     // TODO min of this and start + count - 1 or something
     if animation.loop {
         framed.frame_f = fmod(frame, frame_count) + animation.start;
+        framed.finished = false;
     } else {
-        framed.frame_f = min(frame, frame_count - 1) + animation.start;
+        framed.frame_f = min(frame, frame_count) + animation.start;
+        // we have to check this way because its only finished once the last frame has fully been played
+        framed.finished = framed.frame_f == frame_count + animation.start;
     }
+
     framed.frame = cast(int) framed.frame_f;
+    if !animation.loop {
+        framed.frame = min(framed.frame, animation.end);
+    }
+    print("frame is %\n", framed.frame);
+}
+
+get_current_animation_name :: (framed: FramedSprite) -> string {
+    for anim: framed.animations {
+        if framed.frame >= anim.start && framed.frame <= anim.end {
+            return anim.name;
+        }
+    }
+
+    return "";
+}
+
+is_animation_finished :: (framed: FramedSprite) -> bool {
+    return framed.finished;
 }
 
 #scope_file

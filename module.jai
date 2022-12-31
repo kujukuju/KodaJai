@@ -1,4 +1,11 @@
-#import "JaiWasmGL";
+
+#module_parameters(WASM := false);
+
+#if WASM {
+    #import "JaiWasmGL";
+} else {
+    #import "GL";
+}
 
 #load "2d/AnimatedSprite.jai";
 #load "2d/Camera2.jai";

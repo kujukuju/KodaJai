@@ -20,7 +20,6 @@ create_sprite :: (texture: Texture) -> Sprite {
 }
 
 create_sprite :: (texture: Texture, width: float, height: float, anchor: Vector2 = .{0, 0}, tint: Color = .{1, 1, 1, 1}) -> Sprite {
-    print("0\n");
     sprite: Sprite;
     sprite.texture = texture;
     sprite.position = .{0, 0};
@@ -49,32 +48,26 @@ create_sprite :: (texture: Texture, width: float, height: float, anchor: Vector2
     ];
 
     // TODO I can probably reuse all this right?
-    print("1\n");
     glGenVertexArrays(1, *sprite.vao_);
-    print("2\n");
-    // glGenBuffers(1, *sprite.vbo_);
-    print("3\n");
-    // glGenBuffers(1, *sprite.ebo_);
-    print("4\n");
+    glGenBuffers(1, *sprite.vbo_);
+    glGenBuffers(1, *sprite.ebo_);
 
-    // glBindVertexArray(sprite.vao_);
-    // print("5\n");
-    // defer glBindVertexArray(0);
-    // print("6\n");
+    glBindVertexArray(sprite.vao_);
+    defer glBindVertexArray(0);
 
-    // glBindBuffer(GL_ARRAY_BUFFER, sprite.vbo_);
-    // glBufferData(GL_ARRAY_BUFFER, size_of(type_of(vertices)), vertices.data, GL_STATIC_DRAW);
+    glBindBuffer(GL_ARRAY_BUFFER, sprite.vbo_);
+    glBufferData(GL_ARRAY_BUFFER, size_of(type_of(vertices)), vertices.data, GL_STATIC_DRAW);
 
-    // glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, sprite.ebo_);
-    // glBufferData(GL_ELEMENT_ARRAY_BUFFER, size_of(type_of(indices)), indices.data, GL_STATIC_DRAW);
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, sprite.ebo_);
+    glBufferData(GL_ELEMENT_ARRAY_BUFFER, size_of(type_of(indices)), indices.data, GL_STATIC_DRAW);
 
     // position attribute
-    // glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 4 * size_of(float), cast(*void) 0);
-    // glEnableVertexAttribArray(0);
+    glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 4 * size_of(float), cast(*void) 0);
+    glEnableVertexAttribArray(0);
 
     // texture coord attribute
-    // glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 4 * size_of(float), cast(*void) (2 * size_of(float)));
-    // glEnableVertexAttribArray(1);
+    glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 4 * size_of(float), cast(*void) (2 * size_of(float)));
+    glEnableVertexAttribArray(1);
 
     return sprite;
 }

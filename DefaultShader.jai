@@ -22,7 +22,6 @@ uniform vec2 uDim;
 uniform vec2 uScreenDim;
 uniform vec4 uFrame;
 
-
 void main() {
     gl_Position = projection * view * model * vec4(aPos, 0.0, 1.0);
     
