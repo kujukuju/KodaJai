@@ -90,25 +90,6 @@ draw_rect :: (top_left: Vector2, dimensions: Vector2, color: Color = .{1, 1, 1, 
     vertices[10] = xy(bottom_right.x, top_left.y);
     vertices[11] = .{1, 0};
 
-    // vertices[0].x /= koda.width;
-    // vertices[0].y /= koda.height;
-    // vertices[0] = vertices[0] * 2.0 - 1.0;
-    // vertices[2].x /= koda.width;
-    // vertices[2].y /= koda.height;
-    // vertices[2] = vertices[2] * 2.0 - 1.0;
-    // vertices[4].x /= koda.width;
-    // vertices[4].y /= koda.height;
-    // vertices[4] = vertices[4] * 2.0 - 1.0;
-    // vertices[6].x /= koda.width;
-    // vertices[6].y /= koda.height;
-    // vertices[6] = vertices[6] * 2.0 - 1.0;
-    // vertices[8].x /= koda.width;
-    // vertices[8].y /= koda.height;
-    // vertices[8] = vertices[8] * 2.0 - 1.0;
-    // vertices[10].x /= koda.width;
-    // vertices[10].y /= koda.height;
-    // vertices[10] = vertices[10] * 2.0 - 1.0;
-
     white_texture := get_white_texture();
     glBindTexture(GL_TEXTURE_2D, white_texture.buffer);
     defer glBindTexture(GL_TEXTURE_2D, 0);
@@ -136,7 +117,7 @@ draw_rect :: (top_left: Vector2, dimensions: Vector2, color: Color = .{1, 1, 1, 
 
     use_shader(*default_shader);
 
-    projection := orthographic_projection_matrix(0.0, xx koda.width, xx koda.height, 0.0, -1.0, 1.0); 
+    projection := orthographic_projection_matrix(0.0, xx koda.width, xx koda.height, 0.0, -1.0, 1.0);
     model := Matrix4_Identity;
     view := koda.transform;
 
@@ -148,6 +129,10 @@ draw_rect :: (top_left: Vector2, dimensions: Vector2, color: Color = .{1, 1, 1, 
 
     set_uniform(*default_shader, "uTint", color);
     set_uniform(*default_shader, "uFrame", xyzw(0, 0, 1, 1));
+
+    depth_test := get_depth_test();
+    set_depth_test(false);
+    defer set_depth_test(depth_test);
 
     glDrawArrays(GL_TRIANGLES, 0, xx (vertices.count / 2));
 

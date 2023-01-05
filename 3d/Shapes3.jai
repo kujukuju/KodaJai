@@ -2,7 +2,7 @@ draw_line :: () {
 
 }
 
-draw_infinite_grid :: (center: Vector3 = .{0, 0, 0}, normal: Vector3 = .{0, 1, 0}, forward: Vector3 = .{1, 0, 0}, radius: float = 0.0, color: Color = .{1, 1, 1, 1}) {
+draw_infinite_grid :: (center: Vector3 = .{0, 0, 0}, normal: Vector3 = .{0, 1, 0}, forward: Vector3 = .{1, 0, 0}, radius: float = 0.0, spacing: float = 1.0, color: Color = .{1, 1, 1, 1}) {
     vertices: [6] Vector2;
     vertices[0] = .{-1, -1};
     vertices[1] = .{-1, 1};
@@ -30,7 +30,7 @@ draw_infinite_grid :: (center: Vector3 = .{0, 0, 0}, normal: Vector3 = .{0, 1, 0
 
     use_shader(*infinite_grid_shader);
 
-    projection := make_frustum_matrix(-1.92, 1.92, -1.08, 1.08, 1.4, -1.4);
+    projection := get_perspective_matrix();
     view := koda.transform;
 
     set_uniform(*infinite_grid_shader, "projection", projection);
@@ -40,6 +40,7 @@ draw_infinite_grid :: (center: Vector3 = .{0, 0, 0}, normal: Vector3 = .{0, 1, 0
     set_uniform(*infinite_grid_shader, "uNormal", normal);
     set_uniform(*infinite_grid_shader, "uForward", forward);
     set_uniform(*infinite_grid_shader, "uRadius", radius);
+    set_uniform(*infinite_grid_shader, "uSpacing", spacing);
 
     // depth_test := get_depth_test();
     // set_depth_test(false);
@@ -150,6 +151,7 @@ uniform vec3 uPosition;
 uniform vec3 uNormal;
 uniform vec3 uForward;
 uniform float uRadius;
+uniform float uSpacing;
 
 in vec2 vPos;
 // in vec3 vPos;
@@ -194,33 +196,34 @@ void main() {
     vec3 rayOrigin = (inverse(view) * vec4(0.0, 0.0, 0.0, 1.0)).xyz;
     vec3 rayDir = getRayDirection(vPos);
 
-    // FragColor = vec4(rayDir.x * 0.5 + 0.5, rayDir.y * 0.5 + 0.5, rayDir.z * 0.5 + 0.5, 1.0);
-    // gl_FragDepth = 0.0;
-
     float denom = dot(rayDir, planeNormal);
     if (abs(denom) < 0.00001) {
         discard;
     } else {
         float t = dot(planeCenter - rayOrigin, planeNormal) / denom;
         if (t > 0) {
-            vec3 p = rayOrigin + t * rayDir;
+            vec3 rayVec = t * rayDir;
+            vec3 p = rayOrigin + rayVec;
 
             vec2 coord = getCoordinate(p, planeCenter, planeNormal, planeForward);
-            float xmod = mod(coord.x, 1.0);
-            float ymod = mod(coord.y, 1.0);
+            float xmod = mod(coord.x, uSpacing);
+            float ymod = mod(coord.y, uSpacing);
 
-            float width = length(p - rayOrigin) / 1000.0;
+            float width = length(rayVec) / 1000.0;
 
             float sub = 1.0;
+            float alpha = 1.0;
             if (uRadius > 0.0) {
                 sub = clamp((uRadius - length(p - planeCenter)) / 10.0, 0.0, 1.0);
+                alpha = clamp((uRadius - length(p - planeCenter)) / uRadius, 0.0, 1.0);
+                alpha = sqrt(alpha) * 0.75 + 0.25;
             }
             width = width * sub;
-            float upper = 1.0 - width;
+            float upper = uSpacing - width;
             float lower = width;
 
             if (xmod > upper || xmod < lower || ymod > upper || ymod < lower) {
-                FragColor = vec4(1.0, 1.0, 1.0, 1.0);
+                FragColor = vec4(1.0, 1.0, 1.0, 1.0) * alpha;
 
                 vec4 viewSpace = view * vec4(p, 1.0);
                 vec4 clipSpace = projection * viewSpace;

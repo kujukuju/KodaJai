@@ -28,6 +28,7 @@ get_default_text :: () -> Text {
 
 get_white_texture :: () -> Texture {
     if !white_texture_loaded {
+        // white_file := read_entire_file(#run tprint("%assets/White.png", #filepath));
         white_texture_loaded = true;
         white_texture_bytes: [] u8;
         white_texture_bytes.data = White.data;
@@ -44,6 +45,15 @@ push_temporary_context :: () #expand {
     // TODO can you just do defer context.allocator = context.allocator or will that not copy appropriately?
     context.allocator = __temporary_allocator;
     defer context.allocator = old_allocator;
+}
+
+get_perspective_matrix :: () -> Matrix4 {
+    matrix :: #run make_frustum_matrix(-1.92, 1.92, -1.08, 1.08, 1.4, -1.4);
+    return matrix;
+}
+
+get_orthographic_matrix :: () -> Matrix4 {
+    return orthographic_projection_matrix(0.0, xx koda.width, xx koda.height, 0.0, -1.0, 1.0); 
 }
 
 Matrix4Identity :: Matrix4.{

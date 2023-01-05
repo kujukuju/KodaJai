@@ -51,6 +51,7 @@ create_window :: (title: *u8, width: s32, height: s32) {
     glfwSetInputMode(koda.window, GLFW_STICKY_KEYS, GLFW_TRUE);
     // glfwSetCursorPos(koda.window, width / 2.0, height / 2.0);
     glfwSetScrollCallback(koda.window, scroll_callback);
+    // glfwSetCursorPosCallback(koda.window, mouse_callback);
 
     set_vsync(false);
     set_target_fps(0);
@@ -157,8 +158,10 @@ get_mouse_capture :: () -> bool {
 }
 
 set_mouse_capture :: (capture: bool) {
-    mouse_capture = capture;
-    resolve_mouse_capture();
+    if mouse_capture != capture {
+        mouse_capture = capture;
+        resolve_mouse_capture();
+    }
 }
 
 get_mouse_currently_captured :: () -> bool {

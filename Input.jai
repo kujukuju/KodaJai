@@ -267,8 +267,6 @@ update_inputs :: () {
     input.scroll_delta_y = accumulated_scroll[1];
     accumulated_scroll[0] = 0;
     accumulated_scroll[1] = 0;
-    input.scroll_delta_x = 0;
-    input.scroll_delta_y = 0;
 
     // TODO probably need a more generic way to clear all inputs when not captured
     input.mouse_left &= ~InputState.START;
@@ -319,7 +317,7 @@ update_inputs :: () {
     if mouse_currently_captured && input.keys[Key.ESCAPE] {
         mouse_currently_captured = false;
         resolve_mouse_capture();
-    } else if !mouse_currently_captured && input.mouse_left {
+    } else if !mouse_currently_captured && (input.mouse_left || input.mouse_right) {
         mouse_currently_captured = true;
         resolve_mouse_capture();
     }
@@ -360,10 +358,16 @@ resolve_mouse_capture :: () {
         glfwSetInputMode(koda.window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
         glfwSetInputMode(koda.window, GLFW_STICKY_MOUSE_BUTTONS, GLFW_TRUE);
         glfwSetInputMode(koda.window, GLFW_STICKY_KEYS, GLFW_TRUE);
+        if glfwRawMouseMotionSupported() {
+            glfwSetInputMode(koda.window, GLFW_RAW_MOUSE_MOTION, GLFW_TRUE);
+        }
     } else {
         glfwSetInputMode(koda.window, GLFW_CURSOR, GLFW_CURSOR_NORMAL);
         glfwSetInputMode(koda.window, GLFW_STICKY_MOUSE_BUTTONS, GLFW_FALSE);
         glfwSetInputMode(koda.window, GLFW_STICKY_KEYS, GLFW_FALSE);
+        if glfwRawMouseMotionSupported() {
+            glfwSetInputMode(koda.window, GLFW_RAW_MOUSE_MOTION, GLFW_FALSE);
+        }
     }
 }
 
@@ -372,12 +376,22 @@ scroll_callback :: (window: *GLFWwindow, x_offset: float64, y_offset: float64) #
     accumulated_scroll[1] += y_offset;
 }
 
+// I wonder if this would be more accurate?
+mouse_callback :: (window: *GLFWwindow, x: float64, y: float64) #c_call {
+    accumulated_mouse[0] = x - mouse_position[0];
+    accumulated_mouse[1] = y - mouse_position[1];
+    mouse_position[0] = x;
+    mouse_position[1] = y;
+}
+
 #scope_file
 
 raw_mouse_x: float64 = 0.0;
 raw_mouse_y: float64 = 0.0;
 
 accumulated_scroll: [2] float64;
+mouse_position: [2] float64;
+accumulated_mouse: [2] float64;
 
 joystick_padding := 0.2;
 joystick_projected := true;

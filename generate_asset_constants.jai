@@ -29,10 +29,17 @@
             continue;
         }
 
+        bytes: [] u8;
+        bytes.data = file.data;
+        bytes.count = file.count;
+
+        result := write_asset(bytes);
+        defer free(result);
+
         builder: String_Builder;
         append(*builder, constant_name);
         append(*builder, " :: #string DONE\n");
-        append(*builder, file);
+        append(*builder, result);
         append(*builder, "\nDONE");
 
         new_filepath := tprint("assets/%", new_filename);
@@ -42,6 +49,41 @@
     
     print("Done writing files.");
 }();
+
+write_asset :: (bytes: [] u8) -> string {
+    rn_count := 0;
+    for i: 0..bytes.count - 2 {
+        if bytes[i] == #char "\r" && bytes[i + 1] == #char "\n" {
+            rn_count += 1;
+        }
+    }
+
+    if rn_count == 0 {
+        result: string;
+        result.data = alloc(bytes.count);
+        memcpy(result.data, bytes.data, bytes.count);
+        result.count = bytes.count;
+        return result;
+    }
+
+    memory := cast(*u8) alloc(bytes.count + rn_count);
+
+    write_offset := 0;
+    for i: 0..bytes.count - 1 {
+        if i < bytes.count - 1 && bytes[i] == #char "\r" && bytes[i + 1] == #char "\n" {
+            memory[i + write_offset] = #char "\r";
+            memory[i + write_offset + 1] = #char "\r";
+            write_offset += 1;
+        } else {
+            memory[i + write_offset] = bytes[i];
+        }
+    }
+
+    result: string;
+    result.data = memory;
+    result.count = bytes.count + rn_count;
+    return result;
+}
 
 #scope_file
 
