@@ -30,7 +30,17 @@ get_right_vector :: (using camera: Camera3) -> Vector3 {
 }
 
 look_at :: (using camera: *Camera3, target: Vector3) {
-    assert(false, "This doesn't seem to work in the way I want.");
-    look_at_matrix := make_look_at_matrix(position, target, .{0, 1, 0}, false);
-    rotation = get_rotation(look_at_matrix);
+    to_vector := normalize(target - position);
+
+    // compute rotation axis
+    rot_axis := normalize(cross(.{0, 0, -1}, to_vector));
+    if length_squared(rot_axis) == 0 {
+        rot_axis = .{0, 1, 0};
+    }
+
+    // find the angle around rotation axis
+    dot_product := dot(.{0, 0, -1}, to_vector);
+    ang := acos(dot_product);
+
+    rotation = make_rotation_quaternion(rot_axis, ang);
 }

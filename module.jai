@@ -7,49 +7,78 @@
     #import "GL";
 }
 
-#load "2d/AnimatedSprite.jai";
-#load "2d/Camera2.jai";
-#load "2d/Container2.jai";
-#load "2d/FramedSprite.jai";
-#load "2d/Image.jai";
-#load "2d/PixelFormat.jai";
-#load "2d/RenderTexture.jai";
-#load "2d/Shapes2.jai";
-#load "2d/Sprite.jai";
-#load "2d/Texture.jai";
+// #insert #run () -> string {
+//     filepath :: #filepath;
 
-#load "3d/Camera3.jai";
-#load "3d/Container3.jai";
-#load "3d/Geometry.jai";
-#load "3d/GeometryVertex.jai";
-#load "3d/Mesh.jai";
-#load "3d/Model.jai";
-#load "3d/Shapes3.jai";
-#load "3d/SphereGeometry.jai";
+//     files := file_list(tprint("%src", #filepath));
 
-#load "CircleAllocator.jai";
-#load "Color.jai";
-#load "DefaultEllipseShader.jai";
-#load "DefaultShader.jai";
-#load "DefaultShader3.jai";
-#load "FontShader.jai";
-#load "Input.jai";
-#load "InstancedShader2.jai";
-#load "InstancedShader3.jai";
-#load "Material.jai";
-#load "Operators.jai";
-#load "Pass.jai";
-#load "Pipeline.jai";
-#load "Point2.jai";
-#load "Point3.jai";
-#load "Point4.jai";
-#load "Renderable.jai";
-#load "Shaders.jai";
-#load "SwapBuffer.jai";
-#load "Text.jai";
-#load "Time.jai";
-#load "Utilities.jai";
-#load "Window.jai";
+//     builder: String_Builder;
+
+//     for file: files {
+//         if !ends_with(file, ".jai") {
+//             continue;
+//         }
+
+//         relative_file: string;
+//         relative_file.data = file.data + filepath.count;
+//         relative_file.count = file.count - filepath.count;
+
+//         append(*builder, "#load \"");
+//         append(*builder, relative_file);
+//         append(*builder, "\";\n");
+//     }
+
+//     str := builder_to_string(*builder);
+//     print("output %\n", str);
+
+//     return str;
+// }();
+
+#load "src/2d/AnimatedSprite.jai";
+#load "src/2d/Camera2.jai";
+#load "src/2d/Container2.jai";
+#load "src/2d/FramedSprite.jai";
+#load "src/2d/Image.jai";
+#load "src/2d/PixelFormat.jai";
+#load "src/2d/RenderTexture.jai";
+#load "src/2d/Shapes2.jai";
+#load "src/2d/Sprite.jai";
+#load "src/2d/Texture.jai";
+
+#load "src/3d/Camera3.jai";
+#load "src/3d/Container3.jai";
+#load "src/3d/Geometry.jai";
+#load "src/3d/GeometryVertex.jai";
+#load "src/3d/InstancedModel.jai";
+#load "src/3d/Mesh.jai";
+#load "src/3d/Model.jai";
+#load "src/3d/Shapes3.jai";
+#load "src/3d/SphereGeometry.jai";
+
+#load "src/CircleAllocator.jai";
+#load "src/Color.jai";
+#load "src/DefaultEllipseShader.jai";
+#load "src/DefaultShader.jai";
+#load "src/DefaultShader3.jai";
+#load "src/FontShader.jai";
+#load "src/Input.jai";
+#load "src/InstancedShader2.jai";
+#load "src/InstancedShader3.jai";
+#load "src/Material.jai";
+#load "src/Operators.jai";
+#load "src/Pass.jai";
+#load "src/Pipeline.jai";
+#load "src/Point2.jai";
+#load "src/Point3.jai";
+#load "src/Point4.jai";
+#load "src/Renderable.jai";
+#load "src/Shaders.jai";
+#load "src/ShaderUniforms.jai";
+#load "src/SwapBuffer.jai";
+#load "src/Text.jai";
+#load "src/Time.jai";
+#load "src/Utilities.jai";
+#load "src/Window.jai";
 
 koda: struct {
     initialized: bool;
@@ -92,11 +121,10 @@ serializer: Serializer;
 
 static_sprite: Sprite;
 
-#scope_file
+#load "src/assets/TriplexSansBold.jai";
+#load "src/assets/White.jai";
 
-#load "assets/TriplexSansBold.jai";
-#load "assets/White.jai";
-
+#import "String";
+#import "ContiguousJsonJai"(ASSERT = false, ASM = !WASM);
 #import "File_Utilities";
-#load "Operators.jai";
-#load "../JaiSerializer/module.jai";
+#import "JaiSerializer";

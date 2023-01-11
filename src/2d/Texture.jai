@@ -1,5 +1,5 @@
 Texture :: struct {
-    buffer: GLuint;
+    buffer: u32;
     width: s32;
     height: s32;
     format: PixelFormat;

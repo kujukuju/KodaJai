@@ -1,5 +1,8 @@
 Color :: struct {
     r, g, b, a: float;
+
+#place r;
+    component: [4] float = ---;
 }
 
 operator == :: (a: Color, b: Color) -> bool {

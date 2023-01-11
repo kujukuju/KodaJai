@@ -33,14 +33,19 @@ draw_infinite_grid :: (center: Vector3 = .{0, 0, 0}, normal: Vector3 = .{0, 1, 0
     projection := get_perspective_matrix();
     view := koda.transform;
 
-    set_uniform(*infinite_grid_shader, "projection", projection);
-    set_uniform(*infinite_grid_shader, "view", view);
-    set_uniform(*infinite_grid_shader, "uTint", color);
-    set_uniform(*infinite_grid_shader, "uPosition", center);
-    set_uniform(*infinite_grid_shader, "uNormal", normal);
-    set_uniform(*infinite_grid_shader, "uForward", forward);
-    set_uniform(*infinite_grid_shader, "uRadius", radius);
-    set_uniform(*infinite_grid_shader, "uSpacing", spacing);
+    uniforms: ShaderUniforms;
+    defer free(uniforms);
+
+    uniforms["projection"] = create_uniform("projection", projection);
+    uniforms["view"] = create_uniform("view", view);
+    uniforms["uTint"] = create_uniform("uTint", color);
+    uniforms["uPosition"] = create_uniform("uPosition", center);
+    uniforms["uNormal"] = create_uniform("uNormal", normal);
+    uniforms["uForward"] = create_uniform("uForward", forward);
+    uniforms["uRadius"] = create_uniform("uRadius", radius);
+    uniforms["uSpacing"] = create_uniform("uSpacing", spacing);
+
+    apply_uniforms(*infinite_grid_shader, uniforms);
 
     // depth_test := get_depth_test();
     // set_depth_test(false);
@@ -78,27 +83,38 @@ draw_spheres :: (positions: [] Vector3, color: Color = .{1, 1, 1, 1}) {
     model := Matrix4_Identity;
     view := koda.transform;
 
-    set_uniform(*instanced_shader3, "projection", projection);
-    set_uniform(*instanced_shader3, "model", model);
-    set_uniform(*instanced_shader3, "view", view);
+    white_texture := get_white_texture();
 
-    for i: 0..sphere.materials.count - 1 {
-        glActiveTexture(xx (GL_TEXTURE0 + i));
-        glBindTexture(GL_TEXTURE_2D, sphere.materials[i].texture.buffer);
+    uniforms: ShaderUniforms;
+    defer free(uniforms);
+    
+    uniforms["projection"] = create_uniform("projection", projection);
+    uniforms["model"] = create_uniform("model", model);
+    uniforms["view"] = create_uniform("view", view);
+    
+    uniforms["uTint"] = create_uniform("uTint", color);
+    uniforms["uFrame"] = create_uniform("uFrame", Vector4.{0, 0, 1, 1});
 
-        set_uniform(*instanced_shader3, tprint("uTexture%", i), i);
-    }
-    glActiveTexture(GL_TEXTURE0);
+    uniforms["uTexture0"] = create_uniform("uTexture0", white_texture.buffer);
+
+    apply_uniforms(*instanced_shader3, loop_uniforms);
 
     // TODO use attributes or whatever instead of looping this shader 1000 times
     index: int;
     while index < positions.count {
         defer index += 1000;
 
-        offsets: [1000] Vector3;
         remaining_count := min(1000, positions.count - index);
-        memcpy(offsets.data, positions.data + index, remaining_count * size_of(Vector3));
-        set_uniform(*instanced_shader3, "offsets", offsets);
+
+        offsets: [] Vector3;
+        offsets.data = positions.data + index;
+        offsets.count = remaining_count;
+
+        loop_uniforms: ShaderUniforms;
+        defer free(loop_uniforms);
+        loop_uniforms["offsets"] = create_uniform("offsets", offsets);
+
+        apply_uniforms(*instanced_shader3, loop_uniforms);
 
         glBindVertexArray(sphere.geometry.vao_);
         glDrawElementsInstanced(GL_TRIANGLES, xx sphere.geometry.vertex_indices.count, GL_UNSIGNED_INT, xx 0, xx remaining_count);
@@ -254,10 +270,9 @@ load_sphere :: () {
     }
 
     sphere_loaded = true;
-    sphere.geometry = create_icosphere(0.1, 1);
-    add_material(*sphere, get_white_texture());
+    sphere = create_icosphere(0.1, 1);
 }
 
-sphere: Mesh;
+sphere: Geometry;
 sphere_loaded: bool;
 infinite_grid_shader: InfiniteGridShader3;

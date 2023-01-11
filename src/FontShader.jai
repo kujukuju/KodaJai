@@ -15,14 +15,6 @@ layout (location = 1) in vec2 aTexCoord;
 out vec2 vTexCoord;
 
 uniform mat4 projection;
-uniform mat4 view;
-uniform mat4 model;
-
-uniform vec2 uPos;
-uniform vec2 uDim;
-// uniform vec2 uOriginalDim;
-uniform vec2 uScreenDim;
-uniform vec4 uFrame;
 
 void main() {
     gl_Position = projection * vec4(aPos, 0.0, 1.0);

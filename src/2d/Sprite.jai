@@ -101,10 +101,6 @@ draw :: (sprite: Sprite, transform: Matrix4) {
 }
 
 draw :: (sprite: Sprite) {
-    glActiveTexture(GL_TEXTURE0);
-    glBindTexture(GL_TEXTURE_2D, sprite.texture.buffer);
-    defer glBindTexture(GL_TEXTURE_2D, 0);
-
     use_shader(*default_shader);
 
     quaternion: Quaternion;
@@ -119,17 +115,20 @@ draw :: (sprite: Sprite) {
     model = rotate(model, quaternion);
     model = scale(model, xyz(sprite.width, sprite.height, 1.0));
     view := koda.transform;
+
+    uniforms: ShaderUniforms;
+    defer free(uniforms);
+
+    uniforms["uTexture"] = create_uniform("uTexture", sprite.texture);
     
-    set_uniform(*default_shader, "uTexture", 0);
+    uniforms["projection"] = create_uniform("projection", projection);
+    uniforms["model"] = create_uniform("model", model);
+    uniforms["view"] = create_uniform("view", view);
+    
+    uniforms["uTint"] = create_uniform("uTint", sprite.tint * sprite.alpha);
+    uniforms["uFrame"] = create_uniform("uFrame", sprite.texture_frame);
 
-    set_uniform(*default_shader, "projection", projection);
-    set_uniform(*default_shader, "model", model);
-    set_uniform(*default_shader, "view", view);
-
-    // TODO fix this when inverted x or y only so that the framed is inverted but the sprite vertices arent for ccw culling
-
-    set_uniform(*default_shader, "uTint", sprite.tint * sprite.alpha);
-    set_uniform(*default_shader, "uFrame", sprite.texture_frame);
+    apply_uniforms(*default_shader, uniforms);
 
     glBindVertexArray(sprite.vao_);
     defer glBindVertexArray(0);

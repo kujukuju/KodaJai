@@ -61,14 +61,19 @@ draw_line :: (x1: float, y1: float, x2: float, y2: float, width: float = 1.0, co
     model := Matrix4_Identity;
     view := koda.transform;
 
-    set_uniform(*default_shader, "uTexture", 0);
+    uniforms: ShaderUniforms;
+    defer free(uniforms);
 
-    set_uniform(*default_shader, "projection", projection);
-    set_uniform(*default_shader, "model", model);
-    set_uniform(*default_shader, "view", view);
+    uniforms["uTexture"] = create_uniform("uTexture", cast(u32) 0);
 
-    set_uniform(*default_shader, "uTint", color);
-    set_uniform(*default_shader, "uFrame", xyzw(0, 0, 1, 1));
+    uniforms["projection"] = create_uniform("projection", projection);
+    uniforms["model"] = create_uniform("model", model);
+    uniforms["view"] = create_uniform("view", view);
+
+    uniforms["uTint"] = create_uniform("uTint", color);
+    uniforms["uFrame"] = create_uniform("uFrame", Vector4.{0, 0, 1, 1});
+
+    apply_uniforms(*default_shader, uniforms);
 
     glDrawArrays(GL_TRIANGLES, 0, xx (vertices.count / 2));
 }
@@ -121,14 +126,19 @@ draw_rect :: (top_left: Vector2, dimensions: Vector2, color: Color = .{1, 1, 1, 
     model := Matrix4_Identity;
     view := koda.transform;
 
-    set_uniform(*default_shader, "uTexture", 0);
+    uniforms: ShaderUniforms;
+    defer free(uniforms);
 
-    set_uniform(*default_shader, "projection", projection);
-    set_uniform(*default_shader, "model", model);
-    set_uniform(*default_shader, "view", view);
+    uniforms["uTexture"] = create_uniform("uTexture", cast(u32) 0);
+    
+    uniforms["projection"] = create_uniform("projection", projection);
+    uniforms["model"] = create_uniform("model", model);
+    uniforms["view"] = create_uniform("view", view);
+    
+    uniforms["uTint"] = create_uniform("uTint", color);
+    uniforms["uFrame"] = create_uniform("uFrame", Vector4.{0, 0, 1, 1});
 
-    set_uniform(*default_shader, "uTint", color);
-    set_uniform(*default_shader, "uFrame", xyzw(0, 0, 1, 1));
+    apply_uniforms(*default_shader, uniforms);
 
     depth_test := get_depth_test();
     set_depth_test(false);
@@ -197,14 +207,19 @@ draw_polygon :: (points: [] Vector2, color: Color = .{1, 1, 1, 1}, border: Color
     model := Matrix4_Identity;
     view := koda.transform;
 
-    set_uniform(*default_shader, "uTexture", 0);
+    uniforms: ShaderUniforms;
+    defer free(uniforms);
 
-    set_uniform(*default_shader, "projection", projection);
-    set_uniform(*default_shader, "model", model);
-    set_uniform(*default_shader, "view", view);
+    uniforms["uTexture"] = create_uniform("uTexture", cast(u32) 0);
+    
+    uniforms["projection"] = create_uniform("projection", projection);
+    uniforms["model"] = create_uniform("model", model);
+    uniforms["view"] = create_uniform("view", view);
+    
+    uniforms["uTint"] = create_uniform("uTint", color);
+    uniforms["uFrame"] = create_uniform("uFrame", Vector4.{0, 0, 1, 1});
 
-    set_uniform(*default_shader, "uTint", color);
-    set_uniform(*default_shader, "uFrame", xyzw(0, 0, 1, 1));
+    apply_uniforms(*default_shader, uniforms);
 
     glDrawArrays(GL_TRIANGLE_FAN, 0, xx (vertices.count / 2));
 
@@ -303,12 +318,17 @@ draw_ellipse :: (center: Vector2, dimensions: Vector2, color: Color = .{1, 1, 1,
     model := Matrix4_Identity;
     view := koda.transform;
 
-    set_uniform(*default_ellipse_shader, "projection", projection);
-    set_uniform(*default_ellipse_shader, "model", model);
-    set_uniform(*default_ellipse_shader, "view", view);
+    uniforms: ShaderUniforms;
+    defer free(uniforms);
+    
+    uniforms["projection"] = create_uniform("projection", projection);
+    uniforms["model"] = create_uniform("model", model);
+    uniforms["view"] = create_uniform("view", view);
+    
+    uniforms["uTint"] = create_uniform("uTint", color);
+    uniforms["uFrame"] = create_uniform("uFrame", Vector4.{0, 0, 1, 1});
 
-    set_uniform(*default_ellipse_shader, "uTint", color);
-    set_uniform(*default_ellipse_shader, "uFrame", xyzw(0, 0, 1, 1));
+    apply_uniforms(*default_shader, uniforms);
 
     glDrawArrays(GL_TRIANGLES, 0, xx (vertices.count / 2));
 }
@@ -358,11 +378,14 @@ draw_circles :: (positions: [] Vector2, radius: float, color: Color = .{1, 1, 1,
     model := Matrix4_Identity;
     view := koda.transform;
 
-    set_uniform(*instanced_shader2, "projection", projection);
-    set_uniform(*instanced_shader2, "model", model);
-    set_uniform(*instanced_shader2, "view", view);
-
-    set_uniform(*instanced_shader2, "uTint", color);
+    uniforms: ShaderUniforms;
+    defer free(uniforms);
+    
+    uniforms["projection"] = create_uniform("projection", projection);
+    uniforms["model"] = create_uniform("model", model);
+    uniforms["view"] = create_uniform("view", view);
+    
+    uniforms["uTint"] = create_uniform("uTint", color);
 
     // TODO use attributes or whatever instead of looping this shader 1000 times
     index: int;
@@ -372,7 +395,10 @@ draw_circles :: (positions: [] Vector2, radius: float, color: Color = .{1, 1, 1,
         offsets: [1000] Vector2;
         remaining_count := min(1000, positions.count - index);
         memcpy(offsets.data, positions.data + index, remaining_count * size_of(Vector2));
-        set_uniform(*instanced_shader2, "offsets", offsets);
+        uniforms["offsets"] = create_uniform("offsets", offsets);
+
+        // TODO apply 1 only
+        apply_uniforms(*default_shader, uniforms);
 
         glDrawArraysInstanced(GL_TRIANGLES, 0, xx (vertices.count / 2), xx remaining_count);
     }

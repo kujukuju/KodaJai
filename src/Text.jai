@@ -208,17 +208,16 @@ draw_text :: (text: Text) {
         model := Matrix4_Identity;
         view := koda.transform;
 
-        set_uniform(*default_font_shader, "uTexture", character.texture);
+        uniforms: ShaderUniforms;
+        defer free(uniforms);
+        
+        uniforms["uTexture"] = create_uniform("uTexture", character.texture);
 
-        set_uniform(*default_font_shader, "projection", projection);
-        set_uniform(*default_font_shader, "model", model);
-        set_uniform(*default_font_shader, "view", view);
+        uniforms["projection"] = create_uniform("projection", projection);
 
-        set_uniform(*default_font_shader, "uPos", xy(0, 0));
-        set_uniform(*default_font_shader, "uDim", xy(xx koda.width, xx koda.height));
-        set_uniform(*default_font_shader, "uScreenDim", xy(xx koda.width, xx koda.height));
-        set_uniform(*default_font_shader, "uTint", text.tint);
-        set_uniform(*default_font_shader, "uFrame", xyzw(0, 0, 1, 1));
+        uniforms["uTint"] = create_uniform("uTint", text.tint);
+
+        apply_uniforms(*default_font_shader, uniforms);
 
         // render quad
         glDrawArrays(GL_TRIANGLES, 0, xx vertices.count);

@@ -1,22 +1,37 @@
 Model :: struct {
     using #as renderable: Renderable;
-    renderable.type = RenderableType.Model;
-    geometry: Geometry;
-    textures: [] Texture;
+    renderable.type = .Model;
+    geometry: [..] *Geometry;
+    uniforms: ShaderUniforms;
     position: Vector3;
     rotation: Quaternion;
 }
 
-create_model :: (geometry: Geometry) -> Model {
+create_model :: (geometry: *Geometry) -> Model {
     model: Model;
-    model.geometry = geometry;
+    array_resize(*model.geometry, 1);
+    model.geometry[0] = geometry;
     return model;
 }
 
-create_model :: (geometry: Geometry, textures: .. Texture) -> Model {
+create_model :: (geometry: [] *Geometry) -> Model {
     model: Model;
-    model.geometry = geometry;
-    model.textures = array_copy(textures);
+    array_copy(*model.geometry, geometry);
+    return model;
+}
+
+create_model :: (geometry: *Geometry, texture: Texture) -> Model {
+    model: Model;
+    array_resize(*model.geometry, 1);
+    model.geometry[0] = geometry;
+    model.uniforms["uTexture0"] = create_uniform("uTexture0", texture);
+    return model;
+}
+
+create_model :: (geometry: [] *Geometry, texture: Texture) -> Model {
+    model: Model;
+    array_copy(*model.geometry, geometry);
+    model.uniforms["uTexture0"] = create_uniform("uTexture0", texture);
     return model;
 }
 
@@ -29,7 +44,7 @@ unload_model :: (model: *Model) {
 }
 
 destroy_model :: (model: Model) {
-    // free textures array bc its allocated
+    
 }
 
 draw :: (model: Model) {
@@ -39,22 +54,25 @@ draw :: (model: Model) {
     model_mat := make_translation_matrix4(model.position); // Matrix4_Identity;
     view := koda.transform;
 
-    set_uniform(*default_shader3, "projection", projection);
-    set_uniform(*default_shader3, "model", model_mat);
-    set_uniform(*default_shader3, "view", view);
+    apply_uniforms(*default_shader3, model.uniforms);
 
-    for i: 0..model.textures.count - 1 {
-        glActiveTexture(xx (GL_TEXTURE0 + i));
-        glBindTexture(GL_TEXTURE_2D, model.textures[i].buffer);
+    uniforms: ShaderUniforms;
+    defer free(uniforms);
+    
+    uniforms["projection"] = create_uniform("projection", projection);
+    uniforms["model"] = create_uniform("model", model_mat);
+    uniforms["view"] = create_uniform("view", view);
 
-        set_uniform(*default_shader, tprint("uTexture%", i), i);
+    print("Model %\nView %\nProjection %\n", model_mat.floats, view.floats, projection.floats);
+    
+    apply_uniforms(*default_shader3, uniforms);
+
+    for geometry: model.geometry {
+        glBindVertexArray(geometry.vao_);
+        glDrawElements(GL_TRIANGLES, xx geometry.indices.count, GL_UNSIGNED_INT, xx 0);
+        glBindVertexArray(0);
+        glBindTexture(GL_TEXTURE_2D, 0);
     }
-    glActiveTexture(GL_TEXTURE0);
-
-    glBindVertexArray(model.geometry.vao_);
-    glDrawElements(GL_TRIANGLES, xx model.geometry.vertex_indices.count, GL_UNSIGNED_INT, xx 0);
-    glBindVertexArray(0);
-    glBindTexture(GL_TEXTURE_2D, 0);
 }
 
 // free :: (mesh: Mesh) {

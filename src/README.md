@@ -280,9 +280,10 @@ ModelPoseAnimation :: struct {
 Model :: struct {
     using renderable: Renderable;
     geometry: Geometry;
-    textures: [..] Texture;
+    uniforms: ShaderUniforms;
     position: Vector3;
     rotation: Quaternion;
+    scale: Vector3;
 }
 AnimatedModel :: struct; // future base model that accepts animation events, maybe this can handle everything
 BoneAnimatedModel :: struct; // bone animated model
@@ -293,7 +294,7 @@ PoseAnimatedModel :: struct { // key frame animated model by providing multiple 
 }
 Container3 :: struct {
     using renderable: Renderable;
-    models: [..] *Renderable;
+    renderables: [..] *Renderable;
     position: Vector3;
     rotation: Quaternion;
 }
@@ -311,8 +312,8 @@ rotate :: (camera: *Camera3, pitch: float, yaw: float); // implement
 rotate :: (camera: *Camera3, pitch: float, yaw: float, up: Vector3); // implement
 
 // geometry
-load_geometry :: (path: string) -> Geometry; // implement
-load_and_save_serialized_geometry :: (serialized_path: string, fallback_path: string) -> Geometry; // implement
+load_geometry :: (path: string) -> [..] Geometry; // implement
+load_and_save_serialized_geometry :: (serialized_path: string, fallback_path: string) -> [..] Geometry; // implement
 upload_geometry :: (texture: Geometry); // implement
 unload_geometry :: (texture: Geometry); // implement
 destroy_geometry :: (geometry: Geometry); // implement
@@ -332,7 +333,7 @@ create_cylinder :: (size: Vector3, subdivisions: int) -> Geometry; // implement
 
 // model
 create_model :: (geometry: Geometry) -> Model; // implement
-create_model :: (geometry: Geometry, textures: [] Texture) -> Model; // implement
+create_model :: (geometry: Geometry, texture: Texture) -> Model; // implement
 upload_model :: (model: *Model); // implement
 unload_model :: (model: *Model); // implement
 destroy_model :: (model: Model); // implement
@@ -350,23 +351,28 @@ draw :: (container: Container3); // implement
 ShaderUniformType :: enum;
 ShaderUniform :: struct {
     name: string;
-    location: GLint;
-    type: Type;
-    data: *void;
+    type: ShaderUniformType;
+    union {};
+}
+ShaderUniforms :: struct {
+    uniforms: [..] ShaderUniform;
 }
 Shader :: struct {
+    program: u32;
     vertex: string;
     fragment: string;
-    uniforms: [..] ShaderUniform;
-    program: GLuint;
 }
+
+// uniforms
+operator [] :: (uniforms: ShaderUniforms, $name: string) -> ShaderUniform;
+operator [] :: (uniforms: *ShaderUniforms, $name: string) -> *ShaderUniform;
+create_uniform :: ($name: string, value: $T) -> ShaderUniform;
 
 // shader
 initialize_shader :: (shader: *Shader);
 destroy_shader :: (shader: Shader);
-get_uniform :: (shader: Shader, name: string, data: *$T);
-set_uniform :: (shader: *Shader, name: string, data: $T);
 use_shader :: (shader: *Shader);
+apply_uniforms :: (shader: *Shader, uniforms: ShaderUniforms);
 ```
 
 ## Rendering Pipeline
@@ -377,6 +383,7 @@ Pipeline :: struct {
 }
 Pass :: struct {
     shader: *Shader;
+    uniforms: ShaderUniforms;
     textures: [] *Texture;
     render_texture: [] *RenderTexture;
     pass_tags: u32;
@@ -400,10 +407,10 @@ RenderableType :: enum {
 // pipeline
 add_renderable :: (pipeline: *Pipeline, renderable: *Renderable); // implement
 remove_renderable :: (pipeline: *Pipeline, renderable: *Renderable); // implement
-draw :: (pipeline: Pipeline); // implement
+draw :: (pipeline: *Pipeline); // implement
 
 // pass
-draw :: (pass: Pass); // implement
+draw :: (pass: *Pass); // implement
 ```
 
 ## 2D Shapes

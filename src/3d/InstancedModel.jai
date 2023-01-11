@@ -1,0 +1,3 @@
+InstancedModel :: struct {
+    
+}

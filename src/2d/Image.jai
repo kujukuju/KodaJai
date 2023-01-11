@@ -332,8 +332,6 @@ draw :: (destination: *Image, source: Image, position: Point2) {
     source_color_bytes: [] u8;
     source_color_bytes.count = stride;
 
-    print("% % % %\n", start, end, dimensions, source_offset);
-
     for y: 0..dimensions.y - 1 {
         for x: 0..dimensions.x - 1 {
             point := point2(x, y);
