@@ -4,7 +4,7 @@ Camera3 :: struct {
 }
 
 get_transform :: (using camera: Camera3) -> Matrix4 {
-    matrix: Matrix4 = Matrix4_Identity;
+    matrix: Matrix4 = Matrix4Identity;
     matrix = rotate(matrix, rotation);
     matrix = translate(matrix, -position);
 

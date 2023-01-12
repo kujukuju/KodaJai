@@ -25,7 +25,7 @@
 
 //     projection := make_frustum_matrix(-1.92, 1.92, -1.08, 1.08, 1.4, -1.4);
 //     model := make_translation_matrix4(position);
-//     view := koda.transform;
+//     view := koda.view;
 
 //     uniforms: ShaderUniforms;
 //     defer free(uniforms);

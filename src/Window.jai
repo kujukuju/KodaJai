@@ -58,9 +58,9 @@ create_window :: (title: *u8, width: s32, height: s32) {
 
     koda.width = width;
     koda.height = height;
-    koda.last_width_ = width;
-    koda.last_height_ = height;
-    glViewport(0, 0, xx width, xx height);
+    koda.last_width = width;
+    koda.last_height = height;
+    set_viewport(width, height);
 
     glEnable(GL_BLEND);
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
@@ -83,12 +83,19 @@ destroy_window :: () {
     glfwTerminate();
 }
 
+set_viewport :: (width: int, height: int) {
+    koda.viewport_width = width;
+    koda.viewport_height = height;
+    
+    glViewport(0, 0, xx width, xx height);
+}
+
 should_exit :: () -> bool {
     // end and begin
     glfwSwapBuffers(koda.window);
     glfwGetFramebufferSize(koda.window, *koda.width, *koda.height);
-    if koda.last_width_ != koda.width || koda.last_height_ != koda.height {
-        glViewport(0, 0, xx koda.width, xx koda.height);
+    if koda.last_width != koda.width || koda.last_height != koda.height {
+        set_viewport(koda.width, koda.height);
     }
 
     exit := glfwWindowShouldClose(koda.window) == GLFW_TRUE;
@@ -215,12 +222,24 @@ clear :: (color: Color) {
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 }
 
-begin_render_target :: (render_texture: RenderTexture) {
+begin_render_target :: (render_texture: *RenderTexture) {
+    BUFFERS :: u32.[GL_COLOR_ATTACHMENT0];
 
+    set_viewport(render_texture.width, render_texture.height);
+
+    glBindFramebuffer(GL_FRAMEBUFFER, render_texture.framebuffer);
+    glDrawBuffers(1, BUFFERS.data);
+
+    status := glCheckFramebufferStatus(GL_FRAMEBUFFER);
+    if status != GL_FRAMEBUFFER_COMPLETE {
+        print("Framebuffer error. %", status);
+    }
 }
 
 end_render_target :: () {
+    glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0);
 
+    set_viewport(koda.width, koda.height);
 }
 
 #scope_module

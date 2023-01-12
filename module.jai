@@ -48,7 +48,6 @@
 #load "src/3d/Camera3.jai";
 #load "src/3d/Container3.jai";
 #load "src/3d/Geometry.jai";
-#load "src/3d/GeometryVertex.jai";
 #load "src/3d/InstancedModel.jai";
 #load "src/3d/Mesh.jai";
 #load "src/3d/Model.jai";
@@ -85,12 +84,14 @@ koda: struct {
     window: *GLFWwindow;
     width: s32;
     height: s32;
-    last_width_: s32;
-    last_height_: s32;
+    last_width: int;
+    last_height: int;
+    viewport_width: int;
+    viewport_height: int;
     frame_tracker: FrameTracker;
     time_tracker: TimeTracker;
     shader: *Shader;
-    transform: Matrix4 = Matrix4Identity;
+    view: Matrix4 = Matrix4Identity;
     active_program: GLuint;
 };
 

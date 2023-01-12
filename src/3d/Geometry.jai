@@ -11,7 +11,7 @@ Geometry :: struct {
     has_texcoord: bool;
 }
 
-free :: (geometry: *Geometry) {
+destroy :: (geometry: *Geometry) {
     glDeleteBuffers(1, *geometry.ebo_);
     glDeleteBuffers(1, *geometry.vbo_);
     glDeleteVertexArrays(1, *geometry.vao_);
@@ -19,6 +19,7 @@ free :: (geometry: *Geometry) {
     free(geometry.name);
     array_free(geometry.vertices);
     array_free(geometry.indices);
+    free(geometry);
 }
 
 load_or_save_serialized_geometry :: (serialized_path: string, path: string) -> [..] *Geometry, bool {

@@ -59,7 +59,7 @@ draw_line :: (x1: float, y1: float, x2: float, y2: float, width: float = 1.0, co
 
     projection := orthographic_projection_matrix(0.0, xx koda.width, xx koda.height, 0.0, -1.0, 1.0); 
     model := Matrix4_Identity;
-    view := koda.transform;
+    view := koda.view;
 
     uniforms: ShaderUniforms;
     defer free(uniforms);
@@ -124,7 +124,7 @@ draw_rect :: (top_left: Vector2, dimensions: Vector2, color: Color = .{1, 1, 1, 
 
     projection := orthographic_projection_matrix(0.0, xx koda.width, xx koda.height, 0.0, -1.0, 1.0);
     model := Matrix4_Identity;
-    view := koda.transform;
+    view := koda.view;
 
     uniforms: ShaderUniforms;
     defer free(uniforms);
@@ -205,7 +205,7 @@ draw_polygon :: (points: [] Vector2, color: Color = .{1, 1, 1, 1}, border: Color
 
     projection := orthographic_projection_matrix(0.0, xx koda.width, xx koda.height, 0.0, -1.0, 1.0); 
     model := Matrix4_Identity;
-    view := koda.transform;
+    view := koda.view;
 
     uniforms: ShaderUniforms;
     defer free(uniforms);
@@ -316,7 +316,7 @@ draw_ellipse :: (center: Vector2, dimensions: Vector2, color: Color = .{1, 1, 1,
 
     projection := orthographic_projection_matrix(0.0, xx koda.width, xx koda.height, 0.0, -1.0, 1.0); 
     model := Matrix4_Identity;
-    view := koda.transform;
+    view := koda.view;
 
     uniforms: ShaderUniforms;
     defer free(uniforms);
@@ -376,7 +376,7 @@ draw_circles :: (positions: [] Vector2, radius: float, color: Color = .{1, 1, 1,
 
     projection := orthographic_projection_matrix(0.0, xx koda.width, xx koda.height, 0.0, -1.0, 1.0); 
     model := Matrix4_Identity;
-    view := koda.transform;
+    view := koda.view;
 
     uniforms: ShaderUniforms;
     defer free(uniforms);

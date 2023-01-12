@@ -1,6 +1,6 @@
 Sprite :: struct {
     using #as renderable: Renderable;
-    renderable.type = RenderableType.Sprite;
+    renderable.type = .Sprite;
     texture: Texture;
     position: Vector2;
     rotation: float;
@@ -73,7 +73,7 @@ create_sprite :: (texture: Texture, width: float, height: float, anchor: Vector2
 }
 
 // TODO I dont think this needs to be a pointer because the ebo, vbo, vao don't actually use pointers its for arrays right?
-destroy_sprite :: (sprite: *Sprite) {
+destroy :: (sprite: Sprite) {
     glDeleteBuffers(1, *sprite.ebo_);
     glDeleteBuffers(1, *sprite.vbo_);
     glDeleteVertexArrays(1, *sprite.vao_);
@@ -114,7 +114,7 @@ draw :: (sprite: Sprite) {
     model = translate(model, xyz(real_position.x, real_position.y, 0));
     model = rotate(model, quaternion);
     model = scale(model, xyz(sprite.width, sprite.height, 1.0));
-    view := koda.transform;
+    view := koda.view;
 
     uniforms: ShaderUniforms;
     defer free(uniforms);

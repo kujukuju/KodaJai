@@ -31,7 +31,7 @@ draw_infinite_grid :: (center: Vector3 = .{0, 0, 0}, normal: Vector3 = .{0, 1, 0
     use_shader(*infinite_grid_shader);
 
     projection := get_perspective_matrix();
-    view := koda.transform;
+    view := koda.view;
 
     uniforms: ShaderUniforms;
     defer free(uniforms);

@@ -24,6 +24,7 @@ koda_init :: ();
 get_window :: () -> *GLFWWindow;
 create_window :: (name: string, width: int, height: int);
 destroy_window :: ();
+set_viewport :: (width: int, height: int);
 
 should_exit :: () -> bool;
 
@@ -45,8 +46,8 @@ set_cull_face :: (enabled: bool);
 
 clear :: (color: Color);
 
-begin_render_target :: (render_texture: RenderTexture); // implement
-end_render_target :: (); // implement
+begin_render_target :: (render_texture: RenderTexture); // test
+end_render_target :: (); // test
 ```
 
 ## Input
@@ -146,7 +147,7 @@ Texture :: struct {
 }
 RenderTexture :: struct {
     using texture: Texture;
-
+    framebuffer: u32;
 }
 Sprite :: struct {
     using renderable: Renderable;
@@ -189,7 +190,7 @@ create_image :: (width: int, height: int, format: PixelFormat) -> Image
 create_image :: (bytes: [] u8) -> Image; // test
 create_image :: (image: Image, position: Point2, size: Point2) -> Image; // test
 create_image :: (texture: Texture) -> Image; // test
-destroy_image :: (image: Image); // test
+free :: (image: Image); // test
 resize_image :: (image: *Image, size: Point2); // test
 resize_image_lock_ratio :: (image: *Image, size: Point2); // test
 crop_image :: (image: *Image, position: Point2, size: Point2); // test
@@ -218,7 +219,7 @@ create_texture :: (image: Image) -> Texture; // implement
 create_texture :: (texture: Texture, frame: Vector4) -> Texture; // implement
 upload_texture :: (texture: Texture); // implement
 unload_texture :: (texture: Texture); // implement
-destroy_texture :: (texture: Texture); // test
+free :: (texture: Texture); // test
 update_texture :: (texture: *Texture, image: Image); // implement
 update_texture :: (texture: *Texture, point: Point2, image: Image); // implement
 draw :: (texture: Texture, position: Vector2); // test
@@ -226,7 +227,7 @@ draw :: (texture: Texture, position: Vector2, size: Vector2); // test
 
 // sprite
 create_sprite :: (texture: Texture) -> Sprite; // implement
-destroy_sprite :: (sprite: Sprite); // implement
+free :: (sprite: Sprite); // implement
 get_scale :: (sprite: Sprite) -> Vector2;
 set_scale :: (sprite: *Sprite, scale: Vector2);
 draw :: (sprite: Sprite, position: Vector2);
@@ -237,7 +238,7 @@ draw :: (sprite: Sprite);
 create_animated_sprite :: (image: Image, frames: [] Vector4) -> AnimatedSprite; // implement
 create_animated_sprite :: (texture: Texture, frames: [] Vector4) -> AnimatedSprite; // implement
 create_animated_sprite :: (sprite: Sprite, frames: [] Vector4) -> AnimatedSprite; // implement
-destroy_animayed_sprite :: (animated_sprite: AnimatedSprite); // implement
+free :: (animated_sprite: AnimatedSprite); // implement
 add_animation :: (animated_sprite: *AnimatedSprite, frame: int, count: int); // implement
 remove_animation :: (animated_sprite: *AnimatedSprite, $name: string); // implement
 goto_animation :: (animated_sprite: *AnimatedSprite, $name: string, frame: int); // implement
@@ -249,7 +250,7 @@ draw :: (animated_sprite: AnimatedSprite);
 create_row_column_frames :: (columns: int, $frame_count: int) -> [frame_count] Vector4; // implement
 
 // container2
-destroy_container :: (container: Container2); // test
+free :: (container: Container2); // test
 add_child :: (container: *Container2, renderable: *$T/Renderable); // test
 remove_child :: (container: *Container2, renderable: *$T/Renderable); // test
 draw :: (container: Container2); // test
@@ -312,35 +313,35 @@ rotate :: (camera: *Camera3, pitch: float, yaw: float); // implement
 rotate :: (camera: *Camera3, pitch: float, yaw: float, up: Vector3); // implement
 
 // geometry
-load_geometry :: (path: string) -> [..] Geometry; // implement
-load_and_save_serialized_geometry :: (serialized_path: string, fallback_path: string) -> [..] Geometry; // implement
-upload_geometry :: (texture: Geometry); // implement
-unload_geometry :: (texture: Geometry); // implement
-destroy_geometry :: (geometry: Geometry); // implement
+load_geometry :: (path: string) -> [..] *Geometry; // implement
+load_and_save_serialized_geometry :: (serialized_path: string, fallback_path: string) -> [..] *Geometry; // implement
+upload_geometry :: (texture: *Geometry); // implement
+unload_geometry :: (texture: *Geometry); // implement
+free :: (geometry: *Geometry); // implement
 merge_geometry :: (geometry: *Geometry); // implement
 draw :: (geometry: Geometry); // implement
 draw :: (geometry: Geometry, position: Vector3); // implement
 
 // geometry shapes
-create_plane :: (radius: float) -> Geometry; // implement
-create_plane :: (size: Vector3) -> Geometry; // implement
-create_cube :: (radius: float) -> Geometry; // implement
-create_cube :: (size: Vector3) -> Geometry; // implement
-create_icosphere :: (radius: float, subdivision: int) -> Geometry; // implement
-create_icosphere :: (size: Vector3, subdivision: int) -> Geometry; // implement
-create_cylinder :: (radius: float, subdivisions: int) -> Geometry; // implement
-create_cylinder :: (size: Vector3, subdivisions: int) -> Geometry; // implement
+create_plane :: (radius: float) -> *Geometry; // implement
+create_plane :: (size: Vector3) -> *Geometry; // implement
+create_cube :: (radius: float) -> *Geometry; // implement
+create_cube :: (size: Vector3) -> *Geometry; // implement
+create_icosphere :: (radius: float, subdivision: int) -> *Geometry; // implement
+create_icosphere :: (size: Vector3, subdivision: int) -> *Geometry; // implement
+create_cylinder :: (radius: float, subdivisions: int) -> *Geometry; // implement
+create_cylinder :: (size: Vector3, subdivisions: int) -> *Geometry; // implement
 
 // model
-create_model :: (geometry: Geometry) -> Model; // implement
-create_model :: (geometry: Geometry, texture: Texture) -> Model; // implement
+create_model :: (geometry: Geometry) -> *Model; // implement
+create_model :: (geometry: Geometry, texture: Texture) -> *Model; // implement
 upload_model :: (model: *Model); // implement
 unload_model :: (model: *Model); // implement
-destroy_model :: (model: Model); // implement
+free :: (model: *Model); // implement
 draw :: (model: Model); // implement
 
 // container3
-destroy_container :: (container: Container3); // implement
+free :: (container: Container3); // implement
 add_child :: (container: *Container3, renderable: *$T/Renderable); // implement
 remove_child :: (container: *Container3, renderable: *$T/Renderable); // implement
 draw :: (container: Container3); // implement

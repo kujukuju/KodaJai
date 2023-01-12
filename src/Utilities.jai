@@ -48,12 +48,61 @@ push_temporary_context :: () #expand {
 }
 
 get_perspective_matrix :: () -> Matrix4 {
-    matrix :: #run make_frustum_matrix(-1.92, 1.92, -1.08, 1.08, 1.4, -1.4);
-    return matrix;
+    ZERO_TO_ONE :: false;
+    #if ZERO_TO_ONE {
+        // clip plane becomes [0, 1]
+        fovy := 45.0 / 180.0 * PI;
+        aspect := cast(float) koda.viewport_width / koda.viewport_height;
+        z_near := 1.0;
+        z_far := 1000.0;
+
+        if abs(aspect) < 0.000001 {
+            aspect = 1.0;
+        }
+
+        tan_half_fovy := tan(fovy / 2.0);
+
+        matrix: Matrix4 = Matrix4Identity;
+        matrix.coef[0][0] = 1.0 / (aspect * tan_half_fovy);
+        matrix.coef[1][1] = 1.0 / tan_half_fovy;
+        matrix.coef[2][2] = z_far / (z_near - z_far);
+        matrix.coef[2][2] = -1.0;
+        matrix.coef[3][2] = -(z_far * z_near) / (z_far - z_near);
+		return matrix;
+    } else {
+        // clip plane becomes [-1, 1]
+        fovy := 70.0 / 180.0 * PI;
+        aspect := cast(float) koda.viewport_width / koda.viewport_height;
+        z_near := 0.1;
+        z_far := 1000.0;
+
+        if abs(aspect) < 0.000001 {
+            aspect = 1.0;
+        }
+
+        tan_half_fovy := tan(fovy / 2.0);
+
+        // TODO jai matrices are different major/minor
+
+        matrix: Matrix4 = Matrix4Identity;
+        matrix.coef[0][0] = 1.0 / (aspect * tan_half_fovy);
+        matrix.coef[1][1] = 1.0 / tan_half_fovy;
+        matrix.coef[2][2] = -(z_far + z_near) / (z_far - z_near);
+        matrix.coef[2][3] = -(2.0 * z_far * z_near) / (z_far - z_near);
+        matrix.coef[3][2] = -1.0;
+        return matrix;
+    }
+
+    // width := koda.viewport_width / 1000.0;
+    // height := koda.viewport_height / 1000.0;
+
+    // matrix := make_frustum_matrix(-width, width, -height, height, 1.0, -1.0);
+
+    // return matrix;
 }
 
 get_orthographic_matrix :: () -> Matrix4 {
-    return orthographic_projection_matrix(0.0, xx koda.width, xx koda.height, 0.0, -1.0, 1.0); 
+    return orthographic_projection_matrix(0.0, xx koda.width, xx koda.height, 0.0, 1.0, -1.0); 
 }
 
 Matrix4Identity :: Matrix4.{

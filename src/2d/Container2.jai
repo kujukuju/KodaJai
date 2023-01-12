@@ -1,5 +1,6 @@
 Container2 :: struct {
     using #as renderable: Renderable;
+    renderable.type = .Container2;
     renderables: [..] *Renderable;
     position: Vector2;
     rotation: float;
@@ -32,18 +33,18 @@ remove_child :: (container: *Container2, renderable: *$T/Renderable) {
     array_ordered_remove_by_value(*container.renderables, renderable);
 }
 
-draw :: (container: Container2) {
-    // TODO relative offsets
+draw :: (container: Container2, transform: Matrix4 = Matrix4Identity) {
+    // TODO relative offsets, this is hard in 2d potentially in 3d space
     for child: container.renderables {
         if #complete child.type == {
             case .Sprite;
-                draw(<< cast(*Sprite) child);
+                draw(<< cast(*Sprite) child, transform);
             case .Container2;
-                draw(<< cast(*Container2) child);
+                draw(<< cast(*Container2) child, transform);
             case .Model;
-                draw(<< cast(*Model) child);
+                draw(<< cast(*Model) child, transform);
             case .Container3;
-                draw(<< cast(*Container3) child);
+                draw(<< cast(*Container3) child, transform);
         }
     }
 }

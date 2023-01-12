@@ -146,14 +146,14 @@ draw_text :: (text: Text) {
 
     depth_test := get_depth_test();
     cull_face := get_cull_face();
-    transform := koda.transform;
+    transform := koda.view;
 
     set_depth_test(false);
     defer set_depth_test(depth_test);
     set_cull_face(false);
     defer set_cull_face(cull_face);
-    koda.transform = Matrix4_Identity;
-    defer koda.transform = transform;
+    koda.view = Matrix4_Identity;
+    defer koda.view = transform;
 
     scale := 1.0;
 
@@ -206,7 +206,7 @@ draw_text :: (text: Text) {
 
         projection := orthographic_projection_matrix(0.0, xx koda.width, xx koda.height, 0.0, -1.0, 1.0);
         model := Matrix4_Identity;
-        view := koda.transform;
+        view := koda.view;
 
         uniforms: ShaderUniforms;
         defer free(uniforms);
@@ -335,7 +335,7 @@ draw_text :: (text: Text) {
 
     // projection := orthographic_projection_matrix(0.0, xx koda.width, xx koda.height, 0.0, -1.0, 1.0); 
     // model := Matrix4_Identity;
-    // view := koda.transform;
+    // view := koda.view;
 
     // set_uniform(*default_shader, "uTexture", 0);
 

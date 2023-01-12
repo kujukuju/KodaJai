@@ -43,14 +43,14 @@ draw_fps :: (x: float, y: float) {
 
     depth_test := get_depth_test();
     cull_face := get_cull_face();
-    transform := koda.transform;
+    transform := koda.view;
 
     set_depth_test(false);
     defer set_depth_test(depth_test);
     set_cull_face(false);
     defer set_cull_face(cull_face);
-    koda.transform = Matrix4_Identity;
-    defer koda.transform = transform;
+    koda.view = Matrix4_Identity;
+    defer koda.view = transform;
 
     draw_text(default_text, xy(x, y));
 }

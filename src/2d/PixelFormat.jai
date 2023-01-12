@@ -3,6 +3,8 @@ PixelFormat :: enum {
     GrayAlpha;
     RGB;
     RGBA;
+    Depth;
+    // DepthStencil;
 };
 
 get_stride :: (format: PixelFormat) -> int {
@@ -15,10 +17,15 @@ get_stride :: (format: PixelFormat) -> int {
             return 3;
         case .RGBA;
             return 4;
+        case .Depth;
+            return 4;
+        // case .DepthStencil;
+        //     assert(false, "Idk man. 8?");
+        //     return 8;
     }
 }
 
-get_gl_format :: (format: PixelFormat) -> GLenum {
+get_gl_format :: (format: PixelFormat) -> u32 {
     if #complete format == {
         case .Gray;
             return GL_RED;
@@ -28,5 +35,7 @@ get_gl_format :: (format: PixelFormat) -> GLenum {
             return GL_RGB;
         case .RGBA;
             return GL_RGBA;
+        case .Depth;
+            return GL_DEPTH_COMPONENT32F;
     }
 }
