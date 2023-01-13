@@ -79,7 +79,7 @@ draw_spheres :: (positions: [] Vector3, color: Color = .{1, 1, 1, 1}) {
 
     use_shader(*instanced_shader3);
 
-    projection := make_frustum_matrix(-1.92, 1.92, -1.08, 1.08, 1.4, -1.4);
+    projection := get_perspective_matrix();
     model := Matrix4_Identity;
     view := koda.transform;
 
@@ -176,12 +176,12 @@ in vec2 vPos;
 
 vec3 getRayDirection(vec2 uv) {
     vec4 cameraCoord = inverse(projection) * vec4(uv, -1.0, 1.0);
-    cameraCoord.z -1.0;
+    cameraCoord.z = -1.0;
     cameraCoord.w = 0.0;
 
-    vec4 worldCoord = inverse(view) * cameraCoord;
+    vec4 worldDirection = inverse(view) * cameraCoord;
 
-    return normalize(worldCoord.xyz);
+    return normalize(worldDirection.xyz);
 }
 
 vec2 getCoordinate(vec3 point, vec3 center, vec3 normal, vec3 forward) {
@@ -242,7 +242,7 @@ void main() {
                 FragColor = vec4(1.0, 1.0, 1.0, 1.0) * alpha;
 
                 vec4 viewSpace = view * vec4(p, 1.0);
-                vec4 clipSpace = projection * viewSpace;
+                vec4 clipSpace = inverse(projection) * viewSpace;
                 float ndcDepth = clipSpace.z / clipSpace.w;
                 float near = 0.0;
                 float far = 1.0;

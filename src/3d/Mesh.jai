@@ -23,7 +23,7 @@
 // draw_mesh :: (mesh: Mesh, position: Vector3 = .{}, rotation: Quaternion = .{}) {
 //     use_shader(*default_shader3);
 
-//     projection := make_frustum_matrix(-1.92, 1.92, -1.08, 1.08, 1.4, -1.4);
+//     projection := get_perspective_matrix();
 //     model := make_translation_matrix4(position);
 //     view := koda.view;
 

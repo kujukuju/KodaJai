@@ -15,6 +15,7 @@ get_window :: () -> *GLFWwindow {
     return koda.window;
 }
 
+monitor_height: s32;
 create_window :: (title: *u8, width: s32, height: s32) {
     if !koda.initialized {
         print("Cannot create window before initializing.\n");
@@ -22,7 +23,7 @@ create_window :: (title: *u8, width: s32, height: s32) {
     }
 
     monitor_width := width;
-    monitor_height := height;
+    monitor_height = height;
     monitor := glfwGetPrimaryMonitor();
     if monitor {
         video_mode := glfwGetVideoMode(monitor);
@@ -225,7 +226,9 @@ clear :: (color: Color) {
 begin_render_target :: (render_texture: *RenderTexture) {
     BUFFERS :: u32.[GL_COLOR_ATTACHMENT0];
 
+    koda.render_flipped = true;
     set_viewport(render_texture.width, render_texture.height);
+    set_front_face_ccw(false);
 
     glBindFramebuffer(GL_FRAMEBUFFER, render_texture.framebuffer);
     glDrawBuffers(1, BUFFERS.data);
@@ -239,7 +242,9 @@ begin_render_target :: (render_texture: *RenderTexture) {
 end_render_target :: () {
     glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0);
 
+    set_front_face_ccw(true);
     set_viewport(koda.width, koda.height);
+    koda.render_flipped = false;
 }
 
 #scope_module

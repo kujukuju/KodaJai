@@ -7,7 +7,7 @@ Geometry :: struct {
     vertices: [..] float32;
     indices: [..] u32;
     aabb: AABB3;
-    has_normal: bool;
+    has_normal: bool; // TODO these should be enums I guess for #complete
     has_texcoord: bool;
 }
 

@@ -90,6 +90,7 @@ koda: struct {
     viewport_height: int;
     frame_tracker: FrameTracker;
     time_tracker: TimeTracker;
+    render_flipped: bool;
     shader: *Shader;
     view: Matrix4 = Matrix4Identity;
     active_program: GLuint;

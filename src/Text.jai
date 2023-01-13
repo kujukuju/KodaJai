@@ -333,7 +333,7 @@ draw_text :: (text: Text) {
 
     // use_shader(*default_shader);
 
-    // projection := orthographic_projection_matrix(0.0, xx koda.width, xx koda.height, 0.0, -1.0, 1.0); 
+    // projection := get_orthographic_matrix();
     // model := Matrix4_Identity;
     // view := koda.view;
 

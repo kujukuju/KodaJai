@@ -109,7 +109,7 @@ draw :: (sprite: Sprite) {
 
     // TODO do this matrix math more efficiently than using quaternions... in fact... shouldnt it be using a matrix3 for 2d?
     // TODO probably just need my own entire matrix2/3/4 library
-    projection := orthographic_projection_matrix(0.0, xx koda.width, xx koda.height, 0.0, -1.0, 1.0);
+    projection := get_orthographic_matrix();
     model := Matrix4_Identity;
     model = translate(model, xyz(real_position.x, real_position.y, 0));
     model = rotate(model, quaternion);

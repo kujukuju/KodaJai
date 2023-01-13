@@ -48,61 +48,89 @@ push_temporary_context :: () #expand {
 }
 
 get_perspective_matrix :: () -> Matrix4 {
-    ZERO_TO_ONE :: false;
-    #if ZERO_TO_ONE {
-        // clip plane becomes [0, 1]
-        fovy := 45.0 / 180.0 * PI;
-        aspect := cast(float) koda.viewport_width / koda.viewport_height;
-        z_near := 1.0;
-        z_far := 1000.0;
+    // fwiw its possible to do infinite perspective matrix
+    BUILTIN :: true;
+    #if BUILTIN {
+        // this seems to be the _only_ matrix that doesn't rotate your camera around the near plane
+        width := cast(float) koda.viewport_width / koda.viewport_height;
+        height := 1.0;
+        // width := koda.viewport_width / 1000.0;
+        // height := abs(koda.viewport_height) / 1000.0;
 
-        if abs(aspect) < 0.000001 {
-            aspect = 1.0;
+        matrix := make_frustum_matrix(-width, width, -height, height, 1.0, -1.0);
+
+        if koda.render_flipped {
+            inverted_matrix := Matrix4Identity;
+            inverted_matrix._22 = -1.0;
+            matrix = matrix * inverted_matrix;
         }
 
-        tan_half_fovy := tan(fovy / 2.0);
-
-        matrix: Matrix4 = Matrix4Identity;
-        matrix.coef[0][0] = 1.0 / (aspect * tan_half_fovy);
-        matrix.coef[1][1] = 1.0 / tan_half_fovy;
-        matrix.coef[2][2] = z_far / (z_near - z_far);
-        matrix.coef[2][2] = -1.0;
-        matrix.coef[3][2] = -(z_far * z_near) / (z_far - z_near);
 		return matrix;
     } else {
-        // clip plane becomes [-1, 1]
-        fovy := 70.0 / 180.0 * PI;
-        aspect := cast(float) koda.viewport_width / koda.viewport_height;
-        z_near := 0.1;
-        z_far := 1000.0;
+        ZERO_ONE :: false;
+        #if ZERO_ONE {
+            // clip plane becomes [0, 1]
+            fovy := 70.0 / 180.0 * PI;
+            // aspect := cast(float) abs(koda.viewport_width) / abs(koda.viewport_height);
+            z_near := 0.1;
+            z_far := 1000.0;
 
-        if abs(aspect) < 0.000001 {
-            aspect = 1.0;
+            h := cos(0.5 * fovy) / sin(0.5 * fovy);
+            w := h * koda.viewport_height / koda.viewport_width;
+
+            matrix: Matrix4 = Matrix4Identity;
+            matrix.coef[0][0] = w;
+            matrix.coef[1][1] = h;
+            matrix.coef[2][2] = z_far / (z_near - z_far);
+            matrix.coef[3][2] = -1.0;
+            matrix.coef[2][3] = -(z_far * z_near) / (z_far - z_near);
+            return matrix;
+        } else {
+            // clip plane becomes [-1, 1]
+            fovy := 70.0 / 180.0 * PI;
+            aspect := cast(float) koda.viewport_width / koda.viewport_height;
+            z_near := 0.1;
+            z_far := 1000.0;
+
+            if abs(aspect) < 0.000001 {
+                aspect = 1.0;
+            }
+
+            flip_y := ifx koda.render_flipped < 0 then -1.0 else 1.0;
+
+            tan_half_fovy := tan(fovy / 2.0);
+
+            // TODO jai matrices are different major/minor
+
+            matrix: Matrix4 = Matrix4Identity;
+            matrix.coef[0][0] = flip_y * 1.0 / (aspect * tan_half_fovy);
+            matrix.coef[1][1] = flip_y * 1.0 / tan_half_fovy;
+            matrix.coef[2][2] = -(z_far + z_near) / (z_far - z_near);
+            matrix.coef[2][3] = -(2.0 * z_far * z_near) / (z_far - z_near);
+            matrix.coef[3][2] = -1.0;
+            return matrix;
         }
-
-        tan_half_fovy := tan(fovy / 2.0);
-
-        // TODO jai matrices are different major/minor
-
-        matrix: Matrix4 = Matrix4Identity;
-        matrix.coef[0][0] = 1.0 / (aspect * tan_half_fovy);
-        matrix.coef[1][1] = 1.0 / tan_half_fovy;
-        matrix.coef[2][2] = -(z_far + z_near) / (z_far - z_near);
-        matrix.coef[2][3] = -(2.0 * z_far * z_near) / (z_far - z_near);
-        matrix.coef[3][2] = -1.0;
-        return matrix;
     }
-
-    // width := koda.viewport_width / 1000.0;
-    // height := koda.viewport_height / 1000.0;
-
-    // matrix := make_frustum_matrix(-width, width, -height, height, 1.0, -1.0);
-
-    // return matrix;
 }
 
 get_orthographic_matrix :: () -> Matrix4 {
-    return orthographic_projection_matrix(0.0, xx koda.width, xx koda.height, 0.0, 1.0, -1.0); 
+    left := 0.0;
+    right := cast(float) koda.viewport_width;
+    top := cast(float) ifx koda.viewport_height < 0 then -koda.viewport_height else 0;
+    bottom := cast(float) ifx koda.viewport_height > 0 then koda.viewport_height else 0;
+    z_far := -1.0;
+    z_near := 1.0;
+
+    matrix: Matrix4 = Matrix4Identity;
+    matrix.coef[0][0] = 2.0 / (right - left);
+    matrix.coef[0][3] = -(right + left) / (right - left);
+    matrix.coef[1][1] = 2.0 / (top - bottom);
+    matrix.coef[1][3] = -(top + bottom) / (top - bottom);
+    matrix.coef[2][2]  = 1.0 / (z_far - z_near);
+    matrix.coef[2][3] = -z_near / (z_far - z_near);
+    return matrix;
+    
+    // return orthographic_projection_matrix(0.0, xx koda.viewport_width, 0.0, xx koda.viewport_height, 1.0, -1.0); 
 }
 
 Matrix4Identity :: Matrix4.{
