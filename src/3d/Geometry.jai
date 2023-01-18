@@ -9,17 +9,7 @@ Geometry :: struct {
     aabb: AABB3;
     has_normal: bool; // TODO these should be enums I guess for #complete
     has_texcoord: bool;
-}
-
-destroy :: (geometry: *Geometry) {
-    glDeleteBuffers(1, *geometry.ebo_);
-    glDeleteBuffers(1, *geometry.vbo_);
-    glDeleteVertexArrays(1, *geometry.vao_);
-
-    free(geometry.name);
-    array_free(geometry.vertices);
-    array_free(geometry.indices);
-    free(geometry);
+    has_color: bool;
 }
 
 load_or_save_serialized_geometry :: (serialized_path: string, path: string) -> [..] *Geometry, bool {
@@ -120,6 +110,17 @@ serialize_geometry :: (geometry: [..] *Geometry) -> [..] u8 {
     return bytes;
 }
 
+destroy :: (geometry: *Geometry) {
+    glDeleteBuffers(1, *geometry.ebo_);
+    glDeleteBuffers(1, *geometry.vbo_);
+    glDeleteVertexArrays(1, *geometry.vao_);
+
+    free(geometry.name);
+    array_free(geometry.vertices);
+    array_free(geometry.indices);
+    free(geometry);
+}
+
 #scope_module
 
 // bad bad bad
@@ -150,6 +151,8 @@ load_obj :: (path: string) -> [..] *Geometry, bool {
     geometry := New(Geometry);
     geometry.has_normal = true;
     geometry.has_texcoord = true;
+    // TODO
+    // geometry.has_color = true;
 
     vertex_offset := 0;
     normal_offset := 0;
@@ -382,7 +385,6 @@ load_gltf :: (path: string) -> [..] *Geometry, bool {
 
     binary_file_path := sprint("%/%", root_path, << json.buffers[0].uri);
     defer free(binary_file_path);
-    print("binary_file_path %\n", binary_file_path);
     binary_file, binary_success := read_entire_file(binary_file_path);
     if !binary_success {
         print("Could not read gltf binary file.\n");
@@ -625,7 +627,12 @@ load_gltf_data :: (json: GltfJson, binary: [] u8) -> [..] *Geometry, bool {
             current.view.count = accessor.count * get_stride(current.component_type) * 2;
         } else if accessor.type == "VEC3" {
             current.view.count = accessor.count * get_stride(current.component_type) * 3;
+        } else if accessor.type == "VEC4" {
+            current.view.count = accessor.count * get_stride(current.component_type) * 4;
+        } else if accessor.type == "MAT4" {
+            current.view.count = accessor.count * get_stride(current.component_type) * 16;
         } else {
+            print("Cannot process this accessor type. %\n", accessor.type);
             assert(false, "Cannot process this accessor type.");
         }
 
@@ -659,12 +666,16 @@ load_gltf_data :: (json: GltfJson, binary: [] u8) -> [..] *Geometry, bool {
             assert(!normal_accessor_generic || normal_accessor_generic.type == .Integer, "If there is a normal accessor the type must be an integer.");
             texcoord_accessor_generic := primitive.attributes["TEXCOORD_0"];
             assert(!texcoord_accessor_generic || texcoord_accessor_generic.type == .Integer, "If there is a texcoord accessor the type must be an integer.");
+            color_accessor_generic := primitive.attributes["COLOR_0"];
+            assert(!color_accessor_generic || color_accessor_generic.type == .Integer, "If there is a color accessor the type must be an integer.");
 
             has_normal := !!normal_accessor_generic;
             has_texcoord := !!texcoord_accessor_generic;
+            has_color := !!color_accessor_generic;
 
             geometry.has_normal = has_normal;
             geometry.has_texcoord = has_texcoord;
+            geometry.has_color = has_color;
 
             index_accessor := accessors[index_accessor_index];
             assert(index_accessor.type == "SCALAR", "The indices access must be a scalar type.");
@@ -732,6 +743,7 @@ load_gltf_data :: (json: GltfJson, binary: [] u8) -> [..] *Geometry, bool {
             position_data := cast(*float32) position_accessor.view.data;
             normal_data: *float32;
             texcoord_data: *float32;
+            color_data: *float32;
 
             reserve_count := geometry.vertices.count;
             reserve_count += vertex_count * 3;
@@ -753,6 +765,15 @@ load_gltf_data :: (json: GltfJson, binary: [] u8) -> [..] *Geometry, bool {
                 
                 texcoord_data = cast(*float32) texcoord_accessor.view.data;
             }
+            if has_color {
+                color_accessor := accessors[color_accessor_generic.integer];
+                assert(color_accessor.type == "VEC4", "The color access must be a vec4 type.");
+                assert(color_accessor.view.count / size_of(float32) / 4 == vertex_count, "There must be as many colors as vertices.");
+                assert(color_accessor.component_type == .F32, "The color component type must be float32.");
+                reserve_count += vertex_count * 4;
+                
+                color_data = cast(*float32) color_accessor.view.data;
+            }
 
             array_reserve(*geometry.vertices, reserve_count);
 
@@ -770,6 +791,13 @@ load_gltf_data :: (json: GltfJson, binary: [] u8) -> [..] *Geometry, bool {
                 if has_texcoord {
                     array_add(*geometry.vertices, texcoord_data[i * 2]);
                     array_add(*geometry.vertices, texcoord_data[i * 2 + 1]);
+                }
+
+                if has_color {
+                    array_add(*geometry.vertices, color_data[i * 4]);
+                    array_add(*geometry.vertices, color_data[i * 4 + 1]);
+                    array_add(*geometry.vertices, color_data[i * 4 + 2]);
+                    array_add(*geometry.vertices, color_data[i * 4 + 3]);
                 }
             }
         }
@@ -802,6 +830,9 @@ gen_geometry :: (geometry: *Geometry) {
     if geometry.has_texcoord {
         total_float_size += 2;
     }
+    if geometry.has_color {
+        total_float_size += 4;
+    }
 
     current_attribute: u32;
     float_offset: u32;
@@ -811,6 +842,8 @@ gen_geometry :: (geometry: *Geometry) {
     glVertexAttribPointer(current_attribute, 3, GL_FLOAT, GL_FALSE, size_of(float32) * total_float_size, cast(*void) float_offset);
     current_attribute += 1;
     float_offset += 3;
+
+    // print("n t c % % %\n", geometry.has_normal, geometry.has_texcoord, geometry.has_color);
 
     if geometry.has_normal {
         // vertex normals
@@ -826,6 +859,14 @@ gen_geometry :: (geometry: *Geometry) {
         glVertexAttribPointer(current_attribute, 2, GL_FLOAT, GL_FALSE, size_of(float32) * total_float_size, cast(*void) (size_of(float32) * float_offset));
         current_attribute += 1;
         float_offset += 2;
+    }
+
+    if geometry.has_color {
+        // vertex texture coords
+        glEnableVertexAttribArray(current_attribute);
+        glVertexAttribPointer(current_attribute, 4, GL_FLOAT, GL_FALSE, size_of(float32) * total_float_size, cast(*void) (size_of(float32) * float_offset));
+        current_attribute += 1;
+        float_offset += 4;
     }
 
     glBindVertexArray(0);

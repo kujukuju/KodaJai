@@ -51,15 +51,20 @@
 #load "src/3d/InstancedModel.jai";
 #load "src/3d/Mesh.jai";
 #load "src/3d/Model.jai";
+#load "src/3d/PlaneGeometry.jai";
 #load "src/3d/Shapes3.jai";
 #load "src/3d/SphereGeometry.jai";
+#load "src/3d/TorusGeometry.jai";
 
 #load "src/CircleAllocator.jai";
 #load "src/Color.jai";
 #load "src/DefaultEllipseShader.jai";
 #load "src/DefaultShader.jai";
 #load "src/DefaultShader3.jai";
+#load "src/DefaultShaderColors3.jai";
+#load "src/DefaultShapeShader3.jai";
 #load "src/FontShader.jai";
+#load "src/InfiniteGridShader3.jai";
 #load "src/Input.jai";
 #load "src/InstancedShader2.jai";
 #load "src/InstancedShader3.jai";
@@ -76,6 +81,7 @@
 #load "src/SwapBuffer.jai";
 #load "src/Text.jai";
 #load "src/Time.jai";
+#load "src/TorusShader3.jai";
 #load "src/Utilities.jai";
 #load "src/Window.jai";
 
@@ -93,6 +99,7 @@ koda: struct {
     render_flipped: bool;
     shader: *Shader;
     view: Matrix4 = Matrix4Identity;
+    fovy: float = 0.5 * PI;
     active_program: GLuint;
 };
 
@@ -113,8 +120,12 @@ koda: struct {
 
 default_shader: DefaultShader;
 default_shader3: DefaultShader3;
+// I probably dont want this one and instead want auto generating shaders based on bool values, like a DynamicShader class
+default_shader_colors3: DefaultShaderColors3;
+default_shape_shader3: DefaultShapeShader3;
 instanced_shader2: InstancedShader2;
 instanced_shader3: InstancedShader3;
+torus_shader: TorusShader3;
 default_ellipse_shader: DefaultEllipseShader;
 default_font_shader: FontShader;
 serializer: Serializer;

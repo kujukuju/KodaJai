@@ -185,6 +185,8 @@ input: struct {
     released_mouse_left: bool;
     mouse_right: InputState;
     released_mouse_right: bool;
+    mouse_middle: InputState;
+    released_mouse_middle: bool;
     mouse: Vector2;
     mouse_delta_x: float64;
     mouse_delta_y: float64;
@@ -291,6 +293,18 @@ update_inputs :: () {
         input.mouse_right |= InputState.DOWN;
     } else {
         input.mouse_right &= ~InputState.DOWN;
+    }
+
+    input.mouse_middle &= ~InputState.START;
+    mouse_middle := glfwGetMouseButton(koda.window, GLFW_MOUSE_BUTTON_MIDDLE);
+    input.released_mouse_middle = input.mouse_middle && !mouse_middle;
+    if mouse_middle && !input.mouse_middle {
+        input.mouse_middle |= InputState.START;
+    }
+    if mouse_middle {
+        input.mouse_middle |= InputState.DOWN;
+    } else {
+        input.mouse_middle &= ~InputState.DOWN;
     }
 
     for key_code, index: glfw_key_map {

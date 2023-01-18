@@ -209,7 +209,7 @@ draw_text :: (text: Text) {
         view := koda.view;
 
         uniforms: ShaderUniforms;
-        defer free(uniforms);
+        defer destroy(uniforms);
         
         uniforms["uTexture"] = create_uniform("uTexture", character.texture);
 

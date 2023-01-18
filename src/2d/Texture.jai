@@ -95,6 +95,10 @@ load_data :: (data: [] u8) -> TextureData {
     return texture_data;
 }
 
+destroy :: (texture: Texture) {
+    glDeleteTextures(1, *texture.buffer);
+}
+
 scale_data :: (data: TextureData, width: s32, height: s32, preserve_ratio: bool = true) -> TextureData {
     byte_count := 0;
     if data.format == {
@@ -195,12 +199,6 @@ gen_texture :: (data: TextureData) -> Texture {
 
     return texture;
 }
-
-free :: (texture: Texture) {
-    glDeleteTextures(1, *texture.buffer);
-}
-
-destroy_texture :: free;
 
 update_texture :: (texture: *Texture, image: Image) {
     assert(texture.width == image.width && texture.height == image.height, "Dimensions must match.");

@@ -190,6 +190,63 @@ set_front_face_ccw :: (ccw: bool) {
     }
 }
 
+DepthFunc :: enum s32 {
+    Never;
+    Less;
+    Greater;
+    Equal;
+    Always;
+    LessEqual;
+    GreaterEqual;
+    NotEqual;
+}
+
+get_depth_func :: () -> DepthFunc {
+    func: s32;
+    glGetIntegerv(GL_DEPTH_FUNC, *func);
+
+    if func == GL_ALWAYS {
+        return DepthFunc.Always;
+    } else if func == GL_GEQUAL {
+        return DepthFunc.GreaterEqual;
+    } else if func == GL_NOTEQUAL {
+        return DepthFunc.NotEqual;
+    } else if func == GL_LEQUAL {
+        return DepthFunc.LessEqual;
+    } else if func == GL_GREATER {
+        return DepthFunc.Greater;
+    } else if func == GL_EQUAL {
+        return DepthFunc.Equal;
+    } else if func == GL_LESS {
+        return DepthFunc.Less;
+    } else if func == GL_NEVER {
+        return DepthFunc.Never;
+    } else {
+        return DepthFunc.Never;
+    }
+}
+
+set_depth_func :: (func: DepthFunc) {
+    if #complete func == {
+        case .Never;
+            glDepthFunc(GL_NEVER);
+        case .Less;
+            glDepthFunc(GL_LESS);
+        case .Greater;
+            glDepthFunc(GL_GREATER);
+        case .Equal;
+            glDepthFunc(GL_EQUAL);
+        case .Always;
+            glDepthFunc(GL_ALWAYS);
+        case .LessEqual;
+            glDepthFunc(GL_LEQUAL);
+        case .GreaterEqual;
+            glDepthFunc(GL_GEQUAL);
+        case .NotEqual;
+            glDepthFunc(GL_NOTEQUAL);
+    }
+}
+
 get_depth_test :: () -> bool {
     enabled: GLboolean;
     glGetBooleanv(GL_DEPTH_TEST, *enabled);

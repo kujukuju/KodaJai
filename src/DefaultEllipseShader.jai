@@ -20,7 +20,6 @@ uniform mat4 model;
 
 uniform vec2 uPos;
 uniform vec2 uDim;
-// uniform vec2 uOriginalDim;
 uniform vec2 uScreenDim;
 uniform vec4 uFrame;
 
@@ -45,12 +44,13 @@ void main() {
     float distance = length(fromCenter);
     // can use that one function to get the pixel density and scale appropriately instead of hard edges
     float color = distance <= 1.0 ? 1.0 : 0.0;
-    float border = distance > 0.94 && distance <= 1.0 ? 1.0 : 0.0;
+    float border = distance > (1.0 - length(fwidth(vTexCoord)) * 1.5) && distance <= 1.0 ? 1.0 : 0.0;
 
     // TODO use whatever that pixel density function is
 
     vec4 averageColor = (uTint * uTint.a * color + uBorderTint * uBorderTint.a * border) / (uTint.a * color + uBorderTint.a * border);
 
     FragColor = averageColor * max(uTint.a * color, uBorderTint.a * border);
+    // FragColor = vec4(1.0, 1.0, 1.0, 1.0);
 }
 DONE

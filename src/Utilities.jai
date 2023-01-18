@@ -48,14 +48,20 @@ push_temporary_context :: () #expand {
 }
 
 get_perspective_matrix :: () -> Matrix4 {
+    fovy := koda.fovy;
     // fwiw its possible to do infinite perspective matrix
     BUILTIN :: true;
     #if BUILTIN {
         // this seems to be the _only_ matrix that doesn't rotate your camera around the near plane
-        width := cast(float) koda.viewport_width / koda.viewport_height;
-        height := 1.0;
+        aspect := cast(float) koda.viewport_width / koda.viewport_height;
+        // fovy := 60.0 / 180.0 * PI;
+
+        height := tan(fovy / 2.0);
+        width := aspect * height;
         // width := koda.viewport_width / 1000.0;
         // height := abs(koda.viewport_height) / 1000.0;
+
+        // atan(tan(fovy / 2.0) * width / height) * 2
 
         matrix := make_frustum_matrix(-width, width, -height, height, 1.0, -1.0);
 

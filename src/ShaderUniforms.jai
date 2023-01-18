@@ -71,8 +71,12 @@ ShaderUniform :: struct {
     }
 }
 
-ShaderUniforms :: struct {
+ShaderUniforms :: struct (ownership: bool = true) {
     uniforms: [..] ShaderUniform;
+}
+
+operator == :: (a: ShaderUniforms, b: ShaderUniforms) -> bool {
+    return a.uniforms.data == b.uniforms.data;
 }
 
 operator [] :: (uniforms: ShaderUniforms, name: string) -> ShaderUniform {
@@ -85,10 +89,12 @@ operator [] :: (uniforms: ShaderUniforms, name: string) -> ShaderUniform {
     return .{};
 }
 
-operator *[] :: (uniforms: *ShaderUniforms, name: string) -> *ShaderUniform {
+operator *[] :: (uniforms: *ShaderUniforms($O), name: string) -> *ShaderUniform {
     for i: 0..uniforms.uniforms.count - 1 {
         if uniforms.uniforms[i].name == name {
-            free(uniforms.uniforms[i]);
+            #if O {
+                destroy(uniforms.uniforms[i]);
+            }
             return *uniforms.uniforms[i];
             
         }
@@ -663,19 +669,23 @@ create_uniform :: ($name: string, value: [] Texture) -> ShaderUniform {
     return uniform;
 }
 
-free :: (uniforms: ShaderUniforms) {
+destroy :: (uniforms: ShaderUniforms) {
     for uniform: uniforms.uniforms {
-        free(uniform);
+        destroy(uniform);
     }
+    array_free(uniforms.uniforms);
 }
 
-free :: (uniform: ShaderUniform) {
+destroy :: (uniform: ShaderUniform) {
     if uniform.type == {
         case .Float1N;
             array_free(uniform.float1n);
         case .Float2N;
             array_free(uniform.float2n);
         case .Float3N;
+            print("freeing %\n", uniform.float3n.data);
+            // print_stack_trace();
+            // print("\n");
             array_free(uniform.float3n);
         case .Float4N;
             array_free(uniform.float4n);
@@ -713,6 +723,7 @@ array_copy_memory :: (arr: [] $T, $N: Type) -> [] N {
     #run assert(#run size_of(T) == size_of(N), "The types must be the same size.");
 
     copied := NewArray(arr.count, N, initialized = false);
+    print("allocated %\n", copied.data);
     memcpy(copied.data, arr.data, arr.count * SIZE_T);
     return copied;
 }

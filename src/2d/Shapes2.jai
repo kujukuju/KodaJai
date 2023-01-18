@@ -4,11 +4,11 @@ draw_line :: (p1: Vector2, p2: Vector2, width: float = 1.0, color: Color = .{1, 
 }
 
 draw_line :: (x1: float, y1: float, x2: float, y2: float, width: float = 1.0, color: Color = .{1, 1, 1, 1}) {
-    p1 := xy(x1, y1);
-    p2 := xy(x2, y2);
+    p1 := Vector2.{x1, y1};
+    p2 := Vector2.{x2, y2};
 
     dir := normalize(p2 - p1);
-    normal := xy(-dir.y, dir.x);
+    normal := Vector2.{-dir.y, dir.x};
     hw := width / 2.0;
 
     left1 := p1 - normal * hw;
@@ -58,11 +58,11 @@ draw_line :: (x1: float, y1: float, x2: float, y2: float, width: float = 1.0, co
     use_shader(*default_shader);
 
     projection := get_orthographic_matrix();
-    model := Matrix4_Identity;
+    model := Matrix4Identity;
     view := koda.view;
 
     uniforms: ShaderUniforms;
-    defer free(uniforms);
+    defer destroy(uniforms);
 
     uniforms["uTexture"] = create_uniform("uTexture", cast(u32) 0);
 
@@ -127,7 +127,7 @@ draw_rect :: (top_left: Vector2, dimensions: Vector2, color: Color = .{1, 1, 1, 
     view := koda.view;
 
     uniforms: ShaderUniforms;
-    defer free(uniforms);
+    defer destroy(uniforms);
 
     uniforms["uTexture"] = create_uniform("uTexture", cast(u32) 0);
     
@@ -208,7 +208,7 @@ draw_polygon :: (points: [] Vector2, color: Color = .{1, 1, 1, 1}, border: Color
     view := koda.view;
 
     uniforms: ShaderUniforms;
-    defer free(uniforms);
+    defer destroy(uniforms);
 
     uniforms["uTexture"] = create_uniform("uTexture", cast(u32) 0);
     
@@ -256,7 +256,7 @@ draw_ellipse :: (center: Vector2, width: float, height: float, color: Color = .{
 
 draw_ellipse :: (center: Vector2, dimensions: Vector2, color: Color = .{1, 1, 1, 1}, border: Color = .{1, 1, 1, 0}) {
     top_left := center - dimensions / 2.0;
-    bottom_right := top_left + dimensions;
+    bottom_right := center + dimensions / 2.0;
 
     vertices: [12] Vector2;
     vertices[0] = top_left;
@@ -319,16 +319,17 @@ draw_ellipse :: (center: Vector2, dimensions: Vector2, color: Color = .{1, 1, 1,
     view := koda.view;
 
     uniforms: ShaderUniforms;
-    defer free(uniforms);
+    defer destroy(uniforms);
     
     uniforms["projection"] = create_uniform("projection", projection);
     uniforms["model"] = create_uniform("model", model);
     uniforms["view"] = create_uniform("view", view);
     
     uniforms["uTint"] = create_uniform("uTint", color);
+    uniforms["uBorderTint"] = create_uniform("uBorderTint", border);
     uniforms["uFrame"] = create_uniform("uFrame", Vector4.{0, 0, 1, 1});
 
-    apply_uniforms(*default_shader, uniforms);
+    apply_uniforms(*default_ellipse_shader, uniforms);
 
     glDrawArrays(GL_TRIANGLES, 0, xx (vertices.count / 2));
 }
@@ -379,7 +380,7 @@ draw_circles :: (positions: [] Vector2, radius: float, color: Color = .{1, 1, 1,
     view := koda.view;
 
     uniforms: ShaderUniforms;
-    defer free(uniforms);
+    defer destroy(uniforms);
     
     uniforms["projection"] = create_uniform("projection", projection);
     uniforms["model"] = create_uniform("model", model);

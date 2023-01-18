@@ -224,17 +224,27 @@ create_icosphere :: (radius: float, subdivision: int) -> SphereGeometry {
     }
 
     assert(vertices.count == normals.count && vertices.count == tex_coords.count, "Must have the same amount of all things.");
-    array_copy(*geometry.vertex_indices, indices);
-    array_resize(*geometry.vertices, vertices.count);
+    array_copy(*geometry.indices, indices);
+    array_resize(*geometry.vertices, vertices.count * 3 + normals.count * 3 + tex_coords.count * 3);
     for i: 0..vertices.count - 1 {
         vertex := vertices[i];
         normal := normals[i];
         tex_coord := tex_coords[i];
 
-        geometry.vertices[i].position = vertex;
-        geometry.vertices[i].normal = normal;
-        geometry.vertices[i].texture_coord = tex_coord;
+        geometry.vertices[i * 8] = vertex.x;
+        geometry.vertices[i * 8 + 1] = vertex.y;
+        geometry.vertices[i * 8 + 2] = vertex.z;
+        
+        geometry.vertices[i * 8 + 3] = normal.x;
+        geometry.vertices[i * 8 + 4] = normal.y;
+        geometry.vertices[i * 8 + 5] = normal.z;
+        
+        geometry.vertices[i * 8 + 6] = tex_coord.x;
+        geometry.vertices[i * 8 + 7] = tex_coord.y;
     }
+
+    geometry.has_normal = true;
+    geometry.has_texcoord = true;
 
     gen_geometry(*geometry);
 

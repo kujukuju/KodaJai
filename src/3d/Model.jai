@@ -7,6 +7,10 @@ Model :: struct {
     rotation: Quaternion;
 }
 
+operator == :: (a: Model, b: Model) -> bool {
+    return a.geometry.data == b.geometry.data && a.uniforms == b.uniforms;
+}
+
 create_model :: (geometry: *Geometry) -> *Model {
     model := New(Model);
     array_resize(*model.geometry, 1);
@@ -44,7 +48,31 @@ unload_model :: (model: *Model) {
 }
 
 destroy :: (model: *Model) {
-    
+    for geometry: model.geometry {
+        destroy(geometry);
+    }
+    array_free(model.geometry);
+    free(model);
+}
+
+get_transform :: (model: Model) -> Matrix4 {
+    matrix := Matrix4Identity;
+    matrix = translate(matrix, model.position);
+    matrix = rotate(matrix, model.rotation);
+    return matrix;
+}
+
+get_aabb :: (model: Model) -> AABB3 {
+    if model.geometry.count == 0 {
+        return .{};
+    }
+
+    aabb: AABB3 = model.geometry[0].aabb;
+    for i: 1..model.geometry.count - 1 {
+        aabb = merge(aabb, model.geometry[i].aabb);
+    }
+
+    return aabb;
 }
 
 draw :: (model: Model, transform: Matrix4 = Matrix4Identity) {
@@ -54,13 +82,13 @@ draw :: (model: Model, transform: Matrix4 = Matrix4Identity) {
 draw :: (model: Model, transform: Matrix4 = Matrix4Identity, projection: Matrix4) {
     use_shader(*default_shader3);
 
-    model_mat := transform * make_translation_matrix4(model.position);
+    model_mat := transform * get_transform(model);
     view := koda.view;
 
     apply_uniforms(*default_shader3, model.uniforms);
 
     uniforms: ShaderUniforms;
-    defer free(uniforms);
+    defer destroy(uniforms);
     
     uniforms["projection"] = create_uniform("projection", projection);
     uniforms["model"] = create_uniform("model", model_mat);

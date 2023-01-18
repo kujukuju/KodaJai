@@ -4,7 +4,7 @@ Shader :: struct {
     program: u32;
     vertex: string;
     fragment: string;
-    uniforms: ShaderUniforms;
+    uniforms: ShaderUniforms(false);
 }
 
 // TODO I need to auto create shaders with all their uniforms and defaults
@@ -75,8 +75,11 @@ initialize_shader :: (shader: *Shader) {
     shader.program = glCreateProgram();
 
     if !success_v || !success_f || !shader.program {
-        shader.program = 0;
+        glDeleteProgram(shader.program);
         print("Failure initalizing shader.\n");
+
+        shader.program = 0;
+
         assert(false, "Failure initializing shader.");
     }
 
@@ -88,10 +91,13 @@ initialize_shader :: (shader: *Shader) {
     glGetProgramiv(shader.program, GL_LINK_STATUS, *success);
 
     if !success {
-        shader.program = 0;
         message: [512] u8;
         glGetProgramInfoLog(shader.program, 512, null, message.data);
         print("Shader error: %\n", to_string(message.data));
+
+        glDeleteProgram(shader.program);
+        shader.program = 0;
+
         assert(false, "Shader error.");
     }
 }
@@ -99,7 +105,7 @@ initialize_shader :: (shader: *Shader) {
 destroy_shader :: (shader: Shader) {
     free(shader.vertex);
     free(shader.fragment);
-    // free(shader.uniforms);
+    array_free(shader.uniforms.uniforms);
     glDeleteProgram(shader.program);
 }
 

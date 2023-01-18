@@ -117,7 +117,7 @@ draw :: (sprite: Sprite) {
     view := koda.view;
 
     uniforms: ShaderUniforms;
-    defer free(uniforms);
+    defer destroy(uniforms);
 
     uniforms["uTexture"] = create_uniform("uTexture", sprite.texture);
     
