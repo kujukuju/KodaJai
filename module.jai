@@ -48,6 +48,7 @@
 #load "src/3d/Camera3.jai";
 #load "src/3d/Container3.jai";
 #load "src/3d/Geometry.jai";
+#load "src/3d/GridGeometry.jai";
 #load "src/3d/InstancedModel.jai";
 #load "src/3d/Mesh.jai";
 #load "src/3d/Model.jai";
@@ -63,6 +64,7 @@
 #load "src/DefaultShader3.jai";
 #load "src/DefaultShaderColors3.jai";
 #load "src/DefaultShapeShader3.jai";
+#load "src/FlatGridShader3.jai";
 #load "src/FontShader.jai";
 #load "src/InfiniteGridShader3.jai";
 #load "src/Input.jai";
@@ -140,4 +142,6 @@ static_sprite: Sprite;
 #import "String";
 #import "ContiguousJsonJai"(ASSERT = false, ASM = !WASM);
 #import "File_Utilities";
+#import "FixedStringJai";
+#import "stb_image_write";
 #import "JaiSerializer";

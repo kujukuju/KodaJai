@@ -36,14 +36,6 @@ draw_line :: (p1: Vector3, p2: Vector3, width: float = 1.0, color: Color = .{1, 
 
     apply_uniforms(*default_shape_shader3, uniforms);
 
-    // depth_test := get_depth_test();
-    // set_depth_test(false);
-    // defer set_depth_test(depth_test);
-
-    // cull_face := get_cull_face();
-    // set_cull_face(false);
-    // defer set_cull_face(cull_face);
-
     glLineWidth(width);
     glDrawArrays(GL_LINES, 0, xx vertices.count);
 }
@@ -136,6 +128,40 @@ draw_torus :: (center: Vector3, up: Vector3, major_radius: float, minor_radius: 
 
     glBindVertexArray(torus.vao_);
     glDrawElements(GL_TRIANGLES, xx torus.indices.count, GL_UNSIGNED_INT, xx 0);
+    glBindVertexArray(0);
+}
+
+draw_flat_grid :: (color: Color = .{1, 1, 1, 1}) {
+    if !grid_loaded {
+        load_grid();
+    }
+
+    use_shader(*flat_grid_shader);
+
+    model := Matrix4Identity;
+    projection := get_perspective_matrix();
+    view := koda.view;
+
+    uniforms: ShaderUniforms;
+    defer destroy(uniforms);
+    
+    uniforms["projection"] = create_uniform("projection", projection);
+    uniforms["model"] = create_uniform("model", model);
+    uniforms["view"] = create_uniform("view", view);
+
+    uniforms["uTint"] = create_uniform("uTint", color);
+    uniforms["uRadius"] = create_uniform("uRadius", 40.0);
+    
+    apply_uniforms(*flat_grid_shader, uniforms);
+
+    glBindVertexArray(grid.vao_);
+    glLineWidth(1.0);
+    glDrawArrays(GL_LINES, 0, xx (grid.vertices.count / 3));
+
+    glBindVertexArray(center_grid.vao_);
+    glLineWidth(2.0);
+    glDrawArrays(GL_LINES, 0, xx (center_grid.vertices.count / 3));
+
     glBindVertexArray(0);
 }
 
@@ -319,11 +345,28 @@ load_square :: () {
     square = create_plane(1.0, 1.0, true, false, false);
 }
 
+load_grid :: () {
+    if grid_loaded {
+        return;
+    }
+
+    grid_loaded = true;
+    // grid = create_grid(161, 161, 1.0);
+    // grid = create_grid(81, 81, 2.0);
+    grid = create_grid(81, 81, 1.0);
+    // center_grid = create_grid(3, 3, 80.0);
+    center_grid = create_grid(3, 3, 40.0);
+}
+
 sphere: Geometry;
 sphere_loaded: bool;
 torus: Geometry;
 torus_loaded: bool;
 square: Geometry;
 square_loaded: bool;
+grid: Geometry;
+center_grid: Geometry;
+grid_loaded: bool;
 
 infinite_grid_shader: InfiniteGridShader3;
+flat_grid_shader: FlatGridShader3;

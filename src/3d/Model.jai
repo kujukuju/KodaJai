@@ -5,6 +5,7 @@ Model :: struct {
     uniforms: ShaderUniforms;
     position: Vector3;
     rotation: Quaternion;
+    scale: Vector3 = .{1, 1, 1};
 }
 
 operator == :: (a: Model, b: Model) -> bool {
@@ -82,7 +83,7 @@ draw :: (model: Model, transform: Matrix4 = Matrix4Identity) {
 draw :: (model: Model, transform: Matrix4 = Matrix4Identity, projection: Matrix4) {
     use_shader(*default_shader3);
 
-    model_mat := transform * get_transform(model);
+    model_mat := transform * get_transform(model); 
     view := koda.view;
 
     apply_uniforms(*default_shader3, model.uniforms);
