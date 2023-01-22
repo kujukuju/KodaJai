@@ -60,6 +60,7 @@ get_transform :: (model: Model) -> Matrix4 {
     matrix := Matrix4Identity;
     matrix = translate(matrix, model.position);
     matrix = rotate(matrix, model.rotation);
+    matrix = scale(matrix, model.scale);
     return matrix;
 }
 
@@ -76,17 +77,21 @@ get_aabb :: (model: Model) -> AABB3 {
     return aabb;
 }
 
-draw :: (model: Model, transform: Matrix4 = Matrix4Identity) {
-    draw(model, transform, get_perspective_matrix());
+draw :: (model: Model, transform: Matrix4 = Matrix4Identity, shader: *Shader = null) {
+    if !shader {
+        shader = *default_shader3;
+    }
+
+    draw(model, transform, get_perspective_matrix(), shader);
 }
 
-draw :: (model: Model, transform: Matrix4 = Matrix4Identity, projection: Matrix4) {
-    use_shader(*default_shader3);
+draw :: (model: Model, transform: Matrix4 = Matrix4Identity, projection: Matrix4, shader: *Shader) {
+    use_shader(shader);
 
     model_mat := transform * get_transform(model); 
     view := koda.view;
 
-    apply_uniforms(*default_shader3, model.uniforms);
+    apply_uniforms(shader, model.uniforms);
 
     uniforms: ShaderUniforms;
     defer destroy(uniforms);
@@ -95,7 +100,7 @@ draw :: (model: Model, transform: Matrix4 = Matrix4Identity, projection: Matrix4
     uniforms["model"] = create_uniform("model", model_mat);
     uniforms["view"] = create_uniform("view", view);
     
-    apply_uniforms(*default_shader3, uniforms);
+    apply_uniforms(shader, uniforms);
 
     for geometry: model.geometry {
         glBindVertexArray(geometry.vao_);

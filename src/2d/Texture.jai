@@ -72,29 +72,6 @@ load_thumbnail_texture :: (bytes: [] u8, width: s32, height: s32, preserve_ratio
     return gen_texture(thumbnail_texture_data), true;
 }
 
-load_data :: (data: [] u8) -> TextureData {
-    texture_data: TextureData;
-    comp: s32;
-    texture_data.data = stbi_load_from_memory(data.data, xx data.count, *texture_data.width, *texture_data.height, *comp, 0);
-    if !texture_data.data {
-        print("Could not parse texture data.\n");
-        assert(false, "Could not parse texture data.");
-        return .{};
-    }
-    
-    if comp == 1 {
-        texture_data.format = .Gray;
-    } else if comp == 2 {
-        texture_data.format = .GrayAlpha;
-    } else if comp == 3 {
-        texture_data.format = .RGB;
-    } else if comp == 4 {
-        texture_data.format = .RGBA;
-    }
-
-    return texture_data;
-}
-
 destroy :: (texture: Texture) {
     glDeleteTextures(1, *texture.buffer);
 }
@@ -160,6 +137,7 @@ scale_data :: (data: TextureData, width: s32, height: s32, preserve_ratio: bool 
 }
 
 gen_texture :: (data: TextureData) -> Texture {
+    // TODO mipmaps fuck up this code with non power of 2s
     texture: Texture;
     texture.width = data.width;
     texture.height = data.height;
@@ -175,7 +153,7 @@ gen_texture :: (data: TextureData) -> Texture {
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST_MIPMAP_LINEAR);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
 
-    eight_divible :=  (texture.width * texture.height) % 8 == 0;
+    eight_divible := (texture.width * texture.height) % 8 == 0;
     four_divisible := (texture.width * texture.height) % 4 == 0;
     two_divisible := (texture.width * texture.height) % 2 == 0;
     pixel_store: s32;
@@ -186,13 +164,13 @@ gen_texture :: (data: TextureData) -> Texture {
 
     glPixelStorei(GL_PACK_ALIGNMENT, pixel_store);
     if texture.format == .Gray {
-        glTexImage2D(GL_TEXTURE_2D, 0, GL_RED, xx texture.width, xx texture.height, 0, GL_RED, GL_UNSIGNED_BYTE, data.data);
+        glTexImage2D(GL_TEXTURE_2D, 0, GL_R8, xx texture.width, xx texture.height, 0, GL_RED, GL_UNSIGNED_BYTE, data.data);
     } else if texture.format == .GrayAlpha {
-        glTexImage2D(GL_TEXTURE_2D, 0, GL_RG, xx texture.width, xx texture.height, 0, GL_RG, GL_UNSIGNED_BYTE, data.data);
+        glTexImage2D(GL_TEXTURE_2D, 0, GL_RG8, xx texture.width, xx texture.height, 0, GL_RG, GL_UNSIGNED_BYTE, data.data);
     } else if texture.format == .RGB {
-        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, xx texture.width, xx texture.height, 0, GL_RGB, GL_UNSIGNED_BYTE, data.data);
+        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB8, xx texture.width, xx texture.height, 0, GL_RGB, GL_UNSIGNED_BYTE, data.data);
     } else if texture.format == .RGBA {
-        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, xx texture.width, xx texture.height, 0, GL_RGBA, GL_UNSIGNED_BYTE, data.data);
+        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, xx texture.width, xx texture.height, 0, GL_RGBA, GL_UNSIGNED_BYTE, data.data);
     }
     
     glGenerateMipmap(GL_TEXTURE_2D);
@@ -249,6 +227,29 @@ TextureData :: struct {
     width: s32;
     height: s32;
     format: PixelFormat;
+}
+
+load_data :: (data: [] u8) -> TextureData {
+    texture_data: TextureData;
+    comp: s32;
+    texture_data.data = stbi_load_from_memory(data.data, xx data.count, *texture_data.width, *texture_data.height, *comp, 0);
+    if !texture_data.data {
+        print("Could not parse texture data.\n");
+        assert(false, "Could not parse texture data.");
+        return .{};
+    }
+    
+    if comp == 1 {
+        texture_data.format = .Gray;
+    } else if comp == 2 {
+        texture_data.format = .GrayAlpha;
+    } else if comp == 3 {
+        texture_data.format = .RGB;
+    } else if comp == 4 {
+        texture_data.format = .RGBA;
+    }
+
+    return texture_data;
 }
 
 #import "Basic";

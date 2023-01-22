@@ -203,26 +203,34 @@ apply_uniforms :: (shader: *Shader, uniforms: ShaderUniforms) {
                         glUniform1ui(location, texture_index);
 
                         texture_index += 1;
-                    case .TextureN;
-                        // TODO no allocations
-                        texture_values := NewArray(uniform.uint1n.count, u32, initialized = false);
-                        defer array_free(texture_values);
+                    case .Texture3;
+                        glActiveTexture(GL_TEXTURE0 + texture_index);
+                        glBindTexture(GL_TEXTURE_3D, uniform.uint1);
+                        glUniform1ui(location, texture_index);
 
-                        for i: 0..uniform.uint1n.count - 1 {
-                            glActiveTexture(GL_TEXTURE0 + texture_index);
-                            glBindTexture(GL_TEXTURE_2D, uniform.uint1);
-                            texture_values[i] = texture_index;
+                        texture_index += 1;
+                    // case .TextureN;
+                    //     // TODO no allocations
+                    //     texture_values := NewArray(uniform.uint1n.count, u32, initialized = false);
+                    //     defer array_free(texture_values);
 
-                            texture_index += 1;
-                        }
-                        glUniform1uiv(location, xx texture_values.count, texture_values.data);
+                    //     for i: 0..uniform.uint1n.count - 1 {
+                    //         glActiveTexture(GL_TEXTURE0 + texture_index);
+                    //         glBindTexture(GL_TEXTURE_2D, uniform.uint1n[i]);
+                    //         texture_values[i] = texture_index;
+
+                    //         texture_index += 1;
+                    //     }
+                    //     glUniform1uiv(location, xx texture_values.count, texture_values.data);
                 }
             } else {
                 if shader_uniform.type == {
                     case .Texture;
                         texture_index += 1;
-                    case .TextureN;
-                        texture_index += cast(u32) shader_uniform.uint1n.count;
+                    case .Texture3;
+                        texture_index += 1;
+                    // case .TextureN;
+                    //     texture_index += cast(u32) shader_uniform.uint1n.count;
                 }
             }
         }

@@ -30,7 +30,8 @@ ShaderUniformType :: enum {
     Mat4;
     Mat4N;
     Texture;
-    TextureN;
+    Texture3;
+    // TextureN;
 }
 
 ShaderUniform :: struct {
@@ -331,7 +332,9 @@ create_uniform :: ($name: string, value: Point3) -> ShaderUniform {
     uniform: ShaderUniform;
     uniform.name = name;
     uniform.type = .Int3;
-    uniform.int3 = value.component;
+    uniform.int3[0] = xx value.x;
+    uniform.int3[1] = xx value.y;
+    uniform.int3[2] = xx value.z;
     return uniform;
 }
 
@@ -658,16 +661,25 @@ create_uniform :: ($name: string, value: Texture) -> ShaderUniform {
     return uniform;
 }
 
-create_uniform :: ($name: string, value: [] Texture) -> ShaderUniform {
+create_uniform :: ($name: string, value: Texture3) -> ShaderUniform {
     uniform: ShaderUniform;
     uniform.name = name;
-    uniform.type = .TextureN;
-    uniform.uint1n = NewArray(value.count, u32, initialized = false);
-    for i: 0..uniform.uint1n.count - 1 {
-        uniform.uint1n[i] = value.buffer;
-    }
+    uniform.type = .Texture3;
+    uniform.uint1 = value.buffer;
     return uniform;
 }
+
+// this apparently doesnt work, you have to use a texture2darray or a texture3d depending on how you want it to function
+// create_uniform :: ($name: string, value: [] Texture) -> ShaderUniform {
+//     uniform: ShaderUniform;
+//     uniform.name = name;
+//     uniform.type = .TextureN;
+//     uniform.uint1n = NewArray(value.count, u32, initialized = false);
+//     for i: 0..value.count - 1 {
+//         uniform.uint1n[i] = value[i].buffer;
+//     }
+//     return uniform;
+// }
 
 destroy :: (uniforms: ShaderUniforms) {
     for uniform: uniforms.uniforms {
@@ -683,9 +695,6 @@ destroy :: (uniform: ShaderUniform) {
         case .Float2N;
             array_free(uniform.float2n);
         case .Float3N;
-            print("freeing %\n", uniform.float3n.data);
-            // print_stack_trace();
-            // print("\n");
             array_free(uniform.float3n);
         case .Float4N;
             array_free(uniform.float4n);
@@ -711,8 +720,6 @@ destroy :: (uniform: ShaderUniform) {
             array_free(uniform.mat3n);
         case .Mat4N;
             array_free(uniform.mat4n);
-        case .TextureN;
-            array_free(uniform.uint1n);
     }
 }
 
@@ -723,7 +730,6 @@ array_copy_memory :: (arr: [] $T, $N: Type) -> [] N {
     #run assert(#run size_of(T) == size_of(N), "The types must be the same size.");
 
     copied := NewArray(arr.count, N, initialized = false);
-    print("allocated %\n", copied.data);
     memcpy(copied.data, arr.data, arr.count * SIZE_T);
     return copied;
 }

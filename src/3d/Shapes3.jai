@@ -165,66 +165,36 @@ draw_flat_grid :: (color: Color = .{1, 1, 1, 1}) {
     glBindVertexArray(0);
 }
 
-draw_infinite_grid :: (center: Vector3 = .{0, 0, 0}, normal: Vector3 = .{0, 1, 0}, forward: Vector3 = .{1, 0, 0}, radius: float = 0.0, spacing: float = 1.0, color: Color = .{1, 1, 1, 1}) {
-    vertices: [6] Vector2;
-    vertices[0] = .{-1, -1};
-    vertices[1] = .{-1, 1};
-    vertices[2] = .{1, 1};
-    vertices[3] = .{-1, -1};
-    vertices[4] = .{1, 1};
-    vertices[5] = .{1, -1};
+draw_cube :: (lower: Vector3, upper: Vector3, color: Color = .{1, 1, 1, 1}, border: Color = .{0, 0, 0, 0}) {
+    if !cube_loaded {
+        load_cube();
+    }
 
-    vao: GLuint;
-    glGenVertexArrays(1, *vao);
-    defer glDeleteVertexArrays(1, *vao);
-    glBindVertexArray(vao);
-    defer glBindVertexArray(0);
+    position := (lower + upper) / 2.0;
+    scale_vec := (upper - lower) / 2.0;
 
-    buffer_id: GLuint;
-    glGenBuffers(1, *buffer_id);
-    defer glDeleteBuffers(1, *buffer_id);
-
-    glBindBuffer(GL_ARRAY_BUFFER, buffer_id);
-    glBufferData(GL_ARRAY_BUFFER, size_of(type_of(vertices)), *vertices, GL_DYNAMIC_DRAW);
-
-    glEnableVertexAttribArray(0);
-    defer glDisableVertexAttribArray(0);
-    glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, size_of(Vector2), null);
-
-    use_shader(*infinite_grid_shader);
+    use_shader(*default_shape_shader3);
 
     projection := get_perspective_matrix();
+    model := Matrix4Identity;
+    model = translate(model, position);
+    model = scale(model, scale_vec);
     view := koda.view;
 
     uniforms: ShaderUniforms;
     defer destroy(uniforms);
-
+    
     uniforms["projection"] = create_uniform("projection", projection);
+    uniforms["model"] = create_uniform("model", model);
     uniforms["view"] = create_uniform("view", view);
+    
     uniforms["uTint"] = create_uniform("uTint", color);
-    uniforms["uPosition"] = create_uniform("uPosition", center);
-    uniforms["uNormal"] = create_uniform("uNormal", normal);
-    uniforms["uForward"] = create_uniform("uForward", forward);
-    uniforms["uRadius"] = create_uniform("uRadius", radius);
-    uniforms["uSpacing"] = create_uniform("uSpacing", spacing);
+    
+    apply_uniforms(*default_shape_shader3, uniforms);
 
-    apply_uniforms(*infinite_grid_shader, uniforms);
-
-    // depth_test := get_depth_test();
-    // set_depth_test(false);
-    // defer set_depth_test(depth_test);
-
-    cull_face := get_cull_face();
-    set_cull_face(false);
-    defer set_cull_face(cull_face);
-
-    glDepthMask(GL_TRUE);
-
-    glDrawArrays(GL_TRIANGLES, 0, xx vertices.count);
-}
-
-draw_cube :: (lower: Vector3, upper: Vector3, color: Color = .{1, 1, 1, 1}, border: Color = .{0, 0, 0, 0}) {
-
+    glBindVertexArray(cube.vao_);
+    glDrawElements(GL_TRIANGLES, xx cube.indices.count, GL_UNSIGNED_INT, xx 0);
+    glBindVertexArray(0);
 }
 
 draw_sphere :: (position: Vector3, color: Color = .{1, 1, 1, 1}) {
@@ -358,6 +328,15 @@ load_grid :: () {
     center_grid = create_grid(3, 3, 40.0);
 }
 
+load_cube :: () {
+    if cube_loaded {
+        return;
+    }
+
+    cube_loaded = true;
+    cube = create_cube(.{1, 1, 1});
+}
+
 sphere: Geometry;
 sphere_loaded: bool;
 torus: Geometry;
@@ -367,6 +346,7 @@ square_loaded: bool;
 grid: Geometry;
 center_grid: Geometry;
 grid_loaded: bool;
+cube: Geometry;
+cube_loaded: bool;
 
-infinite_grid_shader: InfiniteGridShader3;
 flat_grid_shader: FlatGridShader3;

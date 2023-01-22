@@ -47,15 +47,21 @@
 
 #load "src/3d/Camera3.jai";
 #load "src/3d/Container3.jai";
+#load "src/3d/CubeGeometry.jai";
 #load "src/3d/Geometry.jai";
 #load "src/3d/GridGeometry.jai";
+#load "src/3d/Image3.jai";
 #load "src/3d/InstancedModel.jai";
 #load "src/3d/Mesh.jai";
 #load "src/3d/Model.jai";
 #load "src/3d/PlaneGeometry.jai";
 #load "src/3d/Shapes3.jai";
 #load "src/3d/SphereGeometry.jai";
+#load "src/3d/Texture3.jai";
 #load "src/3d/TorusGeometry.jai";
+#load "src/3d/VolumetricCloud.jai";
+
+#load "src/noise/Perlin.jai";
 
 #load "src/CircleAllocator.jai";
 #load "src/Color.jai";
@@ -85,6 +91,7 @@
 #load "src/Time.jai";
 #load "src/TorusShader3.jai";
 #load "src/Utilities.jai";
+#load "src/VolumetricCloudShader.jai";
 #load "src/Window.jai";
 
 koda: struct {
@@ -125,6 +132,7 @@ default_shader3: DefaultShader3;
 // I probably dont want this one and instead want auto generating shaders based on bool values, like a DynamicShader class
 default_shader_colors3: DefaultShaderColors3;
 default_shape_shader3: DefaultShapeShader3;
+volumetric_cloud_shader: VolumetricCloudShader;
 instanced_shader2: InstancedShader2;
 instanced_shader3: InstancedShader3;
 torus_shader: TorusShader3;
