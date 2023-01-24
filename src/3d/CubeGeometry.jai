@@ -1,4 +1,4 @@
-create_cube :: (half: Vector3, with_normals: bool = false, with_texcoords: bool = false) -> *Geometry {
+create_cube :: (half: Vector3, double_sided: bool = false, with_normals: bool = false, with_texcoords: bool = false) -> *Geometry {
     geometry := New(Geometry);
 
     vertices: [8] Vector3;
@@ -54,6 +54,15 @@ create_cube :: (half: Vector3, with_normals: bool = false, with_texcoords: bool 
 
     for index: indices {
         array_add(*geometry.indices, index);
+    }
+
+    if double_sided {
+        i := 0;
+        while i < indices.count {
+            array_add(*geometry.indices, indices[i + 2], indices[i + 1], indices[i]);
+
+            i += 3;
+        }
     }
 
     geometry.has_normal = with_normals;

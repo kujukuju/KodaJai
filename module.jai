@@ -61,7 +61,11 @@
 #load "src/3d/TorusGeometry.jai";
 #load "src/3d/VolumetricCloud.jai";
 
+#load "src/noise/Noise.jai";
 #load "src/noise/Perlin.jai";
+#load "src/noise/PerlinWorley.jai";
+#load "src/noise/VolumeNoise.jai";
+#load "src/noise/Worley.jai";
 
 #load "src/CircleAllocator.jai";
 #load "src/Color.jai";

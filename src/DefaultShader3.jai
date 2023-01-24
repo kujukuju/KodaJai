@@ -41,13 +41,14 @@ in vec3 vNorm;
 in vec2 vTex;
 
 void main() {
-    vec3 lightPos = vec3(5.0, 10.0, -10.0);
+    // vec3 lightPos = vec3(5.0, 10.0, -10.0);
     vec3 lightColor = vec3(1.0, 1.0, 1.0);
     vec3 ambient = vec3(0.2, 0.2, 0.2);
     vec3 objectColor = texture(uTexture0, vTex).rgb * vec3(1.0, 1.0, 1.0);
 
     vec3 norm = normalize(vNorm);
-    vec3 lightDir = normalize(lightPos - vPos);
+    // vec3 lightDir = normalize(lightPos - vPos);
+    vec3 lightDir = normalize(vec3(0.5, 1.0, -1.0));
     float diff = max(dot(norm, lightDir), 0.0);
     vec3 diffuse = diff * lightColor;
     vec3 result = (ambient + diffuse) * objectColor;

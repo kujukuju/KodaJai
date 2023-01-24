@@ -51,7 +51,7 @@ create_image :: (bytes: [] u8) -> Image {
     if comp == 1 {
         image.format = .Gray;
     } else if comp == 2 {
-        image.format = .GrayAlpha;
+        image.format = .RG;
     } else if comp == 3 {
         image.format = .RGB;
     } else if comp == 4 {

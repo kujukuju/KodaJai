@@ -247,6 +247,16 @@ set_depth_func :: (func: DepthFunc) {
     }
 }
 
+get_depth_write :: () -> bool {
+    enabled: GLboolean;
+    glGetBooleanv(GL_DEPTH_WRITEMASK, *enabled);
+    return enabled;
+}
+
+set_depth_write :: (enabled: bool) {
+    glDepthMask(enabled);
+}
+
 get_depth_test :: () -> bool {
     enabled: GLboolean;
     glGetBooleanv(GL_DEPTH_TEST, *enabled);

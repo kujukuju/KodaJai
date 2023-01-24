@@ -28,8 +28,9 @@ save_image :: (image: Image3, path: string) {
 
     cpath := create_fixed_string(path, 1024);
     comp := get_stride(image.format);
+    print("comp %\n", comp);
 
-    stbi_write_png(cpath.buffer.data, xx (image.width * image.depth), xx (image.height * image.depth), xx comp, image.pixels.data, xx (image.width * image.depth * comp));
+    stbi_write_png(cpath.buffer.data, xx (image.width * image.depth), xx image.height, xx comp, image.pixels.data, xx (image.width * image.depth * comp));
 }
 
 clear_image :: (image: *Image3) {

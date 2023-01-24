@@ -81,7 +81,7 @@ scale_data :: (data: TextureData, width: s32, height: s32, preserve_ratio: bool 
     if data.format == {
         case .Gray;
             byte_count = 1;
-        case .GrayAlpha;
+        case .RG;
             byte_count = 2;
         case .RGB;
             byte_count = 3;
@@ -165,7 +165,7 @@ gen_texture :: (data: TextureData) -> Texture {
     glPixelStorei(GL_PACK_ALIGNMENT, pixel_store);
     if texture.format == .Gray {
         glTexImage2D(GL_TEXTURE_2D, 0, GL_R8, xx texture.width, xx texture.height, 0, GL_RED, GL_UNSIGNED_BYTE, data.data);
-    } else if texture.format == .GrayAlpha {
+    } else if texture.format == .RG {
         glTexImage2D(GL_TEXTURE_2D, 0, GL_RG8, xx texture.width, xx texture.height, 0, GL_RG, GL_UNSIGNED_BYTE, data.data);
     } else if texture.format == .RGB {
         glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB8, xx texture.width, xx texture.height, 0, GL_RGB, GL_UNSIGNED_BYTE, data.data);
@@ -242,7 +242,7 @@ load_data :: (data: [] u8) -> TextureData {
     if comp == 1 {
         texture_data.format = .Gray;
     } else if comp == 2 {
-        texture_data.format = .GrayAlpha;
+        texture_data.format = .RG;
     } else if comp == 3 {
         texture_data.format = .RGB;
     } else if comp == 4 {

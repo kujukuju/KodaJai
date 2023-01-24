@@ -6,6 +6,29 @@ Texture3 :: struct {
     format: PixelFormat;
 }
 
+load_texture3 :: (path: string) -> Texture3 {
+    file, success := read_entire_file(path, false);
+    defer free(file);
+
+    bytes: [] u8;
+    bytes.data = file.data;
+    bytes.count = file.count;
+
+    return create_texture3(bytes);
+}
+
+create_texture3 :: (bytes: [] u8) -> Texture3 {
+    texture_data := load_data(bytes);
+    defer stbi_image_free(texture_data.data);
+
+    if texture_data.data == null {
+        print("Could not load texture.\n");
+        return .{};
+    }
+
+    return gen_texture(texture_data);
+}
+
 create_texture3 :: (image: Image3) -> Texture3 {
     if !image.pixels.data {
         print("Could not create texture.\n");
@@ -37,9 +60,9 @@ gen_texture :: (data: TextureData3) -> Texture3 {
 
     glGenTextures(1, *texture.buffer);
     glBindTexture(GL_TEXTURE_3D, texture.buffer);
-    glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-    glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-    glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_WRAP_R, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+    glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+    glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_WRAP_R, GL_REPEAT);
     glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
     glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
     // glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_MIN_FILTER, GL_NEAREST_MIPMAP_LINEAR);
@@ -57,7 +80,7 @@ gen_texture :: (data: TextureData3) -> Texture3 {
     glPixelStorei(GL_PACK_ALIGNMENT, pixel_store);
     if texture.format == .Gray {
         glTexImage3D(GL_TEXTURE_3D, 0, GL_R8, xx texture.width, xx texture.height, xx texture.depth, 0, GL_RED, GL_UNSIGNED_BYTE, data.data);
-    } else if texture.format == .GrayAlpha {
+    } else if texture.format == .RG {
         glTexImage3D(GL_TEXTURE_3D, 0, GL_RG8, xx texture.width, xx texture.height, xx texture.depth, 0, GL_RG, GL_UNSIGNED_BYTE, data.data);
     } else if texture.format == .RGB {
         glTexImage3D(GL_TEXTURE_3D, 0, GL_RGB8, xx texture.width, xx texture.height, xx texture.depth, 0, GL_RGB, GL_UNSIGNED_BYTE, data.data);
@@ -86,6 +109,34 @@ TextureData3 :: struct {
     height: s32;
     depth: s32;
     format: PixelFormat;
+}
+
+load_data :: (data: [] u8) -> TextureData3 {
+    texture_data: TextureData3;
+    comp: s32;
+    texture_data.data = stbi_load_from_memory(data.data, xx data.count, *texture_data.width, *texture_data.height, *comp, 0);
+    if !texture_data.data {
+        print("Could not parse texture data.\n");
+        assert(false, "Could not parse texture data.");
+        return .{};
+    }
+
+    assert(texture_data.width == texture_data.height * texture_data.height, "Texture3 data loaded from a file can only be a cube.");
+
+    texture_data.width = texture_data.height;
+    texture_data.depth = texture_data.height;
+    
+    if comp == 1 {
+        texture_data.format = .Gray;
+    } else if comp == 2 {
+        texture_data.format = .RG;
+    } else if comp == 3 {
+        texture_data.format = .RGB;
+    } else if comp == 4 {
+        texture_data.format = .RGBA;
+    }
+
+    return texture_data;
 }
 
 #import "Basic";

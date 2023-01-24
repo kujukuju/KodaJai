@@ -1,6 +1,6 @@
 PixelFormat :: enum {
     Gray;
-    GrayAlpha;
+    RG;
     RGB;
     RGBA;
     Depth;
@@ -11,7 +11,7 @@ get_stride :: (format: PixelFormat) -> int {
     if #complete format == {
         case .Gray;
             return 1;
-        case .GrayAlpha;
+        case .RG;
             return 2;
         case .RGB;
             return 3;
@@ -29,7 +29,7 @@ get_gl_format :: (format: PixelFormat) -> u32 {
     if #complete format == {
         case .Gray;
             return GL_RED;
-        case .GrayAlpha;
+        case .RG;
             return GL_RG;
         case .RGB;
             return GL_RGB;
