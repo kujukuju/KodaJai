@@ -116,7 +116,7 @@ create_text :: (content: string, bytes: [] u8, pixel_height: int) -> Text, bool 
     glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 4 * size_of(float), cast(*void) (2 * size_of(float)));
     glEnableVertexAttribArray(1);
     glBindBuffer(GL_ARRAY_BUFFER, 0);
-    glBindVertexArray(0);      
+    glBindVertexArray(0);
 
     return text, true;
 }
@@ -141,8 +141,8 @@ draw_text :: (text: Text) {
         return;
     }
 
-    assert(text.position.x >= 0);
-    assert(text.position.y >= 0);
+    // assert(text.position.x >= 0);
+    // assert(text.position.y >= 0);
 
     depth_test := get_depth_test();
     cull_face := get_cull_face();

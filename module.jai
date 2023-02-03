@@ -74,6 +74,7 @@
 #load "src/DefaultShader3.jai";
 #load "src/DefaultShaderColors3.jai";
 #load "src/DefaultShapeShader3.jai";
+#load "src/DefaultVertColorShader3.jai";
 #load "src/FlatGridShader3.jai";
 #load "src/FontShader.jai";
 #load "src/InfiniteGridShader3.jai";
@@ -133,6 +134,7 @@ koda: struct {
 
 default_shader: DefaultShader;
 default_shader3: DefaultShader3;
+default_color_shader3: DefaultVertColorShader3;
 // I probably dont want this one and instead want auto generating shaders based on bool values, like a DynamicShader class
 default_shader_colors3: DefaultShaderColors3;
 default_shape_shader3: DefaultShapeShader3;

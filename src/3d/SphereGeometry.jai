@@ -1,10 +1,7 @@
-SphereGeometry :: struct {
-    using #as geometry: Geometry;
-}
 
 // TODO probably should just return geometry?
 
-create_icosphere :: (radius: float, subdivision: int) -> SphereGeometry {
+create_icosphere :: (radius: float, subdivision: int) -> Geometry {
     H_ANGLE: float : PI / 180.0 * 72.0;
     V_ANGLE: float : #run atan(1.0 / 2.0);
     S_STEP: float : 186.0 / 2048.0;
@@ -65,7 +62,7 @@ create_icosphere :: (radius: float, subdivision: int) -> SphereGeometry {
     hAngle1: float = -PI / 2 - H_ANGLE / 2;
     hAngle2: float = -PI / 2;
 
-    geometry: SphereGeometry;
+    geometry: Geometry;
     vertices: [..] Vector3;
     normals: [..] Vector3;
     tex_coords: [..] Vector2;

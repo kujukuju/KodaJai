@@ -121,6 +121,32 @@ destroy :: (geometry: *Geometry) {
     free(geometry);
 }
 
+get_vertices :: (geometry: Geometry) -> [..] Vector3 {
+    vertices: [..] Vector3;
+    array_reserve(*vertices, geometry.indices.count);
+
+    stride := 3;
+    if geometry.has_normal {
+        stride += 3;
+    }
+    if geometry.has_texcoord {
+        stride += 2;
+    }
+    if geometry.has_color {
+        stride += 4;
+    }
+
+    for geometry.indices {
+        x := geometry.vertices[it * stride];
+        y := geometry.vertices[it * stride + 1];
+        z := geometry.vertices[it * stride + 2];
+
+        array_add(*vertices, .{x, y, z});
+    }
+
+    return vertices;
+}
+
 #scope_module
 
 // bad bad bad
@@ -768,6 +794,7 @@ load_gltf_data :: (json: GltfJson, binary: [] u8) -> [..] *Geometry, bool {
             if has_color {
                 color_accessor := accessors[color_accessor_generic.integer];
                 assert(color_accessor.type == "VEC4", "The color access must be a vec4 type.");
+                print("% %\n", color_accessor.view.count / size_of(float32) / 4, vertex_count);
                 assert(color_accessor.view.count / size_of(float32) / 4 == vertex_count, "There must be as many colors as vertices.");
                 assert(color_accessor.component_type == .F32, "The color component type must be float32.");
                 reserve_count += vertex_count * 4;

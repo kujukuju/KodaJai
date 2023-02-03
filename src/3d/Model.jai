@@ -86,6 +86,11 @@ draw :: (model: Model, transform: Matrix4 = Matrix4Identity, shader: *Shader = n
 }
 
 draw :: (model: Model, transform: Matrix4 = Matrix4Identity, projection: Matrix4, shader: *Shader) {
+    // TODO this is temporary to get vert colors working
+    if model.geometry.count > 0 && model.geometry[0].has_normal && model.geometry[0].has_texcoord && model.geometry[0].has_color {
+        shader = *default_color_shader3;
+    }
+
     use_shader(shader);
 
     model_mat := transform * get_transform(model); 

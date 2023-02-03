@@ -271,6 +271,64 @@ set_depth_test :: (enabled: bool) {
     }
 }
 
+BlendFunc :: enum s32 {
+    Add;
+    Subtract;
+    ReverseSubtract;
+    Min;
+    Max;
+}
+
+convert_blend_func :: (value: BlendFunc) -> s32 {
+    if #complete value == {
+        case .Add;
+            return GL_FUNC_ADD;
+        case .Subtract;
+            return GL_FUNC_SUBTRACT;
+        case .ReverseSubtract;
+            return GL_FUNC_REVERSE_SUBTRACT;
+        case .Min;
+            return GL_MIN;
+        case .Max;
+            return GL_MAX;
+    }
+}
+
+convert_blend_func :: (value: s32) -> BlendFunc {
+    if value == GL_FUNC_ADD {
+        return .Add;
+    } else if value == GL_FUNC_SUBTRACT {
+        return .Subtract;
+    } else if value == GL_FUNC_REVERSE_SUBTRACT {
+        return .ReverseSubtract;
+    } else if value == GL_MIN {
+        return .Min;
+    } else if value == GL_MAX {
+        return .Max;
+    }
+
+    return .Add;
+}
+
+get_blend_func :: () -> BlendFunc, BlendFunc {
+    real_rgb: s32;
+    glGetIntegerv(GL_BLEND_EQUATION_RGB, *real_rgb);
+    rgb := convert_blend_func(real_rgb);
+
+    real_alpha: s32;
+    glGetIntegerv(GL_BLEND_EQUATION_ALPHA, *real_alpha);
+    alpha := convert_blend_func(real_alpha);
+
+    return rgb, alpha;
+}
+
+set_blend_func :: (rgb: BlendFunc, alpha: BlendFunc) {
+    real_rgb := convert_blend_func(rgb);
+    real_alpha := convert_blend_func(alpha);
+
+    glBlendEquationSeparate(xx real_rgb, xx real_alpha);
+}
+
 get_cull_face :: () -> bool {
     enabled: GLboolean;
     glGetBooleanv(GL_CULL_FACE, *enabled);

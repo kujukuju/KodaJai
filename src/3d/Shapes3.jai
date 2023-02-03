@@ -14,7 +14,7 @@ draw_line :: (p1: Vector3, p2: Vector3, width: float = 1.0, color: Color = .{1, 
     defer glDeleteBuffers(1, *buffer_id);
 
     glBindBuffer(GL_ARRAY_BUFFER, buffer_id);
-    glBufferData(GL_ARRAY_BUFFER, size_of(type_of(vertices)), *vertices, GL_DYNAMIC_DRAW);
+    glBufferData(GL_ARRAY_BUFFER, size_of(type_of(vertices)), vertices.data, GL_DYNAMIC_DRAW);
 
     glEnableVertexAttribArray(0);
     defer glDisableVertexAttribArray(0);
@@ -131,7 +131,7 @@ draw_torus :: (center: Vector3, up: Vector3, major_radius: float, minor_radius: 
     glBindVertexArray(0);
 }
 
-draw_flat_grid :: (color: Color = .{1, 1, 1, 1}) {
+draw_flat_grid :: (center: Vector3 = .{0, 0, 0}, fade_center: Vector3 = .{0, 0, 0}, radius: float = 40.0, draw_center_lines: bool = true, color: Color = .{1, 1, 1, 1}) {
     if !grid_loaded {
         load_grid();
     }
@@ -139,6 +139,7 @@ draw_flat_grid :: (color: Color = .{1, 1, 1, 1}) {
     use_shader(*flat_grid_shader);
 
     model := Matrix4Identity;
+    model = translate(model, center);
     projection := get_perspective_matrix();
     view := koda.view;
 
@@ -150,7 +151,8 @@ draw_flat_grid :: (color: Color = .{1, 1, 1, 1}) {
     uniforms["view"] = create_uniform("view", view);
 
     uniforms["uTint"] = create_uniform("uTint", color);
-    uniforms["uRadius"] = create_uniform("uRadius", 40.0);
+    uniforms["uRadius"] = create_uniform("uRadius", radius);
+    uniforms["uFadeCenter"] = create_uniform("uFadeCenter", fade_center);
     
     apply_uniforms(*flat_grid_shader, uniforms);
 
@@ -158,11 +160,93 @@ draw_flat_grid :: (color: Color = .{1, 1, 1, 1}) {
     glLineWidth(1.0);
     glDrawArrays(GL_LINES, 0, xx (grid.vertices.count / 3));
 
-    glBindVertexArray(center_grid.vao_);
-    glLineWidth(2.0);
-    glDrawArrays(GL_LINES, 0, xx (center_grid.vertices.count / 3));
+    if draw_center_lines {
+        glBindVertexArray(center_grid.vao_);
+        // TODO glLineWidth(2.0);
+        glLineWidth(4.0);
+        glDrawArrays(GL_LINES, 0, xx (center_grid.vertices.count / 3));
+    }
 
     glBindVertexArray(0);
+}
+
+draw_triangle :: (p1: Vector3, p2: Vector3, p3: Vector3, color: Color = .{1, 1, 1, 1}) {
+    vertices: [3] Vector3;
+    vertices[0] = p1;
+    vertices[1] = p2;
+    vertices[2] = p3;
+
+    vao: GLuint;
+    glGenVertexArrays(1, *vao);
+    defer glDeleteVertexArrays(1, *vao);
+    glBindVertexArray(vao);
+    defer glBindVertexArray(0);
+
+    buffer_id: GLuint;
+    glGenBuffers(1, *buffer_id);
+    defer glDeleteBuffers(1, *buffer_id);
+
+    glBindBuffer(GL_ARRAY_BUFFER, buffer_id);
+    glBufferData(GL_ARRAY_BUFFER, size_of(type_of(vertices)), vertices.data, GL_DYNAMIC_DRAW);
+
+    glEnableVertexAttribArray(0);
+    defer glDisableVertexAttribArray(0);
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, size_of(Vector3), null);
+
+    use_shader(*default_shape_shader3);
+
+    model := Matrix4Identity;
+    projection := get_perspective_matrix();
+    view := koda.view;
+
+    uniforms: ShaderUniforms;
+    defer destroy(uniforms);
+
+    uniforms["model"] = create_uniform("model", model);
+    uniforms["projection"] = create_uniform("projection", projection);
+    uniforms["view"] = create_uniform("view", view);
+    uniforms["uTint"] = create_uniform("uTint", color);
+
+    apply_uniforms(*default_shape_shader3, uniforms);
+
+    glDrawArrays(GL_TRIANGLES, 0, xx vertices.count);
+}
+
+draw_triangles :: (vertices: [] Vector3, color: Color = .{1, 1, 1, 1}) {
+    vao: GLuint;
+    glGenVertexArrays(1, *vao);
+    defer glDeleteVertexArrays(1, *vao);
+    glBindVertexArray(vao);
+    defer glBindVertexArray(0);
+
+    buffer_id: GLuint;
+    glGenBuffers(1, *buffer_id);
+    defer glDeleteBuffers(1, *buffer_id);
+
+    glBindBuffer(GL_ARRAY_BUFFER, buffer_id);
+    glBufferData(GL_ARRAY_BUFFER, size_of(Vector3) * vertices.count, vertices.data, GL_DYNAMIC_DRAW);
+
+    glEnableVertexAttribArray(0);
+    defer glDisableVertexAttribArray(0);
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, size_of(Vector3), null);
+
+    use_shader(*default_shape_shader3);
+
+    model := Matrix4Identity;
+    projection := get_perspective_matrix();
+    view := koda.view;
+
+    uniforms: ShaderUniforms;
+    defer destroy(uniforms);
+
+    uniforms["model"] = create_uniform("model", model);
+    uniforms["projection"] = create_uniform("projection", projection);
+    uniforms["view"] = create_uniform("view", view);
+    uniforms["uTint"] = create_uniform("uTint", color);
+
+    apply_uniforms(*default_shape_shader3, uniforms);
+
+    glDrawArrays(GL_TRIANGLES, 0, xx vertices.count);
 }
 
 draw_cube :: (lower: Vector3, upper: Vector3, color: Color = .{1, 1, 1, 1}, border: Color = .{0, 0, 0, 0}) {
@@ -231,7 +315,7 @@ draw_sphere :: (position: Vector3, color: Color = .{1, 1, 1, 1}) {
     glBindVertexArray(0);
 }
 
-draw_spheres :: (positions: [] Vector3, color: Color = .{1, 1, 1, 1}) {
+draw_spheres :: (positions: [] Vector3, scalev: Vector3, color: Color = .{1, 1, 1, 1}) {
     // no radius control yet
     if !sphere_loaded {
         load_sphere();
@@ -243,6 +327,7 @@ draw_spheres :: (positions: [] Vector3, color: Color = .{1, 1, 1, 1}) {
 
     projection := get_perspective_matrix();
     model := Matrix4Identity;
+    model = scale(model, scalev);
     view := koda.view;
 
     white_texture := get_white_texture();
@@ -257,7 +342,7 @@ draw_spheres :: (positions: [] Vector3, color: Color = .{1, 1, 1, 1}) {
     uniforms["uTint"] = create_uniform("uTint", color);
     uniforms["uFrame"] = create_uniform("uFrame", Vector4.{0, 0, 1, 1});
 
-    uniforms["uTexture0"] = create_uniform("uTexture0", white_texture.buffer);
+    uniforms["uTexture0"] = create_uniform("uTexture0", white_texture);
 
     apply_uniforms(*instanced_shader3, uniforms);
     // TODO use attributes or whatever instead of looping this shader 1000 times
