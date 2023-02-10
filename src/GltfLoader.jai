@@ -189,7 +189,6 @@ load_glb :: (file: string) -> GltfJson, [] u8, *u8, bool {
     json: GltfJson = ---;
     json_memory: *u8;
     json_valid: bool;
-    defer free(json_memory);
 
     binary: [] u8;
 
@@ -254,7 +253,6 @@ load_gltf :: (file: string, path: string) -> GltfJson, [] u8, *u8, bool {
     json: GltfJson = ---;
     json_memory: *u8;
     json_valid: bool;
-    defer free(json_memory);
 
     json, json_memory, json_valid = json_parse(gltf_file, GltfJson, keep_strings_in_place = true);
     if !json_valid {

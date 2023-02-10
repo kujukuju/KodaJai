@@ -235,50 +235,6 @@ load_model_gltf_data :: (json: GltfJson, binary: [] u8) -> [..] *Model, bool {
         current.count = bufferview.byteLength;
     }
 
-    // AccessorInfo :: struct {
-    //     view: [] u8;
-    //     type: string;
-    //     component_type: GltfJson.GltfJsonAccessor.GltfJsonComponentType;
-    //     min: [] float;
-    //     max: [] float;
-    // }
-    // accessors: [..] AccessorInfo;
-    // defer array_free(accessors);
-    // for accessor: json.accessors {
-    //     assert(!accessor.sparse, "The GLTF loader does not yet support sparse buffers.");
-
-    //     if !accessor.bufferView {
-    //         continue;
-    //     }
-
-    //     current := array_add(*accessors);
-    //     current.type = accessor.type;
-    //     current.component_type = accessor.componentType;
-    //     current.view.data = bufferviews[<< accessor.bufferView].data + accessor.byteOffset;
-
-    //     if accessor.type == "SCALAR" {
-    //         current.view.count = accessor.count * get_gltf_stride(current.component_type);
-    //     } else if accessor.type == "VEC2" {
-    //         current.view.count = accessor.count * get_gltf_stride(current.component_type) * 2;
-    //     } else if accessor.type == "VEC3" {
-    //         current.view.count = accessor.count * get_gltf_stride(current.component_type) * 3;
-    //     } else if accessor.type == "VEC4" {
-    //         current.view.count = accessor.count * get_gltf_stride(current.component_type) * 4;
-    //     } else if accessor.type == "MAT4" {
-    //         current.view.count = accessor.count * get_gltf_stride(current.component_type) * 16;
-    //     } else {
-    //         print("Cannot process this accessor type. %\n", accessor.type);
-    //         assert(false, "Cannot process this accessor type.");
-    //     }
-
-    //     if accessor.min {
-    //         current.min = << accessor.min;
-    //     }
-    //     if accessor.max {
-    //         current.max = << accessor.max;
-    //     }
-    // }
-
     index := 0;
     for mesh: json.meshes {
         for primitive: mesh.primitives {
@@ -294,13 +250,13 @@ load_model_gltf_data :: (json: GltfJson, binary: [] u8) -> [..] *Model, bool {
             has_texture = has_texture && json.materials[<< primitive.material].pbrMetallicRoughness;
             has_texture = has_texture && json.materials[<< primitive.material].pbrMetallicRoughness.baseColorTexture;
             has_texture = has_texture && json.textures[json.materials[<< primitive.material].pbrMetallicRoughness.baseColorTexture.index].source;
-            print("has_texture %\n", has_texture);
             if !has_texture {
                 model.uniforms["uTexture0"] = create_uniform("uTexture0", get_white_texture());
                 continue;
             }
 
             material := json.materials[<< primitive.material];
+            print("material %\n", material);
 
             texture_name := material.name;
             assert(!!texture_name, "I thought materials always had to have a name...");
@@ -316,7 +272,6 @@ load_model_gltf_data :: (json: GltfJson, binary: [] u8) -> [..] *Model, bool {
             source := json_texture.source;
 
             json_image := json.images[<< source];
-            print("image %\n", json_image);
 
             texture: Texture;
             if json_image.uri {
