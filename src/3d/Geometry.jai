@@ -60,7 +60,7 @@ load_geometry :: (path: string) -> [..] *Geometry, bool {
     }
 
     if ends_with(path, ".obj") {
-        geometries, success := load_obj(path);
+        geometries, success := load_geometry_obj(file);
         if !success {
             empty: [..] *Geometry;
             return empty, false;
@@ -68,7 +68,7 @@ load_geometry :: (path: string) -> [..] *Geometry, bool {
 
         return geometries, true;
     } else if ends_with(path, ".glb") {
-        geometries, success := load_glb(path);
+        geometries, success := load_geometry_glb(file);
         if !success {
             empty: [..] *Geometry;
             return empty, false;
@@ -76,7 +76,7 @@ load_geometry :: (path: string) -> [..] *Geometry, bool {
 
         return geometries, true;
     } else if ends_with(path, ".gltf") {
-        geometries, success := load_gltf(path);
+        geometries, success := load_geometry_gltf(file, path);
         if !success {
             empty: [..] *Geometry;
             return empty, false;
@@ -121,9 +121,19 @@ destroy :: (geometry: *Geometry) {
     free(geometry);
 }
 
-get_vertices :: (geometry: Geometry) -> [..] Vector3 {
+get_indices :: (geometry: Geometry) -> [..] int {
+    indices: [..] int;
+    array_reserve(*indices, geometry.indices.count);
+
+    for index: geometry.indices {
+        array_add(*indices, xx index);
+    }
+
+    return indices;
+}
+
+get_vertices :: (geometry: Geometry, preserve_faces: bool = false) -> [..] Vector3 {
     vertices: [..] Vector3;
-    array_reserve(*vertices, geometry.indices.count);
 
     stride := 3;
     if geometry.has_normal {
@@ -136,12 +146,31 @@ get_vertices :: (geometry: Geometry) -> [..] Vector3 {
         stride += 4;
     }
 
-    for geometry.indices {
-        x := geometry.vertices[it * stride];
-        y := geometry.vertices[it * stride + 1];
-        z := geometry.vertices[it * stride + 2];
+    if preserve_faces {
+        array_reserve(*vertices, geometry.indices.count);
+    } else {
+        array_reserve(*vertices, geometry.vertices.count / stride);
+    }
 
-        array_add(*vertices, .{x, y, z});
+    if preserve_faces {
+        for geometry.indices {
+            x := geometry.vertices[it * stride];
+            y := geometry.vertices[it * stride + 1];
+            z := geometry.vertices[it * stride + 2];
+
+            array_add(*vertices, .{x, y, z});
+        }
+    } else {
+        i := 0;
+        while i < geometry.vertices.count {
+            defer i += stride;
+
+            x := geometry.vertices[i];
+            y := geometry.vertices[i + 1];
+            z := geometry.vertices[i + 2];
+
+            array_add(*vertices, .{x, y, z});
+        }
     }
 
     return vertices;
@@ -150,14 +179,7 @@ get_vertices :: (geometry: Geometry) -> [..] Vector3 {
 #scope_module
 
 // bad bad bad
-load_obj :: (path: string) -> [..] *Geometry, bool {
-    file, success := read_entire_file(path);
-    defer free(file);
-    if !success {
-        empty: [..] *Geometry;
-        return empty, false;
-    }
-
+load_geometry_obj :: (file: string) -> [..] *Geometry, bool {
     object_sections := split(file, "o ");
     // assert(object_sections.count == 2, "Cannot have more than 1 object.");
 
@@ -285,323 +307,31 @@ load_obj :: (path: string) -> [..] *Geometry, bool {
     return list, true;
 }
 
-load_glb :: (path: string) -> [..] *Geometry, bool {
-    GltfHeader :: struct {
-        magic: u32;
-        version: u32;
-        length: u32;
-    }
-
-    GltfChunkHeader :: struct {
-        chunk_length: u32;
-        chunk_type: GltfChunkType;
-    }
-
-    GltfChunkType :: enum u32 {
-        JSON :: 0x4E4F534A;
-        BINARY :: 0x004E4942;
-    }
-
-    file, success := read_entire_file(path);
-    defer free(file);
-    if !success {
-        empty: [..] *Geometry;
-        return empty, false;
-    }
-
-    gltf_header := cast(*GltfHeader) file.data;
-    
-    if gltf_header.magic != 0x46546C67 {
-        empty: [..] *Geometry;
-        return empty, false;
-    }
-
-    if gltf_header.version != 2 {
-        print("Cannot load gltf version %.\n", gltf_header.version);
-        empty: [..] *Geometry;
-        return empty, false;
-    }
-
-    json: GltfJson = ---;
-    json_memory: *u8;
-    json_valid: bool;
+load_geometry_glb :: (file: string) -> [..] *Geometry, bool {
+    json, binary, json_memory, valid := load_glb(file);
     defer free(json_memory);
-
-    binary: [] u8;
-
-    chunk_pointer := file.data + size_of(GltfHeader);
-    while chunk_pointer < cast(*u8) gltf_header + gltf_header.length {
-        chunk_header := cast(*GltfChunkHeader) chunk_pointer;
-        chunk_pointer += size_of(GltfChunkHeader);
-
-        assert(chunk_header.chunk_length % 4 == 0, "The next chunk start isn't aligned to a 4 byte boundary. I'm not handling this correctly.");
-
-        if chunk_header.chunk_type == {
-            case .JSON;
-                json_chunk: string;
-                json_chunk.data = chunk_pointer;
-                json_chunk.count = chunk_header.chunk_length;
-                json, json_memory, json_valid = json_parse(json_chunk, GltfJson, keep_strings_in_place = true);
-
-            case .BINARY;
-                binary.data = chunk_pointer;
-                binary.count = chunk_header.chunk_length;
-        }
-
-        chunk_pointer += chunk_header.chunk_length;
-    }
-
-    if !json_valid {
-        print("Could not parse gltf json.\n");
-        empty: [..] *Geometry;
-        return empty, false;
-    }
-    
-    if !binary {
-        print("No glb buffer found.\n");
+    if !valid {
         empty: [..] *Geometry;
         return empty, false;
     }
 
-    geometries, data_success := load_gltf_data(json, binary);
+    geometries, data_success := load_geometry_gltf_data(json, binary);
     return geometries, data_success;
 }
 
-load_gltf :: (path: string) -> [..] *Geometry, bool {
-    root_path: string;
-    root_path.data = path.data;
-    for i: 0..path.count - 1 {
-        if path[i] == #char "/" || path[i] == #char "\\" {
-            root_path.count = i + 1;
-        }
-    }
-
-    assert(root_path.count > 0, "Could not find the root path for the gltf file.");
-
-    assert(ends_with(path, ".gltf"), "You must select the gltf file to load a gltf.");
-    if !ends_with(path, ".gltf") {
-        empty: [..] *Geometry;
-        return empty, false;
-    }
-
-    gltf_file, gltf_success := read_entire_file(path);
-    if !gltf_success {
-        print("Could not read gltf file.\n");
-        empty: [..] *Geometry;
-        return empty, false;
-    }
-
-    json: GltfJson = ---;
-    json_memory: *u8;
-    json_valid: bool;
+load_geometry_gltf :: (file: string, path: string) -> [..] *Geometry, bool {
+    json, binary, json_memory, valid := load_gltf(file, path);
     defer free(json_memory);
-
-    json, json_memory, json_valid = json_parse(gltf_file, GltfJson, keep_strings_in_place = true);
-    if !json_valid {
-        print("Could not parse gltf json.\n");
+    if !valid {
         empty: [..] *Geometry;
         return empty, false;
     }
 
-    if json.buffers.count != 1 || !json.buffers[0].uri {
-        print("No gltf buffer found.\n");
-        empty: [..] *Geometry;
-        return empty, false;
-    }
-
-    binary_file_path := sprint("%/%", root_path, << json.buffers[0].uri);
-    defer free(binary_file_path);
-    binary_file, binary_success := read_entire_file(binary_file_path);
-    if !binary_success {
-        print("Could not read gltf binary file.\n");
-        empty: [..] *Geometry;
-        return empty, false;
-    }
-
-    binary: [] u8;
-    binary.data = binary_file.data;
-    binary.count = binary_file.count;
-
-    geometries, data_success := load_gltf_data(json, binary);
+    geometries, data_success := load_geometry_gltf_data(json, binary);
     return geometries, data_success;
 }
 
-#scope_module
-
-GltfJson :: struct {
-    asset: GltfJsonAsset;
-    scene: int;
-    buffers: [..] GltfJsonBuffer;
-    bufferViews: [..] GltfJsonBufferView;
-    scenes: [..] GltfJsonScene;
-    accessors: [..] GltfJsonAccessor;
-    images: [..] GltfJsonImage;
-    samplers: [..] GltfJsonSampler;
-    textures: [..] GltfJsonTexture;
-    materials: [..] GltfJsonMaterial;
-    meshes: [..] GltfJsonMesh;
-    nodes: [..] GltfJsonNode;
-
-    GltfJsonAsset :: struct {
-        copyright: *string;
-        generator: *string;
-        version: string;
-        minVersion: *string;
-    }
-
-    GltfJsonBuffer :: struct {
-        uri: *string;
-        byteLength: int;
-        name: *string;
-    }
-
-    GltfJsonBufferView :: struct {
-        buffer: int;
-        byteOffset: int = 0;
-        byteLength: int;
-        byteStride: *int;
-        target: *int;
-        name: *string;
-    }
-
-    GltfJsonScene :: struct {
-        nodes: *[..] int;
-        name: *string;
-    }
-
-    GltfJsonAccessor :: struct {
-        GltfJsonComponentType :: enum int {
-            S8 :: 5120;
-            U8 :: 5121;
-            S16 :: 5122;
-            U16 :: 5123;
-            U32 :: 5125;
-            F32 :: 5126;
-        }
-
-        bufferView: *int;
-        byteOffset: int = 0;
-        componentType: GltfJsonComponentType;
-        normalized: bool = false;
-        count: int;
-        type: string;
-        max: *[..] float;
-        min: *[..] float;
-        sparse: *struct {
-            count: int;
-            indices: struct {
-                bufferView: int;
-                byteOffset: int = 0;
-                componentType: GltfJsonComponentType;
-            };
-            values: struct {
-                bufferView: int;
-                byteOffset: int = 0;
-            };
-        };
-        name: *string;
-    }
-
-    GltfJsonImage :: struct {
-        uri: *string;
-        mimeType: *string;
-        bufferView: *int;
-        name: *string;
-    }
-
-    GltfJsonSampler :: struct {
-        magFilter: *int;
-        minFilter: *int;
-        wrapS: int = 0x2901;
-        wrapT: int = 0x2901;
-        name: *string;
-    }
-
-    GltfJsonTexture :: struct {
-        sampler: *int;
-        source: *int;
-        name: *string;
-    }
-
-    GltfJsonMaterial :: struct {
-        name: *string;
-        pbrMetallicRoughness: *struct {
-            baseColorFactor: [4] float = .[1, 1, 1, 1];
-            baseColorTexture: *struct {
-                index: int;
-                texCoord: int = 0;
-            };
-            metallicFactor: float = 1.0;
-            roughnessFactor: float = 1.0;
-            metallicRoughnessTexture: *struct {
-                index: int;
-                texCoord: int = 0;
-            };
-        };
-        normalTexture: *struct {
-            index: int;
-            texCoord: int = 0;
-            scale: float = 1.0;
-        };
-        occlusionTexture: *struct {
-            index: int;
-            texCoord: int = 0;
-            strength: float = 1.0;
-        };
-        emissiveTexture: *struct {
-            index: int;
-            texCoord: int = 0;
-        };
-        emissiveFactor: [3] float = .[0, 0, 0];
-        alphaMode: string = "OPAQUE";
-        alphaCutoff: float = 0.5;
-        doubleSided: bool = false;
-    }
-
-    GltfJsonMesh :: struct {
-        primitives: [..] struct {
-            attributes: JsonGeneric;
-            indices: *int;
-            material: *int;
-            mode: int = 4;
-            targets: *[..] JsonGeneric;
-        };
-        weights: [..] float;
-        name: string;
-    }
-
-    GltfJsonNode :: struct {
-        camera: *int;
-        children: *[..] int;
-        skin: *int;
-        matrix: [16] float = .[1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1];
-        mesh: *int;
-        rotation: [4] float = .[0, 0, 0, 1];
-        scale: [3] float = .[1, 1, 1];
-        translation: [3] float = .[0, 0, 0];
-        weights: *[..] float;
-        name: *string;
-    }
-}
-
-load_gltf_data :: (json: GltfJson, binary: [] u8) -> [..] *Geometry, bool {
-    get_stride :: (component_type: GltfJson.GltfJsonAccessor.GltfJsonComponentType) -> int {
-        if #complete component_type == {
-            case .S8;
-                return 1;
-            case .U8;
-                return 1;
-            case .S16;
-                return 2;
-            case .U16;
-                return 2;
-            case .U32;
-                return 4;
-            case .F32;
-                return 4;
-        }
-    }
-
+load_geometry_gltf_data :: (json: GltfJson, binary: [] u8) -> [..] *Geometry, bool {
     // im going to choose to load all this data as a single geometry but I feel like that's wrong
     geometries: [..] *Geometry;
 
@@ -648,15 +378,15 @@ load_gltf_data :: (json: GltfJson, binary: [] u8) -> [..] *Geometry, bool {
         current.view.data = bufferviews[<< accessor.bufferView].data + accessor.byteOffset;
 
         if accessor.type == "SCALAR" {
-            current.view.count = accessor.count * get_stride(current.component_type);
+            current.view.count = accessor.count * get_gltf_stride(current.component_type);
         } else if accessor.type == "VEC2" {
-            current.view.count = accessor.count * get_stride(current.component_type) * 2;
+            current.view.count = accessor.count * get_gltf_stride(current.component_type) * 2;
         } else if accessor.type == "VEC3" {
-            current.view.count = accessor.count * get_stride(current.component_type) * 3;
+            current.view.count = accessor.count * get_gltf_stride(current.component_type) * 3;
         } else if accessor.type == "VEC4" {
-            current.view.count = accessor.count * get_stride(current.component_type) * 4;
+            current.view.count = accessor.count * get_gltf_stride(current.component_type) * 4;
         } else if accessor.type == "MAT4" {
-            current.view.count = accessor.count * get_stride(current.component_type) * 16;
+            current.view.count = accessor.count * get_gltf_stride(current.component_type) * 16;
         } else {
             print("Cannot process this accessor type. %\n", accessor.type);
             assert(false, "Cannot process this accessor type.");
@@ -672,14 +402,11 @@ load_gltf_data :: (json: GltfJson, binary: [] u8) -> [..] *Geometry, bool {
 
     for mesh: json.meshes {
         for primitive: mesh.primitives {
-            if !primitive.indices {
+            if !is_valid_primitive(primitive) {
                 continue;
             }
-
+            
             position_accessor_object := primitive.attributes["POSITION"];
-            if !position_accessor_object {
-                continue;
-            }
 
             geometry := New(Geometry);
             array_add(*geometries, geometry);

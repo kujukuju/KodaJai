@@ -16,7 +16,7 @@ get_window :: () -> *GLFWwindow {
 }
 
 monitor_height: s32;
-create_window :: (title: *u8, width: s32, height: s32) {
+create_window :: (title: *u8, width: s32, height: s32, multisample: int = 0) {
     if !koda.initialized {
         print("Cannot create window before initializing.\n");
         return;
@@ -31,6 +31,10 @@ create_window :: (title: *u8, width: s32, height: s32) {
             monitor_width = video_mode.width;
             monitor_height = video_mode.height;
         }
+    }
+
+    if multisample {
+        glfwWindowHint(GLFW_SAMPLES, xx multisample);
     }
 
     glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, MINIMUM_GL_MAJOR_VERSION);
@@ -56,6 +60,10 @@ create_window :: (title: *u8, width: s32, height: s32) {
 
     set_vsync(false);
     set_target_fps(0);
+
+    if multisample {
+        glEnable(GL_MULTISAMPLE);
+    }
 
     koda.width = width;
     koda.height = height;

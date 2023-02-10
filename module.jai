@@ -52,7 +52,6 @@
 #load "src/3d/GridGeometry.jai";
 #load "src/3d/Image3.jai";
 #load "src/3d/InstancedModel.jai";
-#load "src/3d/Mesh.jai";
 #load "src/3d/Model.jai";
 #load "src/3d/PlaneGeometry.jai";
 #load "src/3d/Shapes3.jai";
@@ -77,6 +76,7 @@
 #load "src/DefaultVertColorShader3.jai";
 #load "src/FlatGridShader3.jai";
 #load "src/FontShader.jai";
+#load "src/GltfLoader.jai";
 #load "src/InfiniteGridShader3.jai";
 #load "src/Input.jai";
 #load "src/InstancedShader2.jai";

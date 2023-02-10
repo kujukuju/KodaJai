@@ -40,6 +40,45 @@ create_model :: (geometry: [] *Geometry, texture: Texture) -> *Model {
     return model;
 }
 
+load_model :: (path: string) -> [..] *Model, bool {
+    file, success := read_entire_file(path);
+    defer free(file);
+    if !success {
+        empty: [..] *Model;
+        return empty, false;
+    }
+
+    if ends_with(path, ".obj") {
+        models, success := load_model_obj(file);
+        if !success {
+            empty: [..] *Model;
+            return empty, false;
+        }
+
+        return models, true;
+    } else if ends_with(path, ".glb") {
+        models, success := load_model_glb(file);
+        if !success {
+            empty: [..] *Model;
+            return empty, false;
+        }
+
+        return models, true;
+    } else if ends_with(path, ".gltf") {
+        models, success := load_model_gltf(file, path);
+        if !success {
+            empty: [..] *Model;
+            return empty, false;
+        }
+
+        return models, true;
+    } else {
+        print("Unknown file type. %\n", path);
+        empty: [..] *Model;
+        return empty, false;
+    }
+}
+
 upload_model :: (model: *Model) {
 
 }
@@ -112,4 +151,195 @@ draw :: (model: Model, transform: Matrix4 = Matrix4Identity, projection: Matrix4
         glDrawElements(GL_TRIANGLES, xx geometry.indices.count, GL_UNSIGNED_INT, xx 0);
         glBindVertexArray(0);
     }
+}
+
+#scope_module
+
+load_model_obj :: (file: string) -> [..] *Model, bool {
+    geometries, success := load_geometry_obj(file);
+    defer array_free(geometries);
+    if !success {
+        empty: [..] *Model;
+        return empty, false;
+    }
+
+    models: [..] *Model;
+
+    array_reserve(*models, geometries.count);
+    for geometry: geometries {
+        model := create_model(geometry, get_white_texture());
+        array_add(*models, model);
+    }
+
+    return models, true;
+}
+
+load_model_glb :: (file: string) -> [..] *Model, bool {
+    json, binary, json_memory, valid := load_glb(file);
+    defer free(json_memory);
+    if !valid {
+        empty: [..] *Model;
+        return empty, false;
+    }
+
+    models, data_success := load_model_gltf_data(json, binary);
+    return models, data_success;
+}
+
+load_model_gltf :: (file: string, path: string) -> [..] *Model, bool {
+    json, binary, json_memory, valid := load_gltf(file, path);
+    defer free(json_memory);
+    if !valid {
+        empty: [..] *Model;
+        return empty, false;
+    }
+
+    models, data_success := load_model_gltf_data(json, binary);
+    return models, data_success;
+}
+
+load_model_gltf_data :: (json: GltfJson, binary: [] u8) -> [..] *Model, bool {
+    models: [..] *Model;
+
+    geometries, geometry_success := load_geometry_gltf_data(json, binary);
+    defer array_free(geometries);
+    if !geometry_success {
+        empty: [..] *Model;
+        return empty, false;
+    }
+
+    array_reserve(*models, geometries.count);
+    for geometry: geometries {
+        model := create_model(geometry);
+        array_add(*models, model);
+    }
+
+    buffers: [..] [] u8;
+    defer array_free(buffers);
+    offset := 0;
+    for buffer: json.buffers {
+        current := array_add(*buffers);
+        current.data = binary.data + offset;
+        current.count = buffer.byteLength;
+
+        offset += buffer.byteLength;
+    }
+
+    bufferviews: [..] [] u8;
+    defer array_free(bufferviews);
+    for bufferview: json.bufferViews {
+        buffer_index := bufferview.buffer;
+
+        current := array_add(*bufferviews);
+        current.data = buffers[buffer_index].data + bufferview.byteOffset;
+        current.count = bufferview.byteLength;
+    }
+
+    // AccessorInfo :: struct {
+    //     view: [] u8;
+    //     type: string;
+    //     component_type: GltfJson.GltfJsonAccessor.GltfJsonComponentType;
+    //     min: [] float;
+    //     max: [] float;
+    // }
+    // accessors: [..] AccessorInfo;
+    // defer array_free(accessors);
+    // for accessor: json.accessors {
+    //     assert(!accessor.sparse, "The GLTF loader does not yet support sparse buffers.");
+
+    //     if !accessor.bufferView {
+    //         continue;
+    //     }
+
+    //     current := array_add(*accessors);
+    //     current.type = accessor.type;
+    //     current.component_type = accessor.componentType;
+    //     current.view.data = bufferviews[<< accessor.bufferView].data + accessor.byteOffset;
+
+    //     if accessor.type == "SCALAR" {
+    //         current.view.count = accessor.count * get_gltf_stride(current.component_type);
+    //     } else if accessor.type == "VEC2" {
+    //         current.view.count = accessor.count * get_gltf_stride(current.component_type) * 2;
+    //     } else if accessor.type == "VEC3" {
+    //         current.view.count = accessor.count * get_gltf_stride(current.component_type) * 3;
+    //     } else if accessor.type == "VEC4" {
+    //         current.view.count = accessor.count * get_gltf_stride(current.component_type) * 4;
+    //     } else if accessor.type == "MAT4" {
+    //         current.view.count = accessor.count * get_gltf_stride(current.component_type) * 16;
+    //     } else {
+    //         print("Cannot process this accessor type. %\n", accessor.type);
+    //         assert(false, "Cannot process this accessor type.");
+    //     }
+
+    //     if accessor.min {
+    //         current.min = << accessor.min;
+    //     }
+    //     if accessor.max {
+    //         current.max = << accessor.max;
+    //     }
+    // }
+
+    index := 0;
+    for mesh: json.meshes {
+        for primitive: mesh.primitives {
+            if !is_valid_primitive(primitive) {
+                continue;
+            }
+
+            model := models[index];
+            index += 1;
+
+            has_texture := true;
+            has_texture = has_texture && primitive.material;
+            has_texture = has_texture && json.materials[<< primitive.material].pbrMetallicRoughness;
+            has_texture = has_texture && json.materials[<< primitive.material].pbrMetallicRoughness.baseColorTexture;
+            has_texture = has_texture && json.textures[json.materials[<< primitive.material].pbrMetallicRoughness.baseColorTexture.index].source;
+            print("has_texture %\n", has_texture);
+            if !has_texture {
+                model.uniforms["uTexture0"] = create_uniform("uTexture0", get_white_texture());
+                continue;
+            }
+
+            material := json.materials[<< primitive.material];
+
+            texture_name := material.name;
+            assert(!!texture_name, "I thought materials always had to have a name...");
+
+            // TODO try to get the texture here
+
+            texture_index := material.pbrMetallicRoughness.baseColorTexture.index;
+            texture_number := material.pbrMetallicRoughness.baseColorTexture.texCoord;
+            json_texture := json.textures[texture_index];
+
+            // this has to do with repeat/clamp/etc
+            sampler := json_texture.sampler;
+            source := json_texture.source;
+
+            json_image := json.images[<< source];
+            print("image %\n", json_image);
+
+            texture: Texture;
+            if json_image.uri {
+                texture = load_texture(<< json_image.uri);
+            } else if json_image.bufferView {
+                view_index := << json_image.bufferView;
+                buffer_view := bufferviews[view_index];
+                texture = create_texture(buffer_view);
+            } else {
+                assert(false, "I think you have to have either an image uri or buffer.");
+            }
+
+            if texture_number == {
+                case 0;
+                    model.uniforms["uTexture0"] = create_uniform("uTexture0", texture);
+                // case 1;
+                //     model.uniforms["uTexture1"] = create_uniform("uTexture1", get_white_texture());
+                case;
+                    print("Texcoord % not supported.", texture_number);
+                    assert(false, "Texcoord not supported.");
+            }
+        }
+    }
+
+    return models, true;
 }

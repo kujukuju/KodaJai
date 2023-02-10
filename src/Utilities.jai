@@ -139,12 +139,12 @@ get_orthographic_matrix :: () -> Matrix4 {
     // return orthographic_projection_matrix(0.0, xx koda.viewport_width, 0.0, xx koda.viewport_height, 1.0, -1.0); 
 }
 
-Matrix4Identity :: Matrix4.{
-    1, 0, 0, 0,
-    0, 1, 0, 0,
-    0, 0, 1, 0,
-    0, 0, 0, 1,
-};
+// Matrix4Identity :: Matrix4.{
+//     1, 0, 0, 0,
+//     0, 1, 0, 0,
+//     0, 0, 1, 0,
+//     0, 0, 0, 1,
+// };
 
 #scope_module
 
