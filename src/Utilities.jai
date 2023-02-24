@@ -47,23 +47,39 @@ push_temporary_context :: () #expand {
     defer context.allocator = old_allocator;
 }
 
+make_frustum_matrix_clipping :: (l: float, r: float, b: float, t: float, n: float, f: float) -> Matrix4 {
+    // this function is basically a copy of the make_frustum_matrix function but
+    // it lets you modify the clipping planes without affecting the fov
+    double_znear := 2.0;
+    one_deltax := 1.0 / (r - l);
+    one_deltay := 1.0 / (t - b);
+
+    result := Matrix4_Identity;
+    result._11 = double_znear * one_deltax;
+    result._22 = double_znear * one_deltay;
+    result._13 = (r + l) * one_deltax;
+    result._23 = (t + b) * one_deltay;
+    result._33 = -(f + n) / (f - n);
+    result._43 = -1;
+    result._34 = -(f * n * 2) / (f - n);
+    result._44 = 0;
+
+    return result;
+}
+
 get_perspective_matrix :: () -> Matrix4 {
+
     fovy := koda.fovy;
     // fwiw its possible to do infinite perspective matrix
     BUILTIN :: true;
     #if BUILTIN {
         // this seems to be the _only_ matrix that doesn't rotate your camera around the near plane
         aspect := cast(float) koda.viewport_width / koda.viewport_height;
-        // fovy := 60.0 / 180.0 * PI;
 
         height := tan(fovy / 2.0);
         width := aspect * height;
-        // width := koda.viewport_width / 1000.0;
-        // height := abs(koda.viewport_height) / 1000.0;
 
-        // atan(tan(fovy / 2.0) * width / height) * 2
-
-        matrix := make_frustum_matrix(-width, width, -height, height, 1.0, -1.0);
+        matrix := make_frustum_matrix_clipping(-width, width, -height, height, 0.1, -0.1);
 
         if koda.render_flipped {
             inverted_matrix := Matrix4Identity;

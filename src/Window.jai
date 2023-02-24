@@ -344,6 +344,7 @@ get_cull_face :: () -> bool {
 }
 
 set_cull_face :: (enabled: bool) {
+    koda.cull_face = enabled;
     if enabled {
         glEnable(GL_CULL_FACE);
     } else {

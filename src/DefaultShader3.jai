@@ -45,6 +45,9 @@ void main() {
     vec3 lightColor = vec3(1.0, 1.0, 1.0);
     vec3 ambient = vec3(0.2, 0.2, 0.2);
     vec4 objectColor = texture(uTexture0, vTex);
+    if (objectColor.a < 0.5) {
+        discard;
+    }
 
     vec3 norm = normalize(vNorm);
     // vec3 lightDir = normalize(lightPos - vPos);

@@ -12,28 +12,60 @@ Geometry :: struct {
     has_color: bool;
 }
 
+SerializedGeometryHash :: struct {
+    modtime: S128;
+    size: s64;
+}
+
+SerializedGeometry :: struct {
+    validity_hash: SerializedGeometryHash;
+    geometry: [..] *Geometry;
+}
+
 load_or_save_serialized_geometry :: (serialized_path: string, path: string) -> [..] *Geometry, bool {
-    file, success := read_entire_file(serialized_path, log_errors = false);
-    defer free(file);
-    if !success {
-        geometry, success := load_geometry(path);
-        if !success {
-            print("Could not load files.\n%\n%\n", serialized_path, path);
-            empty: [..] *Geometry;
-            return empty, false;
-        }
-
-        bytes := serialize_geometry(geometry);
-        write_entire_file(serialized_path, bytes.data, bytes.count);
-
-        return geometry, true;
+    cache_modtime, cache_size, cache_data_read_success := file_modtime_and_size(path);
+    if !cache_data_read_success {
+        empty: [..] *Geometry;
+        return empty, false;
     }
 
-    view: [] u8;
-    view.data = file.data;
-    view.count = file.count;
+    file, success := read_entire_file(serialized_path, log_errors = false);
+    defer free(file);
 
-    return deserialized_geometry(view), true;
+    if success {
+        view: [] u8;
+        view.data = file.data;
+        view.count = file.count;
+        
+        hash := deserialize_geometry_hash(view);
+        if hash.modtime == cache_modtime || hash.size == cache_size {
+            print("Skipping file read. Reading serialized.\n");
+
+            return deserialize_geometry(view), true;
+        }
+    }
+
+    print("Reading raw files. Not serialized.\n");
+
+    // if you've made it to this point, the serialized file is no longer valid for some reason
+    geometry, geometry_success := load_geometry(path);
+    if !geometry_success {
+        print("Could not load files.\n%\n%\n", serialized_path, path);
+        empty: [..] *Geometry;
+        return empty, false;
+    }
+
+    serialized: SerializedGeometry;
+    serialized.validity_hash.modtime = cache_modtime;
+    serialized.validity_hash.size = cache_size;
+    serialized.geometry = geometry;
+
+    bytes := serialize_geometry(serialized);
+    defer array_free(bytes);
+
+    write_entire_file(serialized_path, bytes.data, bytes.count);
+
+    return geometry, true;
 }
 
 load_serialized_geometry :: (path: string) -> [..] *Geometry, bool {
@@ -48,7 +80,7 @@ load_serialized_geometry :: (path: string) -> [..] *Geometry, bool {
     view.data = file.data;
     view.count = file.count;
 
-    return deserialized_geometry(view), true;
+    return deserialize_geometry(view), true;
 }
 
 load_geometry :: (path: string) -> [..] *Geometry, bool {
@@ -90,20 +122,29 @@ load_geometry :: (path: string) -> [..] *Geometry, bool {
     }
 }
 
-deserialized_geometry :: (bytes: [] u8) -> [..] *Geometry {
-    geometry: [..] *Geometry;
+deserialize_geometry_hash :: (bytes: [] u8) -> SerializedGeometryHash {
+    hash: SerializedGeometryHash;
 
     index: int;
-    serializer.read(bytes, *index, *geometry);
+    serializer.read(bytes, *index, *hash);
 
-    for geo: geometry {
-        gen_geometry(geo);
-    }
-
-    return geometry;
+    return hash;
 }
 
-serialize_geometry :: (geometry: [..] *Geometry) -> [..] u8 {
+deserialize_geometry :: (bytes: [] u8) -> [..] *Geometry {
+    serialized: SerializedGeometry;
+
+    index: int;
+    serializer.read(bytes, *index, *serialized);
+
+    for geometry: serialized.geometry {
+        gen_geometry(geometry);
+    }
+
+    return serialized.geometry;
+}
+
+serialize_geometry :: (geometry: SerializedGeometry) -> [..] u8 {
     bytes: [..] u8;
     serializer.write(*bytes, geometry);
 
@@ -178,133 +219,234 @@ get_vertices :: (geometry: Geometry, preserve_faces: bool = false) -> [..] Vecto
 
 #scope_module
 
-// bad bad bad
 load_geometry_obj :: (file: string) -> [..] *Geometry, bool {
-    object_sections := split(file, "o ");
-    // assert(object_sections.count == 2, "Cannot have more than 1 object.");
+    // returns the index of the newline
+    get_until_newline :: (file: string, index: int) -> int, string {
+        current: string;
+        current.data = file.data + index;
+        initial_index := index;
+        while index < file.count && file[index] != #char "\n" {
+            index += 1;
+        }
 
-    // TODO need to fix obj to match the new geometry struct of potentially not having texcoords or normals
+        current.count = index - initial_index;
+
+        return index, current;
+    }
+
+    get_until_space_or_newline :: (file: string, index: int) -> int, string {
+        current: string;
+        current.data = file.data + index;
+        initial_index := index;
+        while index < file.count && file[index] != #char " " && file[index] != #char "\n" {
+            index += 1;
+        }
+
+        current.count = index - initial_index;
+
+        return index, current;
+    }
+
+    get_until_slash :: (file: string, index: int) -> int, string {
+        current: string;
+        current.data = file.data + index;
+        initial_index := index;
+        while index < file.count && file[index] != #char "/" {
+            index += 1;
+        }
+
+        current.count = index - initial_index;
+
+        return index, current;
+    }
 
     vertices: [..] Vector3;
+    texcoords: [..] Vector2;
     normals: [..] Vector3;
-    texture_coords: [..] Vector2;
 
     defer array_free(vertices);
+    defer array_free(texcoords);
     defer array_free(normals);
-    defer array_free(texture_coords);
+
+    vertex_offset: int;
+    texcoord_offset: int;
+    normal_offset: int;
+
+    geometries: [..] *Geometry;
+    geometry: *Geometry;
 
     set_aabb := false;
 
-    // TODO
-    geometry := New(Geometry);
-    geometry.has_normal = true;
-    geometry.has_texcoord = true;
-    // TODO
-    // geometry.has_color = true;
+    index := 0;
+    while index < file.count {
+        if index + 1 < file.count && file[index] == #char "o" && file[index + 1] == #char " " {
+            geometry = New(Geometry);
+            array_add(*geometries, geometry);
 
-    vertex_offset := 0;
-    normal_offset := 0;
-    texture_coord_offset := 0;
+            set_aabb = false;
 
-    for index: 1..object_sections.count - 1 {
-        object_section := object_sections[index];
+            vertex_offset += vertices.count;
+            texcoord_offset += texcoords.count;
+            normal_offset += normals.count;
 
-        vertex_offset += vertices.count;
-        normal_offset += normals.count;
-        texture_coord_offset += texture_coords.count;
+            vertices.count = 0;
+            texcoords.count = 0;
+            normals.count = 0;
 
-        vertices.count = 0;
-        normals.count = 0;
-        texture_coords.count = 0;
+            temp_name: string;
+            index, temp_name = get_until_newline(file, index + 2);
+            geometry.name = copy_string(temp_name);
+        } else if index + 1 < file.count && file[index] == #char "v" && file[index + 1] == #char " " {
+            x_string: string;
+            y_string: string;
+            z_string: string;
 
-        lines := split(object_section, "\n");
-        for line, index: lines {
-            if index == 0 {
-                geometry.name = copy_string(line);
-            } else if starts_with(line, "v ") {
-                subline := slice(line, 2, line.count - 2);
+            index, x_string = get_until_space_or_newline(file, index + 2);
+            index, y_string = get_until_space_or_newline(file, index + 1);
+            index, z_string = get_until_space_or_newline(file, index + 1);
 
-                vertex := split(subline, " ");
-                x := string_to_float(vertex[0]);
-                y := string_to_float(vertex[1]);
-                z := string_to_float(vertex[2]);
+            x_value := string_to_float(x_string);
+            y_value := string_to_float(y_string);
+            z_value := string_to_float(z_string);
 
-                array_add(*vertices, .{x, y, z});
-            } else if starts_with(line, "vt ") {
-                subline := slice(line, 3, line.count - 3);
+            array_add(*vertices, .{x_value, y_value, z_value});
+        } else if index + 2 < file.count && file[index] == #char "v" && file[index + 1] == #char "t" && file[index + 2] == #char " " {
+            x_string: string;
+            y_string: string;
 
-                texture_coord := split(subline, " ");
-                x := string_to_float(texture_coord[0]);
-                y := 1.0 - string_to_float(texture_coord[1]);
+            index, x_string = get_until_space_or_newline(file, index + 3);
+            index, y_string = get_until_space_or_newline(file, index + 1);
 
-                array_add(*texture_coords, .{x, y});
-            } else if starts_with(line, "vn ") {
-                subline := slice(line, 3, line.count - 3);
+            x_value := string_to_float(x_string);
+            y_value := string_to_float(y_string);
 
-                normal := split(subline, " ");
-                x := string_to_float(normal[0]);
-                y := string_to_float(normal[1]);
-                z := string_to_float(normal[2]);
+            array_add(*texcoords, .{x_value, y_value});
+        } else if index + 2 < file.count && file[index] == #char "v" && file[index + 1] == #char "n" && file[index + 2] == #char " " {
+            x_string: string;
+            y_string: string;
+            z_string: string;
 
-                array_add(*normals, .{x, y, z});
-            } else if starts_with(line, "f ") {
-                subline := slice(line, 2, line.count - 2);
+            index, x_string = get_until_space_or_newline(file, index + 3);
+            index, y_string = get_until_space_or_newline(file, index + 1);
+            index, z_string = get_until_space_or_newline(file, index + 1);
 
-                faces_chunks := split(subline, " ");
-                assert(faces_chunks.count == 3, "Must be triangularized.");
+            x_value := string_to_float(x_string);
+            y_value := string_to_float(y_string);
+            z_value := string_to_float(z_string);
 
-                for faces_chunk: faces_chunks {
-                    face_info := split(faces_chunk, "/");
+            array_add(*normals, .{x_value, y_value, z_value});
+        } else if index + 1 < file.count && file[index] == #char "f" && file[index + 1] == #char " " {
+            v1_string: string;
+            vn1_string: string;
+            vt1_string: string;
 
-                    // TODO fix normal and texcoords
-                    vertex_stride := 8;
-                    array_add(*geometry.indices, cast(u32) (geometry.vertices.count / vertex_stride));
+            v2_string: string;
+            vn2_string: string;
+            vt2_string: string;
 
-                    // array_add(*geometry.vertices, ..vertices[string_to_int(face_info[0]) - vertex_offset - 1].component);
-                    position := vertices[string_to_int(face_info[0]) - vertex_offset - 1];
-                    array_add(*geometry.vertices, position.x);
-                    array_add(*geometry.vertices, position.y);
-                    array_add(*geometry.vertices, position.z);
+            v3_string: string;
+            vn3_string: string;
+            vt3_string: string;
 
-                    if !set_aabb {
-                        set_aabb = true;
-                        geometry.aabb.lower = position;
-                        geometry.aabb.upper = position;
-                    } else {
-                        geometry.aabb.lower = min(geometry.aabb.lower, position);
-                        geometry.aabb.upper = max(geometry.aabb.upper, position);
-                    }
+            index, v1_string = get_until_slash(file, index + 2);
+            index, vt1_string = get_until_slash(file, index + 1);
+            index, vn1_string = get_until_space_or_newline(file, index + 1);
 
-                    if normals.count > 0 {
-                        // array_add(*geometry.vertices, ..normals[string_to_int(face_info[2]) - normal_offset - 1].component);
-                        normal := normals[string_to_int(face_info[2]) - normal_offset - 1];
-                        array_add(*geometry.vertices, normal.x);
-                        array_add(*geometry.vertices, normal.y);
-                        array_add(*geometry.vertices, normal.z);
-                    } else {
-                        array_add(*geometry.vertices, 0, 0, 0);
-                    }
+            index, v2_string = get_until_slash(file, index + 1);
+            index, vt2_string = get_until_slash(file, index + 1);
+            index, vn2_string = get_until_space_or_newline(file, index + 1);
 
-                    if texture_coords.count > 0 {
-                        // array_add(*geometry.vertices, ..texture_coords[string_to_int(face_info[1]) - texture_coord_offset - 1].component);
-                        texcoord := texture_coords[string_to_int(face_info[1]) - texture_coord_offset - 1];
-                        array_add(*geometry.vertices, texcoord.x);
-                        array_add(*geometry.vertices, texcoord.y);
-                    } else {
-                        array_add(*geometry.vertices, 0, 0);
-                    }
-                }
+            index, v3_string = get_until_slash(file, index + 1);
+            index, vt3_string = get_until_slash(file, index + 1);
+            index, vn3_string = get_until_space_or_newline(file, index + 1);
+
+            stride := 3;
+            if normals.count > 0 {
+                stride += 3;
             }
+            if texcoords.count > 0 {
+                stride += 2;
+            }
+
+            vert_index := cast(u32) (geometry.vertices.count / stride);
+            array_add(*geometry.indices, vert_index, vert_index + 1, vert_index + 2);
+
+            v1_value := string_to_int(v1_string);
+            array_add(*geometry.vertices, ..vertices[v1_value - vertex_offset - 1].component);
+            if normals.count > 0 {
+                vn1_value := string_to_int(vn1_string);
+                array_add(*geometry.vertices, ..normals[vn1_value - normal_offset - 1].component);
+            }
+            if texcoords.count > 0 {
+                vt1_value := string_to_int(vt1_string);
+                array_add(*geometry.vertices, ..texcoords[vt1_value - texcoord_offset - 1].component);
+            }
+
+            v2_value := string_to_int(v2_string);
+            array_add(*geometry.vertices, ..vertices[v2_value - vertex_offset - 1].component);
+            if normals.count > 0 {
+                vn2_value := string_to_int(vn2_string);
+                array_add(*geometry.vertices, ..normals[vn2_value - normal_offset - 1].component);
+            }
+            if texcoords.count > 0 {
+                vt2_value := string_to_int(vt2_string);
+                array_add(*geometry.vertices, ..texcoords[vt2_value - texcoord_offset - 1].component);
+            }
+
+            v3_value := string_to_int(v3_string);
+            array_add(*geometry.vertices, ..vertices[v3_value - vertex_offset - 1].component);
+            if normals.count > 0 {
+                vn3_value := string_to_int(vn3_string);
+                array_add(*geometry.vertices, ..normals[vn3_value - normal_offset - 1].component);
+            }
+            if texcoords.count > 0 {
+                vt3_value := string_to_int(vt3_string);
+                array_add(*geometry.vertices, ..texcoords[vt3_value - texcoord_offset - 1].component);
+            }
+
+            if !set_aabb {
+                set_aabb = true;
+                geometry.aabb.lower = vertices[v1_value - vertex_offset - 1];
+                geometry.aabb.upper = vertices[v1_value - vertex_offset - 1];
+                geometry.aabb.lower = min(geometry.aabb.lower, vertices[v2_value - vertex_offset - 1]);
+                geometry.aabb.upper = max(geometry.aabb.upper, vertices[v2_value - vertex_offset - 1]);
+                geometry.aabb.lower = min(geometry.aabb.lower, vertices[v3_value - vertex_offset - 1]);
+                geometry.aabb.upper = max(geometry.aabb.upper, vertices[v3_value - vertex_offset - 1]);
+            } else {
+                geometry.aabb.lower = min(geometry.aabb.lower, vertices[v1_value - vertex_offset - 1]);
+                geometry.aabb.upper = max(geometry.aabb.upper, vertices[v1_value - vertex_offset - 1]);
+                geometry.aabb.lower = min(geometry.aabb.lower, vertices[v2_value - vertex_offset - 1]);
+                geometry.aabb.upper = max(geometry.aabb.upper, vertices[v2_value - vertex_offset - 1]);
+                geometry.aabb.lower = min(geometry.aabb.lower, vertices[v3_value - vertex_offset - 1]);
+                geometry.aabb.upper = max(geometry.aabb.upper, vertices[v3_value - vertex_offset - 1]);
+            }
+        }
+
+        // skip to next newline
+        while index < file.count && file[index] != #char "\n" {
+            index += 1;
+        }
+
+        // move actually to the next line
+        if index < file.count && file[index] == #char "\n" {
+            index += 1;
         }
     }
 
-    gen_geometry(geometry);
+    for geometry: geometries {
+        geometry.has_normal = normals.count > 0;
+        geometry.has_texcoord = texcoords.count > 0;
+    }
 
-    list: [..] *Geometry;
-    array_resize(*list, 1);
-    list[0] = geometry;
+    if geometries.count == 0 {
+        return geometries, false;
+    }
 
-    return list, true;
+    for geometry: geometries {
+        gen_geometry(geometry);
+    }
+
+    return geometries, true;
 }
 
 load_geometry_glb :: (file: string) -> [..] *Geometry, bool {
@@ -521,7 +663,6 @@ load_geometry_gltf_data :: (json: GltfJson, binary: [] u8) -> [..] *Geometry, bo
             if has_color {
                 color_accessor := accessors[color_accessor_generic.integer];
                 assert(color_accessor.type == "VEC4", "The color access must be a vec4 type.");
-                print("% %\n", color_accessor.view.count / size_of(float32) / 4, vertex_count);
                 assert(color_accessor.view.count / size_of(float32) / 4 == vertex_count, "There must be as many colors as vertices.");
                 assert(color_accessor.component_type == .F32, "The color component type must be float32.");
                 reserve_count += vertex_count * 4;

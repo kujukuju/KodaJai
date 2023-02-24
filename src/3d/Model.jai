@@ -6,6 +6,7 @@ Model :: struct {
     position: Vector3;
     rotation: Quaternion;
     scale: Vector3 = .{1, 1, 1};
+    cull_face: bool = true;
 }
 
 operator == :: (a: Model, b: Model) -> bool {
@@ -130,9 +131,14 @@ draw :: (model: Model, transform: Matrix4 = Matrix4Identity, projection: Matrix4
         shader = *default_color_shader3;
     }
 
+    cull_face := koda.cull_face;
+    if cull_face != model.cull_face {
+        set_cull_face(model.cull_face);
+    }
+
     use_shader(shader);
 
-    model_mat := transform * get_transform(model); 
+    model_mat := transform * get_transform(model);
     view := koda.view;
 
     apply_uniforms(shader, model.uniforms);
@@ -150,6 +156,12 @@ draw :: (model: Model, transform: Matrix4 = Matrix4Identity, projection: Matrix4
         glBindVertexArray(geometry.vao_);
         glDrawElements(GL_TRIANGLES, xx geometry.indices.count, GL_UNSIGNED_INT, xx 0);
         glBindVertexArray(0);
+    }
+
+    // TODO if we could avoid calling this gain that would be best
+    // TODO but theres no guarantee right now throught all of the koda code that this will be checked
+    if cull_face != model.cull_face {
+        set_cull_face(cull_face);
     }
 }
 
@@ -257,6 +269,7 @@ load_model_gltf_data :: (json: GltfJson, binary: [] u8) -> [..] *Model, bool {
 
             material := json.materials[<< primitive.material];
             print("material %\n", material);
+            model.cull_face = !material.doubleSided;
 
             texture_name := material.name;
             assert(!!texture_name, "I thought materials always had to have a name...");
@@ -296,5 +309,54 @@ load_model_gltf_data :: (json: GltfJson, binary: [] u8) -> [..] *Model, bool {
         }
     }
 
+    for node: json.nodes {
+        if node.mesh {
+            mesh_index := << node.mesh;
+            model: *Model;
+            
+            current_mesh_index := 0;
+            current_model_index := 0;
+            for mesh: json.meshes {
+                for primitive: mesh.primitives {
+                    if !is_valid_primitive(primitive) {
+                        continue;
+                    }
+
+                    if current_mesh_index == mesh_index {
+                        model = models[current_model_index];
+                        break mesh;
+                    }
+
+                    current_model_index += 1;
+                }
+
+                current_mesh_index += 1;
+            }
+
+            assert(!!model, "The loop must have found the model by this point.");
+            model.position.component = node.translation;
+            model.rotation.component = node.rotation;
+            model.scale.component = node.scale;
+        } else {
+            assert(equal(node.matrix, float.[1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1]), "A non mesh transform must be identity because I don't know what this implies.");
+        }
+    }
+
     return models, true;
+}
+
+#scope_file
+
+equal :: (a: [] float, b: [] float) -> bool {
+    if a.count != b.count {
+        return false;
+    }
+
+    for i: 0..a.count - 1 {
+        if a[i] != b[i] {
+            return false;
+        }
+    }
+
+    return true;
 }

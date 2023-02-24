@@ -115,6 +115,7 @@ koda: struct {
     view: Matrix4 = Matrix4Identity;
     fovy: float = 0.5 * PI;
     active_program: GLuint;
+    cull_face: bool = true;
 };
 
 // get_koda_asset_path :: () -> string {
