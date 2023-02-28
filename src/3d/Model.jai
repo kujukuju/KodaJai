@@ -127,8 +127,18 @@ draw :: (model: Model, transform: Matrix4 = Matrix4Identity, shader: *Shader = n
 
 draw :: (model: Model, transform: Matrix4 = Matrix4Identity, projection: Matrix4, shader: *Shader) {
     // TODO this is temporary to get vert colors working
-    if model.geometry.count > 0 && model.geometry[0].has_normal && model.geometry[0].has_texcoord && model.geometry[0].has_color {
+    if model.geometry.count > 0 && matches_attributes(model.geometry[0], .Position, .Normal, .Texcoord, .Color) {
         shader = *default_color_shader3;
+    } else if model.geometry.count > 0 && matches_attributes(model.geometry[0], .Position, .Normal, .Texcoord, .JointIndices, .JointWeights) {
+        // TODO skinned joint shader
+        assert(false, "Skinned joints not yet supported.");
+    } else if model.geometry.count > 0 && !matches_attributes(model.geometry[0], .Position, .Normal, .Texcoord) {
+        print("Found invalid attribute combination. %\n", model.geometry[0].attributes);
+        assert(false, "Found invalid attribute combination.");
+    }
+
+    if model.geometry.count == 0 {
+        return;
     }
 
     cull_face := koda.cull_face;
@@ -226,26 +236,11 @@ load_model_gltf_data :: (json: GltfJson, binary: [] u8) -> [..] *Model, bool {
         array_add(*models, model);
     }
 
-    buffers: [..] [] u8;
+    buffers := get_buffers(json, binary);
     defer array_free(buffers);
-    offset := 0;
-    for buffer: json.buffers {
-        current := array_add(*buffers);
-        current.data = binary.data + offset;
-        current.count = buffer.byteLength;
 
-        offset += buffer.byteLength;
-    }
-
-    bufferviews: [..] [] u8;
+    bufferviews := get_bufferviews(json, buffers);
     defer array_free(bufferviews);
-    for bufferview: json.bufferViews {
-        buffer_index := bufferview.buffer;
-
-        current := array_add(*bufferviews);
-        current.data = buffers[buffer_index].data + bufferview.byteOffset;
-        current.count = bufferview.byteLength;
-    }
 
     index := 0;
     for mesh: json.meshes {

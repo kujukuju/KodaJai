@@ -6,10 +6,21 @@ Geometry :: struct {
     name: string;
     vertices: [..] float32;
     indices: [..] u32;
+    attributes: [..] Attribute;
     aabb: AABB3;
-    has_normal: bool; // TODO these should be enums I guess for #complete
-    has_texcoord: bool;
-    has_color: bool;
+    // has_normal: bool; // TODO these should be enums I guess for #complete
+    // has_texcoord: bool;
+    // has_color: bool;
+}
+
+// this is also the alignment order that the loader will force the attributes into
+Attribute :: enum {
+    Position;
+    Normal;
+    Texcoord;
+    Color;
+    JointIndices;
+    JointWeights;
 }
 
 SerializedGeometryHash :: struct {
@@ -159,6 +170,7 @@ destroy :: (geometry: *Geometry) {
     free(geometry.name);
     array_free(geometry.vertices);
     array_free(geometry.indices);
+    array_free(geometry.attributes);
     free(geometry);
 }
 
@@ -176,16 +188,7 @@ get_indices :: (geometry: Geometry) -> [..] int {
 get_vertices :: (geometry: Geometry, preserve_faces: bool = false) -> [..] Vector3 {
     vertices: [..] Vector3;
 
-    stride := 3;
-    if geometry.has_normal {
-        stride += 3;
-    }
-    if geometry.has_texcoord {
-        stride += 2;
-    }
-    if geometry.has_color {
-        stride += 4;
-    }
+    stride := get_attribute_stride(geometry);
 
     if preserve_faces {
         array_reserve(*vertices, geometry.indices.count);
@@ -215,6 +218,99 @@ get_vertices :: (geometry: Geometry, preserve_faces: bool = false) -> [..] Vecto
     }
 
     return vertices;
+}
+
+get_attribute_stride :: (geometry: Geometry) -> int {
+    return get_attribute_stride(geometry.attributes);
+}
+
+get_attribute_stride :: (attributes: [] Attribute) -> int {
+    stride := 0;
+    for attribute: attributes {
+        stride += get_attribute_size(attribute);
+    }
+    return stride;
+}
+
+get_attribute_size :: (attribute: Attribute) -> int {
+    if #complete attribute == {
+        case .Position;
+            return 3;
+        case .Normal;
+            return 3;
+        case .Texcoord;
+            return 2;
+        case .Color;
+            return 4;
+        case .JointIndices;
+            return 4;
+        case .JointWeights;
+            return 4;
+    }
+}
+
+add_attribute :: (geometry: *Geometry, attribute: Attribute) {
+    attribute_value := cast(int) attribute;
+
+    for i: 0..geometry.attributes.count - 1 {
+        current_value := cast(int) geometry.attributes[i];
+        if attribute_value >= current_value {
+            array_insert_at(*geometry.attributes, attribute, i);
+            return;
+        }
+    }
+
+    array_add(*geometry.attributes, attribute);
+}
+
+matches_attributes :: (geometry: Geometry, required: [$N] Attribute) -> bool {
+    return matches_attributes(geometry.attributes, required);
+}
+
+matches_attributes :: (attributes: [] Attribute, required: [$N] Attribute) -> bool {
+    if attributes.count != N {
+        return false;
+    }
+
+    for i: 0..N - 1 {
+        if attributes[i] != required[i] {
+            return false;
+        }
+    }
+
+    return true;
+}
+
+matches_attributes :: (geometry: Geometry, required: ..Attribute) -> bool {
+    return matches_attributes(geometry.attributes, ..required);
+}
+
+matches_attributes :: (attributes: [] Attribute, required: ..Attribute) -> bool {
+    if attributes.count != required.count {
+        return false;
+    }
+
+    for i: 0..attributes.count - 1 {
+        if attributes[i] != required[i] {
+            return false;
+        }
+    }
+
+    return true;
+}
+
+has_attribute :: (geometry: Geometry, attribute: Attribute) -> bool {
+    return has_attribute(geometry.attributes, attribute);
+}
+
+has_attribute :: (attributes: [] Attribute, attribute: Attribute) -> bool {
+    for attrib: attributes {
+        if attrib == attribute {
+            return true;
+        }
+    }
+
+    return false;
 }
 
 #scope_module
@@ -434,8 +530,13 @@ load_geometry_obj :: (file: string) -> [..] *Geometry, bool {
     }
 
     for geometry: geometries {
-        geometry.has_normal = normals.count > 0;
-        geometry.has_texcoord = texcoords.count > 0;
+        add_attribute(geometry, .Position);
+        if normals.count > 0 {
+            add_attribute(geometry, .Normal);
+        }
+        if texcoords.count > 0 {
+            add_attribute(geometry, .Texcoord);
+        }
     }
 
     if geometries.count == 0 {
@@ -477,69 +578,19 @@ load_geometry_gltf_data :: (json: GltfJson, binary: [] u8) -> [..] *Geometry, bo
     // im going to choose to load all this data as a single geometry but I feel like that's wrong
     geometries: [..] *Geometry;
 
-    buffers: [..] [] u8;
+    buffers := get_buffers(json, binary);
     defer array_free(buffers);
-    offset := 0;
-    for buffer: json.buffers {
-        current := array_add(*buffers);
-        current.data = binary.data + offset;
-        current.count = buffer.byteLength;
 
-        offset += buffer.byteLength;
-    }
-
-    bufferviews: [..] [] u8;
+    bufferviews := get_bufferviews(json, buffers);
     defer array_free(bufferviews);
-    for bufferview: json.bufferViews {
-        buffer_index := bufferview.buffer;
 
-        current := array_add(*bufferviews);
-        current.data = buffers[buffer_index].data + bufferview.byteOffset;
-        current.count = bufferview.byteLength;
-    }
-
-    AccessorInfo :: struct {
-        view: [] u8;
-        type: string;
-        component_type: GltfJson.GltfJsonAccessor.GltfJsonComponentType;
-        min: [] float;
-        max: [] float;
-    }
-    accessors: [..] AccessorInfo;
+    accessors := get_accessors(json, bufferviews);
     defer array_free(accessors);
-    for accessor: json.accessors {
-        assert(!accessor.sparse, "The GLTF loader does not yet support sparse buffers.");
 
-        if !accessor.bufferView {
-            continue;
-        }
-
-        current := array_add(*accessors);
-        current.type = accessor.type;
-        current.component_type = accessor.componentType;
-        current.view.data = bufferviews[<< accessor.bufferView].data + accessor.byteOffset;
-
-        if accessor.type == "SCALAR" {
-            current.view.count = accessor.count * get_gltf_stride(current.component_type);
-        } else if accessor.type == "VEC2" {
-            current.view.count = accessor.count * get_gltf_stride(current.component_type) * 2;
-        } else if accessor.type == "VEC3" {
-            current.view.count = accessor.count * get_gltf_stride(current.component_type) * 3;
-        } else if accessor.type == "VEC4" {
-            current.view.count = accessor.count * get_gltf_stride(current.component_type) * 4;
-        } else if accessor.type == "MAT4" {
-            current.view.count = accessor.count * get_gltf_stride(current.component_type) * 16;
-        } else {
-            print("Cannot process this accessor type. %\n", accessor.type);
-            assert(false, "Cannot process this accessor type.");
-        }
-
-        if accessor.min {
-            current.min = << accessor.min;
-        }
-        if accessor.max {
-            current.max = << accessor.max;
-        }
+    attribute_type_count :: #run enum_count(Attribute);
+    attribute_accessors: [attribute_type_count] [..] GltfAccessorInfo;
+    for *accessors: attribute_accessors {
+        accessors.allocator = temp;
     }
 
     for mesh: json.meshes {
@@ -547,37 +598,84 @@ load_geometry_gltf_data :: (json: GltfJson, binary: [] u8) -> [..] *Geometry, bo
             if !is_valid_primitive(primitive) {
                 continue;
             }
-            
-            position_accessor_object := primitive.attributes["POSITION"];
+
+            assert(primitive.attributes.type == .Object, "The attributes entry must be an object type.");
 
             geometry := New(Geometry);
             array_add(*geometries, geometry);
 
-            assert(position_accessor_object.type == .Integer, "The position accessor type must be an integer.");
-            position_accessor_index := position_accessor_object.integer;
+            for *accessors: attribute_accessors {
+                accessors.count = 0;
+            }
+
+            attribute_count := 0;
+
+            for attribute_entry: primitive.attributes.object {
+                attribute_entry_generic := attribute_entry.value;
+                assert(attribute_entry_generic.type == .Integer, "If there is an attribute accessor entry the type must be an integer.");
+
+                attribute_accessor := accessors[attribute_entry_generic.integer];
+                attribute_accessor_count := attribute_accessor.view.count / attribute_accessor.stride;
+
+                if attribute_count == 0 {
+                    attribute_count = attribute_accessor_count;
+                }
+
+                assert(attribute_count == attribute_accessor_count, "Found an attribute with an inconsistent count.");
+
+                if begins_with(attribute_entry.name, "POSITION") {
+                    assert(attribute_accessor.type == "VEC3", "The position accessor must be a vec3 type.");
+                    assert(attribute_accessor.component_type == .F32, "The position accessor must be a float32.");
+
+                    array_add(*attribute_accessors[cast(int) Attribute.Position], attribute_accessor);
+                    memcpy(*geometry.aabb.lower, attribute_accessor.min.data, size_of(type_of(geometry.aabb.lower)));
+                    memcpy(*geometry.aabb.upper, attribute_accessor.max.data, size_of(type_of(geometry.aabb.upper)));
+                } else if begins_with(attribute_entry.name, "NORMAL") {
+                    assert(attribute_accessor.type == "VEC3", "The normal accessor must be a vec3 type.");
+                    assert(attribute_accessor.component_type == .F32, "The normal accessor must be a float32.");
+
+                    array_add(*attribute_accessors[cast(int) Attribute.Normal], attribute_accessor);
+                } else if begins_with(attribute_entry.name, "TEXCOORD") {
+                    assert(attribute_accessor.type == "VEC2", "The texcoord accessor must be a vec2 type.");
+                    assert(attribute_accessor.component_type == .F32, "The texcoord accessor must be a float32.");
+
+                    array_add(*attribute_accessors[cast(int) Attribute.Texcoord], attribute_accessor);
+                } else if begins_with(attribute_entry.name, "COLOR") {
+                    assert(attribute_accessor.type == "VEC4", "The color accessor must be a vec4 type.");
+                    assert(attribute_accessor.component_type == .F32, "The color accessor must be a float32.");
+
+                    array_add(*attribute_accessors[cast(int) Attribute.Color], attribute_accessor);
+                } else if begins_with(attribute_entry.name, "JOINTS") {
+                    assert(attribute_accessor.type == "VEC4", "The joint indices accessor must be a vec4 type.");
+                    assert(attribute_accessor.component_type == .U16, "The joint indices accessor must be a u16.");
+
+                    array_add(*attribute_accessors[cast(int) Attribute.JointIndices], attribute_accessor);
+                } else if begins_with(attribute_entry.name, "WEIGHTS") {
+                    assert(attribute_accessor.type == "VEC4", "The joint weights accessor must be a vec4 type.");
+                    assert(attribute_accessor.component_type == .F32, "The joint weights accessor must be a float32.");
+
+                    array_add(*attribute_accessors[cast(int) Attribute.JointWeights], attribute_accessor);
+                } else {
+                    print("Found unknown attribute type. %\n", attribute_entry.name);
+                    assert(false, "Found unknown attribute type.");
+                }
+            }
+
+            // flatten the accessor attributes into a single array to represent how the vertices are interlaced
+            for accessors, attribute_type_value: attribute_accessors {
+                attribute_type := cast(Attribute) attribute_type_value;
+                for i: 0..accessors.count - 1 {
+                    array_add(*geometry.attributes, attribute_type);
+                }
+            }
+
             index_accessor_index := << primitive.indices;
-
-            normal_accessor_generic := primitive.attributes["NORMAL"];
-            assert(!normal_accessor_generic || normal_accessor_generic.type == .Integer, "If there is a normal accessor the type must be an integer.");
-            texcoord_accessor_generic := primitive.attributes["TEXCOORD_0"];
-            assert(!texcoord_accessor_generic || texcoord_accessor_generic.type == .Integer, "If there is a texcoord accessor the type must be an integer.");
-            color_accessor_generic := primitive.attributes["COLOR_0"];
-            assert(!color_accessor_generic || color_accessor_generic.type == .Integer, "If there is a color accessor the type must be an integer.");
-
-            has_normal := !!normal_accessor_generic;
-            has_texcoord := !!texcoord_accessor_generic;
-            has_color := !!color_accessor_generic;
-
-            geometry.has_normal = has_normal;
-            geometry.has_texcoord = has_texcoord;
-            geometry.has_color = has_color;
-
             index_accessor := accessors[index_accessor_index];
             assert(index_accessor.type == "SCALAR", "The indices access must be a scalar type.");
-            index_type := index_accessor.component_type;
-
-            // holy shit there has to be a better way to do this without writing a complex #insert thing
-            if #complete index_type == {
+            component_type := index_accessor.component_type;
+            
+            // this seems bad
+            if #complete component_type == {
                 case .S8;
                     index_count := index_accessor.view.count;
                     array_reserve(*geometry.indices, index_count);
@@ -627,74 +725,39 @@ load_geometry_gltf_data :: (json: GltfJson, binary: [] u8) -> [..] *Geometry, bo
                     assert(false, "Invalid index component type.");
             }
 
-            position_accessor := accessors[position_accessor_index];
-            assert(position_accessor.type == "VEC3", "The position access must be a vec3 type.");
-            assert(position_accessor.component_type == .F32, "The position component type must be float32.");
-            memcpy(*geometry.aabb.lower, position_accessor.min.data, size_of(type_of(geometry.aabb.lower)));
-            memcpy(*geometry.aabb.upper, position_accessor.max.data, size_of(type_of(geometry.aabb.upper)));
+            geometry_stride := get_attribute_stride(geometry);
+            array_reserve(*geometry.vertices, geometry_stride * attribute_count);
 
-            vertex_count := position_accessor.view.count / size_of(float32) / 3;
+            for i: 0..attribute_count - 1 {
+                for accessors, accessor_type_value: attribute_accessors {
+                    accessor_type := cast(Attribute) accessor_type_value;
 
-            position_data := cast(*float32) position_accessor.view.data;
-            normal_data: *float32;
-            texcoord_data: *float32;
-            color_data: *float32;
-
-            reserve_count := geometry.vertices.count;
-            reserve_count += vertex_count * 3;
-            if has_normal {
-                normal_accessor := accessors[normal_accessor_generic.integer];
-                assert(normal_accessor.type == "VEC3", "The normal access must be a vec3 type.");
-                assert(normal_accessor.view.count / size_of(float32) / 3 == vertex_count, "There must be as many normals as vertices.");
-                assert(normal_accessor.component_type == .F32, "The normal component type must be float32.");
-                reserve_count += vertex_count * 3;
-
-                normal_data = cast(*float32) normal_accessor.view.data;
-            }
-            if has_texcoord {
-                texcoord_accessor := accessors[texcoord_accessor_generic.integer];
-                assert(texcoord_accessor.type == "VEC2", "The texcoord access must be a vec2 type.");
-                assert(texcoord_accessor.view.count / size_of(float32) / 2 == vertex_count, "There must be as many texcoords as vertices.");
-                assert(texcoord_accessor.component_type == .F32, "The texcoord component type must be float32.");
-                reserve_count += vertex_count * 2;
-                
-                texcoord_data = cast(*float32) texcoord_accessor.view.data;
-            }
-            if has_color {
-                color_accessor := accessors[color_accessor_generic.integer];
-                assert(color_accessor.type == "VEC4", "The color access must be a vec4 type.");
-                assert(color_accessor.view.count / size_of(float32) / 4 == vertex_count, "There must be as many colors as vertices.");
-                assert(color_accessor.component_type == .F32, "The color component type must be float32.");
-                reserve_count += vertex_count * 4;
-                
-                color_data = cast(*float32) color_accessor.view.data;
-            }
-
-            array_reserve(*geometry.vertices, reserve_count);
-
-            for i: 0..vertex_count - 1 {
-                array_add(*geometry.vertices, position_data[i * 3]);
-                array_add(*geometry.vertices, position_data[i * 3 + 1]);
-                array_add(*geometry.vertices, position_data[i * 3 + 2]);
-
-                if has_normal {
-                    array_add(*geometry.vertices, normal_data[i * 3]);
-                    array_add(*geometry.vertices, normal_data[i * 3 + 1]);
-                    array_add(*geometry.vertices, normal_data[i * 3 + 2]);
-                }
-
-                if has_texcoord {
-                    array_add(*geometry.vertices, texcoord_data[i * 2]);
-                    array_add(*geometry.vertices, texcoord_data[i * 2 + 1]);
-                }
-
-                if has_color {
-                    array_add(*geometry.vertices, color_data[i * 4]);
-                    array_add(*geometry.vertices, color_data[i * 4 + 1]);
-                    array_add(*geometry.vertices, color_data[i * 4 + 2]);
-                    array_add(*geometry.vertices, color_data[i * 4 + 3]);
+                    for accessor: accessors {
+                        if #complete accessor_type == {
+                            case .Position;
+                                accessor_data := cast(*float32) accessor.view.data;
+                                array_add(*geometry.vertices, accessor_data[i * 3], accessor_data[i * 3 + 1], accessor_data[i * 3 + 2]);
+                            case .Normal;
+                                accessor_data := cast(*float32) accessor.view.data;
+                                array_add(*geometry.vertices, accessor_data[i * 3], accessor_data[i * 3 + 1], accessor_data[i * 3 + 2]);
+                            case .Texcoord;
+                                accessor_data := cast(*float32) accessor.view.data;
+                                array_add(*geometry.vertices, accessor_data[i * 2], accessor_data[i * 2 + 1]);
+                            case .Color;
+                                accessor_data := cast(*float32) accessor.view.data;
+                                array_add(*geometry.vertices, accessor_data[i * 4], accessor_data[i * 4 + 1], accessor_data[i * 4 + 2], accessor_data[i * 4 + 3]);
+                            case .JointIndices;
+                                accessor_data := cast(*u16) accessor.view.data;
+                                array_add(*geometry.vertices, cast(float) accessor_data[i * 4], cast(float) accessor_data[i * 4 + 1], cast(float) accessor_data[i * 4 + 2], cast(float) accessor_data[i * 4 + 3]);
+                            case .JointWeights;
+                                accessor_data := cast(*float32) accessor.view.data;
+                                array_add(*geometry.vertices, accessor_data[i * 4], accessor_data[i * 4 + 1], accessor_data[i * 4 + 2], accessor_data[i * 4 + 3]);
+                        }
+                    }
                 }
             }
+
+            print("geometry % %\n", geometry.vertices.count, geometry_stride * attribute_count);
         }
     }
 
@@ -706,6 +769,8 @@ load_geometry_gltf_data :: (json: GltfJson, binary: [] u8) -> [..] *Geometry, bo
 }
 
 gen_geometry :: (geometry: *Geometry) {
+    assert(koda.initialized, "Attempting to gen geometry without the window being initialized.");
+
     glGenVertexArrays(1, *geometry.vao_);
     glGenBuffers(1, *geometry.vbo_);
     glGenBuffers(1, *geometry.ebo_);
@@ -718,50 +783,20 @@ gen_geometry :: (geometry: *Geometry) {
     glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, geometry.ebo_);
     glBufferData(GL_ELEMENT_ARRAY_BUFFER, geometry.indices.count * size_of(u32), geometry.indices.data, GL_STATIC_DRAW);
 
-    total_float_size: u32 = 3;
-    if geometry.has_normal {
-        total_float_size += 3;
-    }
-    if geometry.has_texcoord {
-        total_float_size += 2;
-    }
-    if geometry.has_color {
-        total_float_size += 4;
-    }
+    total_float_size := cast(u32) get_attribute_stride(geometry.attributes);
+    print("total size %\n", total_float_size);
 
     current_attribute: u32;
-    float_offset: u32;
+    float_offset: s32;
 
-    // vertex positions
-    glEnableVertexAttribArray(current_attribute);
-    glVertexAttribPointer(current_attribute, 3, GL_FLOAT, GL_FALSE, size_of(float32) * total_float_size, cast(*void) float_offset);
-    current_attribute += 1;
-    float_offset += 3;
-
-    // print("n t c % % %\n", geometry.has_normal, geometry.has_texcoord, geometry.has_color);
-
-    if geometry.has_normal {
-        // vertex normals
+    for attribute: geometry.attributes {
+        attribute_size := cast(s32) get_attribute_size(attribute);
+        print("attribute % %\n", attribute, attribute_size);
         glEnableVertexAttribArray(current_attribute);
-        glVertexAttribPointer(current_attribute, 3, GL_FLOAT, GL_FALSE, size_of(float32) * total_float_size, cast(*void) (size_of(float32) * float_offset));
-        current_attribute += 1;
-        float_offset += 3;
-    }
+        glVertexAttribPointer(current_attribute, attribute_size, GL_FLOAT, GL_FALSE, size_of(float32) * total_float_size, cast(*void) float_offset);
 
-    if geometry.has_texcoord {
-        // vertex texture coords
-        glEnableVertexAttribArray(current_attribute);
-        glVertexAttribPointer(current_attribute, 2, GL_FLOAT, GL_FALSE, size_of(float32) * total_float_size, cast(*void) (size_of(float32) * float_offset));
         current_attribute += 1;
-        float_offset += 2;
-    }
-
-    if geometry.has_color {
-        // vertex texture coords
-        glEnableVertexAttribArray(current_attribute);
-        glVertexAttribPointer(current_attribute, 4, GL_FLOAT, GL_FALSE, size_of(float32) * total_float_size, cast(*void) (size_of(float32) * float_offset));
-        current_attribute += 1;
-        float_offset += 4;
+        float_offset += attribute_size;
     }
 
     glBindVertexArray(0);

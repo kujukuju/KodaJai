@@ -5,17 +5,6 @@ Texture :: struct {
     format: PixelFormat;
 }
 
-load_texture :: (path: string) -> Texture {
-    file, success := read_entire_file(path, false);
-    defer free(file);
-
-    bytes: [] u8;
-    bytes.data = file.data;
-    bytes.count = file.count;
-
-    return create_texture(bytes);
-}
-
 create_texture :: (bytes: [] u8) -> Texture {
     texture_data := load_data(bytes);
     defer stbi_image_free(texture_data.data);
@@ -41,6 +30,17 @@ create_texture :: (image: Image) -> Texture {
     texture_data.format = image.format;
 
     return gen_texture(texture_data);
+}
+
+load_texture :: (path: string) -> Texture {
+    file, success := read_entire_file(path, false);
+    defer free(file);
+
+    bytes: [] u8;
+    bytes.data = file.data;
+    bytes.count = file.count;
+
+    return create_texture(bytes);
 }
 
 // TODO update texture more efficiently from image
@@ -146,10 +146,10 @@ gen_texture :: (data: TextureData) -> Texture {
 
     glGenTextures(1, *texture.buffer);
     glBindTexture(GL_TEXTURE_2D, texture.buffer);
-    // glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);	
-    // glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);	
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);	
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+    // glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+    // glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
     // glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
     // glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST_MIPMAP_LINEAR);

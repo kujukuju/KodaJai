@@ -73,11 +73,12 @@ create_plane :: (half_width: float, half_height: float, double_sided: bool = fal
         array_add(*geometry.indices, indices[5], indices[4], indices[3]);
     }
 
+    add_attribute(*geometry, .Position);
     if with_normals {
-        geometry.has_normal = true;
+        add_attribute(*geometry, .Normal);
     }
     if with_texcoords {
-        geometry.has_texcoord = true;
+        add_attribute(*geometry, .Texcoord);
     }
 
     gen_geometry(*geometry);

@@ -1,7 +1,5 @@
 
-// TODO probably should just return geometry?
-
-create_icosphere :: (radius: float, subdivision: int) -> Geometry {
+create_icosphere :: (radius: float, subdivision: int, with_normals: bool = false, with_texcoords: bool = false) -> *Geometry {
     H_ANGLE: float : PI / 180.0 * 72.0;
     V_ANGLE: float : #run atan(1.0 / 2.0);
     S_STEP: float : 186.0 / 2048.0;
@@ -62,7 +60,7 @@ create_icosphere :: (radius: float, subdivision: int) -> Geometry {
     hAngle1: float = -PI / 2 - H_ANGLE / 2;
     hAngle2: float = -PI / 2;
 
-    geometry: Geometry;
+    geometry := New(Geometry);
     vertices: [..] Vector3;
     normals: [..] Vector3;
     tex_coords: [..] Vector2;
@@ -194,56 +192,143 @@ create_icosphere :: (radius: float, subdivision: int) -> Geometry {
 
             normal := compute_face_normal(v1, newV1, newV3);
             array_add(*vertices, v1, newV1, newV3);
-            array_add(*tex_coords, t1, newT1, newT3);
             array_add(*normals, normal, normal, normal);
+            array_add(*tex_coords, t1, newT1, newT3);
             array_add(*indices, index, index + 1, index + 2);
 
             normal = compute_face_normal(newV1, v2, newV2);
             array_add(*vertices, newV1, v2, newV2);
-            array_add(*tex_coords, newT1, t2, newT2);
             array_add(*normals, normal, normal, normal);
+            array_add(*tex_coords, newT1, t2, newT2);
             array_add(*indices, index + 3, index + 4, index + 5);
 
             normal = compute_face_normal(newV1, newV2, newV3);
             array_add(*vertices, newV1, newV2, newV3);
-            array_add(*tex_coords, newT1, newT2, newT3);
             array_add(*normals, normal, normal, normal);
+            array_add(*tex_coords, newT1, newT2, newT3);
             array_add(*indices, index + 6, index + 7, index + 8);
 
             normal = compute_face_normal(newV3, newV2, v3);
             array_add(*vertices, newV3, newV2, v3);
-            array_add(*tex_coords, newT3, newT2, t3);
             array_add(*normals, normal, normal, normal);
+            array_add(*tex_coords, newT3, newT2, t3);
             array_add(*indices, index + 9, index + 10, index + 11);
 
             index += 12;
         }
     }
 
+    stride := 3;
+    if with_normals {
+        stride += 3;
+    }
+    if with_texcoords {
+        stride += 2;
+    }
+
+    offset := 0;
+
     assert(vertices.count == normals.count && vertices.count == tex_coords.count, "Must have the same amount of all things.");
     array_copy(*geometry.indices, indices);
-    array_resize(*geometry.vertices, vertices.count * 3 + normals.count * 3 + tex_coords.count * 3);
+    array_resize(*geometry.vertices, vertices.count * stride);
     for i: 0..vertices.count - 1 {
         vertex := vertices[i];
         normal := normals[i];
         tex_coord := tex_coords[i];
 
-        geometry.vertices[i * 8] = vertex.x;
-        geometry.vertices[i * 8 + 1] = vertex.y;
-        geometry.vertices[i * 8 + 2] = vertex.z;
+        geometry.vertices[offset] = vertex.x;
+        geometry.vertices[offset + 1] = vertex.y;
+        geometry.vertices[offset + 2] = vertex.z;
+        offset += 3;
         
-        geometry.vertices[i * 8 + 3] = normal.x;
-        geometry.vertices[i * 8 + 4] = normal.y;
-        geometry.vertices[i * 8 + 5] = normal.z;
+        if with_normals {
+            geometry.vertices[offset] = normal.x;
+            geometry.vertices[offset + 1] = normal.y;
+            geometry.vertices[offset + 2] = normal.z;
+            offset += 3;
+        }
         
-        geometry.vertices[i * 8 + 6] = tex_coord.x;
-        geometry.vertices[i * 8 + 7] = tex_coord.y;
+        if with_texcoords {
+            geometry.vertices[offset] = tex_coord.x;
+            geometry.vertices[offset + 1] = tex_coord.y;
+            offset += 2;
+        }
     }
 
-    geometry.has_normal = true;
-    geometry.has_texcoord = true;
+    add_attribute(*geometry, .Position);
+    if with_normals {
+        add_attribute(*geometry, .Normal);
+    }
+    if with_texcoords {
+        add_attribute(*geometry, .Texcoord);
+    }
 
-    gen_geometry(*geometry);
+    // print("genning %\n", geometry, << geometry);
+    gen_geometry(geometry);
+
+    return geometry;
+}
+
+create_uv_sphere :: (radius: float, subdivisions: int, with_normals: bool = false, with_texcoords: bool = false) -> *Geometry {
+    geometry := New(Geometry);
+
+    assert(!with_normals, "Normals not yet supported for this geometry.");
+
+    stride := 3;
+    if with_normals {
+        stride += 3;
+    }
+    if with_texcoords {
+        stride += 2;
+    }
+
+    array_reserve(*geometry.vertices, subdivisions * subdivisions * stride);
+    array_reserve(*geometry.indices, (subdivisions - 1) * (subdivisions - 1) * 6);
+
+    for i: 0..subdivisions {
+        theta := i * PI / subdivisions;
+        sin_theta := sin(theta);
+        cos_theta := cos(theta);
+
+        for j: 0..subdivisions {
+            phi := j * 2 * PI / subdivisions;
+            sin_phi := sin(phi);
+            cos_phi := cos(phi);
+
+            x := radius * sin_theta * cos_phi;
+            y := radius * cos_theta;
+            z := -radius * sin_theta * sin_phi;
+
+            array_add(*geometry.vertices, x, y, z);
+
+            if with_texcoords {
+                tx := cast(float) j / subdivisions;
+                ty := cast(float) i / subdivisions;
+
+                array_add(*geometry.vertices, tx, ty);
+            }
+        }
+    }
+
+    for i: 0..subdivisions - 1 {
+        for j: 0..subdivisions - 1 {
+            first := cast(u32) (i * (subdivisions + 1) + j);
+            second := cast(u32) (first + subdivisions + 1);
+
+            array_add(*geometry.indices, first, second, first + 1);
+            array_add(*geometry.indices, second, second + 1, first + 1);
+        }
+    }
+
+    add_attribute(geometry, .Position);
+    if with_normals {
+        add_attribute(geometry, .Normal);
+    }
+    if with_texcoords {
+        add_attribute(geometry, .Texcoord);
+    }
+
+    gen_geometry(geometry);
 
     return geometry;
 }

@@ -23,7 +23,7 @@ out vec2 vTex;
 
 void main() {
     vPos = vec3(model * vec4(aPos, 1.0));
-    vNorm = aNorm;
+    vNorm = vec3(model * vec4(aNorm, 0.0));
     vTex = aTex;
 
     gl_Position = projection * view * model * vec4(aPos, 1.0);
@@ -56,6 +56,6 @@ void main() {
     vec3 diffuse = diff * lightColor;
     vec4 result = vec4(ambient + diffuse, 1.0) * objectColor;
 
-    FragColor = result; // vec4(result, 1.0);
+    FragColor = vec4(result.rgb, 1.0);
 }
 DONE

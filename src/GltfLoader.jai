@@ -158,6 +158,15 @@ GltfJson :: struct {
     }
 }
 
+GltfAccessorInfo :: struct {
+    view: [] u8;
+    type: string;
+    component_type: GltfJson.GltfJsonAccessor.GltfJsonComponentType;
+    stride: int;
+    min: [] float;
+    max: [] float;
+}
+
 load_glb :: (file: string) -> GltfJson, [] u8, *u8, bool {
     GltfHeader :: struct {
         magic: u32;
@@ -278,6 +287,76 @@ load_gltf :: (file: string, path: string) -> GltfJson, [] u8, *u8, bool {
     binary.count = binary_file.count;
 
     return json, binary, json_memory, true;
+}
+
+get_buffers :: (json: GltfJson, binary: [] u8) -> [..] [] u8 {
+    buffers: [..] [] u8;
+    offset := 0;
+    for buffer: json.buffers {
+        current := array_add(*buffers);
+        current.data = binary.data + offset;
+        current.count = buffer.byteLength;
+
+        offset += buffer.byteLength;
+    }
+    return buffers;
+}
+
+get_bufferviews :: (json: GltfJson, buffers: [..] [] u8) -> [..] [] u8 {
+    bufferviews: [..] [] u8;
+    for bufferview: json.bufferViews {
+        buffer_index := bufferview.buffer;
+
+        current := array_add(*bufferviews);
+        current.data = buffers[buffer_index].data + bufferview.byteOffset;
+        current.count = bufferview.byteLength;
+    }
+    return bufferviews;
+}
+
+get_accessors :: (json: GltfJson, bufferviews: [..] [] u8) -> [..] GltfAccessorInfo {
+    accessors: [..] GltfAccessorInfo;
+    for accessor: json.accessors {
+        assert(!accessor.sparse, "The GLTF loader does not yet support sparse buffers.");
+
+        if !accessor.bufferView {
+            continue;
+        }
+
+        current := array_add(*accessors);
+        current.type = accessor.type;
+        current.component_type = accessor.componentType;
+        current.view.data = bufferviews[<< accessor.bufferView].data + accessor.byteOffset;
+
+        if accessor.type == "SCALAR" {
+            current.stride = get_gltf_stride(current.component_type);
+            current.view.count = accessor.count * current.stride;
+        } else if accessor.type == "VEC2" {
+            current.stride = get_gltf_stride(current.component_type) * 2;
+            current.view.count = accessor.count * current.stride;
+        } else if accessor.type == "VEC3" {
+            current.stride = get_gltf_stride(current.component_type) * 3;
+            current.view.count = accessor.count * current.stride;
+        } else if accessor.type == "VEC4" {
+            current.stride = get_gltf_stride(current.component_type) * 4;
+            current.view.count = accessor.count * current.stride;
+        } else if accessor.type == "MAT4" {
+            current.stride = get_gltf_stride(current.component_type) * 16;
+            current.view.count = accessor.count * current.stride;
+        } else {
+            print("Cannot process this accessor type. %\n", accessor.type);
+            assert(false, "Cannot process this accessor type.");
+        }
+
+        if accessor.min {
+            current.min = << accessor.min;
+        }
+        if accessor.max {
+            current.max = << accessor.max;
+        }
+    }
+
+    return accessors;
 }
 
 is_valid_primitive :: (primitive: GltfJson.GltfJsonMesh.GltfJsonMeshPrimitive) -> bool {

@@ -62,8 +62,13 @@ create_torus :: (major_radius: float, minor_radius: float, major_segments: int, 
         }
     }
 
-    geometry.has_normal = with_normals;
-    geometry.has_texcoord = with_texcoords;
+    add_attribute(*geometry, .Position);
+    if with_normals {
+        add_attribute(*geometry, .Normal);
+    }
+    if with_texcoords {
+        add_attribute(*geometry, .Texcoord);
+    }
 
     gen_geometry(*geometry);
 

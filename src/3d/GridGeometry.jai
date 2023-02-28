@@ -22,6 +22,8 @@ create_grid :: (x_count: int, y_count: int, gap: float, up: Vector3 = .{0, 1, 0}
         array_add(*geometry.vertices, v2.x, v2.y, v2.z);
     }
 
+    add_attribute(*geometry, .Position);
+    
     gen_geometry(*geometry);
 
     return geometry;
