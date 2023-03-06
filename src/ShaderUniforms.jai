@@ -90,6 +90,8 @@ operator [] :: (uniforms: ShaderUniforms, name: string) -> ShaderUniform {
     return .{};
 }
 
+// TODO can optimize this by set_or_create method that won't delete memory, for example for animation
+
 operator *[] :: (uniforms: *ShaderUniforms($O), name: string) -> *ShaderUniform {
     for i: 0..uniforms.uniforms.count - 1 {
         if uniforms.uniforms[i].name == name {

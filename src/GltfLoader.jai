@@ -14,6 +14,8 @@ GltfJson :: struct {
     materials: [..] GltfJsonMaterial;
     meshes: [..] GltfJsonMesh;
     nodes: [..] GltfJsonNode;
+    skins: *[..] GltfJsonSkin;
+    animations: *[..] GltfJsonAnimation;
 
     GltfJsonAsset :: struct {
         copyright: *string;
@@ -148,12 +150,41 @@ GltfJson :: struct {
         camera: *int;
         children: *[..] int;
         skin: *int;
-        matrix: [16] float = .[1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1];
+        matrix: *[16] float;
         mesh: *int;
         rotation: [4] float = .[0, 0, 0, 1];
         scale: [3] float = .[1, 1, 1];
         translation: [3] float = .[0, 0, 0];
         weights: *[..] float;
+        name: *string;
+    }
+
+    GltfJsonSkin :: struct {
+        inverseBindMatrices: *int;
+        skeleton: *int;
+        joints: [..] int;
+        name: *string;
+    }
+
+    GltfJsonAnimation :: struct {
+        GltfJsonAnimationChannel :: struct {
+            GltfJsonAnimationChannelTarget :: struct {
+                node: *int;
+                path: string;
+            }
+
+            sampler: int;
+            target: GltfJsonAnimationChannelTarget;
+        }
+
+        GltfJsonAnimationSampler :: struct {
+            input: int;
+            interpolation: string = "LINEAR";
+            output: int;
+        }
+
+        channels: [..] GltfJsonAnimationChannel;
+        samplers: [..] GltfJsonAnimationSampler;
         name: *string;
     }
 }
@@ -359,6 +390,78 @@ get_accessors :: (json: GltfJson, bufferviews: [..] [] u8) -> [..] GltfAccessorI
     return accessors;
 }
 
+get_accessor_view :: (accessor: GltfAccessorInfo, $type: string) -> [] float #modify {
+    return type == "SCALAR";
+} {
+    assert(accessor.type == type, "Scalar accessor view must be a float.");
+    assert(accessor.component_type == .F32, "Scalar accessor view must be an f32.");
+
+    view: [] float;
+    view.data = xx accessor.view.data;
+    view.count = accessor.view.count / accessor.stride;
+    return view;
+}
+
+get_accessor_view :: (accessor: GltfAccessorInfo, $type: string) -> [] Vector2 #modify {
+    return type == "VEC2";
+} {
+    assert(accessor.type == type, "Vec2 accessor view must be a vec2.");
+    assert(accessor.component_type == .F32, "Vec2 accessor view must be an f32.");
+
+    view: [] Vector2;
+    view.data = xx accessor.view.data;
+    view.count = accessor.view.count / accessor.stride;
+    return view;
+}
+
+get_accessor_view :: (accessor: GltfAccessorInfo, $type: string) -> [] Vector3 #modify {
+    return type == "VEC3";
+} {
+    assert(accessor.type == type, "Vec3 accessor view must be a vec3.");
+    assert(accessor.component_type == .F32, "Vec3 accessor view must be an f32.");
+
+    view: [] Vector3;
+    view.data = xx accessor.view.data;
+    view.count = accessor.view.count / accessor.stride;
+    return view;
+}
+
+get_accessor_view :: (accessor: GltfAccessorInfo, $type: string) -> [] Vector4 #modify {
+    return type == "VEC4";
+} {
+    assert(accessor.type == type, "Vec4 accessor view must be a vec4.");
+    assert(accessor.component_type == .F32, "Vec4 accessor view must be an f32.");
+
+    view: [] Vector4;
+    view.data = xx accessor.view.data;
+    view.count = accessor.view.count / accessor.stride;
+    return view;
+}
+
+get_accessor_view :: (accessor: GltfAccessorInfo, $type: string) -> [] Quaternion #modify {
+    return type == "QUAT";
+} {
+    assert(accessor.type == "VEC4", "Quat accessor view must be a vec4.");
+    assert(accessor.component_type == .F32, "Quat accessor view must be an f32.");
+
+    view: [] Quaternion;
+    view.data = xx accessor.view.data;
+    view.count = accessor.view.count / accessor.stride;
+    return view;
+}
+
+get_accessor_view :: (accessor: GltfAccessorInfo, $type: string) -> [] Matrix4 #modify {
+    return type == "MAT4";
+} {
+    assert(accessor.type == type, "Mat4 accessor view must be a mat4.");
+    assert(accessor.component_type == .F32, "Mat4 accessor view must be an f32.");
+
+    view: [] Matrix4;
+    view.data = xx accessor.view.data;
+    view.count = accessor.view.count / accessor.stride;
+    return view;
+}
+
 is_valid_primitive :: (primitive: GltfJson.GltfJsonMesh.GltfJsonMeshPrimitive) -> bool {
     // needs to match model code
     if !primitive.indices {
@@ -388,4 +491,28 @@ get_gltf_stride :: (component_type: GltfJson.GltfJsonAccessor.GltfJsonComponentT
         case .F32;
             return 4;
     }
+}
+
+get_transform :: (node: GltfJson.GltfJsonNode) -> Matrix4 {
+    node_matrix: Matrix4 = ---;
+
+    if node.matrix {
+        node_matrix.floats = << node.matrix;
+        node_matrix = transpose(node_matrix);
+    } else {
+        node_translation: Vector3 = ---;
+        node_rotation: Quaternion = ---;
+        node_scale: Vector3 = ---;
+
+        node_translation.component = node.translation;
+        node_rotation.component = node.rotation;
+        node_scale.component = node.scale;
+
+        node_matrix = Matrix4Identity;
+        node_matrix = translate(node_matrix, node_translation);
+        node_matrix = rotate(node_matrix, node_rotation);
+        node_matrix = scale(node_matrix, node_scale);
+    }
+
+    return node_matrix;
 }

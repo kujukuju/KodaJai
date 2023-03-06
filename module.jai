@@ -45,6 +45,8 @@
 #load "src/2d/Sprite.jai";
 #load "src/2d/Texture.jai";
 
+#load "src/3d/AnimatedModel.jai";
+#load "src/3d/Animation.jai";
 #load "src/3d/Camera3.jai";
 #load "src/3d/Container3.jai";
 #load "src/3d/CubeGeometry.jai";
@@ -93,6 +95,9 @@
 #load "src/Renderable.jai";
 #load "src/Shaders.jai";
 #load "src/ShaderUniforms.jai";
+#load "src/SkinnedAnimationDoubleShader3.jai";
+#load "src/SkinnedAnimationNoTextureShader3.jai";
+#load "src/SkinnedAnimationShader3.jai";
 #load "src/SwapBuffer.jai";
 #load "src/TextureShader3.jai";
 #load "src/Text.jai";
@@ -142,6 +147,9 @@ default_color_shader3: DefaultVertColorShader3;
 // I probably dont want this one and instead want auto generating shaders based on bool values, like a DynamicShader class
 default_shader_colors3: DefaultShaderColors3;
 default_shape_shader3: DefaultShapeShader3;
+skinned_animation_double_shader3: SkinnedAnimationDoubleShader3;
+skinned_animation_no_texture_shader3: SkinnedAnimationNoTextureShader3;
+skinned_animation_shader3: SkinnedAnimationShader3;
 volumetric_cloud_shader: VolumetricCloudShader;
 instanced_shader2: InstancedShader2;
 instanced_shader3: InstancedShader3;
@@ -159,6 +167,7 @@ static_sprite: Sprite;
 #load "src/assets/White.jai";
 
 #import "String";
+#import "Hash_Table";
 #import "ContiguousJsonJai"(ASSERT = false, ASM = !WASM);
 #import "File_Utilities";
 #import "FixedStringJai";

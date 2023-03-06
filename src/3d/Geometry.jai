@@ -647,7 +647,8 @@ load_geometry_gltf_data :: (json: GltfJson, binary: [] u8) -> [..] *Geometry, bo
                     array_add(*attribute_accessors[cast(int) Attribute.Color], attribute_accessor);
                 } else if begins_with(attribute_entry.name, "JOINTS") {
                     assert(attribute_accessor.type == "VEC4", "The joint indices accessor must be a vec4 type.");
-                    assert(attribute_accessor.component_type == .U16, "The joint indices accessor must be a u16.");
+                    print("%\n", attribute_accessor.component_type);
+                    assert(attribute_accessor.component_type == .U8 || attribute_accessor.component_type == .U16 || attribute_accessor.component_type == .U32, "The joint indices accessor must be a u8 or u16 or u32.");
 
                     array_add(*attribute_accessors[cast(int) Attribute.JointIndices], attribute_accessor);
                 } else if begins_with(attribute_entry.name, "WEIGHTS") {
@@ -747,17 +748,27 @@ load_geometry_gltf_data :: (json: GltfJson, binary: [] u8) -> [..] *Geometry, bo
                                 accessor_data := cast(*float32) accessor.view.data;
                                 array_add(*geometry.vertices, accessor_data[i * 4], accessor_data[i * 4 + 1], accessor_data[i * 4 + 2], accessor_data[i * 4 + 3]);
                             case .JointIndices;
-                                accessor_data := cast(*u16) accessor.view.data;
-                                array_add(*geometry.vertices, cast(float) accessor_data[i * 4], cast(float) accessor_data[i * 4 + 1], cast(float) accessor_data[i * 4 + 2], cast(float) accessor_data[i * 4 + 3]);
+                                if accessor.component_type == {
+                                    case .U8;
+                                        accessor_data := cast(*u8) accessor.view.data;
+                                        array_add(*geometry.vertices, cast(float) accessor_data[i * 4], cast(float) accessor_data[i * 4 + 1], cast(float) accessor_data[i * 4 + 2], cast(float) accessor_data[i * 4 + 3]);
+                                    case .U16;
+                                        accessor_data := cast(*u16) accessor.view.data;
+                                        array_add(*geometry.vertices, cast(float) accessor_data[i * 4], cast(float) accessor_data[i * 4 + 1], cast(float) accessor_data[i * 4 + 2], cast(float) accessor_data[i * 4 + 3]);
+                                    case .U32;
+                                        accessor_data := cast(*u32) accessor.view.data;
+                                        array_add(*geometry.vertices, cast(float) accessor_data[i * 4], cast(float) accessor_data[i * 4 + 1], cast(float) accessor_data[i * 4 + 2], cast(float) accessor_data[i * 4 + 3]);
+                                    case;
+                                        assert(false, "Incorrect joint indices component type.");
+                                }
                             case .JointWeights;
                                 accessor_data := cast(*float32) accessor.view.data;
+                                // print("weights % % % %\n", accessor_data[i * 4], accessor_data[i * 4 + 1], accessor_data[i * 4 + 2], accessor_data[i * 4 + 3]);
                                 array_add(*geometry.vertices, accessor_data[i * 4], accessor_data[i * 4 + 1], accessor_data[i * 4 + 2], accessor_data[i * 4 + 3]);
                         }
                     }
                 }
             }
-
-            print("geometry % %\n", geometry.vertices.count, geometry_stride * attribute_count);
         }
     }
 
@@ -784,16 +795,14 @@ gen_geometry :: (geometry: *Geometry) {
     glBufferData(GL_ELEMENT_ARRAY_BUFFER, geometry.indices.count * size_of(u32), geometry.indices.data, GL_STATIC_DRAW);
 
     total_float_size := cast(u32) get_attribute_stride(geometry.attributes);
-    print("total size %\n", total_float_size);
 
     current_attribute: u32;
     float_offset: s32;
 
     for attribute: geometry.attributes {
         attribute_size := cast(s32) get_attribute_size(attribute);
-        print("attribute % %\n", attribute, attribute_size);
         glEnableVertexAttribArray(current_attribute);
-        glVertexAttribPointer(current_attribute, attribute_size, GL_FLOAT, GL_FALSE, size_of(float32) * total_float_size, cast(*void) float_offset);
+        glVertexAttribPointer(current_attribute, attribute_size, GL_FLOAT, GL_FALSE, size_of(float32) * total_float_size, cast(*void) (size_of(float32) * float_offset));
 
         current_attribute += 1;
         float_offset += attribute_size;

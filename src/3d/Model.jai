@@ -304,7 +304,25 @@ load_model_gltf_data :: (json: GltfJson, binary: [] u8) -> [..] *Model, bool {
         }
     }
 
-    for node: json.nodes {
+    node_parents: Table(int, int);
+    node_parents.allocator = temp;
+
+    for node, node_index: json.nodes {
+        if node.children {
+            for i: 0..node.children.count - 1 {
+                child_index := node.children.data[i];
+
+                assert(!table_find_pointer(*node_parents, child_index), "Attempting to double set a node parent.");
+                table_set(*node_parents, child_index, node_index);
+            }
+        }
+    }
+
+    node_path: [..] int;
+    node_path.allocator = temp;
+
+
+    for node, node_index: json.nodes {
         if node.mesh {
             mesh_index := << node.mesh;
             model: *Model;
@@ -329,11 +347,31 @@ load_model_gltf_data :: (json: GltfJson, binary: [] u8) -> [..] *Model, bool {
             }
 
             assert(!!model, "The loop must have found the model by this point.");
-            model.position.component = node.translation;
-            model.rotation.component = node.rotation;
-            model.scale.component = node.scale;
-        } else {
-            assert(equal(node.matrix, float.[1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1]), "A non mesh transform must be identity because I don't know what this implies.");
+
+            node_path.count = 0;
+
+            array_add(*node_path, node_index);
+            parent_node_pointer := table_find_pointer(*node_parents, node_index);
+            while !!parent_node_pointer {
+                array_add(*node_path, << parent_node_pointer);
+                parent_node_pointer = table_find_pointer(*node_parents, << parent_node_pointer);
+            }
+
+            world_transform := Matrix4Identity;
+            for < current_index: node_path {
+                node := json.nodes[current_index];
+
+                node_matrix := get_transform(node);
+                world_transform = world_transform * node_matrix;
+            }
+
+            translation := transform_point(world_transform, .{0, 0, 0});
+            rotation := get_rotation(world_transform);
+            scale := get_scale(world_transform);
+
+            model.position = translation; // node.translation;
+            model.rotation = rotation; // node.rotation;
+            model.scale = scale; // node.scale;
         }
     }
 
