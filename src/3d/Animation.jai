@@ -1,6 +1,7 @@
 
 Animation :: struct {
     name: string;
+    world: Matrix4;
     inverse_world: Matrix4;
     // the entire traversed hierarchy of all the bones, some of which aren't included in the skin calculations
     bone_hierarchy: [..] AnimationJoint;
@@ -13,7 +14,7 @@ Animation :: struct {
 }
 
 AnimationJoint :: struct {
-    transform: Matrix4;
+    transform: Matrix4 = Matrix4Identity;
     parent: int;
 }
 
@@ -23,13 +24,6 @@ AnimationFrame :: struct {
     rotation: Quaternion = .{0, 0, 0, 1};
     scale: Vector3 = .{1, 1, 1};
 }
-
-// AnimationTransform :: struct {
-//     frame: float;
-//     translation: Vector3 = .{0, 0, 0};
-//     rotation: Quaternion = .{0, 0, 0, 1};
-//     scale: Vector3 = .{1, 1, 1};
-// }
 
 load_animation :: (path: string) -> [..] Animation, bool {
     file, success := read_entire_file(path);
@@ -77,9 +71,7 @@ get_joints :: (animations: [..] Animation, name: string, frame: float, $count: i
 
 get_joints :: (animation: Animation, frame: float, $count: int) -> [count] Matrix4 {
     get_interpolated :: (frames: [..] AnimationFrame, frame: float) -> Matrix4 {
-        if frames.count == 0 {
-            return Matrix4Identity;
-        }
+        assert(frames.count > 0, "Cannot get an interpolated transform if there are no frames.");
 
         minimum_frame := frames[0].frame;
         maximum_frame := frames[frames.count - 1].frame;
@@ -109,60 +101,32 @@ get_joints :: (animation: Animation, frame: float, $count: int) -> [count] Matri
 
         progress := (wrapped_frame - starting_frame_time) / (ending_frame_time - starting_frame_time);
 
-        // starting_translation := starting_frame.translation;
-        // ending_translation := ending_frame.translation;
-        // starting_rotation := starting_frame.rotation;
-        // ending_rotation := ending_frame.rotation;
-        // starting_scale := starting_frame.scale;
-        // ending_scale := ending_frame.scale;
+        starting_translation := starting_frame.translation;
+        ending_translation := ending_frame.translation;
+        starting_rotation := starting_frame.rotation;
+        ending_rotation := ending_frame.rotation;
+        starting_scale := starting_frame.scale;
+        ending_scale := ending_frame.scale;
 
-        // frame_translation := lerp(starting_translation, ending_translation, progress);
-        // frame_rotation := slerp(starting_rotation, ending_rotation, progress);
-        // frame_scale := lerp(starting_scale, ending_scale, progress);
-
-        // interpolated_matrix := Matrix4Identity;
-        // interpolated_matrix = translate(interpolated_matrix, frame_translation);
-        // interpolated_matrix = rotate(interpolated_matrix, frame_rotation);
-        // interpolated_matrix = scale(interpolated_matrix, frame_scale);
+        frame_translation := lerp(starting_translation, ending_translation, progress);
+        frame_rotation := quat_slerp(starting_rotation, ending_rotation, progress);
+        frame_scale := lerp(starting_scale, ending_scale, progress);
 
         interpolated_matrix := Matrix4Identity;
-        interpolated_matrix = translate(interpolated_matrix, starting_frame.translation);
-        interpolated_matrix = rotate(interpolated_matrix, starting_frame.rotation);
-        interpolated_matrix = scale(interpolated_matrix, starting_frame.scale);
+        interpolated_matrix = translate(interpolated_matrix, frame_translation);
+        interpolated_matrix = rotate(interpolated_matrix, frame_rotation);
+        interpolated_matrix = scale(interpolated_matrix, frame_scale);
 
         return interpolated_matrix;
-
-        // return make_translation_matrix4(starting_frame.translation) * rotation_matrix(Matrix4, starting_frame.rotation) * make_scale_matrix4(starting_frame.scale);
     }
-
-    // dumb_get_local_matrix :: (animation: Animation, i: int, frame: float) -> Matrix4 {
-    //     interpolated := get_interpolated(animation.frames[i], frame);
-    //     return interpolated * animation.bone_hierarchy[i].transform;
-    // }
-
-    // dumb_get_node_matrix :: (animation: Animation, i: int, frame: float) -> Matrix4 {
-    //     node_matrix := dumb_get_local_matrix(animation, i, frame);
-    //     current_parent := animation.bone_hierarchy[i].parent;
-
-    //     while current_parent != i {
-    //         node_matrix = dumb_get_local_matrix(animation, current_parent, frame) * node_matrix;
-
-    //         i = current_parent;
-    //         current_parent = animation.bone_hierarchy[i].parent;
-    //     }
-
-    //     return node_matrix;
-    // }
 
     joints_bones: [count] Matrix4;
 
     for i: 0..animation.bone_hierarchy.count - 1 {
-        // joints_bones[i] = dumb_get_node_matrix(animation, i, frame);
-
-
         joint := animation.bone_hierarchy[i];
 
         // if the joint parent isn't itself then set the parent
+        // parent_transform := animation.world;
         parent_transform := Matrix4Identity;
         if joint.parent != i {
             parent_transform = joints_bones[joint.parent];
@@ -170,14 +134,15 @@ get_joints :: (animation: Animation, frame: float, $count: int) -> [count] Matri
             assert(parent_transform != empty, "If there's a parent it shouldn't be empty. At least identity.");
         }
 
-        interpolated_matrix := get_interpolated(animation.frames[i], frame);
+        interpolated_matrix: Matrix4;
+        if animation.frames[i].count == 0 {
+            interpolated_matrix = joint.transform;
+        } else {
+            interpolated_matrix = get_interpolated(animation.frames[i], frame);
+        }
 
-        // local_transform := joint.transform;
-        local_transform := interpolated_matrix;
-        // local_transform := joint.transform * interpolated_matrix;
-
-        joints_bones[i] = parent_transform * local_transform;
-        // joints_bones[i] = parent_transform * (joint.transform * interpolated_matrix);
+        // local_transform := interpolated_matrix;
+        joints_bones[i] = parent_transform * interpolated_matrix;
     }
 
     joints: [count] Matrix4;
@@ -233,11 +198,6 @@ load_animation_gltf_data :: (json: GltfJson, binary: [] u8) -> [..] Animation, b
     assert(json.animations.count == 1, "I'm not sure how to handle multiple animations either.");
     current_animation := json.animations.data[0];
 
-    // node_root_index := skin.joints[0];
-    // if skin.skeleton {
-    //     assert(<< skin.skeleton == node_root_index, "If there's a skeleton root node it must match the first joint index. Otherwise I don't understand what it does.");
-    // }
-
     assert(json.scenes.count == 1, "I'm not sure how to handle multiple scenes.");
     assert(!!json.scenes[0].nodes, "I'm not sure how to handle the root node not being labelled.");
     assert(json.scenes[0].nodes.count == 1, "I'm not sure how to handle multiple node hierarchies.");
@@ -277,8 +237,6 @@ load_animation_gltf_data :: (json: GltfJson, binary: [] u8) -> [..] Animation, b
         parent_node_index_pointer = table_find_pointer(*node_parents, << parent_node_index_pointer);
     }
 
-    print("There are % nodes up to the skin root.\n", skin_root_node_parent_path.count);
-
     world_transform := Matrix4Identity;
 
     for < node_index: skin_root_node_parent_path {
@@ -287,8 +245,6 @@ load_animation_gltf_data :: (json: GltfJson, binary: [] u8) -> [..] Animation, b
         node_matrix := get_transform(node);
         world_transform = world_transform * node_matrix;
     }
-
-    print("Found world transform %\n", world_transform);
 
     buffers := get_buffers(json, binary);
     defer array_free(buffers);
@@ -331,13 +287,12 @@ load_animation_gltf_data :: (json: GltfJson, binary: [] u8) -> [..] Animation, b
     for node_index: skin.joints {
         assert(!!table_find_pointer(*node_to_bone_remap, node_index), "Did not find all relevant nodes by traversing the node hierarchy.");
     }
-    
-    print("Animation: %. Found % bones and % joints.\n", current_animation.name, node_count, skin.joints.count);
 
     assert(node_count >= skin.joints.count, "The found joint hierarchy count must be the same as or more than the skin inner joints count.");
 
     animations: [..] Animation;
     animation := array_add(*animations);
+    animation.world = world_transform;
     animation.inverse_world = inverse(world_transform);
 
     if current_animation.name && current_animation.name.count > 0 {
@@ -356,12 +311,7 @@ load_animation_gltf_data :: (json: GltfJson, binary: [] u8) -> [..] Animation, b
         node_index := << table_find_pointer(*bone_to_node_remap, bone_index);
         node := json.nodes[node_index];
 
-        transform := get_transform(node);
-        animation.bone_hierarchy[bone_index].transform = transform;
-
-        // transform: Matrix4 = ---;
-        // transform.floats = node.matrix;
-        // animation.bone_hierarchy[bone_index].transform = transform;
+        animation.bone_hierarchy[bone_index].transform = get_transform(node);
 
         // every child should have a prent except the root node which is 0 so its a parent to itself
         // so we don't have to worry about this
@@ -375,32 +325,6 @@ load_animation_gltf_data :: (json: GltfJson, binary: [] u8) -> [..] Animation, b
             }
         }
     }
-
-    // time_sampler_accessor_index := current_animation.samplers[0].input;
-    // time_accessor := get_accessor_view(accessors[time_sampler_accessor_index], "SCALAR");
-
-    // for i: 0..current_animation.samplers.count - 1 {
-    //     current_time_accessor := get_accessor_view(accessors[current_animation.samplers[i].input], "SCALAR");
-
-    //     matches := time_accessor.count == current_time_accessor.count;
-    //     print("% %\n", time_accessor.count, current_time_accessor.count);
-    //     for time: time_accessor {
-    //         print("% ", time);
-    //     }
-    //     print("\n");
-    //     for time: current_time_accessor {
-    //         print("% ", time);
-    //     }
-    //     print("\n");
-    //     assert(matches, "I'm not sure how to handle multiple unique animation input counts.");
-    //     for i: 0..time_accessor.count - 1 {
-    //         matches = matches && time_accessor[i] == current_time_accessor[i];
-    //     }
-
-    //     assert(matches, "I'm not sure how to handle multiple unique animation input times.");
-    // }
-
-    // time_accessor_count := time_accessor.view.count / time_accessor.stride;
 
     array_reserve(*animation.inverse_binds, skin.joints.count);
     animation.inverse_binds.count = skin.joints.count;
@@ -449,10 +373,22 @@ load_animation_gltf_data :: (json: GltfJson, binary: [] u8) -> [..] Animation, b
         transformation_accessor := accessors[sampler.output];
 
         if animation.frames[bone_index].count == 0 {
+            m_translation, m_rotation, m_scale := decompose_matrix4(animation.bone_hierarchy[bone_index].transform);
+
+            m_rotation = normalize(m_rotation);
+            if m_rotation.w < 0 {
+                m_rotation *= -1;
+            }
+
             array_resize(*animation.frames[bone_index], time_view.count);
             for i: 0..time_view.count - 1 {
                 animation.frames[bone_index][i].frame = time_view[i];
+                animation.frames[bone_index][i].translation = m_translation;
+                animation.frames[bone_index][i].rotation = m_rotation;
+                animation.frames[bone_index][i].scale = m_scale;
             }
+        } else {
+            assert(animation.frames[bone_index].count == time_view.count, "If the frames have already been initialized the count can't change.");
         }
 
         assert(animation.frames[bone_index].count == time_view.count, "I expect that every transformation for a given bone has the same number of frames.");
@@ -472,6 +408,9 @@ load_animation_gltf_data :: (json: GltfJson, binary: [] u8) -> [..] Animation, b
 
                 for i: 0..time_view.count - 1 {
                     animation.frames[bone_index][i].rotation = normalize(rotation_view[i]);
+                    if animation.frames[bone_index][i].rotation.w < 0 {
+                        animation.frames[bone_index][i].rotation *= -1;
+                    }
                 }
 
             case "scale";
