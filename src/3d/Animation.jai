@@ -297,6 +297,7 @@ load_animation_gltf_data :: (json: GltfJson, binary: [] u8) -> [..] Animation, b
 
     if current_animation.name && current_animation.name.count > 0 {
         animation.name = copy_string(<< current_animation.name);
+        print("name %\n", animation.name);
     }
 
     array_reserve(*animation.joint_indices, skin.joints.count);
@@ -372,26 +373,46 @@ load_animation_gltf_data :: (json: GltfJson, binary: [] u8) -> [..] Animation, b
         interpolation_method := sampler.interpolation;
         transformation_accessor := accessors[sampler.output];
 
-        if animation.frames[bone_index].count == 0 {
-            m_translation, m_rotation, m_scale := decompose_matrix4(animation.bone_hierarchy[bone_index].transform);
-
-            m_rotation = normalize(m_rotation);
-            if m_rotation.w < 0 {
-                m_rotation *= -1;
+        // TODO I could calculate this all in one loop by only moving forward for each list but its hard
+        missing_frame_count := 0;
+        for i: 0..time_view.count - 1 {
+            for a: 0..animation.frames[bone_index].count - 1 {
+                if time_view[i] == animation.frames[bone_index][a].frame {
+                    continue i;
+                }
             }
 
-            array_resize(*animation.frames[bone_index], time_view.count);
-            for i: 0..time_view.count - 1 {
-                animation.frames[bone_index][i].frame = time_view[i];
-                animation.frames[bone_index][i].translation = m_translation;
-                animation.frames[bone_index][i].rotation = m_rotation;
-                animation.frames[bone_index][i].scale = m_scale;
-            }
-        } else {
-            assert(animation.frames[bone_index].count == time_view.count, "If the frames have already been initialized the count can't change.");
+            missing_frame_count += 1;
         }
 
-        assert(animation.frames[bone_index].count == time_view.count, "I expect that every transformation for a given bone has the same number of frames.");
+        if missing_frame_count > 0 {
+            m_translation, m_rotation, m_scale := decompose_matrix4(animation.bone_hierarchy[bone_index].transform);
+
+            array_reserve(*animation.frames[bone_index], animation.frames[bone_index].count + missing_frame_count);
+            for i: 0..time_view.count - 1 {
+                insert_index := animation.frames[bone_index].count;
+                for a: 0..animation.frames[bone_index].count - 1 {
+                    if animation.frames[bone_index][a].frame == time_view[i] {
+                        continue i;
+                    } else if animation.frames[bone_index][a].frame > time_view[i] {
+                        insert_index = a;
+                        break;
+                    }
+                }
+
+                entry: AnimationFrame;
+                entry.frame = time_view[i];
+                entry.translation = m_translation;
+                entry.rotation = m_rotation;
+                entry.scale = m_scale;
+
+                array_insert_at(*animation.frames[bone_index], entry, insert_index);
+            }
+        }
+
+        print("times %\n", animation.frames[bone_index]);
+
+        // assert(animation.frames[bone_index].count == time_view.count, "I expect that every transformation for a given bone has the same number of frames.");
 
         if channel.target.path == {
             case "translation";
@@ -399,7 +420,14 @@ load_animation_gltf_data :: (json: GltfJson, binary: [] u8) -> [..] Animation, b
                 assert(translation_view.count == time_view.count, "I think you have to have the same number of transformations for a given node as frames.");
 
                 for i: 0..time_view.count - 1 {
-                    animation.frames[bone_index][i].translation = translation_view[i];
+                    for a: 0..animation.frames[bone_index].count - 1 {
+                        if time_view[i] == animation.frames[bone_index][a].frame {
+                            animation.frames[bone_index][a].translation = translation_view[i];
+                            continue i;
+                        }
+                    }
+
+                    assert(false, "Reached the end of the bone frame loop without finding where to insert the specific frame transform.");
                 }
 
             case "rotation";
@@ -407,10 +435,14 @@ load_animation_gltf_data :: (json: GltfJson, binary: [] u8) -> [..] Animation, b
                 assert(rotation_view.count == time_view.count, "I think you have to have the same number of transformations for a given node as frames.");
 
                 for i: 0..time_view.count - 1 {
-                    animation.frames[bone_index][i].rotation = normalize(rotation_view[i]);
-                    if animation.frames[bone_index][i].rotation.w < 0 {
-                        animation.frames[bone_index][i].rotation *= -1;
+                    for a: 0..animation.frames[bone_index].count - 1 {
+                        if time_view[i] == animation.frames[bone_index][a].frame {
+                            animation.frames[bone_index][a].rotation = rotation_view[i];
+                            continue i;
+                        }
                     }
+
+                    assert(false, "Reached the end of the bone frame loop without finding where to insert the specific frame transform.");
                 }
 
             case "scale";
@@ -418,7 +450,14 @@ load_animation_gltf_data :: (json: GltfJson, binary: [] u8) -> [..] Animation, b
                 assert(scale_view.count == time_view.count, "I think you have to have the same number of transformations for a given node as frames.");
 
                 for i: 0..time_view.count - 1 {
-                    animation.frames[bone_index][i].scale = scale_view[i];
+                    for a: 0..animation.frames[bone_index].count - 1 {
+                        if time_view[i] == animation.frames[bone_index][a].frame {
+                            animation.frames[bone_index][a].scale = scale_view[i];
+                            continue i;
+                        }
+                    }
+
+                    assert(false, "Reached the end of the bone frame loop without finding where to insert the specific frame transform.");
                 }
 
             case;

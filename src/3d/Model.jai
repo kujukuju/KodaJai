@@ -365,9 +365,7 @@ load_model_gltf_data :: (json: GltfJson, binary: [] u8) -> [..] *Model, bool {
                 world_transform = world_transform * node_matrix;
             }
 
-            translation := transform_point(world_transform, .{0, 0, 0});
-            rotation := get_rotation(world_transform);
-            scale := get_scale(world_transform);
+            translation, rotation, scale := decompose_matrix4(world_transform);
 
             model.position = translation; // node.translation;
             model.rotation = rotation; // node.rotation;

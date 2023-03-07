@@ -28,10 +28,6 @@ out vec3 vNorm;
 out vec2 vTex;
 
 void main() {
-    vPos = vec3(model * vec4(aPos, 1.0));
-    vNorm = vec3(model * vec4(aNorm, 0.0));
-    vTex = aTex;
-    
     mat4 skinMat =
         aJointWeights1.x * uJoints[int(aJointIndices1.x)] +
         aJointWeights1.y * uJoints[int(aJointIndices1.y)] +
@@ -42,7 +38,11 @@ void main() {
         aJointWeights2.z * uJoints[int(aJointIndices2.z)] +
         aJointWeights2.w * uJoints[int(aJointIndices2.w)];
 
-    gl_Position = projection * view * skinMat * vec4(aPos, 1.0);
+    vPos = vec3(model * skinMat * vec4(aPos, 1.0));
+    vNorm = vec3(model * skinMat * vec4(aNorm, 0.0));
+    vTex = aTex;
+
+    gl_Position = projection * view * model * skinMat * vec4(aPos, 1.0);
 }
 DONE
 
