@@ -120,14 +120,15 @@ get_joints :: (animation: Animation, frame: float, $count: int) -> [count] Matri
         return interpolated_matrix;
     }
 
-    joints_bones: [count] Matrix4;
+    joints_bones: [..] Matrix4;
+    joints_bones.allocator = temp;
 
     for i: 0..animation.bone_hierarchy.count - 1 {
         joint := animation.bone_hierarchy[i];
 
         // if the joint parent isn't itself then set the parent
-        parent_transform := animation.world;
-        // parent_transform := Matrix4Identity;
+        // parent_transform := animation.world;
+        parent_transform := Matrix4Identity;
         if joint.parent != i {
             parent_transform = joints_bones[joint.parent];
             empty: Matrix4;
@@ -154,7 +155,7 @@ get_joints :: (animation: Animation, frame: float, $count: int) -> [count] Matri
 
     for i: 0..animation.inverse_binds.count - 1 {
         joints[i] = joints[i] * animation.inverse_binds[i];
-        joints[i] = animation.inverse_world * joints[i];
+        // joints[i] = animation.inverse_world * joints[i];
     }
 
     return joints;
@@ -266,10 +267,10 @@ load_animation_gltf_data :: (json: GltfJson, binary: [] u8) -> [..] Animation, b
     search_queue: [..] int;
     search_queue.allocator = temp;
 
-    array_add(*search_queue, skin.joints[0]);
-    // for scene_node_index: 0..scene.nodes.count - 1 {
-    //     array_add(*search_queue, scene.nodes.data[scene_node_index]);
-    // }
+    // array_add(*search_queue, skin.joints[0]);
+    for scene_node_index: 0..scene.nodes.count - 1 {
+        array_add(*search_queue, scene.nodes.data[scene_node_index]);
+    }
 
     node_count := 0;
     while search_queue.count > 0 {
