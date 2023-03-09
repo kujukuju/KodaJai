@@ -662,68 +662,82 @@ load_geometry_gltf_data :: (json: GltfJson, binary: [] u8) -> [..] *Geometry, bo
                 }
             }
 
+            vertex_count := 0;
+
             // flatten the accessor attributes into a single array to represent how the vertices are interlaced
             for accessors, attribute_type_value: attribute_accessors {
                 attribute_type := cast(Attribute) attribute_type_value;
                 for i: 0..accessors.count - 1 {
                     array_add(*geometry.attributes, attribute_type);
+
+                    if attribute_type == .Position {
+                        vertex_count = accessors[i].view.count / accessors[i].stride;
+                    }
                 }
             }
 
-            index_accessor_index := << primitive.indices;
-            index_accessor := accessors[index_accessor_index];
-            assert(index_accessor.type == "SCALAR", "The indices access must be a scalar type.");
-            component_type := index_accessor.component_type;
-            
-            // this seems bad
-            if #complete component_type == {
-                case .S8;
-                    index_count := index_accessor.view.count;
-                    array_reserve(*geometry.indices, index_count);
-                    index_data := cast(*s8) index_accessor.view.data;
-                    for 0..index_count - 1 {
-                        index := cast(u32) << (index_data + it);
-                        array_add(*geometry.indices, index);
-                    }
+            if primitive.indices {
+                index_accessor_index := << primitive.indices;
+                index_accessor := accessors[index_accessor_index];
+                assert(index_accessor.type == "SCALAR", "The indices access must be a scalar type.");
+                component_type := index_accessor.component_type;
+                
+                // this seems bad
+                if #complete component_type == {
+                    case .S8;
+                        index_count := index_accessor.view.count;
+                        array_reserve(*geometry.indices, index_count);
+                        index_data := cast(*s8) index_accessor.view.data;
+                        for 0..index_count - 1 {
+                            index := cast(u32) << (index_data + it);
+                            array_add(*geometry.indices, index);
+                        }
 
-                case .U8;
-                    index_count := index_accessor.view.count;
-                    array_reserve(*geometry.indices, index_count);
-                    index_data := cast(*u8) index_accessor.view.data;
-                    for 0..index_count - 1 {
-                        index := cast(u32) << (index_data + it);
-                        array_add(*geometry.indices, index);
-                    }
+                    case .U8;
+                        index_count := index_accessor.view.count;
+                        array_reserve(*geometry.indices, index_count);
+                        index_data := cast(*u8) index_accessor.view.data;
+                        for 0..index_count - 1 {
+                            index := cast(u32) << (index_data + it);
+                            array_add(*geometry.indices, index);
+                        }
 
-                case .S16;
-                    index_count := index_accessor.view.count / size_of(s16);
-                    array_reserve(*geometry.indices, index_count);
-                    index_data := cast(*s16) index_accessor.view.data;
-                    for 0..index_count - 1 {
-                        index := cast(u32) << (index_data + it);
-                        array_add(*geometry.indices, index);
-                    }
+                    case .S16;
+                        index_count := index_accessor.view.count / size_of(s16);
+                        array_reserve(*geometry.indices, index_count);
+                        index_data := cast(*s16) index_accessor.view.data;
+                        for 0..index_count - 1 {
+                            index := cast(u32) << (index_data + it);
+                            array_add(*geometry.indices, index);
+                        }
 
-                case .U16;
-                    index_count := index_accessor.view.count / size_of(u16);
-                    array_reserve(*geometry.indices, index_count);
-                    index_data := cast(*u16) index_accessor.view.data;
-                    for 0..index_count - 1 {
-                        index := cast(u32) << (index_data + it);
-                        array_add(*geometry.indices, index);
-                    }
+                    case .U16;
+                        index_count := index_accessor.view.count / size_of(u16);
+                        array_reserve(*geometry.indices, index_count);
+                        index_data := cast(*u16) index_accessor.view.data;
+                        for 0..index_count - 1 {
+                            index := cast(u32) << (index_data + it);
+                            array_add(*geometry.indices, index);
+                        }
 
-                case .U32;
-                    index_count := index_accessor.view.count / size_of(u32);
-                    array_reserve(*geometry.indices, index_count);
-                    index_data := cast(*u32) index_accessor.view.data;
-                    for 0..index_count - 1 {
-                        index := cast(u32) << (index_data + it);
-                        array_add(*geometry.indices, index);
-                    }
+                    case .U32;
+                        index_count := index_accessor.view.count / size_of(u32);
+                        array_reserve(*geometry.indices, index_count);
+                        index_data := cast(*u32) index_accessor.view.data;
+                        for 0..index_count - 1 {
+                            index := cast(u32) << (index_data + it);
+                            array_add(*geometry.indices, index);
+                        }
 
-                case .F32;
-                    assert(false, "Invalid index component type.");
+                    case .F32;
+                        assert(false, "Invalid index component type.");
+                }
+            } else {
+                array_reserve(*geometry.indices, vertex_count);
+                geometry.indices.count = vertex_count;
+                for index: 0..cast(u32) vertex_count - 1 {
+                    array_add(*geometry.indices, index);
+                }
             }
 
             geometry_stride := get_attribute_stride(geometry);

@@ -96,6 +96,7 @@
 #load "src/Shaders.jai";
 #load "src/ShaderUniforms.jai";
 #load "src/SkinnedAnimationDoubleShader3.jai";
+#load "src/SkinnedAnimationNoNormalShader3.jai";
 #load "src/SkinnedAnimationNoTextureShader3.jai";
 #load "src/SkinnedAnimationShader3.jai";
 #load "src/SwapBuffer.jai";
@@ -148,6 +149,7 @@ default_color_shader3: DefaultVertColorShader3;
 default_shader_colors3: DefaultShaderColors3;
 default_shape_shader3: DefaultShapeShader3;
 skinned_animation_double_shader3: SkinnedAnimationDoubleShader3;
+skinned_animation_no_normal_shader3: SkinnedAnimationNoNormalShader3;
 skinned_animation_no_texture_shader3: SkinnedAnimationNoTextureShader3;
 skinned_animation_shader3: SkinnedAnimationShader3;
 volumetric_cloud_shader: VolumetricCloudShader;

@@ -28,6 +28,8 @@ draw :: (animated: AnimatedModel, animation: string, frame: float = 0.0, transfo
         shader = *skinned_animation_shader3;
     } else if animated.model.geometry.count > 0 && matches_attributes(animated.model.geometry[0], .Position, .Normal, .JointIndices, .JointWeights) {
         shader = *skinned_animation_no_texture_shader3;
+    } else if animated.model.geometry.count > 0 && matches_attributes(animated.model.geometry[0], .Position, .Texcoord, .JointIndices, .JointWeights) {
+        shader = *skinned_animation_no_normal_shader3;
     } else if animated.model.geometry.count > 0 && matches_attributes(animated.model.geometry[0], .Position, .Normal, .Texcoord, .JointIndices, .JointIndices, .JointWeights, .JointWeights) {
         shader = *skinned_animation_double_shader3;
     } else if animated.model.geometry.count > 0 {

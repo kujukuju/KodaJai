@@ -464,10 +464,6 @@ get_accessor_view :: (accessor: GltfAccessorInfo, $type: string) -> [] Matrix4 #
 
 is_valid_primitive :: (primitive: GltfJson.GltfJsonMesh.GltfJsonMeshPrimitive) -> bool {
     // needs to match model code
-    if !primitive.indices {
-        return false;
-    }
-
     position_accessor_object := primitive.attributes["POSITION"];
     if !position_accessor_object {
         return false;

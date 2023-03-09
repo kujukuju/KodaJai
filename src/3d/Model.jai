@@ -321,7 +321,6 @@ load_model_gltf_data :: (json: GltfJson, binary: [] u8) -> [..] *Model, bool {
     node_path: [..] int;
     node_path.allocator = temp;
 
-
     for node, node_index: json.nodes {
         if node.mesh {
             mesh_index := << node.mesh;

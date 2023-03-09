@@ -126,8 +126,8 @@ get_joints :: (animation: Animation, frame: float, $count: int) -> [count] Matri
         joint := animation.bone_hierarchy[i];
 
         // if the joint parent isn't itself then set the parent
-        // parent_transform := animation.world;
-        parent_transform := Matrix4Identity;
+        parent_transform := animation.world;
+        // parent_transform := Matrix4Identity;
         if joint.parent != i {
             parent_transform = joints_bones[joint.parent];
             empty: Matrix4;
@@ -154,7 +154,7 @@ get_joints :: (animation: Animation, frame: float, $count: int) -> [count] Matri
 
     for i: 0..animation.inverse_binds.count - 1 {
         joints[i] = joints[i] * animation.inverse_binds[i];
-        // joints[i] = animation.inverse_world * joints[i];
+        joints[i] = animation.inverse_world * joints[i];
     }
 
     return joints;
@@ -195,14 +195,16 @@ load_animation_gltf_data :: (json: GltfJson, binary: [] u8) -> [..] Animation, b
     assert(json.skins.count == 1, "I'm not sure yet how to handle multiple skins. This is complicated enough as it is.");
     skin := json.skins.data[0];
 
-    assert(json.animations.count == 1, "I'm not sure how to handle multiple animations either.");
-    current_animation := json.animations.data[0];
+    assert(skin.joints.count > 0, "I'm not sure what it means if there are no joints.");
 
     assert(json.scenes.count == 1, "I'm not sure how to handle multiple scenes.");
-    assert(!!json.scenes[0].nodes, "I'm not sure how to handle the root node not being labelled.");
-    assert(json.scenes[0].nodes.count == 1, "I'm not sure how to handle multiple node hierarchies.");
+    scene := json.scenes[0];
+    assert(!!scene.nodes, "I'm not sure how to handle the root node not being labelled.");
 
-    scene_root_node_index := json.scenes[0].nodes.data[0];
+    if skin.skeleton {
+        skeleton_root_index := << skin.skeleton;
+        assert(skeleton_root_index == skin.joints[0], "I'm not sure what it means if the skeleton root is different from the first skin joint.");
+    }
 
     skin_root_node_index := -1;
 
@@ -264,7 +266,10 @@ load_animation_gltf_data :: (json: GltfJson, binary: [] u8) -> [..] Animation, b
     search_queue: [..] int;
     search_queue.allocator = temp;
 
-    array_add(*search_queue, scene_root_node_index);
+    array_add(*search_queue, skin.joints[0]);
+    // for scene_node_index: 0..scene.nodes.count - 1 {
+    //     array_add(*search_queue, scene.nodes.data[scene_node_index]);
+    // }
 
     node_count := 0;
     while search_queue.count > 0 {
@@ -291,178 +296,181 @@ load_animation_gltf_data :: (json: GltfJson, binary: [] u8) -> [..] Animation, b
     assert(node_count >= skin.joints.count, "The found joint hierarchy count must be the same as or more than the skin inner joints count.");
 
     animations: [..] Animation;
-    animation := array_add(*animations);
-    animation.world = world_transform;
-    animation.inverse_world = inverse(world_transform);
 
-    if current_animation.name && current_animation.name.count > 0 {
-        animation.name = copy_string(<< current_animation.name);
-        print("name %\n", animation.name);
-    }
+    for animation_index: 0..json.animations.count - 1 {
+        current_animation := json.animations.data[animation_index];
 
-    array_reserve(*animation.joint_indices, skin.joints.count);
-    animation.joint_indices.count = skin.joints.count;
-    for i: 0..skin.joints.count - 1 {
-        animation.joint_indices[i] = << table_find_pointer(*node_to_bone_remap, skin.joints[i]);
-    }
+        animation := array_add(*animations);
+        animation.world = world_transform;
+        animation.inverse_world = inverse(world_transform);
 
-    array_resize(*animation.bone_hierarchy, node_count);
-
-    for bone_index: 0..node_count - 1 {
-        node_index := << table_find_pointer(*bone_to_node_remap, bone_index);
-        node := json.nodes[node_index];
-
-        animation.bone_hierarchy[bone_index].transform = get_transform(node);
-
-        // every child should have a prent except the root node which is 0 so its a parent to itself
-        // so we don't have to worry about this
-        if node.children {
-            for i: 0..node.children.count - 1 {
-                child_node_index := node.children.data[i];
-                child_bone_index := << table_find_pointer(*node_to_bone_remap, child_node_index);
-
-                assert(animation.bone_hierarchy[child_bone_index].parent == 0, "Attempting to double set a childs parent.");
-                animation.bone_hierarchy[child_bone_index].parent = bone_index;
-            }
+        if current_animation.name && current_animation.name.count > 0 {
+            animation.name = copy_string(<< current_animation.name);
+            print("name %\n", animation.name);
         }
-    }
 
-    array_reserve(*animation.inverse_binds, skin.joints.count);
-    animation.inverse_binds.count = skin.joints.count;
-
-    // fill up the inverse bind matrices
-    if skin.inverseBindMatrices {
-        matrix_accessor := get_accessor_view(accessors[<< skin.inverseBindMatrices], "MAT4");
-        assert(matrix_accessor.count == skin.joints.count, "I think you must have the same number of inverse binds as inner joints.");
-
-        for i: 0..matrix_accessor.count - 1 {
-            animation.inverse_binds[i] = transpose(matrix_accessor[i]);
-        }
-    } else {
+        array_reserve(*animation.joint_indices, skin.joints.count);
+        animation.joint_indices.count = skin.joints.count;
         for i: 0..skin.joints.count - 1 {
-            animation.inverse_binds[i] = Matrix4Identity;
-        }
-    }
-
-    // the animation samplers inputs are times
-    // the animation samplers outputs are the transformations, presumably for each time
-
-    // the animation channels sampler is the animation sampler
-    // the animation channels target is the node entry in the hierarchy and the type of transformation
-
-    array_resize(*animation.frames, node_count);
-
-    for channel: current_animation.channels {
-        assert(!!channel.target.node, "I'm not sure what it would mean for a channel target to not have a node (hierarchy index).");
-
-        sampler_index := channel.sampler;
-        node_index := << channel.target.node;
-
-        if !table_find_pointer(*node_to_bone_remap, node_index) {
-            // TODO I'm not sure if this is right, but some transformations seem to be on node 1 while the skeleton starts on node 2
-            // TODO so I think these transformations are moving the whole body and we don't care about them
-            // TODO otherwise I'm not sure how to calculate the bone hierarchy based on the data gltf provides....
-            // TODO except loop through all channels and get the min and max nodes on top of what I'm already doing which seems awful
-            continue;
+            animation.joint_indices[i] = << table_find_pointer(*node_to_bone_remap, skin.joints[i]);
         }
 
-        bone_index := << table_find_pointer(*node_to_bone_remap, node_index);
+        array_resize(*animation.bone_hierarchy, node_count);
 
-        sampler := current_animation.samplers[sampler_index];
-        time_view := get_accessor_view(accessors[sampler.input], "SCALAR");
-        interpolation_method := sampler.interpolation;
-        transformation_accessor := accessors[sampler.output];
+        for bone_index: 0..node_count - 1 {
+            node_index := << table_find_pointer(*bone_to_node_remap, bone_index);
+            node := json.nodes[node_index];
 
-        // TODO I could calculate this all in one loop by only moving forward for each list but its hard
-        missing_frame_count := 0;
-        for i: 0..time_view.count - 1 {
-            for a: 0..animation.frames[bone_index].count - 1 {
-                if time_view[i] == animation.frames[bone_index][a].frame {
-                    continue i;
+            animation.bone_hierarchy[bone_index].transform = get_transform(node);
+
+            // every child should have a prent except the root node which is 0 so its a parent to itself
+            // so we don't have to worry about this
+            if node.children {
+                for i: 0..node.children.count - 1 {
+                    child_node_index := node.children.data[i];
+                    child_bone_index := << table_find_pointer(*node_to_bone_remap, child_node_index);
+
+                    assert(animation.bone_hierarchy[child_bone_index].parent == 0, "Attempting to double set a childs parent.");
+                    animation.bone_hierarchy[child_bone_index].parent = bone_index;
                 }
             }
-
-            missing_frame_count += 1;
         }
 
-        if missing_frame_count > 0 {
-            m_translation, m_rotation, m_scale := decompose_matrix4(animation.bone_hierarchy[bone_index].transform);
+        array_reserve(*animation.inverse_binds, skin.joints.count);
+        animation.inverse_binds.count = skin.joints.count;
 
-            array_reserve(*animation.frames[bone_index], animation.frames[bone_index].count + missing_frame_count);
+        // fill up the inverse bind matrices
+        if skin.inverseBindMatrices {
+            matrix_accessor := get_accessor_view(accessors[<< skin.inverseBindMatrices], "MAT4");
+            assert(matrix_accessor.count == skin.joints.count, "I think you must have the same number of inverse binds as inner joints.");
+
+            for i: 0..matrix_accessor.count - 1 {
+                animation.inverse_binds[i] = transpose(matrix_accessor[i]);
+            }
+        } else {
+            for i: 0..skin.joints.count - 1 {
+                animation.inverse_binds[i] = Matrix4Identity;
+            }
+        }
+
+        // the animation samplers inputs are times
+        // the animation samplers outputs are the transformations, presumably for each time
+
+        // the animation channels sampler is the animation sampler
+        // the animation channels target is the node entry in the hierarchy and the type of transformation
+
+        array_resize(*animation.frames, node_count);
+
+        for channel: current_animation.channels {
+            assert(!!channel.target.node, "I'm not sure what it would mean for a channel target to not have a node (hierarchy index).");
+
+            sampler_index := channel.sampler;
+            node_index := << channel.target.node;
+
+            if !table_find_pointer(*node_to_bone_remap, node_index) {
+                // TODO I'm not sure if this is right, but some transformations seem to be on node 1 while the skeleton starts on node 2
+                // TODO so I think these transformations are moving the whole body and we don't care about them
+                // TODO otherwise I'm not sure how to calculate the bone hierarchy based on the data gltf provides....
+                // TODO except loop through all channels and get the min and max nodes on top of what I'm already doing which seems awful
+                continue;
+            }
+
+            bone_index := << table_find_pointer(*node_to_bone_remap, node_index);
+
+            sampler := current_animation.samplers[sampler_index];
+            time_view := get_accessor_view(accessors[sampler.input], "SCALAR");
+            interpolation_method := sampler.interpolation;
+            transformation_accessor := accessors[sampler.output];
+
+            // TODO I could calculate this all in one loop by only moving forward for each list but its hard
+            missing_frame_count := 0;
             for i: 0..time_view.count - 1 {
-                insert_index := animation.frames[bone_index].count;
                 for a: 0..animation.frames[bone_index].count - 1 {
-                    if animation.frames[bone_index][a].frame == time_view[i] {
+                    if time_view[i] == animation.frames[bone_index][a].frame {
                         continue i;
-                    } else if animation.frames[bone_index][a].frame > time_view[i] {
-                        insert_index = a;
-                        break;
                     }
                 }
 
-                entry: AnimationFrame;
-                entry.frame = time_view[i];
-                entry.translation = m_translation;
-                entry.rotation = m_rotation;
-                entry.scale = m_scale;
-
-                array_insert_at(*animation.frames[bone_index], entry, insert_index);
+                missing_frame_count += 1;
             }
-        }
 
-        print("times %\n", animation.frames[bone_index]);
+            if missing_frame_count > 0 {
+                m_translation, m_rotation, m_scale := decompose_matrix4(animation.bone_hierarchy[bone_index].transform);
 
-        // assert(animation.frames[bone_index].count == time_view.count, "I expect that every transformation for a given bone has the same number of frames.");
-
-        if channel.target.path == {
-            case "translation";
-                translation_view := get_accessor_view(transformation_accessor, "VEC3");
-                assert(translation_view.count == time_view.count, "I think you have to have the same number of transformations for a given node as frames.");
-
+                array_reserve(*animation.frames[bone_index], animation.frames[bone_index].count + missing_frame_count);
                 for i: 0..time_view.count - 1 {
+                    insert_index := animation.frames[bone_index].count;
                     for a: 0..animation.frames[bone_index].count - 1 {
-                        if time_view[i] == animation.frames[bone_index][a].frame {
-                            animation.frames[bone_index][a].translation = translation_view[i];
+                        if animation.frames[bone_index][a].frame == time_view[i] {
                             continue i;
+                        } else if animation.frames[bone_index][a].frame > time_view[i] {
+                            insert_index = a;
+                            break;
                         }
                     }
 
-                    assert(false, "Reached the end of the bone frame loop without finding where to insert the specific frame transform.");
+                    entry: AnimationFrame;
+                    entry.frame = time_view[i];
+                    entry.translation = m_translation;
+                    entry.rotation = m_rotation;
+                    entry.scale = m_scale;
+
+                    array_insert_at(*animation.frames[bone_index], entry, insert_index);
                 }
+            }
 
-            case "rotation";
-                rotation_view := get_accessor_view(transformation_accessor, "QUAT");
-                assert(rotation_view.count == time_view.count, "I think you have to have the same number of transformations for a given node as frames.");
+            // assert(animation.frames[bone_index].count == time_view.count, "I expect that every transformation for a given bone has the same number of frames.");
 
-                for i: 0..time_view.count - 1 {
-                    for a: 0..animation.frames[bone_index].count - 1 {
-                        if time_view[i] == animation.frames[bone_index][a].frame {
-                            animation.frames[bone_index][a].rotation = rotation_view[i];
-                            continue i;
+            if channel.target.path == {
+                case "translation";
+                    translation_view := get_accessor_view(transformation_accessor, "VEC3");
+                    assert(translation_view.count == time_view.count, "I think you have to have the same number of transformations for a given node as frames.");
+
+                    for i: 0..time_view.count - 1 {
+                        for a: 0..animation.frames[bone_index].count - 1 {
+                            if time_view[i] == animation.frames[bone_index][a].frame {
+                                animation.frames[bone_index][a].translation = translation_view[i];
+                                continue i;
+                            }
                         }
+
+                        assert(false, "Reached the end of the bone frame loop without finding where to insert the specific frame transform.");
                     }
 
-                    assert(false, "Reached the end of the bone frame loop without finding where to insert the specific frame transform.");
-                }
+                case "rotation";
+                    rotation_view := get_accessor_view(transformation_accessor, "QUAT");
+                    assert(rotation_view.count == time_view.count, "I think you have to have the same number of transformations for a given node as frames.");
 
-            case "scale";
-                scale_view := get_accessor_view(transformation_accessor, "VEC3");
-                assert(scale_view.count == time_view.count, "I think you have to have the same number of transformations for a given node as frames.");
-
-                for i: 0..time_view.count - 1 {
-                    for a: 0..animation.frames[bone_index].count - 1 {
-                        if time_view[i] == animation.frames[bone_index][a].frame {
-                            animation.frames[bone_index][a].scale = scale_view[i];
-                            continue i;
+                    for i: 0..time_view.count - 1 {
+                        for a: 0..animation.frames[bone_index].count - 1 {
+                            if time_view[i] == animation.frames[bone_index][a].frame {
+                                animation.frames[bone_index][a].rotation = rotation_view[i];
+                                continue i;
+                            }
                         }
+
+                        assert(false, "Reached the end of the bone frame loop without finding where to insert the specific frame transform.");
                     }
 
-                    assert(false, "Reached the end of the bone frame loop without finding where to insert the specific frame transform.");
-                }
+                case "scale";
+                    scale_view := get_accessor_view(transformation_accessor, "VEC3");
+                    assert(scale_view.count == time_view.count, "I think you have to have the same number of transformations for a given node as frames.");
 
-            case;
-                print("Unhandled animation transformation type. %\n", channel.target.path);
-                assert(false, "Unhandled animation transformation type.");
+                    for i: 0..time_view.count - 1 {
+                        for a: 0..animation.frames[bone_index].count - 1 {
+                            if time_view[i] == animation.frames[bone_index][a].frame {
+                                animation.frames[bone_index][a].scale = scale_view[i];
+                                continue i;
+                            }
+                        }
+
+                        assert(false, "Reached the end of the bone frame loop without finding where to insert the specific frame transform.");
+                    }
+
+                case;
+                    print("Unhandled animation transformation type. %\n", channel.target.path);
+                    assert(false, "Unhandled animation transformation type.");
+            }
         }
     }
 
