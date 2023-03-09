@@ -123,6 +123,9 @@ get_joints :: (animation: Animation, frame: float, $count: int) -> [count] Matri
     joints_bones: [..] Matrix4;
     joints_bones.allocator = temp;
 
+    array_reserve(*joints_bones, animation.bone_hierarchy.count);
+    joints_bones.count = animation.bone_hierarchy.count;
+
     for i: 0..animation.bone_hierarchy.count - 1 {
         joint := animation.bone_hierarchy[i];
 
