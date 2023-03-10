@@ -11,6 +11,8 @@ Animation :: struct {
     inverse_binds: [..] Matrix4;
     // the indices are the bone indices, the inner indices are for the animation frames
     frames: [..][..] AnimationFrame;
+    // these are the relevancy weights for a given animation
+    bone_weights: [..] float;
 }
 
 AnimationJoint :: struct {
@@ -23,6 +25,11 @@ AnimationFrame :: struct {
     translation: Vector3 = .{0, 0, 0};
     rotation: Quaternion = .{0, 0, 0, 1};
     scale: Vector3 = .{1, 1, 1};
+}
+
+AnimationMix :: struct {
+    name: string;
+    weight: float;
 }
 
 load_animation :: (path: string) -> [..] Animation, bool {
@@ -56,6 +63,129 @@ load_animation :: (path: string) -> [..] Animation, bool {
     }
 }
 
+// this will apply the animations in the order received, not all at the same time
+// as such the weights dont have to add up to 1, you can merge with the previous animation to create a new animation
+// and then completely overwrite part of the new animation
+// for example, if you want to mix walk directions (50%/50%) and then have the character holding a bow (100%)
+get_joints :: (animations: [..] Animation, mix: [] AnimationMix, frame: float, $count: int) -> [count] Matrix4 {
+    return get_joints(animations, ..mix, frame, count);
+}
+
+get_joints :: (animations: [..] Animation, mix: ..AnimationMix, frame: float, $count: int) -> [count] Matrix4 {
+    assert(animations.count > 0);
+    assert(mix.count > 0);
+    assert(mix[0].weight == 1, "The way this animation mixing works it doesn't make sense to start with anything other than 1.");
+
+    // im pretty sure im supposed to be mixing at a local level, not the absolute position
+
+    bone_count := animations[0].bone_hierarchy.count;
+    for i: 0..animations.count - 1 {
+        assert(animations[i].bone_hierarchy.count == bone_count, "This relies on each animation having the same number of bones. It would be weird if they didn't.");
+    }
+
+    TransformEntry :: struct {
+        translation: Vector3;
+        rotation: Quaternion;
+        scale: Vector3;
+    }
+
+    current_weights: [..] float;
+    current_weights.allocator = temp;
+    array_resize(*current_weights, bone_count);
+
+    current: [..] TransformEntry;
+    current.allocator = temp;
+    array_resize(*current, bone_count);
+
+    for i: 0..mix.count - 1 {
+        animation: Animation;
+        for current: animations {
+            if current.name == mix[i].name {
+                animation = current;
+            }
+        }
+
+        // the way well do this is well only increment the index when the bones frame count is not 0
+        // then well do the same thing when were applying the animations
+        current_index := 0;
+        for bone_index: 0..animation.frames.count - 1 {
+            if animation.frames[bone_index].count > 0 {
+                bone_weight := mix[i].weight * animation.bone_weights[bone_index];
+                translation, rotation, scale := get_interpolated_components(animation.frames[bone_index], frame);
+
+                if current_weights[current_index] == 0 {
+                    current[current_index].translation = translation;
+                    current[current_index].rotation = rotation;
+                    current[current_index].scale = scale;
+
+                    current_weights[current_index] = bone_weight;
+                } else {
+                    percentage_new := bone_weight / (bone_weight + current_weights[current_index]);
+
+                    current[current_index].translation = lerp(current[current_index].translation, translation, percentage_new);
+                    current[current_index].rotation = quat_slerp(current[current_index].rotation, rotation, percentage_new);
+                    current[current_index].scale = lerp(current[current_index].scale, scale, percentage_new);
+                    
+                    current_weights[current_index] = lerp(current_weights[current_index], bone_weight, percentage_new);
+                }
+
+                current_index += 1;
+            }
+        }
+    }
+
+    // now the same animation code
+    joints_bones: [..] Matrix4;
+    joints_bones.allocator = temp;
+    array_reserve(*joints_bones, animation.bone_hierarchy.count);
+    joints_bones.count = animation.bone_hierarchy.count;
+
+    current_index := 0;
+    for i: 0..bone_count - 1 {
+        joint := animation[0].bone_hierarchy[i];
+
+        // if the joint parent isn't itself then set the parent
+        // parent_transform := animation.world;
+        parent_transform := Matrix4Identity;
+        if joint.parent != i {
+            parent_transform = joints_bones[joint.parent];
+            empty: Matrix4;
+            assert(parent_transform != empty, "If there's a parent it shouldn't be empty. At least identity.");
+        }
+
+        interpolated_matrix: Matrix4;
+        if animation.frames[i].count == 0 {
+            interpolated_matrix = joint.transform;
+        } else {
+            interpolated_components := current[current_index];
+
+            interpolated_matrix = Matrix4Identity;
+            interpolated_matrix = translate(interpolated_matrix, interpolated_components.translation);
+            interpolated_matrix = rotate(interpolated_matrix, interpolated_components.rotation);
+            interpolated_matrix = scale(interpolated_matrix, interpolated_components.scale);
+
+            current_index += 1;
+        }
+
+        // local_transform := interpolated_matrix;
+        joints_bones[i] = parent_transform * interpolated_matrix;
+    }
+
+    joints: [count] Matrix4;
+
+    for i: 0..animation.joint_indices.count - 1 {
+        real_index := animation.joint_indices[i];
+        joints[i] = joints_bones[real_index];
+    }
+
+    for i: 0..animation.inverse_binds.count - 1 {
+        joints[i] = joints[i] * animation.inverse_binds[i];
+        // joints[i] = animation.inverse_world * joints[i];
+    }
+
+    return joints;
+}
+
 get_joints :: (animations: [..] Animation, name: string, frame: float, $count: int) -> [count] Matrix4 {
     for animation: animations {
         if animation.name == name {
@@ -70,59 +200,8 @@ get_joints :: (animations: [..] Animation, name: string, frame: float, $count: i
 }
 
 get_joints :: (animation: Animation, frame: float, $count: int) -> [count] Matrix4 {
-    get_interpolated :: (frames: [..] AnimationFrame, frame: float) -> Matrix4 {
-        assert(frames.count > 0, "Cannot get an interpolated transform if there are no frames.");
-
-        minimum_frame := frames[0].frame;
-        maximum_frame := frames[frames.count - 1].frame;
-        starting_index := 0;
-        ending_index := 0;
-
-        wrapped_frame := fmod_cycling(frame - minimum_frame, maximum_frame - minimum_frame) + minimum_frame;
-
-        i := frames.count - 2;
-        while i >= 0 {
-            if wrapped_frame >= frames[i].frame {
-                starting_index = i;
-                ending_index = i + 1;
-                break;
-            }
-
-            i -= 1;
-        }
-
-        assert(starting_index != ending_index, "Could not find the frames that the requested frame is in between.");
-
-        starting_frame := frames[starting_index];
-        ending_frame := frames[ending_index];
-
-        starting_frame_time := starting_frame.frame;
-        ending_frame_time := ending_frame.frame;
-
-        progress := (wrapped_frame - starting_frame_time) / (ending_frame_time - starting_frame_time);
-
-        starting_translation := starting_frame.translation;
-        ending_translation := ending_frame.translation;
-        starting_rotation := starting_frame.rotation;
-        ending_rotation := ending_frame.rotation;
-        starting_scale := starting_frame.scale;
-        ending_scale := ending_frame.scale;
-
-        frame_translation := lerp(starting_translation, ending_translation, progress);
-        frame_rotation := quat_slerp(starting_rotation, ending_rotation, progress);
-        frame_scale := lerp(starting_scale, ending_scale, progress);
-
-        interpolated_matrix := Matrix4Identity;
-        interpolated_matrix = translate(interpolated_matrix, frame_translation);
-        interpolated_matrix = rotate(interpolated_matrix, frame_rotation);
-        interpolated_matrix = scale(interpolated_matrix, frame_scale);
-
-        return interpolated_matrix;
-    }
-
     joints_bones: [..] Matrix4;
     joints_bones.allocator = temp;
-
     array_reserve(*joints_bones, animation.bone_hierarchy.count);
     joints_bones.count = animation.bone_hierarchy.count;
 
@@ -142,7 +221,7 @@ get_joints :: (animation: Animation, frame: float, $count: int) -> [count] Matri
         if animation.frames[i].count == 0 {
             interpolated_matrix = joint.transform;
         } else {
-            interpolated_matrix = get_interpolated(animation.frames[i], frame);
+            interpolated_matrix = get_interpolated_matrix(animation.frames[i], frame);
         }
 
         // local_transform := interpolated_matrix;
@@ -478,7 +557,138 @@ load_animation_gltf_data :: (json: GltfJson, binary: [] u8) -> [..] Animation, b
         }
     }
 
+    for *animation: animations {
+        calculate_bone_weights(animation);
+    }
+
     return animations, true;
+}
+
+calculate_bone_weights :: (animation: *Animation) {
+    assert(animation.bone_weights.count == 0, "Cannot calculate bone weights they already exist.");
+
+    // iterate through all bones calculating their cumulative delta between frames
+    // put these cumulative values in the bone slots
+    // add these values together down the hierarchy
+
+    array_resize(*animation.bone_weights, animation.bone_hierarchy.count);
+
+    joints_bones: [..] Matrix4;
+    joints_bones.allocator = temp;
+    array_reserve(*joints_bones, animation.bone_hierarchy.count);
+    joints_bones.count = animation.bone_hierarchy.count;
+
+    largest_frame_count := 0;
+    for i: 0..animation.frames.count - 1 {
+        largest_frame_count = max(largest_frame_count, animation.frames[i].count);
+    }
+
+    // this is the maximum size of the bone with the most frames
+    weights: [..] float;
+    weights.allocator = temp;
+    array_reserve(*weights, largest_frame_count);
+
+    for i: 0..animation.bone_hierarchy.count - 1 {
+        joint := animation.bone_hierarchy[i];
+
+        // each weight is the change between the current bone and the next bone, because they all just get added up at the end anyways
+        weights.count = animation.frames[i].count;
+        memset(weights.data, 0, weights.count * size_of(float));
+
+        frames := animation.frames[i];
+        for frame_index: 0..frames.count - 1 {
+            current_frame := frames[frame_index];
+            
+            current_translation := current_frame.translation;
+            current_rotation := current_frame.rotation;
+            current_scale := current_frame.scale;
+
+            next_frame_index := (frame_index + 1) % frames.count;
+            next_frame := frames[next_frame_index];
+            
+            next_translation := next_frame.translation;
+            next_rotation := next_frame.rotation;
+            next_scale := next_frame.scale;
+
+            radians_between := abs(quat_radians_between(current_rotation, next_rotation));
+            weights[frame_index] = radians_between;
+        }
+
+        cumulative_weight := 0.0;
+        for weight: weights {
+            cumulative_weight += weight;
+        }
+
+        animation.bone_weights[i] = cumulative_weight;
+    }
+
+    for i: 0..animation.bone_hierarchy.count - 1 {
+        joint := animation.bone_hierarchy[i];
+
+        parent_weight := 0.0;
+        if joint.parent != i {
+            assert(joint.parent < i, "This won't work correctly if the parent is after the current index.");
+            parent_weight = animation.bone_weights[joint.parent];
+        }
+
+        animation.bone_weights[i] += parent_weight;
+    }
+}
+
+get_interpolated_components :: (frames: [..] AnimationFrame, frame: float) -> Vector3, Quaternion, Vector3 {
+    assert(frames.count > 0, "Cannot get an interpolated transform if there are no frames.");
+
+    minimum_frame := frames[0].frame;
+    maximum_frame := frames[frames.count - 1].frame;
+    starting_index := 0;
+    ending_index := 0;
+
+    wrapped_frame := fmod_cycling(frame - minimum_frame, maximum_frame - minimum_frame) + minimum_frame;
+
+    i := frames.count - 2;
+    while i >= 0 {
+        if wrapped_frame >= frames[i].frame {
+            starting_index = i;
+            ending_index = i + 1;
+            break;
+        }
+
+        i -= 1;
+    }
+
+    assert(starting_index != ending_index, "Could not find the frames that the requested frame is in between.");
+
+    starting_frame := frames[starting_index];
+    ending_frame := frames[ending_index];
+
+    starting_frame_time := starting_frame.frame;
+    ending_frame_time := ending_frame.frame;
+
+    progress := (wrapped_frame - starting_frame_time) / (ending_frame_time - starting_frame_time);
+
+    starting_translation := starting_frame.translation;
+    ending_translation := ending_frame.translation;
+    starting_rotation := starting_frame.rotation;
+    ending_rotation := ending_frame.rotation;
+    starting_scale := starting_frame.scale;
+    ending_scale := ending_frame.scale;
+
+    frame_translation := lerp(starting_translation, ending_translation, progress);
+    frame_rotation := quat_slerp(starting_rotation, ending_rotation, progress);
+    frame_scale := lerp(starting_scale, ending_scale, progress);
+
+    return frame_translation, frame_rotation, frame_scale;
+}
+
+get_interpolated_matrix :: (frames: [..] AnimationFrame, frame: float) -> Matrix4 {
+    frame_translation, frame_rotation, frame_scale := get_interpolated_components(frames, frame);
+
+    interpolated_matrix := Matrix4Identity;
+    interpolated_matrix = translate(interpolated_matrix, frame_translation);
+    interpolated_matrix = rotate(interpolated_matrix, frame_rotation);
+    interpolated_matrix = scale(interpolated_matrix, frame_scale);
+
+    return interpolated_matrix;
 }
 
 #scope_export
