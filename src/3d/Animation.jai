@@ -17,6 +17,9 @@ Animation :: struct {
 
 AnimationJoint :: struct {
     transform: Matrix4 = Matrix4Identity;
+    translation: Vector3 = .{0, 0, 0};
+    rotation: Quaternion = .{0, 0, 0, 1};
+    scale: Vector3 = .{1, 1, 1};
     parent: int;
 }
 
@@ -32,7 +35,7 @@ AnimationMix :: struct {
     weight: float;
 }
 
-load_animation :: (path: string) -> [..] Animation, bool {
+load_animation :: (path: string, name_override: string = "") -> [..] Animation, bool {
     file, success := read_entire_file(path);
     defer free(file);
     if !success {
@@ -41,16 +44,18 @@ load_animation :: (path: string) -> [..] Animation, bool {
     }
 
     if ends_with(path, ".glb") {
-        animations, success := load_animation_glb(file);
+        animations, success := load_animation_glb(file, name_override);
         if !success {
+            array_free(animations);
             empty: [..] Animation;
             return empty, false;
         }
 
         return animations, true;
     } else if ends_with(path, ".gltf") {
-        animations, success := load_animation_gltf(file, path);
+        animations, success := load_animation_gltf(file, path, name_override);
         if !success {
+            array_free(animations);
             empty: [..] Animation;
             return empty, false;
         }
@@ -63,20 +68,55 @@ load_animation :: (path: string) -> [..] Animation, bool {
     }
 }
 
+load_animation :: (animation: *[..] Animation, path: string, name_override: string = "") -> bool {
+    file, success := read_entire_file(path);
+    defer free(file);
+    if !success {
+        return false;
+    }
+
+    if ends_with(path, ".glb") {
+        animations, success := load_animation_glb(file, name_override);
+        defer array_free(animations);
+        if !success {
+            return false;
+        }
+
+        for current: animations {
+            array_add(animation, current);
+        }
+
+        return true;
+    } else if ends_with(path, ".gltf") {
+        animations, success := load_animation_gltf(file, path, name_override);
+        defer array_free(animations);
+        if !success {
+            return false;
+        }
+
+        for current: animations {
+            array_add(animation, current);
+        }
+
+        return true;
+    } else {
+        print("Unknown file type. %\n", path);
+        return false;
+    }
+}
+
 // this will apply the animations in the order received, not all at the same time
 // as such the weights dont have to add up to 1, you can merge with the previous animation to create a new animation
 // and then completely overwrite part of the new animation
 // for example, if you want to mix walk directions (50%/50%) and then have the character holding a bow (100%)
-get_joints :: (animations: [..] Animation, mix: [] AnimationMix, frame: float, $count: int) -> [count] Matrix4 {
-    return get_joints(animations, ..mix, frame, count);
-}
+// get_joints :: (animations: [..] Animation, mix: [] AnimationMix, frame: float, $count: int) -> [count] Matrix4 {
+//     return get_joints(animations, ..mix, frame, count);
+// }
 
-get_joints :: (animations: [..] Animation, mix: ..AnimationMix, frame: float, $count: int) -> [count] Matrix4 {
+get_joints :: (animations: [..] Animation, mix: [] AnimationMix, frame: float, $count: int) -> [count] Matrix4 {
     assert(animations.count > 0);
     assert(mix.count > 0);
-    assert(mix[0].weight == 1, "The way this animation mixing works it doesn't make sense to start with anything other than 1.");
-
-    // im pretty sure im supposed to be mixing at a local level, not the absolute position
+    // assert(mix[0].weight == 1, "The way this animation mixing works it doesn't make sense to start with anything other than 1.");
 
     bone_count := animations[0].bone_hierarchy.count;
     for i: 0..animations.count - 1 {
@@ -107,29 +147,47 @@ get_joints :: (animations: [..] Animation, mix: ..AnimationMix, frame: float, $c
 
         // the way well do this is well only increment the index when the bones frame count is not 0
         // then well do the same thing when were applying the animations
-        current_index := 0;
         for bone_index: 0..animation.frames.count - 1 {
+            bone_weight := max(mix[i].weight, 0.0) * animation.bone_weights[bone_index];
+
             if animation.frames[bone_index].count > 0 {
-                bone_weight := mix[i].weight * animation.bone_weights[bone_index];
                 translation, rotation, scale := get_interpolated_components(animation.frames[bone_index], frame);
 
-                if current_weights[current_index] == 0 {
-                    current[current_index].translation = translation;
-                    current[current_index].rotation = rotation;
-                    current[current_index].scale = scale;
+                if current_weights[bone_index] == 0 {
+                    current[bone_index].translation = translation;
+                    current[bone_index].rotation = rotation;
+                    current[bone_index].scale = scale;
 
-                    current_weights[current_index] = bone_weight;
-                } else {
-                    percentage_new := bone_weight / (bone_weight + current_weights[current_index]);
+                    current_weights[bone_index] = bone_weight;
+                } else if bone_weight > 0 {
+                    percentage_new := bone_weight / (bone_weight + current_weights[bone_index]);
 
-                    current[current_index].translation = lerp(current[current_index].translation, translation, percentage_new);
-                    current[current_index].rotation = quat_slerp(current[current_index].rotation, rotation, percentage_new);
-                    current[current_index].scale = lerp(current[current_index].scale, scale, percentage_new);
+                    current[bone_index].translation = lerp(current[bone_index].translation, translation, percentage_new);
+                    current[bone_index].rotation = quat_slerp(current[bone_index].rotation, rotation, percentage_new);
+                    current[bone_index].scale = lerp(current[bone_index].scale, scale, percentage_new);
                     
-                    current_weights[current_index] = lerp(current_weights[current_index], bone_weight, percentage_new);
+                    current_weights[bone_index] = lerp(current_weights[bone_index], bone_weight, percentage_new);
                 }
+            } else {
+                translation := animation.bone_hierarchy[bone_index].translation;
+                rotation := animation.bone_hierarchy[bone_index].rotation;
+                scale := animation.bone_hierarchy[bone_index].scale;
 
-                current_index += 1;
+                if current_weights[bone_index] == 0 {
+                    current[bone_index].translation = translation;
+                    current[bone_index].rotation = rotation;
+                    current[bone_index].scale = scale;
+
+                    current_weights[bone_index] = bone_weight;
+                } else if bone_weight > 0 {
+                    percentage_new := bone_weight / (bone_weight + current_weights[bone_index]);
+
+                    current[bone_index].translation = lerp(current[bone_index].translation, translation, percentage_new);
+                    current[bone_index].rotation = quat_slerp(current[bone_index].rotation, rotation, percentage_new);
+                    current[bone_index].scale = lerp(current[bone_index].scale, scale, percentage_new);
+                    
+                    current_weights[bone_index] = lerp(current_weights[bone_index], bone_weight, percentage_new);
+                }
             }
         }
     }
@@ -137,12 +195,11 @@ get_joints :: (animations: [..] Animation, mix: ..AnimationMix, frame: float, $c
     // now the same animation code
     joints_bones: [..] Matrix4;
     joints_bones.allocator = temp;
-    array_reserve(*joints_bones, animation.bone_hierarchy.count);
-    joints_bones.count = animation.bone_hierarchy.count;
+    array_reserve(*joints_bones, bone_count);
+    joints_bones.count = bone_count;
 
-    current_index := 0;
     for i: 0..bone_count - 1 {
-        joint := animation[0].bone_hierarchy[i];
+        joint := animations[0].bone_hierarchy[i];
 
         // if the joint parent isn't itself then set the parent
         // parent_transform := animation.world;
@@ -153,19 +210,14 @@ get_joints :: (animations: [..] Animation, mix: ..AnimationMix, frame: float, $c
             assert(parent_transform != empty, "If there's a parent it shouldn't be empty. At least identity.");
         }
 
-        interpolated_matrix: Matrix4;
-        if animation.frames[i].count == 0 {
-            interpolated_matrix = joint.transform;
-        } else {
-            interpolated_components := current[current_index];
+        bone_translation := current[i].translation;
+        bone_rotation := current[i].rotation;
+        bone_scale := current[i].scale;
 
-            interpolated_matrix = Matrix4Identity;
-            interpolated_matrix = translate(interpolated_matrix, interpolated_components.translation);
-            interpolated_matrix = rotate(interpolated_matrix, interpolated_components.rotation);
-            interpolated_matrix = scale(interpolated_matrix, interpolated_components.scale);
-
-            current_index += 1;
-        }
+        interpolated_matrix := Matrix4Identity;
+        interpolated_matrix = translate(interpolated_matrix, bone_translation);
+        interpolated_matrix = rotate(interpolated_matrix, bone_rotation);
+        interpolated_matrix = scale(interpolated_matrix, bone_scale);
 
         // local_transform := interpolated_matrix;
         joints_bones[i] = parent_transform * interpolated_matrix;
@@ -173,13 +225,13 @@ get_joints :: (animations: [..] Animation, mix: ..AnimationMix, frame: float, $c
 
     joints: [count] Matrix4;
 
-    for i: 0..animation.joint_indices.count - 1 {
-        real_index := animation.joint_indices[i];
+    for i: 0..animations[0].joint_indices.count - 1 {
+        real_index := animations[0].joint_indices[i];
         joints[i] = joints_bones[real_index];
     }
 
-    for i: 0..animation.inverse_binds.count - 1 {
-        joints[i] = joints[i] * animation.inverse_binds[i];
+    for i: 0..animations[0].inverse_binds.count - 1 {
+        joints[i] = joints[i] * animations[0].inverse_binds[i];
         // joints[i] = animation.inverse_world * joints[i];
     }
 
@@ -245,7 +297,7 @@ get_joints :: (animation: Animation, frame: float, $count: int) -> [count] Matri
 
 #scope_file
 
-load_animation_glb :: (file: string) -> [..] Animation, bool {
+load_animation_glb :: (file: string, name_override: string) -> [..] Animation, bool {
     json, binary, json_memory, valid := load_glb(file);
     defer free(json_memory);
     if !valid {
@@ -253,11 +305,11 @@ load_animation_glb :: (file: string) -> [..] Animation, bool {
         return empty, false;
     }
 
-    animations, success := load_animation_gltf_data(json, binary);
+    animations, success := load_animation_gltf_data(json, binary, name_override);
     return animations, success;
 }
 
-load_animation_gltf :: (file: string, path: string) -> [..] Animation, bool {
+load_animation_gltf :: (file: string, path: string, name_override: string) -> [..] Animation, bool {
     json, binary, json_memory, valid := load_gltf(file, path);
     defer free(json_memory);
     if !valid {
@@ -265,14 +317,18 @@ load_animation_gltf :: (file: string, path: string) -> [..] Animation, bool {
         return empty, false;
     }
 
-    animations, success := load_animation_gltf_data(json, binary);
+    animations, success := load_animation_gltf_data(json, binary, name_override);
     return animations, success;
 }
 
-load_animation_gltf_data :: (json: GltfJson, binary: [] u8) -> [..] Animation, bool {
+load_animation_gltf_data :: (json: GltfJson, binary: [] u8, name_override: string) -> [..] Animation, bool {
     if !json.skins || !json.animations {
         empty: [..] Animation;
         return empty, false;
+    }
+
+    if name_override {
+        assert(json.animations.count == 1, "You can't override an animation name if there's more than 1 animation.");
     }
 
     assert(json.skins.count == 1, "I'm not sure yet how to handle multiple skins. This is complicated enough as it is.");
@@ -387,9 +443,10 @@ load_animation_gltf_data :: (json: GltfJson, binary: [] u8) -> [..] Animation, b
         animation.world = world_transform;
         animation.inverse_world = inverse(world_transform);
 
-        if current_animation.name && current_animation.name.count > 0 {
+        if name_override {
+            animation.name = copy_string(name_override);
+        } else if current_animation.name && current_animation.name.count > 0 {
             animation.name = copy_string(<< current_animation.name);
-            print("name %\n", animation.name);
         }
 
         array_reserve(*animation.joint_indices, skin.joints.count);
@@ -405,6 +462,11 @@ load_animation_gltf_data :: (json: GltfJson, binary: [] u8) -> [..] Animation, b
             node := json.nodes[node_index];
 
             animation.bone_hierarchy[bone_index].transform = get_transform(node);
+
+            bone_translation, bone_rotation, bone_scale := decompose_matrix4(animation.bone_hierarchy[bone_index].transform);
+            animation.bone_hierarchy[bone_index].translation = bone_translation;
+            animation.bone_hierarchy[bone_index].rotation = bone_rotation;
+            animation.bone_hierarchy[bone_index].scale = bone_scale;
 
             // every child should have a prent except the root node which is 0 so its a parent to itself
             // so we don't have to worry about this
@@ -591,19 +653,22 @@ calculate_bone_weights :: (animation: *Animation) {
     for i: 0..animation.bone_hierarchy.count - 1 {
         joint := animation.bone_hierarchy[i];
 
+        joint_rotation := joint.rotation;
+
         // each weight is the change between the current bone and the next bone, because they all just get added up at the end anyways
+        // we'll also add the base rotation away from the default pose each frame because if you just rotate your body that's still a relevant part of the transformation
         weights.count = animation.frames[i].count;
         memset(weights.data, 0, weights.count * size_of(float));
 
         frames := animation.frames[i];
-        for frame_index: 0..frames.count - 1 {
+        for frame_index: 0..frames.count - 2 {
             current_frame := frames[frame_index];
             
             current_translation := current_frame.translation;
             current_rotation := current_frame.rotation;
             current_scale := current_frame.scale;
 
-            next_frame_index := (frame_index + 1) % frames.count;
+            next_frame_index := frame_index + 1;
             next_frame := frames[next_frame_index];
             
             next_translation := next_frame.translation;
@@ -611,12 +676,14 @@ calculate_bone_weights :: (animation: *Animation) {
             next_scale := next_frame.scale;
 
             radians_between := abs(quat_radians_between(current_rotation, next_rotation));
+            // radians_between += abs(quat_radians_between(current_rotation, joint_rotation));
+            radians_between *= next_frame.frame - current_frame.frame;
             weights[frame_index] = radians_between;
         }
 
         cumulative_weight := 0.0;
         for weight: weights {
-            cumulative_weight += weight;
+            cumulative_weight += weight * weight;
         }
 
         animation.bone_weights[i] = cumulative_weight;
