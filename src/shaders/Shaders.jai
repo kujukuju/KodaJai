@@ -120,7 +120,7 @@ apply_uniforms :: (shader: *Shader, uniforms: ShaderUniforms) {
     }
 
     // the uniforms stay in order for the shaders uniforms, so after we apply all the uniforms we can lookup the texture indices by iterating over them in order
-    for uniform: uniforms.uniforms {
+    for *uniform: uniforms.uniforms {
         texture_index: u32;
 
         for *shader_uniform: shader.uniforms.uniforms {
@@ -199,13 +199,13 @@ apply_uniforms :: (shader: *Shader, uniforms: ShaderUniforms) {
                         glUniformMatrix4fv(location, xx uniform.mat4n.count, true, cast(*float) uniform.mat4n.data);
                     case .Texture;
                         glActiveTexture(GL_TEXTURE0 + texture_index);
-                        glBindTexture(GL_TEXTURE_2D, uniform.uint1);
+                        glBindTexture(GL_TEXTURE_2D, uniform.texture.buffer);
                         glUniform1ui(location, texture_index);
 
                         texture_index += 1;
                     case .Texture3;
                         glActiveTexture(GL_TEXTURE0 + texture_index);
-                        glBindTexture(GL_TEXTURE_3D, uniform.uint1);
+                        glBindTexture(GL_TEXTURE_3D, uniform.texture3.buffer);
                         glUniform1ui(location, texture_index);
 
                         texture_index += 1;

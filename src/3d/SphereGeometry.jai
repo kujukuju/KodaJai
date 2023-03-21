@@ -1,5 +1,5 @@
 
-create_icosphere :: (radius: float, subdivision: int, with_normals: bool = false, with_texcoords: bool = false) -> *Geometry {
+create_icosphere :: (radius: float, subdivision: int, with_normals: bool = false, with_texcoords: bool = false, should_upload: bool = true) -> *Geometry {
     H_ANGLE: float : PI / 180.0 * 72.0;
     V_ANGLE: float : #run atan(1.0 / 2.0);
     S_STEP: float : 186.0 / 2048.0;
@@ -255,21 +255,22 @@ create_icosphere :: (radius: float, subdivision: int, with_normals: bool = false
         }
     }
 
-    add_attribute(*geometry, .Position);
+    add_attribute(geometry, .Position);
     if with_normals {
-        add_attribute(*geometry, .Normal);
+        add_attribute(geometry, .Normal);
     }
     if with_texcoords {
-        add_attribute(*geometry, .Texcoord);
+        add_attribute(geometry, .Texcoord);
     }
 
-    // print("genning %\n", geometry, << geometry);
-    gen_geometry(geometry);
+    if should_upload {
+        upload(geometry);
+    }
 
     return geometry;
 }
 
-create_uv_sphere :: (radius: float, subdivisions: int, with_normals: bool = false, with_texcoords: bool = false) -> *Geometry {
+create_uv_sphere :: (radius: float, subdivisions: int, with_normals: bool = false, with_texcoords: bool = false, should_upload: bool = true) -> *Geometry {
     geometry := New(Geometry);
 
     assert(!with_normals, "Normals not yet supported for this geometry.");
@@ -328,7 +329,9 @@ create_uv_sphere :: (radius: float, subdivisions: int, with_normals: bool = fals
         add_attribute(geometry, .Texcoord);
     }
 
-    gen_geometry(geometry);
+    if should_upload {
+        upload(geometry);
+    }
 
     return geometry;
 }

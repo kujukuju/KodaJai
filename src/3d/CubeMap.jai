@@ -3,18 +3,52 @@ CubeMap :: struct {
     uniforms: ShaderUniforms;
 }
 
-create_cube_map :: (texture: Texture) -> *CubeMap {
+create_cube_map :: (texture: Texture, should_upload: bool = true) -> *CubeMap {
     cube := New(CubeMap);
     cube.geometry = create_cube(.{1.0, 1.0, 1.0}, with_unwrapped_texcoords = true);
     cube.uniforms["uTexture0"] = create_uniform("uTexture0", texture);
+
+    if should_upload {
+        upload(cube);
+    }
+
     return cube;
 }
 
-load_cube_map :: (path: string) -> *CubeMap {
+load_cube_map :: (path: string, should_upload: bool = true) -> *CubeMap {
     cube := New(CubeMap);
     cube.geometry = create_cube(.{1.0, 1.0, 1.0}, with_unwrapped_texcoords = true);
     cube.uniforms["uTexture0"] = create_uniform("uTexture0", load_texture(path));
+
+    if should_upload {
+        upload(cube);
+    }
+
     return cube;
+}
+
+upload :: (cube: *CubeMap) {
+    upload(cube.geometry);
+
+    for *uniform: cube.uniforms.uniforms {
+        if uniform.type == .Texture {
+            upload(*uniform.texture);
+        } else if uniform.type == .Texture3 {
+            upload(*uniform.texture3);
+        }
+    }
+}
+
+unload :: (cube: *CubeMap) {
+    unload(cube.geometry);
+
+    for *uniform: cube.uniforms.uniforms {
+        if uniform.type == .Texture {
+            unload(*uniform.texture);
+        } else if uniform.type == .Texture3 {
+            unload(*uniform.texture3);
+        }
+    }
 }
 
 draw :: (cube: *CubeMap) {

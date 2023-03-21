@@ -3,18 +3,52 @@ PanoramicMap :: struct {
     uniforms: ShaderUniforms;
 }
 
-create_panoramic_map :: (texture: Texture) -> *PanoramicMap {
+create_panoramic_map :: (texture: Texture, should_upload: bool = true) -> *PanoramicMap {
     panoramic := New(PanoramicMap);
     panoramic.geometry = create_uv_sphere(100, 32, with_texcoords = true);
     panoramic.uniforms["uTexture0"] = create_uniform("uTexture0", texture);
+
+    if should_upload {
+        upload(panoramic);
+    }
+
     return panoramic;
 }
 
-load_panoramic_map :: (path: string) -> *PanoramicMap {
+load_panoramic_map :: (path: string, should_upload: bool = true) -> *PanoramicMap {
     panoramic := New(PanoramicMap);
     panoramic.geometry = create_uv_sphere(100, 32, with_texcoords = true);
     panoramic.uniforms["uTexture0"] = create_uniform("uTexture0", load_texture(path));
+
+    if should_upload {
+        upload(panoramic);
+    }
+    
     return panoramic;
+}
+
+upload :: (panoramic: *PanoramicMap) {
+    upload(panoramic.geometry);
+
+    for *uniform: panoramic.uniforms.uniforms {
+        if uniform.type == .Texture {
+            upload(*uniform.texture);
+        } else if uniform.type == .Texture3 {
+            upload(*uniform.texture3);
+        }
+    }
+}
+
+unload :: (panoramic: *PanoramicMap) {
+    unload(panoramic.geometry);
+
+    for *uniform: panoramic.uniforms.uniforms {
+        if uniform.type == .Texture {
+            unload(*uniform.texture);
+        } else if uniform.type == .Texture3 {
+            unload(*uniform.texture3);
+        }
+    }
 }
 
 draw :: (panoramic: *PanoramicMap) {

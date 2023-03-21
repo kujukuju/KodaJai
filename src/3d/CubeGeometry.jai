@@ -1,4 +1,4 @@
-create_cube :: (half: Vector3, double_sided: bool = false, with_normals: bool = false, with_texcoords: bool = false, with_unwrapped_texcoords: bool = false) -> *Geometry {
+create_cube :: (half: Vector3, double_sided: bool = false, with_normals: bool = false, with_texcoords: bool = false, with_unwrapped_texcoords: bool = false, should_upload: bool = true) -> *Geometry {
     geometry := New(Geometry);
 
     vertices: [8] Vector3;
@@ -210,7 +210,9 @@ create_cube :: (half: Vector3, double_sided: bool = false, with_normals: bool = 
         add_attribute(geometry, .Texcoord);
     }
 
-    gen_geometry(geometry);
+    if should_upload {
+        upload(geometry);
+    }
 
     return geometry;
 }

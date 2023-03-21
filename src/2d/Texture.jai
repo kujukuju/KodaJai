@@ -3,36 +3,44 @@ Texture :: struct {
     width: s32;
     height: s32;
     format: PixelFormat;
+    data: *u8;
 }
 
-create_texture :: (bytes: [] u8) -> Texture {
-    texture_data := load_data(bytes);
-    defer stbi_image_free(texture_data.data);
+create_texture :: (bytes: [] u8, should_upload: bool = true) -> Texture {
+    texture := load_data(bytes);
 
-    if texture_data.data == null {
+    if texture.data == null {
         print("Could not load texture.\n");
         return .{};
     }
 
-    return gen_texture(texture_data);
+    if should_upload {
+        upload(*texture);
+    }
+
+    return texture;
 }
 
-create_texture :: (image: Image) -> Texture {
+create_texture :: (image: Image, should_upload: bool = true) -> Texture {
     if !image.pixels.data {
         print("Could not create texture.\n");
         return .{};
     }
 
-    texture_data: TextureData;
-    texture_data.data = image.pixels.data;
-    texture_data.width = xx image.width;
-    texture_data.height = xx image.height;
-    texture_data.format = image.format;
+    texture: Texture;
+    texture.data = image.pixels.data;
+    texture.width = xx image.width;
+    texture.height = xx image.height;
+    texture.format = image.format;
 
-    return gen_texture(texture_data);
+    if should_upload {
+        upload(*texture);
+    }
+
+    return texture;
 }
 
-load_texture :: (path: string) -> Texture {
+load_texture :: (path: string, should_upload: bool = true) -> Texture {
     file, success := read_entire_file(path, false);
     defer free(file);
 
@@ -40,43 +48,98 @@ load_texture :: (path: string) -> Texture {
     bytes.data = file.data;
     bytes.count = file.count;
 
-    return create_texture(bytes);
+    return create_texture(bytes, should_upload);
 }
 
 // TODO update texture more efficiently from image
 
-load_thumbnail_texture :: (path: string, width: s32, height: s32, preserve_ratio: bool = true) -> Texture, bool {
-    file, success := read_entire_file(path, false);
-    defer free(file);
+// load_thumbnail_texture :: (path: string, width: s32, height: s32, preserve_ratio: bool = true) -> Texture, bool {
+//     file, success := read_entire_file(path, false);
+//     defer free(file);
 
-    bytes: [] u8;
-    bytes.data = file.data;
-    bytes.count = file.count;
+//     bytes: [] u8;
+//     bytes.data = file.data;
+//     bytes.count = file.count;
 
-    texture, loaded := load_thumbnail_texture(bytes, width, height, preserve_ratio);
-    return texture, loaded;
+//     texture, loaded := load_thumbnail_texture(bytes, width, height, preserve_ratio);
+//     return texture, loaded;
+// }
+
+// load_thumbnail_texture :: (bytes: [] u8, width: s32, height: s32, preserve_ratio: bool = true) -> Texture, bool {
+//     texture_data := load_data(bytes);
+//     defer stbi_image_free(texture_data.data);
+
+//     if texture_data.data == null {
+//         print("Could not load texture.\n");
+//         return .{}, false;
+//     }
+
+//     thumbnail_texture_data := scale_data(texture_data, width, height, preserve_ratio);
+//     defer free(thumbnail_texture_data.data);
+
+//     return gen_texture(thumbnail_texture_data), true;
+// }
+
+upload :: (texture: *Texture) {
+    if texture.buffer {
+        return;
+    }
+    
+    assert(!!texture.data, "Cannot generate texture with no data.");
+
+    glGenTextures(1, *texture.buffer);
+    glBindTexture(GL_TEXTURE_2D, texture.buffer);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);	
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+    // glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+    // glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+    // glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
+    // glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST_MIPMAP_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+
+    eight_divible := (texture.width * texture.height) % 8 == 0;
+    four_divisible := (texture.width * texture.height) % 4 == 0;
+    two_divisible := (texture.width * texture.height) % 2 == 0;
+    pixel_store: s32;
+    if eight_divible then pixel_store = 8;
+    else if four_divisible then pixel_store = 4;
+    else if two_divisible then pixel_store = 2;
+    else pixel_store = 1;
+
+    glPixelStorei(GL_PACK_ALIGNMENT, pixel_store);
+    if texture.format == .Gray {
+        glTexImage2D(GL_TEXTURE_2D, 0, GL_R8, xx texture.width, xx texture.height, 0, GL_RED, GL_UNSIGNED_BYTE, texture.data);
+    } else if texture.format == .RG {
+        glTexImage2D(GL_TEXTURE_2D, 0, GL_RG8, xx texture.width, xx texture.height, 0, GL_RG, GL_UNSIGNED_BYTE, texture.data);
+    } else if texture.format == .RGB {
+        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB8, xx texture.width, xx texture.height, 0, GL_RGB, GL_UNSIGNED_BYTE, texture.data);
+    } else if texture.format == .RGBA {
+        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, xx texture.width, xx texture.height, 0, GL_RGBA, GL_UNSIGNED_BYTE, texture.data);
+    }
+    
+    glGenerateMipmap(GL_TEXTURE_2D);
 }
 
-load_thumbnail_texture :: (bytes: [] u8, width: s32, height: s32, preserve_ratio: bool = true) -> Texture, bool {
-    texture_data := load_data(bytes);
-    defer stbi_image_free(texture_data.data);
-
-    if texture_data.data == null {
-        print("Could not load texture.\n");
-        return .{}, false;
+unload :: (texture: *Texture) {
+    if texture.buffer {
+        glDeleteTextures(1, texture.buffer);
+        texture.buffer = 0;
     }
-
-    thumbnail_texture_data := scale_data(texture_data, width, height, preserve_ratio);
-    defer free(thumbnail_texture_data.data);
-
-    return gen_texture(thumbnail_texture_data), true;
 }
 
 destroy :: (texture: Texture) {
-    glDeleteTextures(1, *texture.buffer);
+    if texture.data {
+        free(texture.data);
+    }
+
+    if texture.buffer {
+        glDeleteTextures(1, texture.buffer);
+        texture.buffer = 0;
+    }
 }
 
-scale_data :: (data: TextureData, width: s32, height: s32, preserve_ratio: bool = true) -> TextureData {
+scale_data :: (data: Texture, width: s32, height: s32, preserve_ratio: bool = true) -> Texture {
     byte_count := 0;
     if data.format == {
         case .Gray;
@@ -89,7 +152,7 @@ scale_data :: (data: TextureData, width: s32, height: s32, preserve_ratio: bool 
             byte_count = 4;
     }
 
-    texture_data: TextureData;
+    texture_data: Texture;
     texture_data.data = NewArray(width * height * byte_count, u8).data;
     texture_data.width = width;
     texture_data.height = height;
@@ -136,49 +199,7 @@ scale_data :: (data: TextureData, width: s32, height: s32, preserve_ratio: bool 
     return texture_data;
 }
 
-gen_texture :: (data: TextureData) -> Texture {
-    // TODO mipmaps fuck up this code with non power of 2s
-    texture: Texture;
-    texture.width = data.width;
-    texture.height = data.height;
-    // texture.mipmaps = 1;
-    texture.format = data.format;
-
-    glGenTextures(1, *texture.buffer);
-    glBindTexture(GL_TEXTURE_2D, texture.buffer);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);	
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-    // glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
-    // glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
-    // glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
-    // glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST_MIPMAP_LINEAR);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-
-    eight_divible := (texture.width * texture.height) % 8 == 0;
-    four_divisible := (texture.width * texture.height) % 4 == 0;
-    two_divisible := (texture.width * texture.height) % 2 == 0;
-    pixel_store: s32;
-    if eight_divible then pixel_store = 8;
-    else if four_divisible then pixel_store = 4;
-    else if two_divisible then pixel_store = 2;
-    else pixel_store = 1;
-
-    glPixelStorei(GL_PACK_ALIGNMENT, pixel_store);
-    if texture.format == .Gray {
-        glTexImage2D(GL_TEXTURE_2D, 0, GL_R8, xx texture.width, xx texture.height, 0, GL_RED, GL_UNSIGNED_BYTE, data.data);
-    } else if texture.format == .RG {
-        glTexImage2D(GL_TEXTURE_2D, 0, GL_RG8, xx texture.width, xx texture.height, 0, GL_RG, GL_UNSIGNED_BYTE, data.data);
-    } else if texture.format == .RGB {
-        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB8, xx texture.width, xx texture.height, 0, GL_RGB, GL_UNSIGNED_BYTE, data.data);
-    } else if texture.format == .RGBA {
-        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, xx texture.width, xx texture.height, 0, GL_RGBA, GL_UNSIGNED_BYTE, data.data);
-    }
-    
-    glGenerateMipmap(GL_TEXTURE_2D);
-
-    return texture;
-}
+// TODO add a function to just clear the data memory but keep the buffer if you're confident you want to keep this texture always available
 
 update_texture :: (texture: *Texture, image: Image) {
     assert(texture.width == image.width && texture.height == image.height, "Dimensions must match.");
@@ -224,34 +245,27 @@ draw :: (texture: Texture, position: Vector2, rotation: float = 0, scale: Vector
 
 #scope_file
 
-TextureData :: struct {
-    data: *u8;
-    width: s32;
-    height: s32;
-    format: PixelFormat;
-}
-
-load_data :: (data: [] u8) -> TextureData {
-    texture_data: TextureData;
+load_data :: (data: [] u8) -> Texture {
+    texture: Texture;
     comp: s32;
-    texture_data.data = stbi_load_from_memory(data.data, xx data.count, *texture_data.width, *texture_data.height, *comp, 0);
-    if !texture_data.data {
+    texture.data = stbi_load_from_memory(data.data, xx data.count, *texture.width, *texture.height, *comp, 0);
+    if !texture.data {
         print("Could not parse texture data.\n");
         assert(false, "Could not parse texture data.");
         return .{};
     }
     
     if comp == 1 {
-        texture_data.format = .Gray;
+        texture.format = .Gray;
     } else if comp == 2 {
-        texture_data.format = .RG;
+        texture.format = .RG;
     } else if comp == 3 {
-        texture_data.format = .RGB;
+        texture.format = .RGB;
     } else if comp == 4 {
-        texture_data.format = .RGBA;
+        texture.format = .RGBA;
     }
 
-    return texture_data;
+    return texture;
 }
 
 #import "Basic";

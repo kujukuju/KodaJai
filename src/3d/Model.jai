@@ -13,35 +13,55 @@ operator == :: (a: Model, b: Model) -> bool {
     return a.geometry.data == b.geometry.data && a.uniforms == b.uniforms;
 }
 
-create_model :: (geometry: *Geometry) -> *Model {
+create_model :: (geometry: *Geometry, should_upload: bool = true) -> *Model {
     model := New(Model);
     array_resize(*model.geometry, 1);
     model.geometry[0] = geometry;
+
+    if should_upload {
+        upload(model);
+    }
+
     return model;
 }
 
-create_model :: (geometry: [] *Geometry) -> *Model {
+create_model :: (geometry: [] *Geometry, should_upload: bool = true) -> *Model {
     model := New(Model);
     array_copy(*model.geometry, geometry);
+
+    if should_upload {
+        upload(model);
+    }
+
     return model;
 }
 
-create_model :: (geometry: *Geometry, texture: Texture) -> *Model {
+create_model :: (geometry: *Geometry, texture: Texture, should_upload: bool = true) -> *Model {
     model := New(Model);
     array_resize(*model.geometry, 1);
     model.geometry[0] = geometry;
     model.uniforms["uTexture0"] = create_uniform("uTexture0", texture);
+
+    if should_upload {
+        upload(model);
+    }
+    
     return model;
 }
 
-create_model :: (geometry: [] *Geometry, texture: Texture) -> *Model {
+create_model :: (geometry: [] *Geometry, texture: Texture, should_upload: bool = true) -> *Model {
     model := New(Model);
     array_copy(*model.geometry, geometry);
     model.uniforms["uTexture0"] = create_uniform("uTexture0", texture);
+
+    if should_upload {
+        upload(model);
+    }
+
     return model;
 }
 
-load_model :: (path: string) -> [..] *Model, bool {
+load_model :: (path: string, should_upload: bool = true) -> [..] *Model, bool {
     file, success := read_entire_file(path);
     defer free(file);
     if !success {
@@ -56,12 +76,24 @@ load_model :: (path: string) -> [..] *Model, bool {
             return empty, false;
         }
 
+        if should_upload {
+            for model: models {
+                upload(model);
+            }
+        }
+
         return models, true;
     } else if ends_with(path, ".glb") {
         models, success := load_model_glb(file);
         if !success {
             empty: [..] *Model;
             return empty, false;
+        }
+
+        if should_upload {
+            for model: models {
+                upload(model);
+            }
         }
 
         return models, true;
@@ -72,6 +104,12 @@ load_model :: (path: string) -> [..] *Model, bool {
             return empty, false;
         }
 
+        if should_upload {
+            for model: models {
+                upload(model);
+            }
+        }
+
         return models, true;
     } else {
         print("Unknown file type. %\n", path);
@@ -80,18 +118,39 @@ load_model :: (path: string) -> [..] *Model, bool {
     }
 }
 
-upload_model :: (model: *Model) {
+upload :: (model: *Model) {
+    for geometry: model.geometry {
+        upload(geometry);
+    }
 
+    for *uniform: model.uniforms.uniforms {
+        if uniform.type == .Texture {
+            upload(*uniform.texture);
+        } else if uniform.type == .Texture3 {
+            upload(*uniform.texture3);
+        }
+    }
 }
 
-unload_model :: (model: *Model) {
+unload :: (model: *Model) {
+    for geometry: model.geometry {
+        unload(geometry);
+    }
 
+    for *uniform: model.uniforms.uniforms {
+        if uniform.type == .Texture {
+            unload(*uniform.texture);
+        } else if uniform.type == .Texture3 {
+            unload(*uniform.texture3);
+        }
+    }
 }
 
 destroy :: (model: *Model) {
     for geometry: model.geometry {
         destroy(geometry);
     }
+    // TODO should destroy textures here unless I move ownership later
     array_free(model.geometry);
     free(model);
 }
@@ -129,6 +188,8 @@ draw :: (model: Model, transform: Matrix4 = Matrix4Identity, projection: Matrix4
     // TODO this is temporary to get vert colors working
     if model.geometry.count > 0 && matches_attributes(model.geometry[0], .Position, .Normal, .Texcoord, .Color) {
         shader = *default_color_shader3;
+    } else if model.geometry.count > 0 && matches_attributes(model.geometry[0], .Position, .Normal, .Texcoord, .Texcoord) {
+        shader = *occlusion_shader3;
     } else if model.geometry.count > 0 && matches_attributes(model.geometry[0], .Position, .Normal, .Texcoord, .JointIndices, .JointWeights) {
         // TODO skinned joint shader
         assert(false, "Skinned joints not yet supported.");
@@ -186,7 +247,6 @@ load_model_obj :: (file: string) -> [..] *Model, bool {
     }
 
     models: [..] *Model;
-
     array_reserve(*models, geometries.count);
     for geometry: geometries {
         model := create_model(geometry, get_white_texture());
@@ -318,8 +378,8 @@ load_model_gltf_data :: (json: GltfJson, binary: [] u8) -> [..] *Model, bool {
         }
     }
 
-    node_path: [..] int;
-    node_path.allocator = temp;
+    // node_path: [..] int;
+    // node_path.allocator = temp;
 
     for node, node_index: json.nodes {
         if node.mesh {
@@ -347,28 +407,28 @@ load_model_gltf_data :: (json: GltfJson, binary: [] u8) -> [..] *Model, bool {
 
             assert(!!model, "The loop must have found the model by this point.");
 
-            node_path.count = 0;
+            // node_path.count = 0;
 
-            array_add(*node_path, node_index);
-            parent_node_pointer := table_find_pointer(*node_parents, node_index);
-            while !!parent_node_pointer {
-                array_add(*node_path, << parent_node_pointer);
-                parent_node_pointer = table_find_pointer(*node_parents, << parent_node_pointer);
-            }
+            // array_add(*node_path, node_index);
+            // parent_node_pointer := table_find_pointer(*node_parents, node_index);
+            // while !!parent_node_pointer {
+            //     array_add(*node_path, << parent_node_pointer);
+            //     parent_node_pointer = table_find_pointer(*node_parents, << parent_node_pointer);
+            // }
 
-            world_transform := Matrix4Identity;
-            for < current_index: node_path {
-                node := json.nodes[current_index];
+            // world_transform := Matrix4Identity;
+            // for < current_index: node_path {
+            //     node := json.nodes[current_index];
 
-                node_matrix := get_transform(node);
-                world_transform = world_transform * node_matrix;
-            }
+            //     node_matrix := get_transform(node);
+            //     world_transform = world_transform * node_matrix;
+            // }
 
-            translation, rotation, scale := decompose_matrix4(world_transform);
+            // translation, rotation, scale := decompose_matrix4(world_transform);
 
-            model.position = translation; // node.translation;
-            model.rotation = rotation; // node.rotation;
-            model.scale = scale; // node.scale;
+            model.position.component = node.translation;
+            model.rotation.component = node.rotation;
+            model.scale.component = node.scale;
         }
     }
 

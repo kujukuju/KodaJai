@@ -422,16 +422,16 @@ load_cube :: () {
     cube = create_cube(.{1, 1, 1});
 }
 
-sphere: Geometry;
+sphere: *Geometry;
 sphere_loaded: bool;
-torus: Geometry;
+torus: *Geometry;
 torus_loaded: bool;
-square: Geometry;
+square: *Geometry;
 square_loaded: bool;
-grid: Geometry;
-center_grid: Geometry;
+grid: *Geometry;
+center_grid: *Geometry;
 grid_loaded: bool;
-cube: Geometry;
+cube: *Geometry;
 cube_loaded: bool;
 
 flat_grid_shader: FlatGridShader3;

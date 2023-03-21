@@ -31,7 +31,6 @@ ShaderUniformType :: enum {
     Mat4N;
     Texture;
     Texture3;
-    // TextureN;
 }
 
 ShaderUniform :: struct {
@@ -69,6 +68,8 @@ ShaderUniform :: struct {
         mat3n: [] [9] float;
         mat4: [16] float;
         mat4n: [] [16] float;
+        texture: Texture;
+        texture3: Texture3;
     }
 }
 

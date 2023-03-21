@@ -33,7 +33,7 @@ SerializedGeometry :: struct {
     geometry: [..] *Geometry;
 }
 
-load_or_save_serialized_geometry :: (serialized_path: string, path: string) -> [..] *Geometry, bool {
+load_or_save_serialized_geometry :: (serialized_path: string, path: string, should_upload: bool = true) -> [..] *Geometry, bool {
     cache_modtime, cache_size, cache_data_read_success := file_modtime_and_size(path);
     if !cache_data_read_success {
         empty: [..] *Geometry;
@@ -52,14 +52,14 @@ load_or_save_serialized_geometry :: (serialized_path: string, path: string) -> [
         if hash.modtime == cache_modtime || hash.size == cache_size {
             print("Skipping file read. Reading serialized.\n");
 
-            return deserialize_geometry(view), true;
+            return deserialize_geometry(view, should_upload), true;
         }
     }
 
     print("Reading raw files. Not serialized.\n");
 
     // if you've made it to this point, the serialized file is no longer valid for some reason
-    geometry, geometry_success := load_geometry(path);
+    geometry, geometry_success := load_geometry(path, should_upload);
     if !geometry_success {
         print("Could not load files.\n%\n%\n", serialized_path, path);
         empty: [..] *Geometry;
@@ -79,7 +79,7 @@ load_or_save_serialized_geometry :: (serialized_path: string, path: string) -> [
     return geometry, true;
 }
 
-load_serialized_geometry :: (path: string) -> [..] *Geometry, bool {
+load_serialized_geometry :: (path: string, should_upload: bool = true) -> [..] *Geometry, bool {
     file, success := read_entire_file(path);
     defer free(file);
     if !success {
@@ -91,10 +91,10 @@ load_serialized_geometry :: (path: string) -> [..] *Geometry, bool {
     view.data = file.data;
     view.count = file.count;
 
-    return deserialize_geometry(view), true;
+    return deserialize_geometry(view, should_upload), true;
 }
 
-load_geometry :: (path: string) -> [..] *Geometry, bool {
+load_geometry :: (path: string, should_upload: bool = true) -> [..] *Geometry, bool {
     file, success := read_entire_file(path);
     defer free(file);
     if !success {
@@ -109,6 +109,12 @@ load_geometry :: (path: string) -> [..] *Geometry, bool {
             return empty, false;
         }
 
+        if should_upload {
+            for geometry: geometries {
+                upload(geometry);
+            }
+        }
+
         return geometries, true;
     } else if ends_with(path, ".glb") {
         geometries, success := load_geometry_glb(file);
@@ -117,12 +123,24 @@ load_geometry :: (path: string) -> [..] *Geometry, bool {
             return empty, false;
         }
 
+        if should_upload {
+            for geometry: geometries {
+                upload(geometry);
+            }
+        }
+
         return geometries, true;
     } else if ends_with(path, ".gltf") {
         geometries, success := load_geometry_gltf(file, path);
         if !success {
             empty: [..] *Geometry;
             return empty, false;
+        }
+
+        if should_upload {
+            for geometry: geometries {
+                upload(geometry);
+            }
         }
 
         return geometries, true;
@@ -142,14 +160,21 @@ deserialize_geometry_hash :: (bytes: [] u8) -> SerializedGeometryHash {
     return hash;
 }
 
-deserialize_geometry :: (bytes: [] u8) -> [..] *Geometry {
+deserialize_geometry :: (bytes: [] u8, should_upload: bool = true) -> [..] *Geometry {
     serialized: SerializedGeometry;
 
     index: int;
     serializer.read(bytes, *index, *serialized);
-
     for geometry: serialized.geometry {
-        gen_geometry(geometry);
+        geometry.vao_ = 0;
+        geometry.vbo_ = 0;
+        geometry.ebo_ = 0;
+    }
+
+    if should_upload {
+        for geometry: serialized.geometry {
+            upload(geometry);
+        }
     }
 
     return serialized.geometry;
@@ -160,6 +185,48 @@ serialize_geometry :: (geometry: SerializedGeometry) -> [..] u8 {
     serializer.write(*bytes, geometry);
 
     return bytes;
+}
+
+upload :: (geometry: *Geometry) {
+    assert(koda.initialized, "Attempting to gen geometry without the window being initialized.");
+
+    glGenVertexArrays(1, *geometry.vao_);
+    glGenBuffers(1, *geometry.vbo_);
+    glGenBuffers(1, *geometry.ebo_);
+
+    glBindVertexArray(geometry.vao_);
+
+    glBindBuffer(GL_ARRAY_BUFFER, geometry.vbo_);
+    glBufferData(GL_ARRAY_BUFFER, geometry.vertices.count * size_of(float32), geometry.vertices.data, GL_STATIC_DRAW);  
+
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, geometry.ebo_);
+    glBufferData(GL_ELEMENT_ARRAY_BUFFER, geometry.indices.count * size_of(u32), geometry.indices.data, GL_STATIC_DRAW);
+
+    total_float_size := cast(u32) get_attribute_stride(geometry.attributes);
+
+    current_attribute: u32;
+    float_offset: s32;
+
+    for attribute: geometry.attributes {
+        attribute_size := cast(s32) get_attribute_size(attribute);
+        glEnableVertexAttribArray(current_attribute);
+        glVertexAttribPointer(current_attribute, attribute_size, GL_FLOAT, GL_FALSE, size_of(float32) * total_float_size, cast(*void) (size_of(float32) * float_offset));
+
+        current_attribute += 1;
+        float_offset += attribute_size;
+    }
+
+    glBindVertexArray(0);
+}
+
+unload :: (geometry: *Geometry) {
+    glDeleteBuffers(1, *geometry.ebo_);
+    glDeleteBuffers(1, *geometry.vbo_);
+    glDeleteVertexArrays(1, *geometry.vao_);
+    
+    geometry.ebo_ = 0;
+    geometry.vbo_ = 0;
+    geometry.vao_ = 0;
 }
 
 destroy :: (geometry: *Geometry) {
@@ -254,7 +321,7 @@ add_attribute :: (geometry: *Geometry, attribute: Attribute) {
 
     for i: 0..geometry.attributes.count - 1 {
         current_value := cast(int) geometry.attributes[i];
-        if attribute_value >= current_value {
+        if attribute_value <= current_value {
             array_insert_at(*geometry.attributes, attribute, i);
             return;
         }
@@ -543,10 +610,6 @@ load_geometry_obj :: (file: string) -> [..] *Geometry, bool {
         return geometries, false;
     }
 
-    for geometry: geometries {
-        gen_geometry(geometry);
-    }
-
     return geometries, true;
 }
 
@@ -786,41 +849,5 @@ load_geometry_gltf_data :: (json: GltfJson, binary: [] u8) -> [..] *Geometry, bo
         }
     }
 
-    for geometry: geometries {
-        gen_geometry(geometry);
-    }
-
     return geometries, true;
-}
-
-gen_geometry :: (geometry: *Geometry) {
-    assert(koda.initialized, "Attempting to gen geometry without the window being initialized.");
-
-    glGenVertexArrays(1, *geometry.vao_);
-    glGenBuffers(1, *geometry.vbo_);
-    glGenBuffers(1, *geometry.ebo_);
-
-    glBindVertexArray(geometry.vao_);
-
-    glBindBuffer(GL_ARRAY_BUFFER, geometry.vbo_);
-    glBufferData(GL_ARRAY_BUFFER, geometry.vertices.count * size_of(float32), geometry.vertices.data, GL_STATIC_DRAW);  
-
-    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, geometry.ebo_);
-    glBufferData(GL_ELEMENT_ARRAY_BUFFER, geometry.indices.count * size_of(u32), geometry.indices.data, GL_STATIC_DRAW);
-
-    total_float_size := cast(u32) get_attribute_stride(geometry.attributes);
-
-    current_attribute: u32;
-    float_offset: s32;
-
-    for attribute: geometry.attributes {
-        attribute_size := cast(s32) get_attribute_size(attribute);
-        glEnableVertexAttribArray(current_attribute);
-        glVertexAttribPointer(current_attribute, attribute_size, GL_FLOAT, GL_FALSE, size_of(float32) * total_float_size, cast(*void) (size_of(float32) * float_offset));
-
-        current_attribute += 1;
-        float_offset += attribute_size;
-    }
-
-    glBindVertexArray(0);
 }

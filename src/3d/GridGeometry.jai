@@ -1,8 +1,8 @@
-create_grid :: (x_count: int, y_count: int, gap: float, up: Vector3 = .{0, 1, 0}) -> Geometry {
+create_grid :: (x_count: int, y_count: int, gap: float, up: Vector3 = .{0, 1, 0}, should_upload: bool = true) -> *Geometry {
     width := (x_count - 1) * gap;
     height := (y_count - 1) * gap;
 
-    geometry: Geometry;
+    geometry := New(Geometry);
 
     for x: 0..x_count - 1 {
         x_offset := x * gap - width / 2.0;
@@ -22,9 +22,11 @@ create_grid :: (x_count: int, y_count: int, gap: float, up: Vector3 = .{0, 1, 0}
         array_add(*geometry.vertices, v2.x, v2.y, v2.z);
     }
 
-    add_attribute(*geometry, .Position);
-    
-    gen_geometry(*geometry);
+    add_attribute(geometry, .Position);
+
+    if should_upload {
+        upload(geometry);
+    }
 
     return geometry;
 }

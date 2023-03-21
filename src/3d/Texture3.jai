@@ -4,9 +4,45 @@ Texture3 :: struct {
     height: s32;
     depth: s32;
     format: PixelFormat;
+    data: *u8;
 }
 
-load_texture3 :: (path: string) -> Texture3 {
+create_texture3 :: (bytes: [] u8, should_upload: bool = true) -> Texture3 {
+    texture := load_data(bytes);
+
+    if texture.data == null {
+        print("Could not load texture.\n");
+        return .{};
+    }
+
+    if should_upload {
+        upload(*texture);
+    }
+
+    return texture;
+}
+
+create_texture3 :: (image: Image3, should_upload: bool = true) -> Texture3 {
+    if !image.pixels.data {
+        print("Could not create texture.\n");
+        return .{};
+    }
+
+    texture: Texture3;
+    texture.data = image.pixels.data;
+    texture.width = xx image.width;
+    texture.height = xx image.height;
+    texture.depth = xx image.depth;
+    texture.format = image.format;
+
+    if should_upload {
+        upload(*texture);
+    }
+
+    return texture;
+}
+
+load_texture3 :: (path: string, should_upload: bool = true) -> Texture3 {
     file, success := read_entire_file(path, false);
     defer free(file);
 
@@ -14,49 +50,15 @@ load_texture3 :: (path: string) -> Texture3 {
     bytes.data = file.data;
     bytes.count = file.count;
 
-    return create_texture3(bytes);
+    return create_texture3(bytes, should_upload);
 }
 
-create_texture3 :: (bytes: [] u8) -> Texture3 {
-    texture_data := load_data(bytes);
-    defer stbi_image_free(texture_data.data);
-
-    if texture_data.data == null {
-        print("Could not load texture.\n");
-        return .{};
+upload :: (texture: *Texture3) {
+    if texture.buffer {
+        return;
     }
-
-    return gen_texture(texture_data);
-}
-
-create_texture3 :: (image: Image3) -> Texture3 {
-    if !image.pixels.data {
-        print("Could not create texture.\n");
-        return .{};
-    }
-
-    texture_data: TextureData3;
-    texture_data.data = image.pixels.data;
-    texture_data.width = xx image.width;
-    texture_data.height = xx image.height;
-    texture_data.depth = xx image.depth;
-    texture_data.format = image.format;
-
-    return gen_texture(texture_data);
-}
-
-destroy :: (texture: Texture3) {
-    glDeleteTextures(1, *texture.buffer);
-}
-
-gen_texture :: (data: TextureData3) -> Texture3 {
-    // TODO mipmaps fuck up this code with non power of 2s
-    texture: Texture3;
-    texture.width = data.width;
-    texture.height = data.height;
-    texture.depth = data.depth;
-    // texture.mipmaps = 1;
-    texture.format = data.format;
+    
+    assert(!!texture.data, "Cannot generate texture with no data.");
 
     glGenTextures(1, *texture.buffer);
     glBindTexture(GL_TEXTURE_3D, texture.buffer);
@@ -79,18 +81,29 @@ gen_texture :: (data: TextureData3) -> Texture3 {
 
     glPixelStorei(GL_PACK_ALIGNMENT, pixel_store);
     if texture.format == .Gray {
-        glTexImage3D(GL_TEXTURE_3D, 0, GL_R8, xx texture.width, xx texture.height, xx texture.depth, 0, GL_RED, GL_UNSIGNED_BYTE, data.data);
+        glTexImage3D(GL_TEXTURE_3D, 0, GL_R8, xx texture.width, xx texture.height, xx texture.depth, 0, GL_RED, GL_UNSIGNED_BYTE, texture.data);
     } else if texture.format == .RG {
-        glTexImage3D(GL_TEXTURE_3D, 0, GL_RG8, xx texture.width, xx texture.height, xx texture.depth, 0, GL_RG, GL_UNSIGNED_BYTE, data.data);
+        glTexImage3D(GL_TEXTURE_3D, 0, GL_RG8, xx texture.width, xx texture.height, xx texture.depth, 0, GL_RG, GL_UNSIGNED_BYTE, texture.data);
     } else if texture.format == .RGB {
-        glTexImage3D(GL_TEXTURE_3D, 0, GL_RGB8, xx texture.width, xx texture.height, xx texture.depth, 0, GL_RGB, GL_UNSIGNED_BYTE, data.data);
+        glTexImage3D(GL_TEXTURE_3D, 0, GL_RGB8, xx texture.width, xx texture.height, xx texture.depth, 0, GL_RGB, GL_UNSIGNED_BYTE, texture.data);
     } else if texture.format == .RGBA {
-        glTexImage3D(GL_TEXTURE_3D, 0, GL_RGBA8, xx texture.width, xx texture.height, xx texture.depth, 0, GL_RGBA, GL_UNSIGNED_BYTE, data.data);
+        glTexImage3D(GL_TEXTURE_3D, 0, GL_RGBA8, xx texture.width, xx texture.height, xx texture.depth, 0, GL_RGBA, GL_UNSIGNED_BYTE, texture.data);
     }
     
     glGenerateMipmap(GL_TEXTURE_3D);
+}
 
-    return texture;
+unload :: (texture: *Texture3) {
+    if texture.buffer {
+        glDeleteTextures(1, *texture.buffer);
+        texture.buffer = 0;
+    }
+}
+
+// TODO add method to remove data if you'll never unload
+
+destroy :: (texture: Texture3) {
+    glDeleteTextures(1, *texture.buffer);
 }
 
 update_texture :: (texture: *Texture3, image: Image3) {
@@ -103,16 +116,8 @@ update_texture :: (texture: *Texture3, image: Image3) {
 
 #scope_file
 
-TextureData3 :: struct {
-    data: *u8;
-    width: s32;
-    height: s32;
-    depth: s32;
-    format: PixelFormat;
-}
-
-load_data :: (data: [] u8) -> TextureData3 {
-    texture_data: TextureData3;
+load_data :: (data: [] u8) -> Texture3 {
+    texture_data: Texture3;
     comp: s32;
     texture_data.data = stbi_load_from_memory(data.data, xx data.count, *texture_data.width, *texture_data.height, *comp, 0);
     if !texture_data.data {

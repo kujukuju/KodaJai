@@ -1,6 +1,6 @@
 
-create_torus :: (major_radius: float, minor_radius: float, major_segments: int, minor_segments: int, with_normals: bool = false, with_texcoords: bool = false) -> Geometry {
-    geometry: Geometry;
+create_torus :: (major_radius: float, minor_radius: float, major_segments: int, minor_segments: int, with_normals: bool = false, with_texcoords: bool = false, should_upload: bool = true) -> *Geometry {
+    geometry := New(Geometry);
 
     stride := 3;
     if with_normals {
@@ -62,15 +62,17 @@ create_torus :: (major_radius: float, minor_radius: float, major_segments: int, 
         }
     }
 
-    add_attribute(*geometry, .Position);
+    add_attribute(geometry, .Position);
     if with_normals {
-        add_attribute(*geometry, .Normal);
+        add_attribute(geometry, .Normal);
     }
     if with_texcoords {
-        add_attribute(*geometry, .Texcoord);
+        add_attribute(geometry, .Texcoord);
     }
 
-    gen_geometry(*geometry);
+    if should_upload {
+        upload(geometry);
+    }
 
     return geometry;
 }

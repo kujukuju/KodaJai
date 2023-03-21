@@ -1,6 +1,6 @@
 
-create_plane :: (half_width: float, half_height: float, double_sided: bool = false, with_normals: bool = false, with_texcoords: bool = false) -> Geometry {
-    geometry: Geometry;
+create_plane :: (half_width: float, half_height: float, double_sided: bool = false, with_normals: bool = false, with_texcoords: bool = false, should_upload: bool = true) -> *Geometry {
+    geometry := New(Geometry);
 
     stride := 3;
     if with_normals {
@@ -73,15 +73,17 @@ create_plane :: (half_width: float, half_height: float, double_sided: bool = fal
         array_add(*geometry.indices, indices[5], indices[4], indices[3]);
     }
 
-    add_attribute(*geometry, .Position);
+    add_attribute(geometry, .Position);
     if with_normals {
-        add_attribute(*geometry, .Normal);
+        add_attribute(geometry, .Normal);
     }
     if with_texcoords {
-        add_attribute(*geometry, .Texcoord);
+        add_attribute(geometry, .Texcoord);
     }
 
-    gen_geometry(*geometry);
+    if should_upload {
+        upload(geometry);
+    }
 
     return geometry;
 }
