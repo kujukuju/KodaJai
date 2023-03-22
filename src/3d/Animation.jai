@@ -163,60 +163,56 @@ remap_animations :: (animations: *ModelAnimations, source: ModelAnimations, rema
         }
     }
 
-    // target_binds: [..] Matrix4;
-    // target_binds.allocator = temp;
-    // array_resize(*target_binds, animations.bone_hierarchy.count);
-    // for i: 0..target_binds.count - 1 {
-    //     parent := Matrix4Identity;
-    //     if animations.bone_hierarchy[i].parent != i {
-    //         parent = target_binds[animations.bone_hierarchy[i].parent];
-    //     }
+    target_binds: [..] Matrix4;
+    target_binds.allocator = temp;
+    array_resize(*target_binds, animations.bone_hierarchy.count);
+    for i: 0..target_binds.count - 1 {
+        parent := Matrix4Identity;
+        if animations.bone_hierarchy[i].parent != i {
+            parent = target_binds[animations.bone_hierarchy[i].parent];
+        }
 
-    //     target_binds[i] = parent * animations.bone_hierarchy[i].transform;
-    // }
+        target_binds[i] = parent * animations.bone_hierarchy[i].transform;
+    }
 
-    // source_binds: [..] Matrix4;
-    // source_binds.allocator = temp;
-    // array_resize(*source_binds, source.bone_hierarchy.count);
-    // for i: 0..source_binds.count - 1 {
-    //     parent := Matrix4Identity;
-    //     if source.bone_hierarchy[i].parent != i {
-    //         parent = source_binds[source.bone_hierarchy[i].parent];
-    //     }
+    source_binds: [..] Matrix4;
+    source_binds.allocator = temp;
+    array_resize(*source_binds, source.bone_hierarchy.count);
+    for i: 0..source_binds.count - 1 {
+        parent := Matrix4Identity;
+        if source.bone_hierarchy[i].parent != i {
+            parent = source_binds[source.bone_hierarchy[i].parent];
+        }
 
-    //     source_binds[i] = parent * source.bone_hierarchy[i].transform;
-    // }
+        source_binds[i] = parent * source.bone_hierarchy[i].transform;
+    }
 
-    local_binds: [..] Matrix4;
-    local_binds.allocator = temp;
-    array_resize(*local_binds, animations.bone_hierarchy.count);
+    local_target_binds: [..] Matrix4;
+    local_target_binds.allocator = temp;
+    array_resize(*local_target_binds, animations.bone_hierarchy.count);
     for joint, index: animations.bone_hierarchy {
-        // local_binds[index] = target_binds[index];
-        local_binds[index] = joint.transform;
+        local_target_binds[index] = joint.transform;
     }
 
-    local_inverse_binds: [..] Matrix4;
-    local_inverse_binds.allocator = temp;
-    array_resize(*local_inverse_binds, animations.bone_hierarchy.count);
+    local_target_inverse_binds: [..] Matrix4;
+    local_target_inverse_binds.allocator = temp;
+    array_resize(*local_target_inverse_binds, animations.bone_hierarchy.count);
     for joint, index: animations.bone_hierarchy {
-        // local_inverse_binds[index] = inverse(target_binds[index]);
-        local_inverse_binds[index] = inverse(joint.transform);
+        local_target_inverse_binds[index] = inverse(joint.transform);
     }
 
-    local_binds_source: [..] Matrix4;
-    local_binds_source.allocator = temp;
-    array_resize(*local_binds_source, source.bone_hierarchy.count);
+    local_source_binds: [..] Matrix4;
+    local_source_binds.allocator = temp;
+    array_resize(*local_source_binds, source.bone_hierarchy.count);
     for joint, index: source.bone_hierarchy {
-        // local_inverse_binds_source[index] = source_binds[index];
-        local_binds_source[index] = joint.transform;
+        local_source_binds[index] = joint.transform;
     }
 
-    local_inverse_binds_source: [..] Matrix4;
-    local_inverse_binds_source.allocator = temp;
-    array_resize(*local_inverse_binds_source, source.bone_hierarchy.count);
+    local_source_inverse_binds: [..] Matrix4;
+    local_source_inverse_binds.allocator = temp;
+    array_resize(*local_source_inverse_binds, source.bone_hierarchy.count);
     for joint, index: source.bone_hierarchy {
-        // local_inverse_binds_source[index] = inverse(source_binds[index]);
-        local_inverse_binds_source[index] = inverse(joint.transform);
+        local_source_inverse_binds[index] = inverse(joint.transform);
     }
 
     node_count := animations.bone_hierarchy.count;
@@ -263,30 +259,38 @@ remap_animations :: (animations: *ModelAnimations, source: ModelAnimations, rema
                 target_translation := animations.bone_hierarchy[joint_index].translation;
                 target_scale := animations.bone_hierarchy[joint_index].scale;
 
-                target_local_bind := local_binds[joint_index];
-                target_local_inverse_bind := local_inverse_binds[joint_index];
-                source_local_bind := local_binds_source[source_joint_index];
-                source_local_inverse_bind := local_inverse_binds_source[source_joint_index];
+                target_bind := target_binds[joint_index];
+                source_bind := source_binds[source_joint_index];
+
+                local_target_bind := local_target_binds[joint_index];
+                local_target_inverse_bind := local_target_inverse_binds[joint_index];
+                local_source_bind := local_source_binds[source_joint_index];
+                local_source_inverse_bind := local_source_inverse_binds[source_joint_index];
 
                 for frame_index: 0..animation.frames[joint_index].count - 1 {
-                    transform := Matrix4Identity;
-                    transform = translate(transform, animation.frames[joint_index][frame_index].translation);
-                    transform = rotate(transform, animation.frames[joint_index][frame_index].rotation);
-                    transform = scale(transform, animation.frames[joint_index][frame_index].scale);
+                    source_frame_transform := Matrix4Identity;
+                    source_frame_transform = translate(source_frame_transform, animation.frames[joint_index][frame_index].translation);
+                    source_frame_transform = rotate(source_frame_transform, animation.frames[joint_index][frame_index].rotation);
+                    source_frame_transform = scale(source_frame_transform, animation.frames[joint_index][frame_index].scale);
 
-                    // stick_to_goblin := target_local_bind * source_local_inverse_bind;
-                    // goblin_to_stick := source_local_bind * target_local_inverse_bind;
-                    // modified_transform := goblin_to_stick * transform * stick_to_goblin;
+                    // I want to transform A (target bind) into B (source bind), this gives me T1 (target_bind_to_source_bind)
+                    // then I want to transform B (source bind) into C (source frame), this gives me T2 (source_bind_to_source_frame)
+                    // then I want to transform target bind into source frame, so I calculate T3 (target_bind_to_source_frame)
+                    // which is T2 * T1 (source_bind_to_source_frame * target_bind_to_source_bind)
 
-                    // skeleton_to_goblin_bind := target_local_bind * source_local_inverse_bind;
+                    target_bind_to_source_bind := local_source_bind * local_target_inverse_bind;
 
-                    modified_transform := target_local_bind * inverse(source_local_inverse_bind * transform);
-                    // modified_transform := transform * source_local_bind * target_local_inverse_bind;
-                    modified_translation, modified_rotation, modified_scale := decompose_matrix4(modified_transform);
+                    source_bind_to_source_frame := source_frame_transform * local_source_inverse_bind;
 
-                    animation.frames[joint_index][frame_index].translation = target_translation; // modified_translation;
+                    target_bind_to_source_frame := source_bind_to_source_frame * target_bind_to_source_bind;
+
+                    target_frame := target_bind_to_source_frame * local_target_bind;
+
+                    modified_translation, modified_rotation, modified_scale := decompose_matrix4(target_frame);
+
+                    animation.frames[joint_index][frame_index].translation = modified_translation;
                     animation.frames[joint_index][frame_index].rotation = modified_rotation;
-                    animation.frames[joint_index][frame_index].scale = target_scale; // modified_scale;
+                    animation.frames[joint_index][frame_index].scale = modified_scale;
                 }
             } else if has_source_index {
                 frame := array_add(*animation.frames[joint_index]);
@@ -294,18 +298,23 @@ remap_animations :: (animations: *ModelAnimations, source: ModelAnimations, rema
                 target_translation := animations.bone_hierarchy[joint_index].translation;
                 target_scale := animations.bone_hierarchy[joint_index].scale;
 
-                target_local_bind := local_binds[joint_index];
-                target_local_inverse_bind := local_inverse_binds[joint_index];
-                source_local_bind := local_binds_source[source_joint_index];
-                source_local_inverse_bind := local_inverse_binds_source[source_joint_index];
+                target_bind := target_binds[joint_index];
+                source_bind := source_binds[source_joint_index];
 
-                // modified_transform := source_local_bind * target_local_inverse_bind;
-                modified_transform := source_local_inverse_bind * target_local_bind;
-                modified_translation, modified_rotation, modified_scale := decompose_matrix4(modified_transform);
+                local_target_bind := local_target_binds[joint_index];
+                local_target_inverse_bind := local_target_inverse_binds[joint_index];
+                local_source_bind := local_source_binds[source_joint_index];
+                local_source_inverse_bind := local_source_inverse_binds[source_joint_index];
 
-                frame.translation = target_translation; // modified_translation;
+                target_bind_to_source_bind := local_source_bind * local_target_inverse_bind;
+
+                target_frame := target_bind_to_source_bind * local_target_bind;
+
+                modified_translation, modified_rotation, modified_scale := decompose_matrix4(target_frame);
+
+                frame.translation = modified_translation;
                 frame.rotation = modified_rotation;
-                frame.scale = target_scale; // modified_scale;
+                frame.scale = modified_scale;
             }
         }
     }
