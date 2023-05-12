@@ -1,11 +1,12 @@
 CubeMap :: struct {
     geometry: *Geometry;
     uniforms: ShaderUniforms;
+    transform: Matrix4 = Matrix4Identity;
 }
 
-create_cube_map :: (texture: Texture, should_upload: bool = true) -> *CubeMap {
+create_cube_map :: (texture: CubemapTexture, should_upload: bool = true) -> *CubeMap {
     cube := New(CubeMap);
-    cube.geometry = create_cube(.{1.0, 1.0, 1.0}, with_unwrapped_texcoords = true);
+    cube.geometry = create_cube(.{1.0, 1.0, 1.0});
     cube.uniforms["uTexture0"] = create_uniform("uTexture0", texture);
 
     if should_upload {
@@ -17,8 +18,8 @@ create_cube_map :: (texture: Texture, should_upload: bool = true) -> *CubeMap {
 
 load_cube_map :: (path: string, should_upload: bool = true) -> *CubeMap {
     cube := New(CubeMap);
-    cube.geometry = create_cube(.{1.0, 1.0, 1.0}, with_unwrapped_texcoords = true);
-    cube.uniforms["uTexture0"] = create_uniform("uTexture0", load_texture(path));
+    cube.geometry = create_cube(.{1.0, 1.0, 1.0});
+    cube.uniforms["uTexture0"] = create_uniform("uTexture0", load_cubemap_texture(path));
 
     if should_upload {
         upload(cube);
@@ -35,6 +36,8 @@ upload :: (cube: *CubeMap) {
             upload(*uniform.texture);
         } else if uniform.type == .Texture3 {
             upload(*uniform.texture3);
+        } else if uniform.type == .CubemapTexture {
+            upload(*uniform.cubemap_texture);
         }
     }
 }
@@ -47,6 +50,8 @@ unload :: (cube: *CubeMap) {
             unload(*uniform.texture);
         } else if uniform.type == .Texture3 {
             unload(*uniform.texture3);
+        } else if uniform.type == .CubemapTexture {
+            unload(*uniform.cubemap_texture);
         }
     }
 }
@@ -60,7 +65,7 @@ draw :: (cube: *CubeMap) {
     defer set_cull_face(cull_face);
     set_cull_face(false);
 
-    use_shader(*texture_shader3);
+    use_shader(*cubemap_shader);
 
     rotation := get_rotation(koda.view);
     view := rotation_matrix(Matrix4, rotation);
@@ -68,11 +73,11 @@ draw :: (cube: *CubeMap) {
     uniforms: ShaderUniforms;
     defer destroy(uniforms);
     uniforms["projection"] = create_uniform("projection", get_perspective_matrix());
-    uniforms["model"] = create_uniform("model", Matrix4Identity);
+    uniforms["model"] = create_uniform("model", cube.transform);
     uniforms["view"] = create_uniform("view", view);
     
-    apply_uniforms(*texture_shader3, uniforms);
-    apply_uniforms(*texture_shader3, cube.uniforms);
+    apply_uniforms(*cubemap_shader, uniforms);
+    apply_uniforms(*cubemap_shader, cube.uniforms);
 
     glBindVertexArray(cube.geometry.vao_);
     glDrawElements(GL_TRIANGLES, xx cube.geometry.indices.count, GL_UNSIGNED_INT, xx 0);

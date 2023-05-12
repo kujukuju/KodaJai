@@ -7,6 +7,8 @@ Model :: struct {
     rotation: Quaternion;
     scale: Vector3 = .{1, 1, 1};
     cull_face: bool = true;
+    shader: *Shader;
+    name: string;
 }
 
 operator == :: (a: Model, b: Model) -> bool {
@@ -152,6 +154,7 @@ destroy :: (model: *Model) {
     }
     // TODO should destroy textures here unless I move ownership later
     array_free(model.geometry);
+    free(model.name);
     free(model);
 }
 
@@ -177,30 +180,39 @@ get_aabb :: (model: Model) -> AABB3 {
 }
 
 draw :: (model: Model, transform: Matrix4 = Matrix4Identity, shader: *Shader = null) {
-    if !shader {
-        shader = *default_shader3;
-    }
-
     draw(model, transform, get_perspective_matrix(), shader);
 }
 
-draw :: (model: Model, transform: Matrix4 = Matrix4Identity, projection: Matrix4, shader: *Shader) {
-    // TODO this is temporary to get vert colors working
-    if model.geometry.count > 0 && matches_attributes(model.geometry[0], .Position, .Normal, .Texcoord, .Color) {
-        shader = *default_color_shader3;
-    } else if model.geometry.count > 0 && matches_attributes(model.geometry[0], .Position, .Normal, .Texcoord, .Texcoord) {
-        shader = *occlusion_shader3;
-    } else if model.geometry.count > 0 && matches_attributes(model.geometry[0], .Position, .Normal, .Texcoord, .JointIndices, .JointWeights) {
-        // TODO skinned joint shader
-        assert(false, "Skinned joints not yet supported.");
-    } else if model.geometry.count > 0 && !matches_attributes(model.geometry[0], .Position, .Normal, .Texcoord) {
-        print("Found invalid attribute combination. %\n", model.geometry[0].attributes);
-        assert(false, "Found invalid attribute combination.");
-    }
+draw :: (model: Model, transform: Matrix4 = Matrix4Identity, projection: Matrix4, shader: *Shader = null) {
+    // // TODO this is temporary to get vert colors working
+    // if model.geometry.count > 0 && matches_attributes(model.geometry[0], .Position, .Normal, .Texcoord, .Color) {
+    //     shader = *default_color_shader3;
+    // } else if model.geometry.count > 0 && matches_attributes(model.geometry[0], .Position, .Normal, .Texcoord, .Texcoord) {
+    //     shader = *occlusion_shader3;
+    // } else if model.geometry.count > 0 && matches_attributes(model.geometry[0], .Position, .Normal, .Texcoord, .JointIndices, .JointWeights) {
+    //     // TODO skinned joint shader
+    //     assert(false, "Skinned joints not yet supported.");
+    // } else if model.geometry.count > 0 && !matches_attributes(model.geometry[0], .Position, .Normal, .Texcoord) {
+    //     print("Found invalid attribute combination. %\n", model.geometry[0].attributes);
+    //     assert(false, "Found invalid attribute combination.");
+    // }
 
     if model.geometry.count == 0 {
         return;
     }
+
+    if shader == null {
+        if model.shader {
+            shader = model.shader;
+        } else {
+            shader = get_default_shader(model.geometry[0].attributes);
+        }
+    }
+
+    if !shader {
+        print("Could not find appropriate shader for model attributes. %\n", model.geometry[0].attributes);
+    }
+    assert(!!shader, "Could not find appropriate shader for model attributes.");
 
     cull_face := koda.cull_face;
     if cull_face != model.cull_face {
@@ -302,64 +314,53 @@ load_model_gltf_data :: (json: GltfJson, binary: [] u8) -> [..] *Model, bool {
     bufferviews := get_bufferviews(json, buffers);
     defer array_free(bufferviews);
 
-    index := 0;
+    model_index := 0;
     for mesh: json.meshes {
         for primitive: mesh.primitives {
             if !is_valid_primitive(primitive) {
                 continue;
             }
 
-            model := models[index];
-            index += 1;
+            model := models[model_index];
+            model_index += 1;
 
-            has_texture := true;
-            has_texture = has_texture && primitive.material;
-            has_texture = has_texture && json.materials[<< primitive.material].pbrMetallicRoughness;
-            has_texture = has_texture && json.materials[<< primitive.material].pbrMetallicRoughness.baseColorTexture;
-            has_texture = has_texture && json.textures[json.materials[<< primitive.material].pbrMetallicRoughness.baseColorTexture.index].source;
-            if !has_texture {
-                model.uniforms["uTexture0"] = create_uniform("uTexture0", get_white_texture());
-                continue;
+            has_diffuse_texture := true;
+            has_diffuse_texture = has_diffuse_texture && primitive.material;
+            has_diffuse_texture = has_diffuse_texture && json.materials[<< primitive.material].pbrMetallicRoughness;
+            has_diffuse_texture = has_diffuse_texture && json.materials[<< primitive.material].pbrMetallicRoughness.baseColorTexture;
+            has_diffuse_texture = has_diffuse_texture && json.textures[json.materials[<< primitive.material].pbrMetallicRoughness.baseColorTexture.index].source;
+            if has_diffuse_texture {
+                material := json.materials[<< primitive.material];
+                print("Loaded material: %\n", material);
+                model.cull_face = !material.doubleSided;
+
+                texture_name := material.name;
+                assert(!!texture_name, "I thought materials always had to have a name...");
+                
+                texture_index := material.pbrMetallicRoughness.baseColorTexture.index;
+                texture := get_texture(json, bufferviews, texture_index);
+
+                assert(!has_uniform(model.uniforms, "uTexture0"), "Cannot already have a diffuse texture.");
+                model.uniforms["uTexture0"] = create_uniform("uTexture0", texture);
             }
 
-            material := json.materials[<< primitive.material];
-            print("material %\n", material);
-            model.cull_face = !material.doubleSided;
+            has_normal_texture := true;
+            has_normal_texture = has_normal_texture && primitive.material;
+            has_normal_texture = has_normal_texture && json.materials[<< primitive.material].normalTexture;
+            has_normal_texture = has_normal_texture && json.textures[json.materials[<< primitive.material].normalTexture.index].source;
+            if has_normal_texture {
+                material := json.materials[<< primitive.material];
+                print("Loaded material: %\n", material);
+                model.cull_face = !material.doubleSided;
 
-            texture_name := material.name;
-            assert(!!texture_name, "I thought materials always had to have a name...");
+                texture_name := material.name;
+                assert(!!texture_name, "I thought materials always had to have a name...");
+                
+                texture_index := material.normalTexture.index;
+                texture := get_texture(json, bufferviews, texture_index);
 
-            // TODO try to get the texture here
-
-            texture_index := material.pbrMetallicRoughness.baseColorTexture.index;
-            texture_number := material.pbrMetallicRoughness.baseColorTexture.texCoord;
-            json_texture := json.textures[texture_index];
-
-            // this has to do with repeat/clamp/etc
-            sampler := json_texture.sampler;
-            source := json_texture.source;
-
-            json_image := json.images[<< source];
-
-            texture: Texture;
-            if json_image.uri {
-                texture = load_texture(<< json_image.uri);
-            } else if json_image.bufferView {
-                view_index := << json_image.bufferView;
-                buffer_view := bufferviews[view_index];
-                texture = create_texture(buffer_view);
-            } else {
-                assert(false, "I think you have to have either an image uri or buffer.");
-            }
-
-            if texture_number == {
-                case 0;
-                    model.uniforms["uTexture0"] = create_uniform("uTexture0", texture);
-                // case 1;
-                //     model.uniforms["uTexture1"] = create_uniform("uTexture1", get_white_texture());
-                case;
-                    print("Texcoord % not supported.", texture_number);
-                    assert(false, "Texcoord not supported.");
+                assert(!has_uniform(model.uniforms, "uNormal0"), "Cannot already have a normal texture.");
+                model.uniforms["uNormal0"] = create_uniform("uNormal0", texture);
             }
         }
     }
@@ -429,6 +430,9 @@ load_model_gltf_data :: (json: GltfJson, binary: [] u8) -> [..] *Model, bool {
             model.position.component = node.translation;
             model.rotation.component = node.rotation;
             model.scale.component = node.scale;
+            if node.name {
+                model.name = copy_string(<< node.name);
+            }
         }
     }
 

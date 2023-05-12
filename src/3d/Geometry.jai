@@ -3,14 +3,10 @@ Geometry :: struct {
     vbo_: GLuint;
     ebo_: GLuint;
 
-    name: string;
     vertices: [..] float32;
     indices: [..] u32;
     attributes: [..] Attribute;
     aabb: AABB3;
-    // has_normal: bool; // TODO these should be enums I guess for #complete
-    // has_texcoord: bool;
-    // has_color: bool;
 }
 
 // this is also the alignment order that the loader will force the attributes into
@@ -187,8 +183,19 @@ serialize_geometry :: (geometry: SerializedGeometry) -> [..] u8 {
     return bytes;
 }
 
+serialize_geometry :: (geometry: *Geometry) -> [..] u8 {
+    serialized: SerializedGeometry;
+    serialized.geometry.allocator = temp;
+    array_add(*serialized.geometry, geometry);
+    return serialize_geometry(serialized);
+}
+
 upload :: (geometry: *Geometry) {
     assert(koda.initialized, "Attempting to gen geometry without the window being initialized.");
+
+    if geometry.vao_ {
+        return;
+    }
 
     glGenVertexArrays(1, *geometry.vao_);
     glGenBuffers(1, *geometry.vbo_);
@@ -234,11 +241,27 @@ destroy :: (geometry: *Geometry) {
     glDeleteBuffers(1, *geometry.vbo_);
     glDeleteVertexArrays(1, *geometry.vao_);
 
-    free(geometry.name);
     array_free(geometry.vertices);
     array_free(geometry.indices);
     array_free(geometry.attributes);
     free(geometry);
+}
+
+rotate_vertices :: (geometry: *Geometry, axis: Vector3, radians: float) {
+    transform := rotation_matrix(Matrix4, make_rotation_quaternion(axis, radians));
+    stride := get_attribute_stride(geometry);
+
+    for geometry.indices {
+        x := geometry.vertices[it * stride];
+        y := geometry.vertices[it * stride + 1];
+        z := geometry.vertices[it * stride + 2];
+
+        point := transform_point(transform, .{x, y, z});
+
+        geometry.vertices[it * stride] = point.x;
+        geometry.vertices[it * stride + 1] = point.y;
+        geometry.vertices[it * stride + 2] = point.z;
+    }
 }
 
 get_indices :: (geometry: Geometry) -> [..] int {
@@ -330,16 +353,16 @@ add_attribute :: (geometry: *Geometry, attribute: Attribute) {
     array_add(*geometry.attributes, attribute);
 }
 
-matches_attributes :: (geometry: Geometry, required: [$N] Attribute) -> bool {
+matches_attributes :: (geometry: Geometry, required: [] Attribute) -> bool {
     return matches_attributes(geometry.attributes, required);
 }
 
-matches_attributes :: (attributes: [] Attribute, required: [$N] Attribute) -> bool {
-    if attributes.count != N {
+matches_attributes :: (attributes: [] Attribute, required: [] Attribute) -> bool {
+    if attributes.count != required.count {
         return false;
     }
 
-    for i: 0..N - 1 {
+    for i: 0..attributes.count - 1 {
         if attributes[i] != required[i] {
             return false;
         }
@@ -410,12 +433,17 @@ load_geometry_obj :: (file: string) -> [..] *Geometry, bool {
         return index, current;
     }
 
-    get_until_slash :: (file: string, index: int) -> int, string {
+    get_until_slash_exit_space_newline :: (file: string, index: int) -> int, string {
         current: string;
         current.data = file.data + index;
         initial_index := index;
         while index < file.count && file[index] != #char "/" {
             index += 1;
+
+            if file[index] == #char " " || file[index] == #char "\n" {
+                current.count = 0;
+                return initial_index, current;
+            }
         }
 
         current.count = index - initial_index;
@@ -458,7 +486,7 @@ load_geometry_obj :: (file: string) -> [..] *Geometry, bool {
 
             temp_name: string;
             index, temp_name = get_until_newline(file, index + 2);
-            geometry.name = copy_string(temp_name);
+            // geometry.name = copy_string(temp_name);
         } else if index + 1 < file.count && file[index] == #char "v" && file[index + 1] == #char " " {
             x_string: string;
             y_string: string;
@@ -511,17 +539,20 @@ load_geometry_obj :: (file: string) -> [..] *Geometry, bool {
             vn3_string: string;
             vt3_string: string;
 
-            index, v1_string = get_until_slash(file, index + 2);
-            index, vt1_string = get_until_slash(file, index + 1);
+            index, v1_string = get_until_slash_exit_space_newline(file, index + 2);
+            index, vt1_string = get_until_slash_exit_space_newline(file, index + 1);
             index, vn1_string = get_until_space_or_newline(file, index + 1);
 
-            index, v2_string = get_until_slash(file, index + 1);
-            index, vt2_string = get_until_slash(file, index + 1);
+            index, v2_string = get_until_slash_exit_space_newline(file, index + 1);
+            index, vt2_string = get_until_slash_exit_space_newline(file, index + 1);
             index, vn2_string = get_until_space_or_newline(file, index + 1);
 
-            index, v3_string = get_until_slash(file, index + 1);
-            index, vt3_string = get_until_slash(file, index + 1);
+            index, v3_string = get_until_slash_exit_space_newline(file, index + 1);
+            index, vt3_string = get_until_slash_exit_space_newline(file, index + 1);
+            newline_index := get_until_newline(file, index + 1);
             index, vn3_string = get_until_space_or_newline(file, index + 1);
+
+            assert(newline_index == index, "Found a space where a newline was expected. Probably the obj file isn't triangularized.");
 
             stride := 3;
             if normals.count > 0 {
@@ -705,7 +736,7 @@ load_geometry_gltf_data :: (json: GltfJson, binary: [] u8) -> [..] *Geometry, bo
                     array_add(*attribute_accessors[cast(int) Attribute.Texcoord], attribute_accessor);
                 } else if begins_with(attribute_entry.name, "COLOR") {
                     assert(attribute_accessor.type == "VEC4", "The color accessor must be a vec4 type.");
-                    assert(attribute_accessor.component_type == .F32, "The color accessor must be a float32.");
+                    assert(attribute_accessor.component_type == .U8 || attribute_accessor.component_type == .U16 ||attribute_accessor.component_type == .F32, "The color accessor must be a u8 or u16 or float32.");
 
                     array_add(*attribute_accessors[cast(int) Attribute.Color], attribute_accessor);
                 } else if begins_with(attribute_entry.name, "JOINTS") {
@@ -822,8 +853,19 @@ load_geometry_gltf_data :: (json: GltfJson, binary: [] u8) -> [..] *Geometry, bo
                                 accessor_data := cast(*float32) accessor.view.data;
                                 array_add(*geometry.vertices, accessor_data[i * 2], accessor_data[i * 2 + 1]);
                             case .Color;
-                                accessor_data := cast(*float32) accessor.view.data;
-                                array_add(*geometry.vertices, accessor_data[i * 4], accessor_data[i * 4 + 1], accessor_data[i * 4 + 2], accessor_data[i * 4 + 3]);
+                                if accessor.component_type == {
+                                    case .U8;
+                                        accessor_data := cast(*u8) accessor.view.data;
+                                        array_add(*geometry.vertices, cast(float) accessor_data[i * 4] / 0xff, cast(float) accessor_data[i * 4 + 1] / 0xff, cast(float) accessor_data[i * 4 + 2] / 0xff, cast(float) accessor_data[i * 4 + 3] / 0xff);
+                                    case .U16;
+                                        accessor_data := cast(*u16) accessor.view.data;
+                                        array_add(*geometry.vertices, cast(float) accessor_data[i * 4] / 0xffff, cast(float) accessor_data[i * 4 + 1] / 0xffff, cast(float) accessor_data[i * 4 + 2] / 0xffff, cast(float) accessor_data[i * 4 + 3] / 0xffff);
+                                    case .F32;
+                                        accessor_data := cast(*float32) accessor.view.data;
+                                        array_add(*geometry.vertices, cast(float) accessor_data[i * 4], cast(float) accessor_data[i * 4 + 1], cast(float) accessor_data[i * 4 + 2], cast(float) accessor_data[i * 4 + 3]);
+                                    case;
+                                        assert(false, "Incorrect color component type.");
+                                }
                             case .JointIndices;
                                 if accessor.component_type == {
                                     case .U8;

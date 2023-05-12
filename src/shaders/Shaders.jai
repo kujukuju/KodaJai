@@ -109,7 +109,12 @@ destroy_shader :: (shader: Shader) {
     glDeleteProgram(shader.program);
 }
 
-apply_uniforms :: (shader: *Shader, uniforms: ShaderUniforms) {
+apply_uniforms :: (shader: *Shader, uniforms: ShaderUniforms, printing: bool = false) {
+    if shader != koda.shader {
+        print("Applying uniforms to inactive shader. This is very unusual. I'm even considering disallowing this.\n");
+        print_stack_trace();
+    }
+
     for uniform: uniforms.uniforms {
         existing := shader.uniforms[uniform.name];
         shader.uniforms[uniform.name] = uniform;
@@ -121,7 +126,7 @@ apply_uniforms :: (shader: *Shader, uniforms: ShaderUniforms) {
 
     // the uniforms stay in order for the shaders uniforms, so after we apply all the uniforms we can lookup the texture indices by iterating over them in order
     for *uniform: uniforms.uniforms {
-        texture_index: u32;
+        texture_index: s32;
 
         for *shader_uniform: shader.uniforms.uniforms {
             if shader_uniform.location == -1 {
@@ -198,15 +203,21 @@ apply_uniforms :: (shader: *Shader, uniforms: ShaderUniforms) {
                     case .Mat4N;
                         glUniformMatrix4fv(location, xx uniform.mat4n.count, true, cast(*float) uniform.mat4n.data);
                     case .Texture;
-                        glActiveTexture(GL_TEXTURE0 + texture_index);
+                        glActiveTexture(GL_TEXTURE0 + cast(u32) texture_index);
                         glBindTexture(GL_TEXTURE_2D, uniform.texture.buffer);
-                        glUniform1ui(location, texture_index);
+                        glUniform1i(location, texture_index);
 
                         texture_index += 1;
                     case .Texture3;
-                        glActiveTexture(GL_TEXTURE0 + texture_index);
+                        glActiveTexture(GL_TEXTURE0 + cast(u32) texture_index);
                         glBindTexture(GL_TEXTURE_3D, uniform.texture3.buffer);
-                        glUniform1ui(location, texture_index);
+                        glUniform1i(location, texture_index);
+
+                        texture_index += 1;
+                    case .CubemapTexture;
+                        glActiveTexture(GL_TEXTURE0 + cast(u32) texture_index);
+                        glBindTexture(GL_TEXTURE_CUBE_MAP, uniform.cubemap_texture.buffer);
+                        glUniform1i(location, texture_index);
 
                         texture_index += 1;
                     // case .TextureN;
@@ -228,6 +239,8 @@ apply_uniforms :: (shader: *Shader, uniforms: ShaderUniforms) {
                     case .Texture;
                         texture_index += 1;
                     case .Texture3;
+                        texture_index += 1;
+                    case .CubemapTexture;
                         texture_index += 1;
                     // case .TextureN;
                     //     texture_index += cast(u32) shader_uniform.uint1n.count;
@@ -256,6 +269,7 @@ use_shader :: (shader: *Shader) {
 
     glUseProgram(shader.program);
     koda.active_program = shader.program;
+    koda.shader = shader;
 }
 
 #import "Basic";

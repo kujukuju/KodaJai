@@ -1,18 +1,19 @@
-DefaultVertColorShader3 :: struct {
+DefaultVertColorNormalShader3 :: struct {
     using #as shader: Shader;
 
-    shader.vertex = DEFAULT_VERT_COLOR_VERTEX_SHADER3;
-    shader.fragment = DEFAULT_VERT_COLOR_FRAGMENT_SHADER3;
+    shader.vertex = DEFAULT_VERT_COLOR_NORMAL_VERTEX_SHADER3;
+    shader.fragment = DEFAULT_VERT_COLOR_NORMAL_FRAGMENT_SHADER3;
 }
 
 #scope_module
 
-DEFAULT_VERT_COLOR_VERTEX_SHADER3 :: #string DONE
+DEFAULT_VERT_COLOR_NORMAL_VERTEX_SHADER3 :: #string DONE
 #version 330 core
 layout (location = 0) in vec3 aPos;
 layout (location = 1) in vec3 aNorm;
 layout (location = 2) in vec2 aTex;
-layout (location = 3) in vec4 aColor;
+layout (location = 3) in vec2 aNormTex;
+layout (location = 4) in vec4 aColor;
 
 uniform mat4 model;
 uniform mat4 view;
@@ -33,11 +34,12 @@ void main() {
 }
 DONE
 
-DEFAULT_VERT_COLOR_FRAGMENT_SHADER3 :: #string DONE
+DEFAULT_VERT_COLOR_NORMAL_FRAGMENT_SHADER3 :: #string DONE
 #version 330 core
 out vec4 FragColor;
   
 uniform sampler2D uTexture0;
+uniform sampler2D uTexture1;
 
 in vec3 vPos;
 in vec3 vNorm;

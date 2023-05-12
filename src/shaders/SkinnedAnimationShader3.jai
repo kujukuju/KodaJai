@@ -58,6 +58,7 @@ void main() {
     if (objectColor.a < 0.5) {
         discard;
     }
+    discard;
 
     vec3 norm = normalize(vNorm);
     // vec3 lightDir = normalize(lightPos - vPos);

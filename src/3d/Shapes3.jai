@@ -279,6 +279,87 @@ draw_cube :: (lower: Vector3, upper: Vector3, color: Color = .{1, 1, 1, 1}, bord
     glBindVertexArray(cube.vao_);
     glDrawElements(GL_TRIANGLES, xx cube.indices.count, GL_UNSIGNED_INT, xx 0);
     glBindVertexArray(0);
+
+    if border.a > 0 {
+        // not entirely sure if its 1, 1, 1, or 0.5, 0.5, 0.5 but w/e, havent tested it
+        draw_cube_border(.{-1, -1, -1}, .{1, 1, 1}, model, border);
+    }
+}
+
+draw_cube_border :: (lower: Vector3, upper: Vector3, transform: Matrix4 = Matrix4Identity, color: Color = .{1, 1, 1, 1}) {
+    corners: [8] Vector3 = ---;
+    corners[0] = .{lower.x, lower.y, lower.z};
+    corners[1] = .{upper.x, lower.y, lower.z};
+    corners[2] = .{upper.x, upper.y, lower.z};
+    corners[3] = .{lower.x, upper.y, lower.z};
+    corners[4] = .{lower.x, lower.y, upper.z};
+    corners[5] = .{upper.x, lower.y, upper.z};
+    corners[6] = .{upper.x, upper.y, upper.z};
+    corners[7] = .{lower.x, upper.y, upper.z};
+
+    vertices: [24] Vector3 = ---;
+    // bottom
+    vertices[0] = corners[0];
+    vertices[1] = corners[1];
+    vertices[2] = corners[1];
+    vertices[3] = corners[2];
+    vertices[4] = corners[2];
+    vertices[5] = corners[3];
+    vertices[6] = corners[3];
+    vertices[7] = corners[0];
+    // top
+    vertices[8] = corners[4];
+    vertices[9] = corners[5];
+    vertices[10] = corners[5];
+    vertices[11] = corners[6];
+    vertices[12] = corners[6];
+    vertices[13] = corners[7];
+    vertices[14] = corners[7];
+    vertices[15] = corners[4];
+    // edges
+    vertices[16] = corners[0];
+    vertices[17] = corners[4];
+    vertices[18] = corners[1];
+    vertices[19] = corners[5];
+    vertices[20] = corners[2];
+    vertices[21] = corners[6];
+    vertices[22] = corners[3];
+    vertices[23] = corners[7];
+
+    vao: GLuint;
+    glGenVertexArrays(1, *vao);
+    defer glDeleteVertexArrays(1, *vao);
+    glBindVertexArray(vao);
+    defer glBindVertexArray(0);
+
+    buffer_id: GLuint;
+    glGenBuffers(1, *buffer_id);
+    defer glDeleteBuffers(1, *buffer_id);
+
+    glBindBuffer(GL_ARRAY_BUFFER, buffer_id);
+    glBufferData(GL_ARRAY_BUFFER, size_of(type_of(vertices)), vertices.data, GL_DYNAMIC_DRAW);
+
+    glEnableVertexAttribArray(0);
+    defer glDisableVertexAttribArray(0);
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, size_of(Vector3), null);
+
+    use_shader(*default_shape_shader3);
+
+    projection := get_perspective_matrix();
+    view := koda.view;
+
+    uniforms: ShaderUniforms;
+    defer destroy(uniforms);
+
+    uniforms["model"] = create_uniform("model", transform);
+    uniforms["projection"] = create_uniform("projection", projection);
+    uniforms["view"] = create_uniform("view", view);
+    uniforms["uTint"] = create_uniform("uTint", color);
+
+    apply_uniforms(*default_shape_shader3, uniforms);
+
+    glLineWidth(1.0);
+    glDrawArrays(GL_LINES, 0, xx vertices.count);
 }
 
 draw_sphere :: (position: Vector3, color: Color = .{1, 1, 1, 1}) {

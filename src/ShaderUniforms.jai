@@ -31,6 +31,7 @@ ShaderUniformType :: enum {
     Mat4N;
     Texture;
     Texture3;
+    CubemapTexture;
 }
 
 ShaderUniform :: struct {
@@ -70,6 +71,7 @@ ShaderUniform :: struct {
         mat4n: [] [16] float;
         texture: Texture;
         texture3: Texture3;
+        cubemap_texture: CubemapTexture;
     }
 }
 
@@ -105,6 +107,16 @@ operator *[] :: (uniforms: *ShaderUniforms($O), name: string) -> *ShaderUniform 
     }
 
     return array_add(*uniforms.uniforms);
+}
+
+has_uniform :: (uniforms: ShaderUniforms, name: string) -> bool {
+    for i: 0..uniforms.uniforms.count - 1 {
+        if uniforms.uniforms[i].name == name {
+            return true;
+        }
+    }
+
+    return false;
 }
 
 // is there a use case for non compile time uniform names?
@@ -660,7 +672,7 @@ create_uniform :: ($name: string, value: Texture) -> ShaderUniform {
     uniform: ShaderUniform;
     uniform.name = name;
     uniform.type = .Texture;
-    uniform.uint1 = value.buffer;
+    uniform.texture = value;
     return uniform;
 }
 
@@ -668,7 +680,15 @@ create_uniform :: ($name: string, value: Texture3) -> ShaderUniform {
     uniform: ShaderUniform;
     uniform.name = name;
     uniform.type = .Texture3;
-    uniform.uint1 = value.buffer;
+    uniform.texture3 = value;
+    return uniform;
+}
+
+create_uniform :: ($name: string, value: CubemapTexture) -> ShaderUniform {
+    uniform: ShaderUniform;
+    uniform.name = name;
+    uniform.type = .CubemapTexture;
+    uniform.cubemap_texture = value;
     return uniform;
 }
 

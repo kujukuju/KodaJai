@@ -462,6 +462,49 @@ get_accessor_view :: (accessor: GltfAccessorInfo, $type: string) -> [] Matrix4 #
     return view;
 }
 
+get_texture :: (json: GltfJson, bufferviews: [..] [] u8, texture_index: int) -> Texture {
+    json_texture := json.textures[texture_index];
+
+    // this has to do with repeat/clamp/etc
+    sampler := json_texture.sampler;
+    source := json_texture.source;
+
+    wrap: TextureWrap;
+    if sampler {
+        texture_sampler := json.samplers[<< sampler];
+        assert(texture_sampler.wrapS == texture_sampler.wrapT, "Different horizontal and vertical wrap functions are not currently supported.");
+        if texture_sampler.wrapS == {
+            case 0x812f;
+                wrap = .Clamp;
+            case 0x8370;
+                wrap = .MirroredRepeat;
+            case 0x2901;
+                wrap = .Repeat;
+            case;
+                assert(false, "Unknown wrap function.");
+        }
+    }
+
+    print("Wrap is %\n", wrap);
+
+    json_image := json.images[<< source];
+
+    texture: Texture;
+    if json_image.uri {
+        texture = load_texture(<< json_image.uri, wrap);
+    } else if json_image.bufferView {
+        view_index := << json_image.bufferView;
+        buffer_view := bufferviews[view_index];
+        texture = create_texture(buffer_view, wrap);
+    } else {
+        assert(false, "I think you have to have either an image uri or buffer.");
+    }
+
+    print("loaded texture % %\n", texture.width, texture.height);
+
+    return texture;
+}
+
 is_valid_primitive :: (primitive: GltfJson.GltfJsonMesh.GltfJsonMeshPrimitive) -> bool {
     // needs to match model code
     position_accessor_object := primitive.attributes["POSITION"];

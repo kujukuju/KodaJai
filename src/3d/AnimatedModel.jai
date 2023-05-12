@@ -15,31 +15,23 @@ create_animated_model :: (model: *Model, animations: ModelAnimations) -> *Animat
 // }
 
 draw :: (animated: AnimatedModel, animation: string, frame: float = 0.0, transform: Matrix4 = Matrix4Identity, shader: *Shader = null) {
-    if !shader {
-        shader = *skinned_animation_shader3;
-    }
-
     draw(animated, animation, frame, transform, get_perspective_matrix(), shader);
 }
 
-draw :: (animated: AnimatedModel, animation: string, frame: float = 0.0, transform: Matrix4 = Matrix4Identity, projection: Matrix4, shader: *Shader) {
-    // TODO this is temporary to get vert colors working
-    if animated.model.geometry.count > 0 && matches_attributes(animated.model.geometry[0], .Position, .Normal, .Texcoord, .JointIndices, .JointWeights) {
-        shader = *skinned_animation_shader3;
-    } else if animated.model.geometry.count > 0 && matches_attributes(animated.model.geometry[0], .Position, .Normal, .JointIndices, .JointWeights) {
-        shader = *skinned_animation_no_texture_shader3;
-    } else if animated.model.geometry.count > 0 && matches_attributes(animated.model.geometry[0], .Position, .Texcoord, .JointIndices, .JointWeights) {
-        shader = *skinned_animation_no_normal_shader3;
-    } else if animated.model.geometry.count > 0 && matches_attributes(animated.model.geometry[0], .Position, .Normal, .Texcoord, .JointIndices, .JointIndices, .JointWeights, .JointWeights) {
-        shader = *skinned_animation_double_shader3;
-    } else if animated.model.geometry.count > 0 {
-        print("Found invalid attribute combination. %\n", animated.model.geometry[0].attributes);
-        assert(false, "Found invalid attribute combination.");
-    }
-
+draw :: (animated: AnimatedModel, animation: string, frame: float = 0.0, transform: Matrix4 = Matrix4Identity, projection: Matrix4, shader: *Shader = null) {
     if animated.model.geometry.count == 0 {
         return;
     }
+
+    if shader == null {
+        if model.shader {
+            shader = model.shader;
+        } else {
+            shader = get_default_shader(animated.model.geometry[0].attributes);
+        }
+    }
+
+    assert(!!shader, "Could not find appropriate shader for model attributes.");
 
     cull_face := koda.cull_face;
     if cull_face != animated.model.cull_face {
@@ -83,35 +75,25 @@ draw :: (animated: AnimatedModel, animation: string, frame: float = 0.0, transfo
 //     draw(animated, ..mix, frame, transform, shader);
 // }
 
-draw :: (animated: AnimatedModel, mix: [] AnimationMix, frame: float = 0.0, transform: Matrix4 = Matrix4Identity, shader: *Shader = null) {
-    if !shader {
-        shader = *skinned_animation_shader3;
-    }
-
-    draw(animated, mix, frame, transform, get_perspective_matrix(), shader);
+draw :: (animated: AnimatedModel, mix: [] AnimationMix, transform: Matrix4 = Matrix4Identity, shader: *Shader = null) {
+    draw(animated, mix, transform, get_perspective_matrix(), shader);
 }
 
 // draw :: (animated: AnimatedModel, mix: [] AnimationMix, frame: float = 0.0, transform: Matrix4 = Matrix4Identity, projection: Matrix4, shader: *Shader) {
 //     draw(animated, ..mix, frame, transform, projection, shader);
 // }
 
-draw :: (animated: AnimatedModel, mix: [] AnimationMix, frame: float = 0.0, transform: Matrix4 = Matrix4Identity, projection: Matrix4, shader: *Shader) {
-    // TODO this is temporary to get vert colors working
-    if animated.model.geometry.count > 0 && matches_attributes(animated.model.geometry[0], .Position, .Normal, .Texcoord, .JointIndices, .JointWeights) {
-        shader = *skinned_animation_shader3;
-    } else if animated.model.geometry.count > 0 && matches_attributes(animated.model.geometry[0], .Position, .Normal, .JointIndices, .JointWeights) {
-        shader = *skinned_animation_no_texture_shader3;
-    } else if animated.model.geometry.count > 0 && matches_attributes(animated.model.geometry[0], .Position, .Texcoord, .JointIndices, .JointWeights) {
-        shader = *skinned_animation_no_normal_shader3;
-    } else if animated.model.geometry.count > 0 && matches_attributes(animated.model.geometry[0], .Position, .Normal, .Texcoord, .JointIndices, .JointIndices, .JointWeights, .JointWeights) {
-        shader = *skinned_animation_double_shader3;
-    } else if animated.model.geometry.count > 0 {
-        print("Found invalid attribute combination. %\n", animated.model.geometry[0].attributes);
-        assert(false, "Found invalid attribute combination.");
-    }
-
+draw :: (animated: AnimatedModel, mix: [] AnimationMix, transform: Matrix4 = Matrix4Identity, projection: Matrix4, shader: *Shader = null) {
     if animated.model.geometry.count == 0 {
         return;
+    }
+
+    if shader == null {
+        if animated.model.shader {
+            shader = animated.model.shader;
+        } else {
+            shader = get_default_shader(animated.model.geometry[0].attributes);
+        }
     }
 
     cull_face := koda.cull_face;
@@ -133,7 +115,7 @@ draw :: (animated: AnimatedModel, mix: [] AnimationMix, frame: float = 0.0, tran
     uniforms["model"] = create_uniform("model", model_mat);
     uniforms["view"] = create_uniform("view", view);
 
-    joints := get_joints(animated.animations, mix, frame, 100);
+    joints := get_joints(animated.animations, mix, 100);
 
     uniforms["uJoints"] = create_uniform("uJoints", joints);
     

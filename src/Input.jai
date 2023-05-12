@@ -183,10 +183,16 @@ input: struct {
     released_buttons: [BUTTON_COUNT] bool;
     mouse_left: InputState;
     released_mouse_left: bool;
+    mouse_left_start: Vector2;
+    mouse_left_drag: Vector2;
     mouse_right: InputState;
     released_mouse_right: bool;
+    mouse_right_start: Vector2;
+    mouse_right_drag: Vector2;
     mouse_middle: InputState;
     released_mouse_middle: bool;
+    mouse_middle_start: Vector2;
+    mouse_middle_drag: Vector2;
     mouse: Vector2;
     mouse_delta_x: float64;
     mouse_delta_y: float64;
@@ -276,9 +282,12 @@ update_inputs :: () {
     input.released_mouse_left = input.mouse_left && !mouse_left;
     if mouse_left && !input.mouse_left {
         input.mouse_left |= InputState.START;
+        input.mouse_left_start = input.mouse;
+        input.mouse_left_drag = .{};
     }
     if mouse_left {
         input.mouse_left |= InputState.DOWN;
+        input.mouse_left_drag += Vector2.{xx input.mouse_delta_x, xx input.mouse_delta_y};
     } else {
         input.mouse_left &= ~InputState.DOWN;
     }
@@ -288,9 +297,12 @@ update_inputs :: () {
     input.released_mouse_right = input.mouse_right && !mouse_right;
     if mouse_right && !input.mouse_right {
         input.mouse_right |= InputState.START;
+        input.mouse_right_start = input.mouse;
+        input.mouse_right_drag = .{};
     }
     if mouse_right {
         input.mouse_right |= InputState.DOWN;
+        input.mouse_right_drag += Vector2.{xx input.mouse_delta_x, xx input.mouse_delta_y};
     } else {
         input.mouse_right &= ~InputState.DOWN;
     }
@@ -300,9 +312,12 @@ update_inputs :: () {
     input.released_mouse_middle = input.mouse_middle && !mouse_middle;
     if mouse_middle && !input.mouse_middle {
         input.mouse_middle |= InputState.START;
+        input.mouse_middle_start = input.mouse;
+        input.mouse_middle_drag = .{};
     }
     if mouse_middle {
         input.mouse_middle |= InputState.DOWN;
+        input.mouse_middle_drag += Vector2.{xx input.mouse_delta_x, xx input.mouse_delta_y};
     } else {
         input.mouse_middle &= ~InputState.DOWN;
     }

@@ -51,6 +51,7 @@
 #load "src/3d/Container3.jai";
 #load "src/3d/CubeGeometry.jai";
 #load "src/3d/CubeMap.jai";
+#load "src/3d/CubemapTexture.jai";
 #load "src/3d/Geometry.jai";
 #load "src/3d/GridGeometry.jai";
 #load "src/3d/Image3.jai";
@@ -70,11 +71,13 @@
 #load "src/noise/VolumeNoise.jai";
 #load "src/noise/Worley.jai";
 
+#load "src/shaders/CubemapShader.jai";
 #load "src/shaders/DefaultEllipseShader.jai";
 #load "src/shaders/DefaultShader.jai";
 #load "src/shaders/DefaultShader3.jai";
 #load "src/shaders/DefaultShaderColors3.jai";
 #load "src/shaders/DefaultShapeShader3.jai";
+#load "src/shaders/DefaultVertColorNormalShader3.jai";
 #load "src/shaders/DefaultVertColorShader3.jai";
 #load "src/shaders/FlatGridShader3.jai";
 #load "src/shaders/FontShader.jai";
@@ -82,8 +85,10 @@
 #load "src/shaders/InstancedShader2.jai";
 #load "src/shaders/InstancedShader3.jai";
 #load "src/shaders/OcclusionShader3.jai";
+#load "src/shaders/ShaderManager.jai";
 #load "src/shaders/Shaders.jai";
 #load "src/shaders/SkinnedAnimationDoubleShader3.jai";
+#load "src/shaders/SkinnedAnimationDoubleTextureShader3.jai";
 #load "src/shaders/SkinnedAnimationNoNormalShader3.jai";
 #load "src/shaders/SkinnedAnimationNoTextureShader3.jai";
 #load "src/shaders/SkinnedAnimationShader3.jai";
@@ -106,6 +111,7 @@
 #load "src/ShaderUniforms.jai";
 #load "src/SwapBuffer.jai";
 #load "src/Text.jai";
+#load "src/TextureWrap.jai";
 #load "src/Time.jai";
 #load "src/Utilities.jai";
 #load "src/Window.jai";
@@ -144,13 +150,16 @@ koda: struct {
 // }();
 // #run print("Koda asset path: %\n", KODA_ASSET_PATH);
 
+cubemap_shader: CubemapShader;
 default_shader: DefaultShader;
 default_shader3: DefaultShader3;
+default_color_normal_shader3: DefaultVertColorNormalShader3;
 default_color_shader3: DefaultVertColorShader3;
 // I probably dont want this one and instead want auto generating shaders based on bool values, like a DynamicShader class
 default_shader_colors3: DefaultShaderColors3;
 default_shape_shader3: DefaultShapeShader3;
 skinned_animation_double_shader3: SkinnedAnimationDoubleShader3;
+skinned_animation_double_texture_shader3: SkinnedAnimationDoubleTextureShader3;
 skinned_animation_no_normal_shader3: SkinnedAnimationNoNormalShader3;
 skinned_animation_no_texture_shader3: SkinnedAnimationNoTextureShader3;
 skinned_animation_shader3: SkinnedAnimationShader3;

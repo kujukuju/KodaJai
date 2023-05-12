@@ -16,6 +16,7 @@ Animation :: struct {
     frames: [..][..] AnimationFrame;
     // these are the relevancy weights for a given animation
     bone_weights: [..] float;
+    max_frame: float;
 }
 
 AnimationJoint :: struct {
@@ -38,6 +39,7 @@ AnimationMix :: struct {
     name: string;
     weight: float;
     absolute: bool = false;
+    frame: float = 0.0;
 }
 
 load_animations :: (path: string, name_override: string = "", base_only: bool = false, stationary_bone: string = "") -> ModelAnimations, bool {
@@ -78,11 +80,11 @@ load_animations :: (animations: *ModelAnimations, path: string, name_override: s
     }
 }
 
-load_remap_animations :: (target: string, animation_source: string, remap: [] [2] string, name_override: string = "") -> ModelAnimations, bool {
+load_remap_animations :: (target: string, animation_source: string, remap: [] [2] string = .[], name_override: string = "", stationary_bone: string = "") -> ModelAnimations, bool {
     animations: ModelAnimations;
     load_animations(*animations, target, base_only = true);
 
-    success := load_remap_animations(*animations, target, animation_source, remap, name_override);
+    success := load_remap_animations(*animations, target, animation_source, remap, name_override, stationary_bone);
     if !success {
         destroy(animations);
         return .{}, false;
@@ -91,8 +93,8 @@ load_remap_animations :: (target: string, animation_source: string, remap: [] [2
     return animations, true;
 }
 
-load_remap_animations :: (animations: *ModelAnimations, animation_source: string, remap: [] [2] string, name_override: string = "") -> bool {
-    source_animations, source_success := load_animations(animation_source, name_override);
+load_remap_animations :: (animations: *ModelAnimations, animation_source: string, remap: [] [2] string = .[], name_override: string = "", stationary_bone: string = "") -> bool {
+    source_animations, source_success := load_animations(animation_source, name_override, stationary_bone = stationary_bone);
     defer destroy(source_animations);
     if !source_success {
         return false;
@@ -112,6 +114,32 @@ load_remap_animations :: (animations: *ModelAnimations, animation_source: string
 
 remap_animations :: (animations: *ModelAnimations, source: ModelAnimations, remap: [] [2] string) -> bool {
     assert(!!animations.bone_hierarchy, "You cannot remap animations if you haven't yet established any bones.");
+
+    // if the remap animations are empty we'll remap by matching bone names
+    real_remap: [] [2] string;
+    real_remap = remap;
+
+    found_remap: [..] [2] string;
+    found_remap.allocator = temp;
+    if remap.count == 0 {
+        array_reserve(*found_remap, max(animations.bone_hierarchy.count, source.bone_hierarchy.count));
+
+        // I guess I could optimize this but its probably not even more efficient until you get to like 100+ bones
+
+        for target_bone: animations.bone_hierarchy {
+            for source_bone: source.bone_hierarchy {
+                if target_bone.name == source_bone.name {
+                    entry: [2] string;
+                    entry[0] = source_bone.name;
+                    entry[1] = target_bone.name;
+                    array_add(*found_remap, entry);
+                    break;
+                }
+            }
+        }
+
+        real_remap = found_remap;
+    }
 
     target_name_indices: Table(string, int);
     target_name_indices.allocator = temp;
@@ -136,7 +164,7 @@ remap_animations :: (animations: *ModelAnimations, source: ModelAnimations, rema
     // the index remap from the target to the source
     target_to_source_indices: Table(int, int);
     target_to_source_indices.allocator = temp;
-    for pair: remap {
+    for pair: real_remap {
         target_index, has_target_index := table_find(*target_name_indices, pair[1]);
         if !has_target_index {
             print("Target bone does not exist %\n", pair[1]);
@@ -151,6 +179,30 @@ remap_animations :: (animations: *ModelAnimations, source: ModelAnimations, rema
 
         table_set(*target_to_source_indices, target_index, source_index);
     }
+
+    // find the root most pair bone
+    current_root_target_index, has_target_index := table_find(*target_name_indices, real_remap[0][1]);
+    assert(has_target_index);
+    best_root_target_index := current_root_target_index;
+    while animations.bone_hierarchy[current_root_target_index].parent != current_root_target_index {
+        current_root_target_index = animations.bone_hierarchy[current_root_target_index].parent;
+
+        // if this parent index exists as a mapping, update the best index to this
+        if table_find_pointer(*target_to_source_indices, current_root_target_index) {
+            best_root_target_index = current_root_target_index;
+        }
+    }
+
+    best_root_source_index, has_best_root_source_index := table_find(*target_to_source_indices, best_root_target_index);
+    assert(has_best_root_source_index);
+
+    root_target_bind := animations.bone_hierarchy[best_root_target_index].transform;
+    root_source_bind := source.bone_hierarchy[best_root_source_index].transform;
+
+    root_target_bind_to_source_bind := root_source_bind * inverse(root_target_bind);
+
+    // if I really want to be particular I can either ensure that every bone resolves to the same parent
+    // or I can use the parent most parent for each bones relative offset correction
 
     for joint, index: animations.bone_hierarchy {
         if !joint.name {
@@ -220,6 +272,7 @@ remap_animations :: (animations: *ModelAnimations, source: ModelAnimations, rema
     // get the world bind transforms to calculate new bind transforms at the end
     world_bind_transforms: [..] Matrix4;
     world_bind_transforms.allocator = temp;
+    array_resize(*world_bind_transforms, animations.joint_indices.count);
     get_joints(animations, *world_bind_transforms);
 
     array_reserve(*animations.animations, animations.animations.count + source.animations.count);
@@ -231,6 +284,7 @@ remap_animations :: (animations: *ModelAnimations, source: ModelAnimations, rema
         array_copy(*animation.bone_weights, source_animation.bone_weights);
 
         animation.name = copy_string(source_animation.name);
+        animation.max_frame = source_animation.max_frame;
 
         array_resize(*animation.bone_weights, node_count);
         for joint_index: 0..node_count - 1 {
@@ -240,14 +294,10 @@ remap_animations :: (animations: *ModelAnimations, source: ModelAnimations, rema
             }
         }
 
-        print("at animation %\n", animation.name);
-
         array_resize(*animation.frames, node_count);
         if !source_animation.frames {
             continue;
         }
-
-        print("writing frames % %\n", animation.name, animation.frames.count);
 
         for joint_index: 0..animation.frames.count - 1 {
             // we only apply the frames if they exist because otherwise the data will
@@ -267,6 +317,17 @@ remap_animations :: (animations: *ModelAnimations, source: ModelAnimations, rema
                 local_source_bind := local_source_binds[source_joint_index];
                 local_source_inverse_bind := local_source_inverse_binds[source_joint_index];
 
+                // while the target bone parent doesn't have a source mapping, accumulate the local bind offset
+                local_accumulated_target_bind := local_target_bind;
+                current_joint_index := joint_index;
+                current_parent_index := animations.bone_hierarchy[current_joint_index].parent;
+                while !table_find_pointer(*target_to_source_indices, current_parent_index) && current_joint_index != current_parent_index {
+                    local_accumulated_target_bind = animations.bone_hierarchy[current_parent_index].transform * local_accumulated_target_bind;
+
+                    current_joint_index = current_parent_index;
+                    current_parent_index = animations.bone_hierarchy[current_joint_index].parent;
+                }
+
                 for frame_index: 0..animation.frames[joint_index].count - 1 {
                     source_frame_transform := Matrix4Identity;
                     source_frame_transform = translate(source_frame_transform, animation.frames[joint_index][frame_index].translation);
@@ -278,7 +339,20 @@ remap_animations :: (animations: *ModelAnimations, source: ModelAnimations, rema
                     // then I want to transform target bind into source frame, so I calculate T3 (target_bind_to_source_frame)
                     // which is T2 * T1 (source_bind_to_source_frame * target_bind_to_source_bind)
 
-                    target_bind_to_source_bind := local_source_bind * local_target_inverse_bind;
+                    // this doesnt quite work but its close
+                    // it seems like the problem is that when bones are skipped for whatever reason error accumulates?
+                    // also, in order to apply the scale correctly I need to change one of the matrices at some point in the math
+                    // so the translation remains the same as the target bind pose while only the rotation changes
+
+                    // I think this doesn't work because bones aren't guaranteed to be the same yaw/roll whatever rotation
+                    // so if they're like 180 degrees different roll, and then you pitch them 20 degrees, the pitches will get inverted
+                    // I'm not sure exactly what operation to do in order to recalculate the relative value of the absolute roll in the newly modified bone space
+
+                    // so I think I need to use this
+                    // root_target_bind_to_source_bind
+
+                    // target_bind_to_source_bind := local_source_bind * local_target_inverse_bind;
+                    target_bind_to_source_bind := local_source_bind * inverse(local_accumulated_target_bind);
 
                     source_bind_to_source_frame := source_frame_transform * local_source_inverse_bind;
 
@@ -293,6 +367,7 @@ remap_animations :: (animations: *ModelAnimations, source: ModelAnimations, rema
                     animation.frames[joint_index][frame_index].scale = modified_scale;
                 }
             } else if has_source_index {
+                // TODO
                 frame := array_add(*animation.frames[joint_index]);
 
                 target_translation := animations.bone_hierarchy[joint_index].translation;
@@ -306,7 +381,19 @@ remap_animations :: (animations: *ModelAnimations, source: ModelAnimations, rema
                 local_source_bind := local_source_binds[source_joint_index];
                 local_source_inverse_bind := local_source_inverse_binds[source_joint_index];
 
-                target_bind_to_source_bind := local_source_bind * local_target_inverse_bind;
+                // while the target bone parent doesn't have a source mapping, accumulate the local bind offset
+                local_accumulated_target_bind := local_target_bind;
+                current_joint_index := joint_index;
+                current_parent_index := animations.bone_hierarchy[current_joint_index].parent;
+                while !table_find_pointer(*target_to_source_indices, current_parent_index) && current_joint_index != current_parent_index {
+                    local_accumulated_target_bind = animations.bone_hierarchy[current_parent_index].transform * local_accumulated_target_bind;
+
+                    current_joint_index = current_parent_index;
+                    current_parent_index = animations.bone_hierarchy[current_joint_index].parent;
+                }
+
+                // target_bind_to_source_bind := local_source_bind * local_target_inverse_bind;
+                target_bind_to_source_bind := local_source_bind * inverse(local_accumulated_target_bind);
 
                 target_frame := target_bind_to_source_bind * local_target_bind;
 
@@ -322,6 +409,123 @@ remap_animations :: (animations: *ModelAnimations, source: ModelAnimations, rema
     return true;
 }
 
+generate_final_frames :: (animations: *ModelAnimations, names: [] string) {
+    for name: names {
+        for *animation: animations.animations {
+            if animation.name == name {
+                generate_final_frame(animation);
+                continue name;
+            }
+        }
+
+        print("Could not find animation to generate final frames. %\n", name);
+        assert(false, "Could not find animation to generate final frames.");
+    }
+}
+
+generate_final_frame :: (animation: *Animation) {
+    approximate_step := 0.0;
+    for bone_animation: animation.frames {
+        for current_frame_index: 0..bone_animation.count - 2 {
+            next_frame_index := current_frame_index + 1;
+
+            step := bone_animation[next_frame_index].frame - bone_animation[current_frame_index].frame;
+
+            if approximate_step == 0 {
+                approximate_step = step;
+            }
+
+            if abs(step - approximate_step) > 0.000001 {
+                print("Skipping final frame generation for animation % because the steps aren't equivalent. Wanted: %. Found: %.", animation.name, approximate_step, step);
+                return;
+            }
+        }
+    }
+
+    for *bone_animation: animation.frames {
+        if bone_animation.count > 0 {
+            array_reserve(bone_animation, bone_animation.count + 1);
+
+            final_frame := bone_animation.data[0];
+            final_frame.frame = bone_animation.data[bone_animation.count - 1].frame + approximate_step;
+            array_add(bone_animation, final_frame);
+        }
+    }
+}
+
+rename_animations :: (animations: *ModelAnimations, name_overrides: [] [2] string) {
+    for name_override: name_overrides {
+        for *animation: animations.animations {
+            if animation.name == name_override[0] {
+                free(animation.name);
+                animation.name = copy_string(name_override[1]);
+                continue name_override;
+            }
+        }
+
+        print("Could not find name override for souce name %.\n", name_override[0]);
+        assert(false, "Could not find name override.");
+    }
+}
+
+remove_yaw_rotations :: (animations: *ModelAnimations, names: [] string, bone: string) {
+    bone_index := -1;
+    for current_bone, current_bone_index: animations.bone_hierarchy {
+        if current_bone.name == bone {
+            bone_index = current_bone_index;
+            break;
+        }
+    }
+
+    print("Could not find valid bone for removing yaw joints by name %.\n", bone);
+    assert(bone_index >= 0, "Could not find valid bone for removing yaw joints.");
+
+    for name: names {
+        for i: 0..animations.animations.count - 1 {
+            if animations.animations[i].name == name {
+                remove_yaw_rotations(animations, *animations.animations[i], bone_index);
+                continue name;
+            }
+        }
+
+        print("Could not find yaw rotation removal animation for name %.\n", name);
+        assert(false, "Could not find yaw rotation removal name.");
+    }
+}
+
+remove_yaw_rotations :: (animations: ModelAnimations, animation: *Animation, bone: int) {
+    for frame_index: 0..animation.frames[bone].count - 1 {
+        animation.frames[bone][frame_index].rotation = animations.bone_hierarchy[bone].rotation;
+    }
+}
+
+delete_animations  :: (animations: *ModelAnimations, name_deletions: [] string) {
+    for name_delete: name_deletions {
+        for i: 0..animations.animations.count - 1 {
+            if animations.animations[i].name == name_delete {
+                destroy(animations.animations[i]);
+                array_ordered_remove_by_index(*animations.animations, i);
+                continue name_delete;
+            }
+        }
+
+        print("Could not find name deletion for name %.\n", name_delete);
+        assert(false, "Could not find name deletion.");
+    }
+}
+
+get_animation_duration :: (animations: ModelAnimations, name: string) -> float {
+    for animation: animations.animations {
+        if animation.name == name {
+            print("found % %\n", animation.name, animation.max_frame);
+            return animation.max_frame;
+        }
+    }
+
+    assert(false, "Could not find animation duration for given name.");
+    return 0.0;
+}
+
 destroy :: (animations: ModelAnimations) {
     // these are shared arrays
     array_free(animations.bone_hierarchy);
@@ -330,12 +534,19 @@ destroy :: (animations: ModelAnimations) {
 
     // these are not shared memory
     for animation: animations.animations {
-        free(animation.name);
-        array_free(animation.frames);
-        array_free(animation.bone_weights);
+        destroy(animation);
     }
 
     array_free(animations.animations);
+}
+
+destroy :: (animation: Animation) {
+    free(animation.name);
+    for frame: animation.frames {
+        array_free(frame);
+    }
+    array_free(animation.frames);
+    array_free(animation.bone_weights);
 }
 
 // this will apply the animations in the order received, not all at the same time
@@ -351,7 +562,7 @@ destroy :: (animations: ModelAnimations) {
 // if you aren't using absolute animations, a weight of 1.0 will be treated as mixed into the existing weights provided
 // so 0.5 -> 0.5 -> 1.0, the last animation would be weighted at 2x the other strengths, and 1.0 -> 1.0 -> 1.0, the last
 // animation is equal to the previous mixed animation strength
-get_joints :: (animations: ModelAnimations, mix: [] AnimationMix, frame: float, $count: int) -> [count] Matrix4 {
+get_joints :: (animations: ModelAnimations, mix: [] AnimationMix, $count: int) -> [count] Matrix4 {
     assert(animations.animations.count > 0);
     assert(mix.count > 0);
     // assert(mix[0].weight == 1, "The way this animation mixing works it doesn't make sense to start with anything other than 1.");
@@ -375,6 +586,10 @@ get_joints :: (animations: ModelAnimations, mix: [] AnimationMix, frame: float, 
     found_any := false;
 
     for i: 0..mix.count - 1 {
+        if mix[i].weight == 0 {
+            continue;
+        }
+
         animation: Animation;
         for current: animations.animations {
             if current.name == mix[i].name {
@@ -396,7 +611,7 @@ get_joints :: (animations: ModelAnimations, mix: [] AnimationMix, frame: float, 
             }
 
             if animation.frames[bone_index].count > 0 {
-                translation, rotation, scale := get_interpolated_components(animation.frames[bone_index], frame);
+                translation, rotation, scale := get_interpolated_components(animation.frames[bone_index], mix[i].frame);
 
                 if current_weights[bone_index] == 0 && i == 0 {
                     current[bone_index].translation = translation;
@@ -450,7 +665,9 @@ get_joints :: (animations: ModelAnimations, mix: [] AnimationMix, frame: float, 
     // if not a single animation was found return the bind pose
     if !found_any {
         output: [count] Matrix4;
-        get_joints(animations, *output);
+        casted: [] Matrix4;
+        casted = output;
+        get_joints(animations, *casted);
         return output;
     }
 
@@ -503,22 +720,21 @@ get_joints :: (animations: ModelAnimations, mix: [] AnimationMix, frame: float, 
 get_joints :: (animations: ModelAnimations, $count: int) -> [count] Matrix4 {
     joints: [count] Matrix4;
     casted: [] Matrix4;
-    casted.data = output.data;
-    casted.count = count;
+    casted = output;
     get_joints(animations, *casted);
 
     return joints;
 }
 
-get_joints :: (animations: ModelAnimations, joints: *[..] Matrix4) {
-    if joints.count < animations.joint_indices.count {
-        array_resize(joints, animations.joint_indices.count);
-    }
+// get_joints :: (animations: ModelAnimations, joints: *[..] Matrix4) {
+//     if joints.count < animations.joint_indices.count {
+//         array_resize(joints, animations.joint_indices.count);
+//     }
 
-    casted_joints := cast(*[] Matrix4) joints;
+//     casted_joints := cast(*[] Matrix4) joints;
 
-    get_joints(animations, casted_joints);
-}
+//     get_joints(animations, casted_joints);
+// }
 
 get_joints :: (animations: ModelAnimations, joints: *[] Matrix4) {
     assert(joints.count >= animations.joint_indices.count);
@@ -563,8 +779,7 @@ get_joints :: (animations: ModelAnimations, name: string, frame: float, $count: 
     // if not a single animation was found return the bind pose
     output: [count] Matrix4;
     casted: [] Matrix4;
-    casted.data = output.data;
-    casted.count = count;
+    casted = output;
     get_joints(animations, *casted);
     return output;
 }
@@ -733,8 +948,6 @@ load_animation_gltf_data :: (animations: *ModelAnimations, json: GltfJson, binar
                 animation.name = copy_string(<< current_animation.name);
             }
 
-            print("Animation: %\n", animation.name);
-
             // the animation samplers inputs are times
             // the animation samplers outputs are the transformations, presumably for each time
 
@@ -791,6 +1004,8 @@ load_animation_gltf_data :: (animations: *ModelAnimations, json: GltfJson, binar
                             }
                         }
 
+                        animation.max_frame = max(animation.max_frame, time_view[i]);
+
                         entry: AnimationFrame;
                         entry.frame = time_view[i];
                         entry.translation = m_translation;
@@ -803,17 +1018,17 @@ load_animation_gltf_data :: (animations: *ModelAnimations, json: GltfJson, binar
 
                 if channel.target.path == {
                     case "translation";
-                        if stationary_bone && animations.bone_hierarchy[bone_index].name == stationary_bone {
-                            continue;
-                        }
-
                         translation_view := get_accessor_view(transformation_accessor, "VEC3");
                         assert(translation_view.count == time_view.count, "I think you have to have the same number of transformations for a given node as frames.");
 
                         for i: 0..time_view.count - 1 {
                             for a: 0..animation.frames[bone_index].count - 1 {
                                 if time_view[i] == animation.frames[bone_index][a].frame {
-                                    animation.frames[bone_index][a].translation = translation_view[i];
+                                    if stationary_bone && animations.bone_hierarchy[bone_index].name == stationary_bone {
+                                        animation.frames[bone_index][a].translation.y = translation_view[i].y;
+                                    } else {
+                                        animation.frames[bone_index][a].translation = translation_view[i];
+                                    }
                                     continue i;
                                 }
                             }
@@ -956,44 +1171,54 @@ calculate_bone_weights :: (animations: ModelAnimations, animation: *Animation) {
 get_interpolated_components :: (frames: [..] AnimationFrame, frame: float) -> Vector3, Quaternion, Vector3 {
     assert(frames.count > 0, "Cannot get an interpolated transform if there are no frames.");
 
-    minimum_frame := frames[0].frame;
-    maximum_frame := frames[frames.count - 1].frame;
-    starting_index := 0;
-    ending_index := 0;
+    frame_translation: Vector3;
+    frame_rotation: Quaternion;
+    frame_scale: Vector3;
 
-    wrapped_frame := fmod_cycling(frame - minimum_frame, maximum_frame - minimum_frame) + minimum_frame;
+    if frames.count == 1 {
+        frame := frames[0];
 
-    i := frames.count - 2;
-    while i >= 0 {
-        if wrapped_frame >= frames[i].frame {
-            starting_index = i;
-            ending_index = i + 1;
-            break;
+        frame_translation = frame.translation;
+        frame_rotation = frame.rotation;
+        frame_scale = frame.scale;
+    } else {
+        minimum_frame := frames[0].frame;
+        maximum_frame := frames[frames.count - 1].frame;
+        starting_index := 0;
+        ending_index := 0;
+
+        wrapped_frame := fmod_cycling(frame - minimum_frame, maximum_frame - minimum_frame) + minimum_frame;
+
+        i := frames.count - 2;
+        while i >= 0 {
+            if wrapped_frame >= frames[i].frame {
+                starting_index = i;
+                ending_index = i + 1;
+                break;
+            }
+
+            i -= 1;
         }
+    
+        starting_frame := frames[starting_index];
+        ending_frame := frames[ending_index];
 
-        i -= 1;
+        starting_frame_time := starting_frame.frame;
+        ending_frame_time := ending_frame.frame;
+
+        progress := (wrapped_frame - starting_frame_time) / (ending_frame_time - starting_frame_time);
+
+        starting_translation := starting_frame.translation;
+        ending_translation := ending_frame.translation;
+        starting_rotation := starting_frame.rotation;
+        ending_rotation := ending_frame.rotation;
+        starting_scale := starting_frame.scale;
+        ending_scale := ending_frame.scale;
+
+        frame_translation = lerp(starting_translation, ending_translation, progress);
+        frame_rotation = quat_slerp(starting_rotation, ending_rotation, progress);
+        frame_scale = lerp(starting_scale, ending_scale, progress);
     }
-
-    assert(starting_index != ending_index, "Could not find the frames that the requested frame is in between.");
-
-    starting_frame := frames[starting_index];
-    ending_frame := frames[ending_index];
-
-    starting_frame_time := starting_frame.frame;
-    ending_frame_time := ending_frame.frame;
-
-    progress := (wrapped_frame - starting_frame_time) / (ending_frame_time - starting_frame_time);
-
-    starting_translation := starting_frame.translation;
-    ending_translation := ending_frame.translation;
-    starting_rotation := starting_frame.rotation;
-    ending_rotation := ending_frame.rotation;
-    starting_scale := starting_frame.scale;
-    ending_scale := ending_frame.scale;
-
-    frame_translation := lerp(starting_translation, ending_translation, progress);
-    frame_rotation := quat_slerp(starting_rotation, ending_rotation, progress);
-    frame_scale := lerp(starting_scale, ending_scale, progress);
 
     return frame_translation, frame_rotation, frame_scale;
 }

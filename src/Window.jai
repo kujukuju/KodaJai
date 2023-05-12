@@ -7,6 +7,7 @@ koda_init :: () {
 
     // initialize time
     init_time();
+    init_default_shaders();
 
     koda.initialized = true;
 }
@@ -15,7 +16,6 @@ get_window :: () -> *GLFWwindow {
     return koda.window;
 }
 
-monitor_height: s32;
 create_window :: (title: *u8, width: s32, height: s32, multisample: int = 0) {
     if !koda.initialized {
         print("Cannot create window before initializing.\n");
@@ -23,7 +23,7 @@ create_window :: (title: *u8, width: s32, height: s32, multisample: int = 0) {
     }
 
     monitor_width := width;
-    monitor_height = height;
+    monitor_height := height;
     monitor := glfwGetPrimaryMonitor();
     if monitor {
         video_mode := glfwGetVideoMode(monitor);
@@ -57,6 +57,7 @@ create_window :: (title: *u8, width: s32, height: s32, multisample: int = 0) {
     // glfwSetCursorPos(koda.window, width / 2.0, height / 2.0);
     glfwSetScrollCallback(koda.window, scroll_callback);
     // glfwSetCursorPosCallback(koda.window, mouse_callback);
+    glfwSetWindowSizeCallback(koda.window, size_callback);
 
     set_vsync(false);
     set_target_fps(0);
@@ -393,6 +394,13 @@ error_callback :: (error: s32, description: *u8) #c_call {
     new_context: Context;
     push_context new_context {
         print("GLFW error: % %\n", error, to_string(description));
+    }
+}
+
+size_callback :: (window: *GLFWwindow, width: s32, height: s32) #c_call {
+    new_context: Context;
+    push_context new_context {
+        set_viewport(width, height);
     }
 }
 

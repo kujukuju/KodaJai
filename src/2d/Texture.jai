@@ -3,11 +3,13 @@ Texture :: struct {
     width: s32;
     height: s32;
     format: PixelFormat;
+    wrap: TextureWrap;
     data: *u8;
 }
 
-create_texture :: (bytes: [] u8, should_upload: bool = true) -> Texture {
+create_texture :: (bytes: [] u8, wrap: TextureWrap = .Clamp, should_upload: bool = true) -> Texture {
     texture := load_data(bytes);
+    texture.wrap = wrap;
 
     if texture.data == null {
         print("Could not load texture.\n");
@@ -21,7 +23,7 @@ create_texture :: (bytes: [] u8, should_upload: bool = true) -> Texture {
     return texture;
 }
 
-create_texture :: (image: Image, should_upload: bool = true) -> Texture {
+create_texture :: (image: Image, wrap: TextureWrap = .Clamp, should_upload: bool = true) -> Texture {
     if !image.pixels.data {
         print("Could not create texture.\n");
         return .{};
@@ -32,6 +34,7 @@ create_texture :: (image: Image, should_upload: bool = true) -> Texture {
     texture.width = xx image.width;
     texture.height = xx image.height;
     texture.format = image.format;
+    texture.wrap = wrap;
 
     if should_upload {
         upload(*texture);
@@ -40,7 +43,7 @@ create_texture :: (image: Image, should_upload: bool = true) -> Texture {
     return texture;
 }
 
-load_texture :: (path: string, should_upload: bool = true) -> Texture {
+load_texture :: (path: string, wrap: TextureWrap = .Clamp, should_upload: bool = true) -> Texture {
     file, success := read_entire_file(path, false);
     defer free(file);
 
@@ -48,7 +51,7 @@ load_texture :: (path: string, should_upload: bool = true) -> Texture {
     bytes.data = file.data;
     bytes.count = file.count;
 
-    return create_texture(bytes, should_upload);
+    return create_texture(bytes, wrap, should_upload);
 }
 
 // TODO update texture more efficiently from image
@@ -87,16 +90,14 @@ upload :: (texture: *Texture) {
     
     assert(!!texture.data, "Cannot generate texture with no data.");
 
+    wrap_format := get_gl_format(texture.wrap);
+
     glGenTextures(1, *texture.buffer);
     glBindTexture(GL_TEXTURE_2D, texture.buffer);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);	
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-    // glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
-    // glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
-    // glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
-    // glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST_MIPMAP_LINEAR);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, wrap_format);	
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, wrap_format);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 
     eight_divible := (texture.width * texture.height) % 8 == 0;
     four_divisible := (texture.width * texture.height) % 4 == 0;
@@ -130,12 +131,11 @@ unload :: (texture: *Texture) {
 
 destroy :: (texture: Texture) {
     if texture.data {
-        free(texture.data);
+        stbi_image_free(texture.data);
     }
 
     if texture.buffer {
-        glDeleteTextures(1, texture.buffer);
-        texture.buffer = 0;
+        glDeleteTextures(1, *texture.buffer);
     }
 }
 

@@ -103,6 +103,8 @@ unload :: (texture: *Texture3) {
 // TODO add method to remove data if you'll never unload
 
 destroy :: (texture: Texture3) {
+    stbi_image_free(texture.data);
+    // delete data?
     glDeleteTextures(1, *texture.buffer);
 }
 
