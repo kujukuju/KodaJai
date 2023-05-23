@@ -109,6 +109,8 @@ destroy_shader :: (shader: Shader) {
     glDeleteProgram(shader.program);
 }
 
+// TODO apply_uniform singular as well? maybe impossible bc of textures
+
 apply_uniforms :: (shader: *Shader, uniforms: ShaderUniforms, printing: bool = false) {
     if shader != koda.shader {
         print("Applying uniforms to inactive shader. This is very unusual. I'm even considering disallowing this.\n");

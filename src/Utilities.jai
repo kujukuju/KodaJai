@@ -68,7 +68,6 @@ make_frustum_matrix_clipping :: (l: float, r: float, b: float, t: float, n: floa
 }
 
 get_perspective_matrix :: () -> Matrix4 {
-
     fovy := koda.fovy;
     // fwiw its possible to do infinite perspective matrix
     BUILTIN :: true;

@@ -20,7 +20,7 @@ Attribute :: enum {
 }
 
 SerializedGeometryHash :: struct {
-    modtime: S128;
+    hash: u32;
     size: s64;
 }
 
@@ -30,12 +30,6 @@ SerializedGeometry :: struct {
 }
 
 load_or_save_serialized_geometry :: (serialized_path: string, path: string, should_upload: bool = true) -> [..] *Geometry, bool {
-    cache_modtime, cache_size, cache_data_read_success := file_modtime_and_size(path);
-    if !cache_data_read_success {
-        empty: [..] *Geometry;
-        return empty, false;
-    }
-
     file, success := read_entire_file(serialized_path, log_errors = false);
     defer free(file);
 
@@ -43,10 +37,17 @@ load_or_save_serialized_geometry :: (serialized_path: string, path: string, shou
         view: [] u8;
         view.data = file.data;
         view.count = file.count;
+
+        geometry_bytes: [] u8;
+        geometry_bytes.data = file.data + size_of(SerializedGeometryHash);
+        geometry_bytes.count = file.count - size_of(SerializedGeometryHash);
+
+        cache_hash := get_hash(geometry_bytes);
+        cache_size := geometry_bytes.count;
         
-        hash := deserialize_geometry_hash(view);
-        if hash.modtime == cache_modtime || hash.size == cache_size {
-            print("Skipping file read. Reading serialized.\n");
+        geometry_hash := deserialize_geometry_hash(view);
+        if geometry_hash.hash == cache_hash && geometry_hash.size == cache_size {
+            print("Skipping geometry file read. Reading serialized.\n");
 
             return deserialize_geometry(view, should_upload), true;
         }
@@ -63,12 +64,23 @@ load_or_save_serialized_geometry :: (serialized_path: string, path: string, shou
     }
 
     serialized: SerializedGeometry;
-    serialized.validity_hash.modtime = cache_modtime;
-    serialized.validity_hash.size = cache_size;
     serialized.geometry = geometry;
 
     bytes := serialize_geometry(serialized);
     defer array_free(bytes);
+
+    geometry_bytes: [] u8;
+    geometry_bytes.data = bytes.data + size_of(SerializedGeometryHash);
+    geometry_bytes.count = bytes.count - size_of(SerializedGeometryHash);
+
+    cache_hash := get_hash(geometry_bytes);
+    cache_size := geometry_bytes.count;
+
+    geometry_hash: SerializedGeometryHash;
+    geometry_hash.hash = cache_hash;
+    geometry_hash.size = cache_size;
+
+    memcpy(bytes.data, *geometry_hash, size_of(SerializedGeometryHash));
 
     write_entire_file(serialized_path, bytes.data, bytes.count);
 
@@ -149,9 +161,7 @@ load_geometry :: (path: string, should_upload: bool = true) -> [..] *Geometry, b
 
 deserialize_geometry_hash :: (bytes: [] u8) -> SerializedGeometryHash {
     hash: SerializedGeometryHash;
-
-    index: int;
-    serializer.read(bytes, *index, *hash);
+    memcpy(*hash, bytes.data, size_of(SerializedGeometryHash));
 
     return hash;
 }

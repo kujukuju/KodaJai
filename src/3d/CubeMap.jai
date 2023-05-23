@@ -4,9 +4,9 @@ CubeMap :: struct {
     transform: Matrix4 = Matrix4Identity;
 }
 
-create_cube_map :: (texture: CubemapTexture, should_upload: bool = true) -> *CubeMap {
+create_cube_map :: (texture: CubemapTexture, half_width: float = 1.0, should_upload: bool = true) -> *CubeMap {
     cube := New(CubeMap);
-    cube.geometry = create_cube(.{1.0, 1.0, 1.0});
+    cube.geometry = create_cube(.{half_width, half_width, half_width});
     cube.uniforms["uTexture0"] = create_uniform("uTexture0", texture);
 
     if should_upload {
@@ -16,9 +16,9 @@ create_cube_map :: (texture: CubemapTexture, should_upload: bool = true) -> *Cub
     return cube;
 }
 
-load_cube_map :: (path: string, should_upload: bool = true) -> *CubeMap {
+load_cube_map :: (path: string, half_width: float = 1.0, should_upload: bool = true) -> *CubeMap {
     cube := New(CubeMap);
-    cube.geometry = create_cube(.{1.0, 1.0, 1.0});
+    cube.geometry = create_cube(.{half_width, half_width, half_width});
     cube.uniforms["uTexture0"] = create_uniform("uTexture0", load_cubemap_texture(path));
 
     if should_upload {
@@ -57,10 +57,6 @@ unload :: (cube: *CubeMap) {
 }
 
 draw :: (cube: *CubeMap) {
-    depth_test := get_depth_test();
-    defer set_depth_test(depth_test);
-    set_depth_test(false);
-
     cull_face := get_cull_face();
     defer set_cull_face(cull_face);
     set_cull_face(false);

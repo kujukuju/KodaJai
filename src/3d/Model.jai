@@ -315,7 +315,13 @@ load_model_gltf_data :: (json: GltfJson, binary: [] u8) -> [..] *Model, bool {
     defer array_free(bufferviews);
 
     model_index := 0;
-    for mesh: json.meshes {
+    for node: json.nodes {
+        if !node.mesh {
+            continue;
+        }
+
+        mesh := json.meshes[<< node.mesh];
+        
         for primitive: mesh.primitives {
             if !is_valid_primitive(primitive) {
                 continue;
