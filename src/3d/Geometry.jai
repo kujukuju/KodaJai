@@ -29,6 +29,27 @@ SerializedGeometry :: struct {
     geometry: [..] *Geometry;
 }
 
+create_geometry :: (vertices: [] float32, indices: [] u32, attributes: [] Attribute, should_upload: bool = true) -> [..] *Geometry {
+    geometries: [..] *Geometry;
+    array_reserve(*geometries, 1);
+
+    geometry := New(Geometry);
+    array_add(*geometries, geoemtry);
+
+    array_copy(*geometry.vertices, vertices);
+    array_copy(*geometry.indices, indices);
+    array_copy(*geometry.attributes, attributes);
+
+    stride := get_attribute_stride(geometry);
+    geometry.aabb = calculate_aabb(geometry);
+
+    if should_upload {
+        upload(geometry);
+    }
+
+    return geometries;
+}
+
 load_or_save_serialized_geometry :: (serialized_path: string, path: string, should_upload: bool = true) -> [..] *Geometry, bool {
     file, success := read_entire_file(serialized_path, log_errors = false);
     defer free(file);
@@ -47,7 +68,7 @@ load_or_save_serialized_geometry :: (serialized_path: string, path: string, shou
         
         geometry_hash := deserialize_geometry_hash(view);
         if geometry_hash.hash == cache_hash && geometry_hash.size == cache_size {
-            print("Skipping geometry file read. Reading serialized.\n");
+            print("Skipping geometry file read. Reading serialized. % = %, % = %\n", geometry_hash.hash, cache_hash, geometry_hash.size, cache_size);
 
             return deserialize_geometry(view, should_upload), true;
         }
@@ -213,11 +234,15 @@ upload :: (geometry: *Geometry) {
 
     glBindVertexArray(geometry.vao_);
 
+    if geometry.vertices.count != geometry.vertices.allocated || geometry.indices.count != geometry.indices.allocated {
+        print("Warning: Uploaded a geometry to the gpu with additional allocated buffer space. % > % ... % > %", geometry.vertices.allocated, geometry.vertices.count, geometry.indices.allocated, geometry.indices.count);
+    }
+
     glBindBuffer(GL_ARRAY_BUFFER, geometry.vbo_);
-    glBufferData(GL_ARRAY_BUFFER, geometry.vertices.count * size_of(float32), geometry.vertices.data, GL_STATIC_DRAW);  
+    glBufferData(GL_ARRAY_BUFFER, geometry.vertices.allocated * size_of(float32), geometry.vertices.data, GL_STATIC_DRAW);  
 
     glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, geometry.ebo_);
-    glBufferData(GL_ELEMENT_ARRAY_BUFFER, geometry.indices.count * size_of(u32), geometry.indices.data, GL_STATIC_DRAW);
+    glBufferData(GL_ELEMENT_ARRAY_BUFFER, geometry.indices.allocated * size_of(u32), geometry.indices.data, GL_STATIC_DRAW);
 
     total_float_size := cast(u32) get_attribute_stride(geometry.attributes);
 
@@ -411,6 +436,48 @@ has_attribute :: (attributes: [] Attribute, attribute: Attribute) -> bool {
     }
 
     return false;
+}
+
+calculate_aabb :: (geometry: Geometry) -> AABB3 {
+    set_aabb := false;
+    aabb := AABB3.{};
+    
+    stride := get_attribute_stride(geometry);
+
+    for geometry.indices {
+        x := geometry.vertices[it * stride];
+        y := geometry.vertices[it * stride + 1];
+        z := geometry.vertices[it * stride + 2];
+
+        point := Vector3.{x, y, z};
+
+        if !set_aabb {
+            set_aabb = true;
+            aabb = .{point, point};
+        } else {
+            aabb.lower = min(aabb.lower, point);
+            aabb.upper = max(aabb.upper, point);
+        }
+    }
+
+    return aabb;
+}
+
+append_data :: (geometry: *Geometry, vertices: [] float32, indices: [] u32) {
+    glBindVertexArray(geometry.vao_);
+
+    array_add(*geometry.vertices, ..vertices);
+    array_add(*geometry.indices, ..indices);
+
+    // TODO I'd like a way to use dynamic draw if this operation is relevant
+
+    glBindBuffer(GL_ARRAY_BUFFER, geometry.vbo_);
+    glBufferData(GL_ARRAY_BUFFER, geometry.vertices.allocated * size_of(float32), geometry.vertices.data, GL_STATIC_DRAW);  
+
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, geometry.ebo_);
+    glBufferData(GL_ELEMENT_ARRAY_BUFFER, geometry.indices.allocated * size_of(u32), geometry.indices.data, GL_STATIC_DRAW);
+
+    glBindVertexArray(0);
 }
 
 #scope_module
@@ -751,7 +818,6 @@ load_geometry_gltf_data :: (json: GltfJson, binary: [] u8) -> [..] *Geometry, bo
                     array_add(*attribute_accessors[cast(int) Attribute.Color], attribute_accessor);
                 } else if begins_with(attribute_entry.name, "JOINTS") {
                     assert(attribute_accessor.type == "VEC4", "The joint indices accessor must be a vec4 type.");
-                    print("%\n", attribute_accessor.component_type);
                     assert(attribute_accessor.component_type == .U8 || attribute_accessor.component_type == .U16 || attribute_accessor.component_type == .U32, "The joint indices accessor must be a u8 or u16 or u32.");
 
                     array_add(*attribute_accessors[cast(int) Attribute.JointIndices], attribute_accessor);

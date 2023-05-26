@@ -187,3 +187,4 @@ static_sprite: Sprite;
 #import "FixedStringJai";
 #import "stb_image_write";
 #import "JaiSerializer";
+#import "Hash";

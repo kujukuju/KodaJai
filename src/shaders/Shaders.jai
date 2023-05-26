@@ -55,7 +55,7 @@ initialize_shader :: (shader: *Shader) {
         if !success {
             message: [512] u8;
             glGetShaderInfoLog(shader_object, 512, null, message.data);
-            print("Shader compile error: %\n", to_string(message.data));
+            print("Shader compile error: % %\n", shader, to_string(message.data));
             return 0, false;
         }
 
