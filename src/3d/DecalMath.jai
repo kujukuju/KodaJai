@@ -1,21 +1,20 @@
 
-get_decal_vertices :: (vertices: *[..] float32, indices: *[..] u32, triangle: [3] Vector3, normals: [3] Vector3, colors: [3] Vector4, decal_position: Vector3, decal_rotation: Quaternion, decal_width: float, decal_height: float, decal_depth: float) {
+get_decal_vertices :: (vertices: *[..] float32, indices: *[..] u32, triangle: [3] Vector3, normals: [3] Vector3, colors: [3] Vector4, uv_range: [2] Vector2, decal_position: Vector3, decal_rotation: Quaternion, decal_width: float, decal_height: float, decal_depth: float) {
     transform := Matrix4;
     transform := translate(transform, decal_position);
     transform := rotate(transform, decal_rotation);
     transform := scale(transform, Vector3.{decal_width, decal_height, decal_depth});
 
-    inline get_decal_vertices(vertuces, indices, triangle, normals, colors, transform);
+    inline get_decal_vertices(vertuces, indices, triangle, normals, colors, uv_range, transform);
 }
 
-get_decal_vertices :: (vertices: *[..] float32, indices: *[..] u32, triangle: [3] Vector3, normals: [3] Vector3, colors: [3] Vector4, transform: Matrix4) {
+get_decal_vertices :: (vertices: *[..] float32, indices: *[..] u32, triangle: [3] Vector3, normals: [3] Vector3, colors: [3] Vector4, uv_range: [2] Vector2, transform: Matrix4) {
     inverted_transform := inverse(decal_transform);
 
-    inline get_decal_vertices(vertices, indices, triangle, normals, colors, transform, inverted_transform);
-
+    inline get_decal_vertices(vertices, indices, triangle, normals, colors, uv_range, transform, inverted_transform);
 }
 
-get_decal_vertices :: (vertices: *[..] float32, indices: *[..] u32, world_triangle: [3] Vector3, world_normals: [3] Vector3, colors: [3] Vector4, transform: Matrix4, inverted_transform: Matrix4) {
+get_decal_vertices :: (vertices: *[..] float32, indices: *[..] u32, world_triangle: [3] Vector3, world_normals: [3] Vector3, colors: [3] Vector4, uv_range: [2] Vector2, transform: Matrix4, inverted_transform: Matrix4) {
     // we'll assume the decal is a cube that's perfectly axis aligned, with all dimensions being 1
     // and we'll transform the triangle into this perspective
     // and clip the triangle vertices here
@@ -81,16 +80,18 @@ get_decal_vertices :: (vertices: *[..] float32, indices: *[..] u32, world_triang
     generated_triangles: [..] TriangleEntry;
     generated_triangles.allocator = temp;
 
+    uv_size := uv_range[1] - uv_range[0];
+
     first_entry := array_add(*current_triangles);
     first_entry.vertices = transformed_triangle;
     first_entry.normals = transformed_normals;
     first_entry.colors = colors;
-    first_entry.texcoords[0].x = (transformed_triangle[0].x + 0.5);
-    first_entry.texcoords[0].y = (transformed_triangle[0].y + 0.5);
-    first_entry.texcoords[1].x = (transformed_triangle[1].x + 0.5);
-    first_entry.texcoords[1].y = (transformed_triangle[1].y + 0.5);
-    first_entry.texcoords[2].x = (transformed_triangle[2].x + 0.5);
-    first_entry.texcoords[2].y = (transformed_triangle[2].y + 0.5);
+    first_entry.texcoords[0].x = (transformed_triangle[0].x + 0.5) * uv_size.x + uv_range[0].x;
+    first_entry.texcoords[0].y = (transformed_triangle[0].y + 0.5) * uv_size.y + uv_range[0].y;
+    first_entry.texcoords[1].x = (transformed_triangle[1].x + 0.5) * uv_size.x + uv_range[0].x;
+    first_entry.texcoords[1].y = (transformed_triangle[1].y + 0.5) * uv_size.y + uv_range[0].y;
+    first_entry.texcoords[2].x = (transformed_triangle[2].x + 0.5) * uv_size.x + uv_range[0].x;
+    first_entry.texcoords[2].y = (transformed_triangle[2].y + 0.5) * uv_size.y + uv_range[0].y;
 
     // we only want the parts of the triangle that are under each plane
     for plane: planes {
@@ -148,8 +149,8 @@ get_decal_vertices :: (vertices: *[..] float32, indices: *[..] u32, world_triang
                     array_add(*generated_triangles, clipped_triangle);
                 } else {
                     // b and c are both inside
-                    clip_l, perc_l := intersection_simple(plane, Ray3.{triangle.vertices[1], triangle.vertices[0] - triangle.vertices[1]})
-                    clip_r, perc_r := intersection_simple(plane, Ray3.{triangle.vertices[2], triangle.vertices[0] - triangle.vertices[2]})
+                    clip_l, perc_l := intersection_simple(plane, Ray3.{triangle.vertices[1], triangle.vertices[0] - triangle.vertices[1]});
+                    clip_r, perc_r := intersection_simple(plane, Ray3.{triangle.vertices[2], triangle.vertices[0] - triangle.vertices[2]});
 
                     clipped_triangle_l: TriangleEntry = ---;
                     clipped_triangle_l.vertices[0] = clip_l;
@@ -209,8 +210,8 @@ get_decal_vertices :: (vertices: *[..] float32, indices: *[..] u32, world_triang
                     array_add(*generated_triangles, clipped_triangle);
                 } else {
                     // a and c are both inside
-                    clip_l, perc_l := intersection_simple(plane, Ray3.{triangle.vertices[2], triangle.vertices[1] - triangle.vertices[2]})
-                    clip_r, perc_r := intersection_simple(plane, Ray3.{triangle.vertices[0], triangle.vertices[1] - triangle.vertices[0]})
+                    clip_l, perc_l := intersection_simple(plane, Ray3.{triangle.vertices[2], triangle.vertices[1] - triangle.vertices[2]});
+                    clip_r, perc_r := intersection_simple(plane, Ray3.{triangle.vertices[0], triangle.vertices[1] - triangle.vertices[0]});
 
                     clipped_triangle_l: TriangleEntry = ---;
                     clipped_triangle_l.vertices[0] = clip_r;
@@ -247,8 +248,8 @@ get_decal_vertices :: (vertices: *[..] float32, indices: *[..] u32, world_triang
                 // we could remove the only b case because its covered above
                 // we could remove the only a case because its covered above
                 // so a and b are both inside
-                clip_l, perc_l := intersection_simple(plane, Ray3.{triangle.vertices[0], triangle.vertices[2] - triangle.vertices[0]})
-                clip_r, perc_r := intersection_simple(plane, Ray3.{triangle.vertices[1], triangle.vertices[2] - triangle.vertices[1]})
+                clip_l, perc_l := intersection_simple(plane, Ray3.{triangle.vertices[0], triangle.vertices[2] - triangle.vertices[0]});
+                clip_r, perc_r := intersection_simple(plane, Ray3.{triangle.vertices[1], triangle.vertices[2] - triangle.vertices[1]});
 
                 clipped_triangle_l: TriangleEntry = ---;
                 clipped_triangle_l.vertices[0] = triangle.vertices[0];
@@ -310,7 +311,7 @@ get_decal_vertices :: (vertices: *[..] float32, indices: *[..] u32, world_triang
             array_add(vertices, ..texcoord.component);
             array_add(vertices, ..color.component);
 
-            array_add(indices, current_index);
+            array_add(indices, xx current_index);
         }
     }
 }

@@ -286,7 +286,7 @@ draw_cube :: (lower: Vector3, upper: Vector3, color: Color = .{1, 1, 1, 1}, bord
     }
 }
 
-draw_cube_border :: (lower: Vector3, upper: Vector3, transform: Matrix4 = Matrix4Identity, color: Color = .{1, 1, 1, 1}) {
+draw_cube_border :: (lower: Vector3, upper: Vector3, transform: Matrix4 = Matrix4Identity, width: float = 1.0, color: Color = .{1, 1, 1, 1}) {
     corners: [8] Vector3 = ---;
     corners[0] = .{lower.x, lower.y, lower.z};
     corners[1] = .{upper.x, lower.y, lower.z};
@@ -358,7 +358,7 @@ draw_cube_border :: (lower: Vector3, upper: Vector3, transform: Matrix4 = Matrix
 
     apply_uniforms(*default_shape_shader3, uniforms);
 
-    glLineWidth(1.0);
+    glLineWidth(width);
     glDrawArrays(GL_LINES, 0, xx vertices.count);
 }
 

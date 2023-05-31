@@ -29,23 +29,27 @@ SerializedGeometry :: struct {
     geometry: [..] *Geometry;
 }
 
-create_geometry :: (vertices: [] float32, indices: [] u32, attributes: [] Attribute, should_upload: bool = true) -> [..] *Geometry {
-    geometries: [..] *Geometry;
-    array_reserve(*geometries, 1);
-
+create_single_geometry :: (vertices: [] float32, indices: [] u32, attributes: [] Attribute, should_upload: bool = true) -> *Geometry {
     geometry := New(Geometry);
-    array_add(*geometries, geoemtry);
 
     array_copy(*geometry.vertices, vertices);
     array_copy(*geometry.indices, indices);
     array_copy(*geometry.attributes, attributes);
 
-    stride := get_attribute_stride(geometry);
     geometry.aabb = calculate_aabb(geometry);
 
     if should_upload {
         upload(geometry);
     }
+
+    return geometry;
+}
+
+create_geometry :: (vertices: [] float32, indices: [] u32, attributes: [] Attribute, should_upload: bool = true) -> [..] *Geometry {
+    geometries: [..] *Geometry;
+    array_reserve(*geometries, 1);
+
+    array_add(*geometries, create_single_geometry(vertices, indices, attributes, should_upload));
 
     return geometries;
 }
@@ -464,10 +468,14 @@ calculate_aabb :: (geometry: Geometry) -> AABB3 {
 }
 
 append_data :: (geometry: *Geometry, vertices: [] float32, indices: [] u32) {
-    glBindVertexArray(geometry.vao_);
-
     array_add(*geometry.vertices, ..vertices);
     array_add(*geometry.indices, ..indices);
+
+    upload_append(geometry);
+}
+
+upload_append :: (geometry: *Geometry) {
+    glBindVertexArray(geometry.vao_);
 
     // TODO I'd like a way to use dynamic draw if this operation is relevant
 
