@@ -4,11 +4,22 @@ Texture3 :: struct {
     height: s32;
     depth: s32;
     format: PixelFormat;
+    wrap: [3] TextureWrap;
     data: *u8;
 }
 
-create_texture3 :: (bytes: [] u8, should_upload: bool = true) -> Texture3 {
+create_texture3 :: (bytes: [] u8, wrap: TextureWrap = .Clamp, should_upload: bool = true) -> Texture3 {
+    wrap_array: [3] TextureWrap;
+    wrap_array[0] = wrap;
+    wrap_array[1] = wrap;
+    wrap_array[2] = wrap;
+
+    return create_texture3(bytes, wrap_array, should_upload);
+}
+
+create_texture3 :: (bytes: [] u8, wrap: [3] TextureWrap, should_upload: bool = true) -> Texture3 {
     texture := load_data(bytes);
+    texture.wrap = wrap;
 
     if texture.data == null {
         print("Could not load texture.\n");
@@ -22,7 +33,16 @@ create_texture3 :: (bytes: [] u8, should_upload: bool = true) -> Texture3 {
     return texture;
 }
 
-create_texture3 :: (image: Image3, should_upload: bool = true) -> Texture3 {
+create_texture3 :: (image: Image3, wrap: TextureWrap = .Clamp, should_upload: bool = true) -> Texture3 {
+    wrap_array: [3] TextureWrap;
+    wrap_array[0] = wrap;
+    wrap_array[1] = wrap;
+    wrap_array[2] = wrap;
+
+    return create_texture3(image, wrap_array, should_upload);
+}
+
+create_texture3 :: (image: Image3, wrap: [3] TextureWrap, should_upload: bool = true) -> Texture3 {
     if !image.pixels.data {
         print("Could not create texture.\n");
         return .{};
@@ -34,6 +54,7 @@ create_texture3 :: (image: Image3, should_upload: bool = true) -> Texture3 {
     texture.height = xx image.height;
     texture.depth = xx image.depth;
     texture.format = image.format;
+    texture.wrap = wrap;
 
     if should_upload {
         upload(*texture);
@@ -42,7 +63,16 @@ create_texture3 :: (image: Image3, should_upload: bool = true) -> Texture3 {
     return texture;
 }
 
-load_texture3 :: (path: string, should_upload: bool = true) -> Texture3 {
+load_texture3 :: (path: string, wrap: TextureWrap = .Clamp, should_upload: bool = true) -> Texture3 {
+    wrap_array: [3] TextureWrap;
+    wrap_array[0] = wrap;
+    wrap_array[1] = wrap;
+    wrap_array[2] = wrap;
+
+    return load_texture3(path, wrap_array, should_upload);
+}
+
+load_texture3 :: (path: string, wrap: [3] TextureWrap, should_upload: bool = true) -> Texture3 {
     file, success := read_entire_file(path, false);
     defer free(file);
 
@@ -50,7 +80,7 @@ load_texture3 :: (path: string, should_upload: bool = true) -> Texture3 {
     bytes.data = file.data;
     bytes.count = file.count;
 
-    return create_texture3(bytes, should_upload);
+    return create_texture3(bytes, wrap, should_upload);
 }
 
 upload :: (texture: *Texture3) {
@@ -60,13 +90,20 @@ upload :: (texture: *Texture3) {
     
     assert(!!texture.data, "Cannot generate texture with no data.");
 
+    wrap_formats: [3] s32;
+    wrap_formats[0] = get_gl_format(texture.wrap[0]);
+    wrap_formats[1] = get_gl_format(texture.wrap[1]);
+    wrap_formats[2] = get_gl_format(texture.wrap[2]);
+
     glGenTextures(1, *texture.buffer);
     glBindTexture(GL_TEXTURE_3D, texture.buffer);
-    glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_WRAP_S, GL_REPEAT);
-    glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_WRAP_T, GL_REPEAT);
-    glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_WRAP_R, GL_REPEAT);
-    glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
+    glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_WRAP_S, wrap_formats[0]);
+    glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_WRAP_T, wrap_formats[1]);
+    glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_WRAP_R, wrap_formats[2]);
+    glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
     glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    // glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
+    // glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
     // glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_MIN_FILTER, GL_NEAREST_MIPMAP_LINEAR);
     // glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
 
@@ -128,10 +165,12 @@ load_data :: (data: [] u8) -> Texture3 {
         return .{};
     }
 
-    assert(texture_data.width == texture_data.height * texture_data.height, "Texture3 data loaded from a file can only be a cube.");
+    // assert(texture_data.width == texture_data.height * texture_data.height, "Texture3 data loaded from a file can only be a cube.");
+    // assert(texture_data.width % texture_data.height == 0, "The texture width must be a multiple of the texture height.");
+    assert(texture_data.height % texture_data.width == 0, "The texture height must be a multiple of the texture width.");
 
-    texture_data.width = texture_data.height;
-    texture_data.depth = texture_data.height;
+    texture_data.depth = texture_data.height / texture_data.width;
+    texture_data.height = texture_data.width;
     
     if comp == 1 {
         texture_data.format = .Gray;

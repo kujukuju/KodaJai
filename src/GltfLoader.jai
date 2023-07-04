@@ -2,21 +2,6 @@
 #scope_module
 
 GltfJson :: struct {
-    asset: GltfJsonAsset;
-    scene: int;
-    buffers: [..] GltfJsonBuffer;
-    bufferViews: [..] GltfJsonBufferView;
-    scenes: [..] GltfJsonScene;
-    accessors: [..] GltfJsonAccessor;
-    images: [..] GltfJsonImage;
-    samplers: [..] GltfJsonSampler;
-    textures: [..] GltfJsonTexture;
-    materials: [..] GltfJsonMaterial;
-    meshes: [..] GltfJsonMesh;
-    nodes: [..] GltfJsonNode;
-    skins: *[..] GltfJsonSkin;
-    animations: *[..] GltfJsonAnimation;
-
     GltfJsonAsset :: struct {
         copyright: *string;
         generator: *string;
@@ -187,6 +172,21 @@ GltfJson :: struct {
         samplers: [..] GltfJsonAnimationSampler;
         name: *string;
     }
+
+    asset: GltfJsonAsset;
+    scene: int;
+    buffers: [..] GltfJsonBuffer;
+    bufferViews: [..] GltfJsonBufferView;
+    scenes: [..] GltfJsonScene;
+    accessors: [..] GltfJsonAccessor;
+    images: [..] GltfJsonImage;
+    samplers: [..] GltfJsonSampler;
+    textures: [..] GltfJsonTexture;
+    materials: [..] GltfJsonMaterial;
+    meshes: [..] GltfJsonMesh;
+    nodes: [..] GltfJsonNode;
+    skins: *[..] GltfJsonSkin;
+    animations: *[..] GltfJsonAnimation;
 }
 
 GltfAccessorInfo :: struct {
@@ -205,14 +205,14 @@ load_glb :: (file: string) -> GltfJson, [] u8, *u8, bool {
         length: u32;
     }
 
-    GltfChunkHeader :: struct {
-        chunk_length: u32;
-        chunk_type: GltfChunkType;
-    }
-
     GltfChunkType :: enum u32 {
         JSON :: 0x4E4F534A;
         BINARY :: 0x004E4942;
+    }
+
+    GltfChunkHeader :: struct {
+        chunk_length: u32;
+        chunk_type: GltfChunkType;
     }
 
     gltf_header := cast(*GltfHeader) file.data;

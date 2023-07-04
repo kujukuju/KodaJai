@@ -282,7 +282,7 @@ draw_cube :: (lower: Vector3, upper: Vector3, color: Color = .{1, 1, 1, 1}, bord
 
     if border.a > 0 {
         // not entirely sure if its 1, 1, 1, or 0.5, 0.5, 0.5 but w/e, havent tested it
-        draw_cube_border(.{-1, -1, -1}, .{1, 1, 1}, model, border);
+        draw_cube_border(.{-1, -1, -1}, .{1, 1, 1}, model, 1.0, border);
     }
 }
 

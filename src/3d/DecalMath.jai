@@ -15,6 +15,8 @@ get_decal_vertices :: (vertices: *[..] float32, indices: *[..] u32, triangle: [3
 }
 
 get_decal_vertices :: (vertices: *[..] float32, indices: *[..] u32, world_triangle: [3] Vector3, world_normals: [3] Vector3, colors: [3] Vector4, uv_range: [2] Vector2, transform: Matrix4, inverted_transform: Matrix4) {
+    // this method actually clips the triangles, but I suepect it ends up creating a lot more triangles than if we were to just copy intersecting triangles
+
     // we'll assume the decal is a cube that's perfectly axis aligned, with all dimensions being 1
     // and we'll transform the triangle into this perspective
     // and clip the triangle vertices here
@@ -312,6 +314,82 @@ get_decal_vertices :: (vertices: *[..] float32, indices: *[..] u32, world_triang
             array_add(vertices, ..color.component);
 
             array_add(indices, xx current_index);
+        }
+    }
+}
+
+add_decal_vertices :: (vertices: *[..] float32, indices: *[..] u32, world_triangle: [3] Vector3, world_normals: [3] Vector3, colors: [3] Vector4, uv_range: [2] Vector3, inverted_transform: Matrix4) {
+    triangle: Triangle3 = ---;
+    triangle.a = inline transform_point(inverted_transform, world_triangle[0]);
+    triangle.b = inline transform_point(inverted_transform, world_triangle[1]);
+    triangle.c = inline transform_point(inverted_transform, world_triangle[2]);
+
+    uv_size := uv_range[1] - uv_range[0];
+
+    texcoords: [3] Vector3 = ---;
+    texcoords[0].x = (triangle.a.x + 0.5) * uv_size.x + uv_range[0].x;
+    texcoords[0].y = (triangle.a.y + 0.5) * uv_size.y + uv_range[0].y;
+    texcoords[0].z = (triangle.a.z + 0.5) * uv_size.z + uv_range[0].z;
+    texcoords[1].x = (triangle.b.x + 0.5) * uv_size.x + uv_range[0].x;
+    texcoords[1].y = (triangle.b.y + 0.5) * uv_size.y + uv_range[0].y;
+    texcoords[1].z = (triangle.b.z + 0.5) * uv_size.z + uv_range[0].z;
+    texcoords[2].x = (triangle.c.x + 0.5) * uv_size.x + uv_range[0].x;
+    texcoords[2].y = (triangle.c.y + 0.5) * uv_size.y + uv_range[0].y;
+    texcoords[2].z = (triangle.c.z + 0.5) * uv_size.z + uv_range[0].z;
+
+    aabb :: AABB3.{.{-0.5, -0.5, -0.5}, .{0.5, 0.5, 0.5}};
+
+    // this thing expects vec3 texcoords
+    expected_stride :: 3 + 3 + 3 + 4;
+    add_vertices :: expected_stride * 3;
+    memcpy_size :: expected_stride * size_of(float);
+
+    vertex_entries: [expected_stride] float = ---;
+
+    // were going to force the vertex array to be a minimum allocated size of like 1024
+    // this way we can assume we don't have to resize individually ever
+    if vertices.allocated < 1024 * expected_stride {
+        inline array_reserve(vertices, 1024 * expected_stride);
+    }
+
+    if vertices.count + add_vertices > vertices.allocated {
+        inline array_reserve(vertices, vertices.allocated * 2);
+    }
+
+    if inline intersects(aabb, triangle) {
+        for vertex_index: 0..2 {
+            current_index := cast(u32) vertices.count / expected_stride;
+
+            vertex_entries[0] = world_triangle[vertex_index].x;
+            vertex_entries[1] = world_triangle[vertex_index].y;
+            vertex_entries[2] = world_triangle[vertex_index].z;
+            vertex_entries[3] = world_normals[vertex_index].x;
+            vertex_entries[4] = world_normals[vertex_index].y;
+            vertex_entries[5] = world_normals[vertex_index].z;
+            vertex_entries[6] = texcoords[vertex_index].x;
+            vertex_entries[7] = texcoords[vertex_index].y;
+            vertex_entries[8] = texcoords[vertex_index].z;
+            vertex_entries[9] = colors[vertex_index].x;
+            vertex_entries[10] = colors[vertex_index].y;
+            vertex_entries[11] = colors[vertex_index].z;
+            vertex_entries[12] = colors[vertex_index].w;
+
+            memcpy(vertices.data + vertices.count, vertex_entries.data, memcpy_size);
+            vertices.count += expected_stride;
+
+            // inline array_add(vertices, ..vertex_entries);
+
+            // vertex := world_triangle[vertex_index];
+            // normal := world_normals[vertex_index];
+            // texcoord := texcoords[vertex_index];
+            // color := colors[vertex_index];
+
+            // array_add(vertices, ..vertex.component);
+            // array_add(vertices, ..normal.component);
+            // array_add(vertices, ..texcoord.component);
+            // array_add(vertices, ..color.component);
+
+            inline array_add(indices, current_index);
         }
     }
 }

@@ -139,6 +139,7 @@ unload :: (model: *Model) {
         unload(geometry);
     }
 
+    // TODO This is bad bc it doesnt force me to expand the list per uniform
     for *uniform: model.uniforms.uniforms {
         if uniform.type == .Texture {
             unload(*uniform.texture);

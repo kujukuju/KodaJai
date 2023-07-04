@@ -14,6 +14,7 @@ Attribute :: enum {
     Position;
     Normal;
     Texcoord;
+    Texcoord3;
     Color;
     JointIndices;
     JointWeights;
@@ -243,10 +244,10 @@ upload :: (geometry: *Geometry) {
     }
 
     glBindBuffer(GL_ARRAY_BUFFER, geometry.vbo_);
-    glBufferData(GL_ARRAY_BUFFER, geometry.vertices.allocated * size_of(float32), geometry.vertices.data, GL_STATIC_DRAW);  
+    glBufferData(GL_ARRAY_BUFFER, geometry.vertices.allocated * size_of(float32), geometry.vertices.data, GL_DYNAMIC_DRAW);  
 
     glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, geometry.ebo_);
-    glBufferData(GL_ELEMENT_ARRAY_BUFFER, geometry.indices.allocated * size_of(u32), geometry.indices.data, GL_STATIC_DRAW);
+    glBufferData(GL_ELEMENT_ARRAY_BUFFER, geometry.indices.allocated * size_of(u32), geometry.indices.data, GL_DYNAMIC_DRAW);
 
     total_float_size := cast(u32) get_attribute_stride(geometry.attributes);
 
@@ -260,6 +261,46 @@ upload :: (geometry: *Geometry) {
 
         current_attribute += 1;
         float_offset += attribute_size;
+    }
+
+    glBindVertexArray(0);
+}
+
+append_data :: (geometry: *Geometry, vertices: [] float32, indices: [] u32) {
+    array_add(*geometry.vertices, ..vertices);
+    array_add(*geometry.indices, ..indices);
+
+    // TODO glBufferSubData
+
+    upload_append(geometry, vertices.count, indices.count);
+}
+
+upload_append :: (geometry: *Geometry, float_count: int, index_count: int) {
+    glBindVertexArray(geometry.vao_);
+
+    buffer_size: s32;
+
+    glBindBuffer(GL_ARRAY_BUFFER, geometry.vbo_);
+    glGetBufferParameteriv(GL_ARRAY_BUFFER, GL_BUFFER_SIZE, *buffer_size);
+    if buffer_size >= geometry.vertices.allocated * size_of(float32) {
+        // the data fits inside the currently allocated array, so just sub buffer it
+        byte_size := float_count * size_of(float32);
+        float_offset := geometry.vertices.count - float_count;
+        byte_offset := float_offset * size_of(float32);
+        glBufferSubData(GL_ARRAY_BUFFER, byte_offset, byte_size, geometry.vertices.data + float_offset);
+    } else {
+        glBufferData(GL_ARRAY_BUFFER, geometry.vertices.allocated * size_of(float32), geometry.vertices.data, GL_STATIC_DRAW);  
+    }
+
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, geometry.ebo_);
+    glGetBufferParameteriv(GL_ELEMENT_ARRAY_BUFFER, GL_BUFFER_SIZE, *buffer_size);
+    if buffer_size >= geometry.indices.allocated * size_of(u32) {
+        byte_size := index_count * size_of(u32);
+        index_offset := geometry.indices.count - index_count;
+        byte_offset := index_offset * size_of(u32);
+        glBufferSubData(GL_ELEMENT_ARRAY_BUFFER, byte_offset, byte_size, geometry.indices.data + index_offset);
+    } else {
+        glBufferData(GL_ELEMENT_ARRAY_BUFFER, geometry.indices.allocated * size_of(u32), geometry.indices.data, GL_STATIC_DRAW);
     }
 
     glBindVertexArray(0);
@@ -369,6 +410,8 @@ get_attribute_size :: (attribute: Attribute) -> int {
             return 3;
         case .Texcoord;
             return 2;
+        case .Texcoord3;
+            return 3;
         case .Color;
             return 4;
         case .JointIndices;
@@ -465,27 +508,6 @@ calculate_aabb :: (geometry: Geometry) -> AABB3 {
     }
 
     return aabb;
-}
-
-append_data :: (geometry: *Geometry, vertices: [] float32, indices: [] u32) {
-    array_add(*geometry.vertices, ..vertices);
-    array_add(*geometry.indices, ..indices);
-
-    upload_append(geometry);
-}
-
-upload_append :: (geometry: *Geometry) {
-    glBindVertexArray(geometry.vao_);
-
-    // TODO I'd like a way to use dynamic draw if this operation is relevant
-
-    glBindBuffer(GL_ARRAY_BUFFER, geometry.vbo_);
-    glBufferData(GL_ARRAY_BUFFER, geometry.vertices.allocated * size_of(float32), geometry.vertices.data, GL_STATIC_DRAW);  
-
-    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, geometry.ebo_);
-    glBufferData(GL_ELEMENT_ARRAY_BUFFER, geometry.indices.allocated * size_of(u32), geometry.indices.data, GL_STATIC_DRAW);
-
-    glBindVertexArray(0);
 }
 
 #scope_module
@@ -936,6 +958,9 @@ load_geometry_gltf_data :: (json: GltfJson, binary: [] u8) -> [..] *Geometry, bo
                             case .Texcoord;
                                 accessor_data := cast(*float32) accessor.view.data;
                                 array_add(*geometry.vertices, accessor_data[i * 2], accessor_data[i * 2 + 1]);
+                            case .Texcoord3;
+                                accessor_data := cast(*float32) accessor.view.data;
+                                array_add(*geometry.vertices, accessor_data[i * 3], accessor_data[i * 3 + 1], accessor_data[i * 3 + 2]);
                             case .Color;
                                 if accessor.component_type == {
                                     case .U8;
