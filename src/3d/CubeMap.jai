@@ -7,7 +7,7 @@ CubeMap :: struct {
 create_cube_map :: (texture: CubemapTexture, half_width: float = 1.0, should_upload: bool = true) -> *CubeMap {
     cube := New(CubeMap);
     cube.geometry = create_cube(.{half_width, half_width, half_width});
-    cube.uniforms["uTexture0"] = create_uniform("uTexture0", texture);
+    cube.uniforms[xx "uTexture0"] = create_uniform("uTexture0", texture);
 
     if should_upload {
         upload(cube);
@@ -19,7 +19,7 @@ create_cube_map :: (texture: CubemapTexture, half_width: float = 1.0, should_upl
 load_cube_map :: (path: string, half_width: float = 1.0, should_upload: bool = true) -> *CubeMap {
     cube := New(CubeMap);
     cube.geometry = create_cube(.{half_width, half_width, half_width});
-    cube.uniforms["uTexture0"] = create_uniform("uTexture0", load_cubemap_texture(path));
+    cube.uniforms[xx "uTexture0"] = create_uniform("uTexture0", load_cubemap_texture(path));
 
     if should_upload {
         upload(cube);
@@ -68,9 +68,9 @@ draw :: (cube: *CubeMap) {
 
     uniforms: ShaderUniforms;
     defer destroy(uniforms);
-    uniforms["projection"] = create_uniform("projection", get_perspective_matrix());
-    uniforms["model"] = create_uniform("model", cube.transform);
-    uniforms["view"] = create_uniform("view", view);
+    uniforms[xx "projection"] = create_uniform("projection", get_perspective_matrix());
+    uniforms[xx "model"] = create_uniform("model", cube.transform);
+    uniforms[xx "view"] = create_uniform("view", view);
     
     apply_uniforms(*cubemap_shader, uniforms);
     apply_uniforms(*cubemap_shader, cube.uniforms);

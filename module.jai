@@ -109,6 +109,7 @@
 #load "src/Point3.jai";
 #load "src/Point4.jai";
 #load "src/Renderable.jai";
+#load "src/SerializeStructure.jai";
 #load "src/ShaderUniforms.jai";
 #load "src/SwapBuffer.jai";
 #load "src/Text.jai";
@@ -183,9 +184,11 @@ static_sprite: Sprite;
 
 #import "String";
 #import "Hash_Table";
-#import "ContiguousJsonJai"(ASSERT = false, ASM = !WASM);
 #import "File_Utilities";
-#import "FixedStringJai";
 #import "stb_image_write";
-#import "JaiSerializer";
 #import "Hash";
+
+#import "ContiguousJsonJai"(ASSERT = false, ASM = !WASM);
+#import "FixedStringJai";
+#import "JaiSerializer";
+#import "JaiBoundingTree";

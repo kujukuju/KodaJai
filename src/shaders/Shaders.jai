@@ -118,11 +118,11 @@ apply_uniforms :: (shader: *Shader, uniforms: ShaderUniforms, printing: bool = f
     }
 
     for uniform: uniforms.uniforms {
-        existing := shader.uniforms[uniform.name];
-        shader.uniforms[uniform.name] = uniform;
+        existing := shader.uniforms[xx uniform.name];
+        shader.uniforms[xx uniform.name] = uniform;
         
         if existing.name {
-            shader.uniforms[uniform.name].location = existing.location;
+            shader.uniforms[xx uniform.name].location = existing.location;
         }
     }
 
@@ -137,7 +137,7 @@ apply_uniforms :: (shader: *Shader, uniforms: ShaderUniforms, printing: bool = f
 
             if uniform.name == shader_uniform.name {
                 // TODO this could be improved if I force uniform names to be less than a certain size, and use fixed strings
-                location := glGetUniformLocation(shader.program, temp_c_string(uniform.name));
+                location := glGetUniformLocation(shader.program, uniform.name);
                 shader_uniform.location = location;
                 if location == -1 {
                     break;

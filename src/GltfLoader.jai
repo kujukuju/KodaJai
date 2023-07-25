@@ -506,8 +506,8 @@ get_texture :: (json: GltfJson, bufferviews: [..] [] u8, texture_index: int) -> 
 }
 
 is_valid_primitive :: (primitive: GltfJson.GltfJsonMesh.GltfJsonMeshPrimitive) -> bool {
-    // needs to match model code
-    position_accessor_object := primitive.attributes["POSITION"];
+    // needs to match model codes
+    position_accessor_object := primitive.attributes[xx "POSITION"];
     if !position_accessor_object {
         return false;
     }

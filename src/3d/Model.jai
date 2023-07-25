@@ -11,6 +11,16 @@ Model :: struct {
     name: string;
 }
 
+SerializedModelHash :: struct {
+    hash: u32;
+    size: s64;
+}
+
+SerializedModel :: struct {
+    validity_hash: SerializedModelHash;
+    models: [..] *Model;
+}
+
 operator == :: (a: Model, b: Model) -> bool {
     return a.geometry.data == b.geometry.data && a.uniforms == b.uniforms;
 }
@@ -42,7 +52,7 @@ create_model :: (geometry: *Geometry, texture: Texture, should_upload: bool = tr
     model := New(Model);
     array_resize(*model.geometry, 1);
     model.geometry[0] = geometry;
-    model.uniforms["uTexture0"] = create_uniform("uTexture0", texture);
+    model.uniforms[xx "uTexture0"] = create_uniform("uTexture0", texture);
 
     if should_upload {
         upload(model);
@@ -54,7 +64,7 @@ create_model :: (geometry: *Geometry, texture: Texture, should_upload: bool = tr
 create_model :: (geometry: [] *Geometry, texture: Texture, should_upload: bool = true) -> *Model {
     model := New(Model);
     array_copy(*model.geometry, geometry);
-    model.uniforms["uTexture0"] = create_uniform("uTexture0", texture);
+    model.uniforms[xx "uTexture0"] = create_uniform("uTexture0", texture);
 
     if should_upload {
         upload(model);
@@ -63,7 +73,19 @@ create_model :: (geometry: [] *Geometry, texture: Texture, should_upload: bool =
     return model;
 }
 
-load_model :: (path: string, should_upload: bool = true) -> [..] *Model, bool {
+load_model :: (path: string, should_upload: bool = true) -> *Model, bool {
+    models, success := load_models(path, should_upload);
+    defer array_free(models);
+    if !success {
+        return null, false;
+    }
+
+    assert(models.count == 1, "You cannot load more than 1 model with the load_model function. Memory leak!");
+
+    return models[0], true;
+}
+
+load_models :: (path: string, should_upload: bool = true) -> [..] *Model, bool {
     file, success := read_entire_file(path);
     defer free(file);
     if !success {
@@ -72,7 +94,7 @@ load_model :: (path: string, should_upload: bool = true) -> [..] *Model, bool {
     }
 
     if ends_with(path, ".obj") {
-        models, success := load_model_obj(file);
+        models, success := load_model_obj(file, should_upload);
         if !success {
             empty: [..] *Model;
             return empty, false;
@@ -86,7 +108,7 @@ load_model :: (path: string, should_upload: bool = true) -> [..] *Model, bool {
 
         return models, true;
     } else if ends_with(path, ".glb") {
-        models, success := load_model_glb(file);
+        models, success := load_model_glb(file, should_upload);
         if !success {
             empty: [..] *Model;
             return empty, false;
@@ -100,7 +122,7 @@ load_model :: (path: string, should_upload: bool = true) -> [..] *Model, bool {
 
         return models, true;
     } else if ends_with(path, ".gltf") {
-        models, success := load_model_gltf(file, path);
+        models, success := load_model_gltf(file, path, should_upload);
         if !success {
             empty: [..] *Model;
             return empty, false;
@@ -230,9 +252,9 @@ draw :: (model: Model, transform: Matrix4 = Matrix4Identity, projection: Matrix4
     uniforms: ShaderUniforms;
     defer destroy(uniforms);
     
-    uniforms["projection"] = create_uniform("projection", projection);
-    uniforms["model"] = create_uniform("model", model_mat);
-    uniforms["view"] = create_uniform("view", view);
+    uniforms[xx "projection"] = create_uniform("projection", projection);
+    uniforms[xx "model"] = create_uniform("model", model_mat);
+    uniforms[xx "view"] = create_uniform("view", view);
     
     apply_uniforms(shader, uniforms);
 
@@ -251,7 +273,7 @@ draw :: (model: Model, transform: Matrix4 = Matrix4Identity, projection: Matrix4
 
 #scope_module
 
-load_model_obj :: (file: string) -> [..] *Model, bool {
+load_model_obj :: (file: string, should_upload: bool) -> [..] *Model, bool {
     geometries, success := load_geometry_obj(file);
     defer array_free(geometries);
     if !success {
@@ -262,14 +284,14 @@ load_model_obj :: (file: string) -> [..] *Model, bool {
     models: [..] *Model;
     array_reserve(*models, geometries.count);
     for geometry: geometries {
-        model := create_model(geometry, get_white_texture());
+        model := create_model(geometry, get_white_texture(), should_upload);
         array_add(*models, model);
     }
 
     return models, true;
 }
 
-load_model_glb :: (file: string) -> [..] *Model, bool {
+load_model_glb :: (file: string, should_upload: bool) -> [..] *Model, bool {
     json, binary, json_memory, valid := load_glb(file);
     defer free(json_memory);
     if !valid {
@@ -277,11 +299,11 @@ load_model_glb :: (file: string) -> [..] *Model, bool {
         return empty, false;
     }
 
-    models, data_success := load_model_gltf_data(json, binary);
+    models, data_success := load_model_gltf_data(json, binary, should_upload);
     return models, data_success;
 }
 
-load_model_gltf :: (file: string, path: string) -> [..] *Model, bool {
+load_model_gltf :: (file: string, path: string, should_upload: bool) -> [..] *Model, bool {
     json, binary, json_memory, valid := load_gltf(file, path);
     defer free(json_memory);
     if !valid {
@@ -289,11 +311,11 @@ load_model_gltf :: (file: string, path: string) -> [..] *Model, bool {
         return empty, false;
     }
 
-    models, data_success := load_model_gltf_data(json, binary);
+    models, data_success := load_model_gltf_data(json, binary, should_upload);
     return models, data_success;
 }
 
-load_model_gltf_data :: (json: GltfJson, binary: [] u8) -> [..] *Model, bool {
+load_model_gltf_data :: (json: GltfJson, binary: [] u8, should_upload: bool) -> [..] *Model, bool {
     models: [..] *Model;
 
     geometries, geometry_success := load_geometry_gltf_data(json, binary);
@@ -305,7 +327,7 @@ load_model_gltf_data :: (json: GltfJson, binary: [] u8) -> [..] *Model, bool {
 
     array_reserve(*models, geometries.count);
     for geometry: geometries {
-        model := create_model(geometry);
+        model := create_model(geometry, should_upload);
         array_add(*models, model);
     }
 
@@ -348,7 +370,7 @@ load_model_gltf_data :: (json: GltfJson, binary: [] u8) -> [..] *Model, bool {
                 texture := get_texture(json, bufferviews, texture_index);
 
                 assert(!has_uniform(model.uniforms, "uTexture0"), "Cannot already have a diffuse texture.");
-                model.uniforms["uTexture0"] = create_uniform("uTexture0", texture);
+                model.uniforms[xx "uTexture0"] = create_uniform("uTexture0", texture);
             }
 
             has_normal_texture := true;
@@ -367,7 +389,7 @@ load_model_gltf_data :: (json: GltfJson, binary: [] u8) -> [..] *Model, bool {
                 texture := get_texture(json, bufferviews, texture_index);
 
                 assert(!has_uniform(model.uniforms, "uNormal0"), "Cannot already have a normal texture.");
-                model.uniforms["uNormal0"] = create_uniform("uNormal0", texture);
+                model.uniforms[xx "uNormal0"] = create_uniform("uNormal0", texture);
             }
         }
     }

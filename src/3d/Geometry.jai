@@ -30,7 +30,7 @@ SerializedGeometry :: struct {
     geometry: [..] *Geometry;
 }
 
-create_single_geometry :: (vertices: [] float32, indices: [] u32, attributes: [] Attribute, should_upload: bool = true) -> *Geometry {
+create_geometry :: (vertices: [] float32, indices: [] u32, attributes: [] Attribute, should_upload: bool = true) -> *Geometry {
     geometry := New(Geometry);
 
     array_copy(*geometry.vertices, vertices);
@@ -46,89 +46,81 @@ create_single_geometry :: (vertices: [] float32, indices: [] u32, attributes: []
     return geometry;
 }
 
-create_geometry :: (vertices: [] float32, indices: [] u32, attributes: [] Attribute, should_upload: bool = true) -> [..] *Geometry {
+create_geometries :: (vertices: [] float32, indices: [] u32, attributes: [] Attribute, should_upload: bool = true) -> [..] *Geometry {
     geometries: [..] *Geometry;
     array_reserve(*geometries, 1);
 
-    array_add(*geometries, create_single_geometry(vertices, indices, attributes, should_upload));
+    array_add(*geometries, create_geometry(vertices, indices, attributes, should_upload));
 
     return geometries;
 }
 
-load_or_save_serialized_geometry :: (serialized_path: string, path: string, should_upload: bool = true) -> [..] *Geometry, bool {
-    file, success := read_entire_file(serialized_path, log_errors = false);
-    defer free(file);
+load_serialized_geometry :: (serialized_path: string, hash_files: [$N] string, fallback: () -> *Geometry, should_upload: bool = true) -> *Geometry, bool {
+    geometry, success := read_serialized(serialized_path, hash_files, *Geometry);
 
     if success {
-        view: [] u8;
-        view.data = file.data;
-        view.count = file.count;
+        geometry.vao_ = 0;
+        geometry.vbo_ = 0;
+        geometry.ebo_ = 0;
 
-        geometry_bytes: [] u8;
-        geometry_bytes.data = file.data + size_of(SerializedGeometryHash);
-        geometry_bytes.count = file.count - size_of(SerializedGeometryHash);
-
-        cache_hash := get_hash(geometry_bytes);
-        cache_size := geometry_bytes.count;
-        
-        geometry_hash := deserialize_geometry_hash(view);
-        if geometry_hash.hash == cache_hash && geometry_hash.size == cache_size {
-            print("Skipping geometry file read. Reading serialized. % = %, % = %\n", geometry_hash.hash, cache_hash, geometry_hash.size, cache_size);
-
-            return deserialize_geometry(view, should_upload), true;
+        if should_upload {
+            upload(geometry);
         }
+
+        return geometry, true;
     }
 
-    print("Reading raw files. Not serialized.\n");
-
-    // if you've made it to this point, the serialized file is no longer valid for some reason
-    geometry, geometry_success := load_geometry(path, should_upload);
-    if !geometry_success {
-        print("Could not load files.\n%\n%\n", serialized_path, path);
-        empty: [..] *Geometry;
-        return empty, false;
+    geometry = fallback();
+    if should_upload {
+        upload(geometry);
     }
 
-    serialized: SerializedGeometry;
-    serialized.geometry = geometry;
-
-    bytes := serialize_geometry(serialized);
-    defer array_free(bytes);
-
-    geometry_bytes: [] u8;
-    geometry_bytes.data = bytes.data + size_of(SerializedGeometryHash);
-    geometry_bytes.count = bytes.count - size_of(SerializedGeometryHash);
-
-    cache_hash := get_hash(geometry_bytes);
-    cache_size := geometry_bytes.count;
-
-    geometry_hash: SerializedGeometryHash;
-    geometry_hash.hash = cache_hash;
-    geometry_hash.size = cache_size;
-
-    memcpy(bytes.data, *geometry_hash, size_of(SerializedGeometryHash));
-
-    write_entire_file(serialized_path, bytes.data, bytes.count);
-
+    write_serialized(serialized_path, hash_files, geometry);
     return geometry, true;
 }
 
-load_serialized_geometry :: (path: string, should_upload: bool = true) -> [..] *Geometry, bool {
-    file, success := read_entire_file(path);
-    defer free(file);
-    if !success {
-        empty: [..] *Geometry;
-        return empty, false;
+load_serialized_geometries :: (serialized_path: string, hash_files: [$N] string, fallback: () -> [..] *Geometry, should_upload: bool = true) -> [..] *Geometry, bool {
+    geometries, success := read_serialized(serialized_path, hash_files, [..] *Geometry);
+
+    if success {
+        for geometry: geometries {
+            geometry.vao_ = 0;
+            geometry.vbo_ = 0;
+            geometry.ebo_ = 0;
+        }
+
+        if should_upload {
+            for geometry: geometries {
+                upload(geometry);
+            }
+        }
+
+        return geometries, true;
     }
 
-    view: [] u8;
-    view.data = file.data;
-    view.count = file.count;
+    geometries = fallback();
+    if should_upload {
+        for geometry: geometries {
+            upload(geometry);
+        }
+    }
 
-    return deserialize_geometry(view, should_upload), true;
+    write_serialized(serialized_path, hash_files, geometries);
+    return geometries, true;
 }
 
-load_geometry :: (path: string, should_upload: bool = true) -> [..] *Geometry, bool {
+load_geometry :: (path: string, should_upload: bool = true) -> *Geometry, bool {
+    geometries, success := load_geometries(path, should_upload);
+    defer array_free(geometries);
+    if !success {
+        return null, false;
+    }
+
+    assert(geometries.count == 1, "You cannot load more than 1 geometry with the load_geometry function. Memory leak!");
+    return geometries[0], true;
+}
+
+load_geometries :: (path: string, should_upload: bool = true) -> [..] *Geometry, bool {
     file, success := read_entire_file(path);
     defer free(file);
     if !success {
@@ -185,45 +177,30 @@ load_geometry :: (path: string, should_upload: bool = true) -> [..] *Geometry, b
     }
 }
 
-deserialize_geometry_hash :: (bytes: [] u8) -> SerializedGeometryHash {
-    hash: SerializedGeometryHash;
-    memcpy(*hash, bytes.data, size_of(SerializedGeometryHash));
-
-    return hash;
-}
-
-deserialize_geometry :: (bytes: [] u8, should_upload: bool = true) -> [..] *Geometry {
-    serialized: SerializedGeometry;
+// TODO remove this, if youre directly serializing or deserializing things it shouldnt have anything to do with a hash
+deserialize_geometry :: (bytes: [] u8, should_upload: bool = true) -> *Geometry {
+    geometry := New(Geometry);
 
     index: int;
-    serializer.read(bytes, *index, *serialized);
-    for geometry: serialized.geometry {
-        geometry.vao_ = 0;
-        geometry.vbo_ = 0;
-        geometry.ebo_ = 0;
-    }
+    serializer.read(bytes, *index, geometry);
+    geometry.vao_ = 0;
+    geometry.vbo_ = 0;
+    geometry.ebo_ = 0;
 
     if should_upload {
-        for geometry: serialized.geometry {
-            upload(geometry);
-        }
+        upload(geometry);
     }
 
-    return serialized.geometry;
-}
-
-serialize_geometry :: (geometry: SerializedGeometry) -> [..] u8 {
-    bytes: [..] u8;
-    serializer.write(*bytes, geometry);
-
-    return bytes;
+    return geometry;
 }
 
 serialize_geometry :: (geometry: *Geometry) -> [..] u8 {
-    serialized: SerializedGeometry;
-    serialized.geometry.allocator = temp;
-    array_add(*serialized.geometry, geometry);
-    return serialize_geometry(serialized);
+    bytes: [..] u8;
+    serializer.write(*bytes, geometry.*);
+
+    print("wrote % bytes for geometry.\n", bytes.count);
+
+    return bytes;
 }
 
 upload :: (geometry: *Geometry) {
@@ -240,7 +217,7 @@ upload :: (geometry: *Geometry) {
     glBindVertexArray(geometry.vao_);
 
     if geometry.vertices.count != geometry.vertices.allocated || geometry.indices.count != geometry.indices.allocated {
-        print("Warning: Uploaded a geometry to the gpu with additional allocated buffer space. % > % ... % > %", geometry.vertices.allocated, geometry.vertices.count, geometry.indices.allocated, geometry.indices.count);
+        print("Warning: Uploaded a geometry to the gpu with additional allocated buffer space. % > % ... % > %\n", geometry.vertices.allocated, geometry.vertices.count, geometry.indices.allocated, geometry.indices.count);
     }
 
     glBindBuffer(GL_ARRAY_BUFFER, geometry.vbo_);
@@ -325,6 +302,113 @@ destroy :: (geometry: *Geometry) {
     array_free(geometry.indices);
     array_free(geometry.attributes);
     free(geometry);
+}
+
+// this could be better if it uses the triangles created by the source geometry,
+// finds the nearest geometry vertex projection into a triangle,
+// and interpolates the vertex data?
+// but interpolation doesn't work for indices so that'll have to be lookup-able
+copy_nearby_vertex_data :: (geometry: *Geometry, source: Geometry, copy_attributes: [] Attribute) {
+    source_tree: BoundingTree(*float) = create_bounding_tree(*float);
+    defer free_bounding_tree(source_tree);
+
+    source_stride := get_attribute_stride(source);
+
+    i := 0;
+    while i < source.vertices.count {
+        source_start: *float = source.vertices.data + i;
+        position: Vector3 = (cast(*Vector3) source_start).*;
+
+        position_aabb := AABB3.{position, position};
+
+        create_proxy(*source_tree, position_aabb, source_start);
+
+        i += source_stride;
+    }
+
+    copy_stride := 0;
+    for source_attribute: source.attributes {
+        if array_find(copy_attributes, source_attribute) {
+            copy_stride += get_attribute_size(source_attribute);
+        }
+    }
+
+    old_stride := get_attribute_stride(geometry);
+    old_vertex_count := geometry.vertices.count / old_stride;
+    new_stride := old_stride + copy_stride;
+    new_vertices: [..] float;
+    array_resize(*new_vertices, new_stride * old_vertex_count);
+
+    OFFSET :: 0.1;
+
+    i = 0;
+    while i < geometry.vertices.count {
+        geometry_start: *float = geometry.vertices.data + i;
+        geometry_position: Vector3 = (cast(*Vector3) geometry_start).*;
+
+        new_index := i / old_stride * new_stride;
+        memcpy(new_vertices.data + new_index, geometry.vertices.data + i, old_stride * size_of(float));
+
+        QueryData :: struct {
+            radius: float;
+            position: Vector3;
+            best_vertex: *Vector3;
+        }
+
+        query_data: QueryData;
+        query_data.radius = 0;
+        query_data.position = geometry_position;
+
+        while !query_data.best_vertex {
+            query_data.radius += OFFSET;
+            position_aabb := AABB3.{geometry_position - query_data.radius, geometry_position + query_data.radius};
+
+            query(*source_tree, position_aabb, (value: *float, query_data: *QueryData) -> bool {
+                source_position: Vector3 = (cast(*Vector3) value).*;
+
+                current_distance := distance(query_data.position, source_position);
+                if current_distance <= query_data.radius {
+                    if !query_data.best_vertex {
+                        query_data.best_vertex = cast(*Vector3) value;
+                        return true;
+                    }
+
+                    if current_distance < distance(query_data.position, query_data.best_vertex.*) {
+                        query_data.best_vertex = cast(*Vector3) value;
+                        return true;
+                    }
+                }
+
+                return true;
+            }, *query_data);
+        }
+
+        best_vertex_data := cast(*float) query_data.best_vertex;
+
+        geoemtry_current_offset := old_stride;
+        source_attribute_offset := 0;
+        for source_attribute: source.attributes {
+            attribute_size := get_attribute_size(source_attribute);
+
+            if array_find(copy_attributes, source_attribute) {
+                memcpy(new_vertices.data + new_index + geoemtry_current_offset, best_vertex_data + source_attribute_offset, attribute_size * size_of(float));
+                geoemtry_current_offset += attribute_size;
+            }
+
+            source_attribute_offset += attribute_size;
+        }
+
+        i += old_stride;
+    }
+
+    for source_attribute: source.attributes {
+        if array_find(copy_attributes, source_attribute) {
+            add_attribute(geometry, source_attribute);
+        }
+    }
+
+    array_free(geometry.vertices);
+    geometry.vertices = new_vertices;
 }
 
 rotate_vertices :: (geometry: *Geometry, axis: Vector3, radians: float) {

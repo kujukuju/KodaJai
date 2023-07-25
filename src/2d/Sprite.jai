@@ -119,14 +119,14 @@ draw :: (sprite: Sprite) {
     uniforms: ShaderUniforms;
     defer destroy(uniforms);
 
-    uniforms["uTexture"] = create_uniform("uTexture", sprite.texture);
+    uniforms[xx "uTexture"] = create_uniform("uTexture", sprite.texture);
     
-    uniforms["projection"] = create_uniform("projection", projection);
-    uniforms["model"] = create_uniform("model", model);
-    uniforms["view"] = create_uniform("view", view);
+    uniforms[xx "projection"] = create_uniform("projection", projection);
+    uniforms[xx "model"] = create_uniform("model", model);
+    uniforms[xx "view"] = create_uniform("view", view);
     
-    uniforms["uTint"] = create_uniform("uTint", sprite.tint * sprite.alpha);
-    uniforms["uFrame"] = create_uniform("uFrame", sprite.texture_frame);
+    uniforms[xx "uTint"] = create_uniform("uTint", sprite.tint * sprite.alpha);
+    uniforms[xx "uFrame"] = create_uniform("uFrame", sprite.texture_frame);
 
     apply_uniforms(*default_shader, uniforms);
 

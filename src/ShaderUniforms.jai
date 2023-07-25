@@ -35,7 +35,7 @@ ShaderUniformType :: enum {
 }
 
 ShaderUniform :: struct {
-    name: string;
+    name: *u8;
     type: ShaderUniformType;
     location: s32;
     union {
@@ -83,9 +83,11 @@ operator == :: (a: ShaderUniforms, b: ShaderUniforms) -> bool {
     return a.uniforms.data == b.uniforms.data;
 }
 
-operator [] :: (uniforms: ShaderUniforms, name: string) -> ShaderUniform {
+operator [] :: (uniforms: ShaderUniforms, name: *u8) -> ShaderUniform {
+    name_string := to_string(name);
+
     for uniform: uniforms.uniforms {
-        if uniform.name == name {
+        if to_string(uniform.name) == name_string {
             return uniform;
         }
     }
@@ -95,9 +97,11 @@ operator [] :: (uniforms: ShaderUniforms, name: string) -> ShaderUniform {
 
 // TODO can optimize this by set_or_create method that won't delete memory, for example for animation
 
-operator *[] :: (uniforms: *ShaderUniforms($O), name: string) -> *ShaderUniform {
+operator *[] :: (uniforms: *ShaderUniforms($O), name: *u8) -> *ShaderUniform {
+    name_string := to_string(name);
+
     for i: 0..uniforms.uniforms.count - 1 {
-        if uniforms.uniforms[i].name == name {
+        if to_string(uniforms.uniforms[i].name) == name_string {
             #if O {
                 destroy(uniforms.uniforms[i]);
             }
@@ -111,7 +115,7 @@ operator *[] :: (uniforms: *ShaderUniforms($O), name: string) -> *ShaderUniform 
 
 has_uniform :: (uniforms: ShaderUniforms, name: string) -> bool {
     for i: 0..uniforms.uniforms.count - 1 {
-        if uniforms.uniforms[i].name == name {
+        if to_string(uniforms.uniforms[i].name) == name {
             return true;
         }
     }
@@ -121,7 +125,7 @@ has_uniform :: (uniforms: ShaderUniforms, name: string) -> bool {
 
 // is there a use case for non compile time uniform names?
 
-create_uniform :: ($name: string, value: float) -> ShaderUniform {
+create_uniform :: ($name: *u8, value: float) -> ShaderUniform {
     uniform: ShaderUniform;
     uniform.name = name;
     uniform.type = .Float1;
@@ -129,7 +133,7 @@ create_uniform :: ($name: string, value: float) -> ShaderUniform {
     return uniform;
 }
 
-create_uniform :: ($name: string, value: [] float) -> ShaderUniform {
+create_uniform :: ($name: *u8, value: [] float) -> ShaderUniform {
     uniform: ShaderUniform;
     uniform.name = name;
     uniform.type = .Float1N;
@@ -137,7 +141,7 @@ create_uniform :: ($name: string, value: [] float) -> ShaderUniform {
     return uniform;
 }
 
-create_uniform :: ($name: string, value: [2] float) -> ShaderUniform {
+create_uniform :: ($name: *u8, value: [2] float) -> ShaderUniform {
     uniform: ShaderUniform;
     uniform.name = name;
     uniform.type = .Float2;
@@ -145,7 +149,7 @@ create_uniform :: ($name: string, value: [2] float) -> ShaderUniform {
     return uniform;
 }
 
-create_uniform :: ($name: string, value: [] [2] float) -> ShaderUniform {
+create_uniform :: ($name: *u8, value: [] [2] float) -> ShaderUniform {
     uniform: ShaderUniform;
     uniform.name = name;
     uniform.type = .Float2N;
@@ -153,7 +157,7 @@ create_uniform :: ($name: string, value: [] [2] float) -> ShaderUniform {
     return uniform;
 }
 
-create_uniform :: ($name: string, value: Vector2) -> ShaderUniform {
+create_uniform :: ($name: *u8, value: Vector2) -> ShaderUniform {
     uniform: ShaderUniform;
     uniform.name = name;
     uniform.type = .Float2;
@@ -161,7 +165,7 @@ create_uniform :: ($name: string, value: Vector2) -> ShaderUniform {
     return uniform;
 }
 
-create_uniform :: ($name: string, value: [] Vector2) -> ShaderUniform {
+create_uniform :: ($name: *u8, value: [] Vector2) -> ShaderUniform {
     uniform: ShaderUniform;
     uniform.name = name;
     uniform.type = .Float2N;
@@ -169,7 +173,7 @@ create_uniform :: ($name: string, value: [] Vector2) -> ShaderUniform {
     return uniform;
 }
 
-create_uniform :: ($name: string, value: Vector3) -> ShaderUniform {
+create_uniform :: ($name: *u8, value: Vector3) -> ShaderUniform {
     uniform: ShaderUniform;
     uniform.name = name;
     uniform.type = .Float3;
@@ -177,7 +181,7 @@ create_uniform :: ($name: string, value: Vector3) -> ShaderUniform {
     return uniform;
 }
 
-create_uniform :: ($name: string, value: [] Vector3) -> ShaderUniform {
+create_uniform :: ($name: *u8, value: [] Vector3) -> ShaderUniform {
     uniform: ShaderUniform;
     uniform.name = name;
     uniform.type = .Float3N;
@@ -185,7 +189,7 @@ create_uniform :: ($name: string, value: [] Vector3) -> ShaderUniform {
     return uniform;
 }
 
-create_uniform :: ($name: string, value: [3] float) -> ShaderUniform {
+create_uniform :: ($name: *u8, value: [3] float) -> ShaderUniform {
     uniform: ShaderUniform;
     uniform.name = name;
     uniform.type = .Float3;
@@ -193,7 +197,7 @@ create_uniform :: ($name: string, value: [3] float) -> ShaderUniform {
     return uniform;
 }
 
-create_uniform :: ($name: string, value: [] [3] float) -> ShaderUniform {
+create_uniform :: ($name: *u8, value: [] [3] float) -> ShaderUniform {
     uniform: ShaderUniform;
     uniform.name = name;
     uniform.type = .Float3N;
@@ -201,7 +205,7 @@ create_uniform :: ($name: string, value: [] [3] float) -> ShaderUniform {
     return uniform;
 }
 
-create_uniform :: ($name: string, value: Vector4) -> ShaderUniform {
+create_uniform :: ($name: *u8, value: Vector4) -> ShaderUniform {
     uniform: ShaderUniform;
     uniform.name = name;
     uniform.type = .Float4;
@@ -209,7 +213,7 @@ create_uniform :: ($name: string, value: Vector4) -> ShaderUniform {
     return uniform;
 }
 
-create_uniform :: ($name: string, value: [] Vector4) -> ShaderUniform {
+create_uniform :: ($name: *u8, value: [] Vector4) -> ShaderUniform {
     uniform: ShaderUniform;
     uniform.name = name;
     uniform.type = .Float4N;
@@ -217,7 +221,7 @@ create_uniform :: ($name: string, value: [] Vector4) -> ShaderUniform {
     return uniform;
 }
 
-create_uniform :: ($name: string, value: Color) -> ShaderUniform {
+create_uniform :: ($name: *u8, value: Color) -> ShaderUniform {
     uniform: ShaderUniform;
     uniform.name = name;
     uniform.type = .Float4;
@@ -225,7 +229,7 @@ create_uniform :: ($name: string, value: Color) -> ShaderUniform {
     return uniform;
 }
 
-create_uniform :: ($name: string, value: [] Color) -> ShaderUniform {
+create_uniform :: ($name: *u8, value: [] Color) -> ShaderUniform {
     uniform: ShaderUniform;
     uniform.name = name;
     uniform.type = .Float4N;
@@ -233,7 +237,7 @@ create_uniform :: ($name: string, value: [] Color) -> ShaderUniform {
     return uniform;
 }
 
-create_uniform :: ($name: string, value: [4] float) -> ShaderUniform {
+create_uniform :: ($name: *u8, value: [4] float) -> ShaderUniform {
     uniform: ShaderUniform;
     uniform.name = name;
     uniform.type = .Float4;
@@ -241,7 +245,7 @@ create_uniform :: ($name: string, value: [4] float) -> ShaderUniform {
     return uniform;
 }
 
-create_uniform :: ($name: string, value: [] [4] float) -> ShaderUniform {
+create_uniform :: ($name: *u8, value: [] [4] float) -> ShaderUniform {
     uniform: ShaderUniform;
     uniform.name = name;
     uniform.type = .Float4N;
@@ -249,7 +253,7 @@ create_uniform :: ($name: string, value: [] [4] float) -> ShaderUniform {
     return uniform;
 }
 
-create_uniform :: ($name: string, value: s64) -> ShaderUniform {
+create_uniform :: ($name: *u8, value: s64) -> ShaderUniform {
     uniform: ShaderUniform;
     uniform.name = name;
     uniform.type = .Int1;
@@ -257,7 +261,7 @@ create_uniform :: ($name: string, value: s64) -> ShaderUniform {
     return uniform;
 }
 
-create_uniform :: ($name: string, value: [] s64) -> ShaderUniform {
+create_uniform :: ($name: *u8, value: [] s64) -> ShaderUniform {
     uniform: ShaderUniform;
     uniform.name = name;
     uniform.type = .Int1N;
@@ -268,7 +272,7 @@ create_uniform :: ($name: string, value: [] s64) -> ShaderUniform {
     return uniform;
 }
 
-create_uniform :: ($name: string, value: s32) -> ShaderUniform {
+create_uniform :: ($name: *u8, value: s32) -> ShaderUniform {
     uniform: ShaderUniform;
     uniform.name = name;
     uniform.type = .Int1;
@@ -276,7 +280,7 @@ create_uniform :: ($name: string, value: s32) -> ShaderUniform {
     return uniform;
 }
 
-create_uniform :: ($name: string, value: [] s32) -> ShaderUniform {
+create_uniform :: ($name: *u8, value: [] s32) -> ShaderUniform {
     uniform: ShaderUniform;
     uniform.name = name;
     uniform.type = .Int1N;
@@ -284,7 +288,7 @@ create_uniform :: ($name: string, value: [] s32) -> ShaderUniform {
     return uniform;
 }
 
-create_uniform :: ($name: string, value: Point2) -> ShaderUniform {
+create_uniform :: ($name: *u8, value: Point2) -> ShaderUniform {
     uniform: ShaderUniform;
     uniform.name = name;
     uniform.type = .Int2;
@@ -293,7 +297,7 @@ create_uniform :: ($name: string, value: Point2) -> ShaderUniform {
     return uniform;
 }
 
-create_uniform :: ($name: string, value: [] Point2) -> ShaderUniform {
+create_uniform :: ($name: *u8, value: [] Point2) -> ShaderUniform {
     uniform: ShaderUniform;
     uniform.name = name;
     uniform.type = .Int2N;
@@ -305,7 +309,7 @@ create_uniform :: ($name: string, value: [] Point2) -> ShaderUniform {
     return uniform;
 }
 
-create_uniform :: ($name: string, value: [2] s64) -> ShaderUniform {
+create_uniform :: ($name: *u8, value: [2] s64) -> ShaderUniform {
     uniform: ShaderUniform;
     uniform.name = name;
     uniform.type = .Int2;
@@ -314,7 +318,7 @@ create_uniform :: ($name: string, value: [2] s64) -> ShaderUniform {
     return uniform;
 }
 
-create_uniform :: ($name: string, value: [] [2] s64) -> ShaderUniform {
+create_uniform :: ($name: *u8, value: [] [2] s64) -> ShaderUniform {
     uniform: ShaderUniform;
     uniform.name = name;
     uniform.type = .Int2N;
@@ -327,7 +331,7 @@ create_uniform :: ($name: string, value: [] [2] s64) -> ShaderUniform {
     return uniform;
 }
 
-create_uniform :: ($name: string, value: [2] s32) -> ShaderUniform {
+create_uniform :: ($name: *u8, value: [2] s32) -> ShaderUniform {
     uniform: ShaderUniform;
     uniform.name = name;
     uniform.type = .Int2;
@@ -335,7 +339,7 @@ create_uniform :: ($name: string, value: [2] s32) -> ShaderUniform {
     return uniform;
 }
 
-create_uniform :: ($name: string, value: [] [2] s32) -> ShaderUniform {
+create_uniform :: ($name: *u8, value: [] [2] s32) -> ShaderUniform {
     uniform: ShaderUniform;
     uniform.name = name;
     uniform.type = .Int2N;
@@ -343,7 +347,7 @@ create_uniform :: ($name: string, value: [] [2] s32) -> ShaderUniform {
     return uniform;
 }
 
-create_uniform :: ($name: string, value: Point3) -> ShaderUniform {
+create_uniform :: ($name: *u8, value: Point3) -> ShaderUniform {
     uniform: ShaderUniform;
     uniform.name = name;
     uniform.type = .Int3;
@@ -353,7 +357,7 @@ create_uniform :: ($name: string, value: Point3) -> ShaderUniform {
     return uniform;
 }
 
-create_uniform :: ($name: string, value: [] Point3) -> ShaderUniform {
+create_uniform :: ($name: *u8, value: [] Point3) -> ShaderUniform {
     uniform: ShaderUniform;
     uniform.name = name;
     uniform.type = .Int3N;
@@ -366,7 +370,7 @@ create_uniform :: ($name: string, value: [] Point3) -> ShaderUniform {
     return uniform;
 }
 
-create_uniform :: ($name: string, value: [3] s64) -> ShaderUniform {
+create_uniform :: ($name: *u8, value: [3] s64) -> ShaderUniform {
     uniform: ShaderUniform;
     uniform.name = name;
     uniform.type = .Int3;
@@ -376,7 +380,7 @@ create_uniform :: ($name: string, value: [3] s64) -> ShaderUniform {
     return uniform;
 }
 
-create_uniform :: ($name: string, value: [] [3] s64) -> ShaderUniform {
+create_uniform :: ($name: *u8, value: [] [3] s64) -> ShaderUniform {
     uniform: ShaderUniform;
     uniform.name = name;
     uniform.type = .Int3N;
@@ -389,7 +393,7 @@ create_uniform :: ($name: string, value: [] [3] s64) -> ShaderUniform {
     return uniform;
 }
 
-create_uniform :: ($name: string, value: [3] s32) -> ShaderUniform {
+create_uniform :: ($name: *u8, value: [3] s32) -> ShaderUniform {
     uniform: ShaderUniform;
     uniform.name = name;
     uniform.type = .Int3;
@@ -397,7 +401,7 @@ create_uniform :: ($name: string, value: [3] s32) -> ShaderUniform {
     return uniform;
 }
 
-create_uniform :: ($name: string, value: [] [3] s32) -> ShaderUniform {
+create_uniform :: ($name: *u8, value: [] [3] s32) -> ShaderUniform {
     uniform: ShaderUniform;
     uniform.name = name;
     uniform.type = .Int3N;
@@ -405,7 +409,7 @@ create_uniform :: ($name: string, value: [] [3] s32) -> ShaderUniform {
     return uniform;
 }
 
-create_uniform :: ($name: string, value: Point4) -> ShaderUniform {
+create_uniform :: ($name: *u8, value: Point4) -> ShaderUniform {
     uniform: ShaderUniform;
     uniform.name = name;
     uniform.type = .Int4;
@@ -413,7 +417,7 @@ create_uniform :: ($name: string, value: Point4) -> ShaderUniform {
     return uniform;
 }
 
-create_uniform :: ($name: string, value: [] Point4) -> ShaderUniform {
+create_uniform :: ($name: *u8, value: [] Point4) -> ShaderUniform {
     uniform: ShaderUniform;
     uniform.name = name;
     uniform.type = .Int4N;
@@ -427,7 +431,7 @@ create_uniform :: ($name: string, value: [] Point4) -> ShaderUniform {
     return uniform;
 }
 
-create_uniform :: ($name: string, value: [4] s64) -> ShaderUniform {
+create_uniform :: ($name: *u8, value: [4] s64) -> ShaderUniform {
     uniform: ShaderUniform;
     uniform.name = name;
     uniform.type = .Int4;
@@ -438,7 +442,7 @@ create_uniform :: ($name: string, value: [4] s64) -> ShaderUniform {
     return uniform;
 }
 
-create_uniform :: ($name: string, value: [] [4] s64) -> ShaderUniform {
+create_uniform :: ($name: *u8, value: [] [4] s64) -> ShaderUniform {
     uniform: ShaderUniform;
     uniform.name = name;
     uniform.type = .Int4N;
@@ -452,7 +456,7 @@ create_uniform :: ($name: string, value: [] [4] s64) -> ShaderUniform {
     return uniform;
 }
 
-create_uniform :: ($name: string, value: [4] s32) -> ShaderUniform {
+create_uniform :: ($name: *u8, value: [4] s32) -> ShaderUniform {
     uniform: ShaderUniform;
     uniform.name = name;
     uniform.type = .Int4;
@@ -460,7 +464,7 @@ create_uniform :: ($name: string, value: [4] s32) -> ShaderUniform {
     return uniform;
 }
 
-create_uniform :: ($name: string, value: [] [4] s32) -> ShaderUniform {
+create_uniform :: ($name: *u8, value: [] [4] s32) -> ShaderUniform {
     uniform: ShaderUniform;
     uniform.name = name;
     uniform.type = .Int4N;
@@ -468,7 +472,7 @@ create_uniform :: ($name: string, value: [] [4] s32) -> ShaderUniform {
     return uniform;
 }
 
-create_uniform :: ($name: string, value: u64) -> ShaderUniform {
+create_uniform :: ($name: *u8, value: u64) -> ShaderUniform {
     uniform: ShaderUniform;
     uniform.name = name;
     uniform.type = .UInt1;
@@ -476,7 +480,7 @@ create_uniform :: ($name: string, value: u64) -> ShaderUniform {
     return uniform;
 }
 
-create_uniform :: ($name: string, value: [] u64) -> ShaderUniform {
+create_uniform :: ($name: *u8, value: [] u64) -> ShaderUniform {
     uniform: ShaderUniform;
     uniform.name = name;
     uniform.type = .UInt1N;
@@ -487,7 +491,7 @@ create_uniform :: ($name: string, value: [] u64) -> ShaderUniform {
     return uniform;
 }
 
-create_uniform :: ($name: string, value: u32) -> ShaderUniform {
+create_uniform :: ($name: *u8, value: u32) -> ShaderUniform {
     uniform: ShaderUniform;
     uniform.name = name;
     uniform.type = .UInt1;
@@ -495,7 +499,7 @@ create_uniform :: ($name: string, value: u32) -> ShaderUniform {
     return uniform;
 }
 
-create_uniform :: ($name: string, value: [] u32) -> ShaderUniform {
+create_uniform :: ($name: *u8, value: [] u32) -> ShaderUniform {
     uniform: ShaderUniform;
     uniform.name = name;
     uniform.type = .UInt1N;
@@ -503,7 +507,7 @@ create_uniform :: ($name: string, value: [] u32) -> ShaderUniform {
     return uniform;
 }
 
-create_uniform :: ($name: string, value: [2] u64) -> ShaderUniform {
+create_uniform :: ($name: *u8, value: [2] u64) -> ShaderUniform {
     uniform: ShaderUniform;
     uniform.name = name;
     uniform.type = .UInt2;
@@ -512,7 +516,7 @@ create_uniform :: ($name: string, value: [2] u64) -> ShaderUniform {
     return uniform;
 }
 
-create_uniform :: ($name: string, value: [] [2] u64) -> ShaderUniform {
+create_uniform :: ($name: *u8, value: [] [2] u64) -> ShaderUniform {
     uniform: ShaderUniform;
     uniform.name = name;
     uniform.type = .UInt2N;
@@ -524,7 +528,7 @@ create_uniform :: ($name: string, value: [] [2] u64) -> ShaderUniform {
     return uniform;
 }
 
-create_uniform :: ($name: string, value: [2] u32) -> ShaderUniform {
+create_uniform :: ($name: *u8, value: [2] u32) -> ShaderUniform {
     uniform: ShaderUniform;
     uniform.name = name;
     uniform.type = .UInt2;
@@ -532,7 +536,7 @@ create_uniform :: ($name: string, value: [2] u32) -> ShaderUniform {
     return uniform;
 }
 
-create_uniform :: ($name: string, value: [] [2] u32) -> ShaderUniform {
+create_uniform :: ($name: *u8, value: [] [2] u32) -> ShaderUniform {
     uniform: ShaderUniform;
     uniform.name = name;
     uniform.type = .UInt2N;
@@ -540,7 +544,7 @@ create_uniform :: ($name: string, value: [] [2] u32) -> ShaderUniform {
     return uniform;
 }
 
-create_uniform :: ($name: string, value: [3] u64) -> ShaderUniform {
+create_uniform :: ($name: *u8, value: [3] u64) -> ShaderUniform {
     uniform: ShaderUniform;
     uniform.name = name;
     uniform.type = .UInt3;
@@ -550,7 +554,7 @@ create_uniform :: ($name: string, value: [3] u64) -> ShaderUniform {
     return uniform;
 }
 
-create_uniform :: ($name: string, value: [] [3] u64) -> ShaderUniform {
+create_uniform :: ($name: *u8, value: [] [3] u64) -> ShaderUniform {
     uniform: ShaderUniform;
     uniform.name = name;
     uniform.type = .UInt3N;
@@ -563,7 +567,7 @@ create_uniform :: ($name: string, value: [] [3] u64) -> ShaderUniform {
     return uniform;
 }
 
-create_uniform :: ($name: string, value: [3] u32) -> ShaderUniform {
+create_uniform :: ($name: *u8, value: [3] u32) -> ShaderUniform {
     uniform: ShaderUniform;
     uniform.name = name;
     uniform.type = .UInt3;
@@ -571,7 +575,7 @@ create_uniform :: ($name: string, value: [3] u32) -> ShaderUniform {
     return uniform;
 }
 
-create_uniform :: ($name: string, value: [] [3] u32) -> ShaderUniform {
+create_uniform :: ($name: *u8, value: [] [3] u32) -> ShaderUniform {
     uniform: ShaderUniform;
     uniform.name = name;
     uniform.type = .UInt3N;
@@ -579,7 +583,7 @@ create_uniform :: ($name: string, value: [] [3] u32) -> ShaderUniform {
     return uniform;
 }
 
-create_uniform :: ($name: string, value: [4] u64) -> ShaderUniform {
+create_uniform :: ($name: *u8, value: [4] u64) -> ShaderUniform {
     uniform: ShaderUniform;
     uniform.name = name;
     uniform.type = .UInt4;
@@ -590,7 +594,7 @@ create_uniform :: ($name: string, value: [4] u64) -> ShaderUniform {
     return uniform;
 }
 
-create_uniform :: ($name: string, value: [] [4] u64) -> ShaderUniform {
+create_uniform :: ($name: *u8, value: [] [4] u64) -> ShaderUniform {
     uniform: ShaderUniform;
     uniform.name = name;
     uniform.type = .UInt4N;
@@ -604,7 +608,7 @@ create_uniform :: ($name: string, value: [] [4] u64) -> ShaderUniform {
     return uniform;
 }
 
-create_uniform :: ($name: string, value: [4] u32) -> ShaderUniform {
+create_uniform :: ($name: *u8, value: [4] u32) -> ShaderUniform {
     uniform: ShaderUniform;
     uniform.name = name;
     uniform.type = .UInt4;
@@ -612,7 +616,7 @@ create_uniform :: ($name: string, value: [4] u32) -> ShaderUniform {
     return uniform;
 }
 
-create_uniform :: ($name: string, value: [] [4] u32) -> ShaderUniform {
+create_uniform :: ($name: *u8, value: [] [4] u32) -> ShaderUniform {
     uniform: ShaderUniform;
     uniform.name = name;
     uniform.type = .UInt4N;
@@ -620,7 +624,7 @@ create_uniform :: ($name: string, value: [] [4] u32) -> ShaderUniform {
     return uniform;
 }
 
-create_uniform :: ($name: string, value: Matrix2) -> ShaderUniform {
+create_uniform :: ($name: *u8, value: Matrix2) -> ShaderUniform {
     uniform: ShaderUniform;
     uniform.name = name;
     uniform.type = .Mat2;
@@ -628,7 +632,7 @@ create_uniform :: ($name: string, value: Matrix2) -> ShaderUniform {
     return uniform;
 }
 
-create_uniform :: ($name: string, value: [] Matrix2) -> ShaderUniform {
+create_uniform :: ($name: *u8, value: [] Matrix2) -> ShaderUniform {
     uniform: ShaderUniform;
     uniform.name = name;
     uniform.type = .Mat2N;
@@ -636,7 +640,7 @@ create_uniform :: ($name: string, value: [] Matrix2) -> ShaderUniform {
     return uniform;
 }
 
-create_uniform :: ($name: string, value: Matrix3) -> ShaderUniform {
+create_uniform :: ($name: *u8, value: Matrix3) -> ShaderUniform {
     uniform: ShaderUniform;
     uniform.name = name;
     uniform.type = .Mat3;
@@ -644,7 +648,7 @@ create_uniform :: ($name: string, value: Matrix3) -> ShaderUniform {
     return uniform;
 }
 
-create_uniform :: ($name: string, value: [] Matrix3) -> ShaderUniform {
+create_uniform :: ($name: *u8, value: [] Matrix3) -> ShaderUniform {
     uniform: ShaderUniform;
     uniform.name = name;
     uniform.type = .Mat3N;
@@ -652,7 +656,7 @@ create_uniform :: ($name: string, value: [] Matrix3) -> ShaderUniform {
     return uniform;
 }
 
-create_uniform :: ($name: string, value: Matrix4) -> ShaderUniform {
+create_uniform :: ($name: *u8, value: Matrix4) -> ShaderUniform {
     uniform: ShaderUniform;
     uniform.name = name;
     uniform.type = .Mat4;
@@ -660,7 +664,7 @@ create_uniform :: ($name: string, value: Matrix4) -> ShaderUniform {
     return uniform;
 }
 
-create_uniform :: ($name: string, value: [] Matrix4) -> ShaderUniform {
+create_uniform :: ($name: *u8, value: [] Matrix4) -> ShaderUniform {
     uniform: ShaderUniform;
     uniform.name = name;
     uniform.type = .Mat4N;
@@ -668,7 +672,7 @@ create_uniform :: ($name: string, value: [] Matrix4) -> ShaderUniform {
     return uniform;
 }
 
-create_uniform :: ($name: string, value: Texture) -> ShaderUniform {
+create_uniform :: ($name: *u8, value: Texture) -> ShaderUniform {
     uniform: ShaderUniform;
     uniform.name = name;
     uniform.type = .Texture;
@@ -676,7 +680,7 @@ create_uniform :: ($name: string, value: Texture) -> ShaderUniform {
     return uniform;
 }
 
-create_uniform :: ($name: string, value: Texture3) -> ShaderUniform {
+create_uniform :: ($name: *u8, value: Texture3) -> ShaderUniform {
     uniform: ShaderUniform;
     uniform.name = name;
     uniform.type = .Texture3;
@@ -684,7 +688,7 @@ create_uniform :: ($name: string, value: Texture3) -> ShaderUniform {
     return uniform;
 }
 
-create_uniform :: ($name: string, value: CubemapTexture) -> ShaderUniform {
+create_uniform :: ($name: *u8, value: CubemapTexture) -> ShaderUniform {
     uniform: ShaderUniform;
     uniform.name = name;
     uniform.type = .CubemapTexture;
@@ -693,7 +697,7 @@ create_uniform :: ($name: string, value: CubemapTexture) -> ShaderUniform {
 }
 
 // this apparently doesnt work, you have to use a texture2darray or a texture3d depending on how you want it to function
-// create_uniform :: ($name: string, value: [] Texture) -> ShaderUniform {
+// create_uniform :: ($name: *u8, value: [] Texture) -> ShaderUniform {
 //     uniform: ShaderUniform;
 //     uniform.name = name;
 //     uniform.type = .TextureN;
@@ -704,9 +708,11 @@ create_uniform :: ($name: string, value: CubemapTexture) -> ShaderUniform {
 //     return uniform;
 // }
 
-destroy :: (uniforms: ShaderUniforms) {
-    for uniform: uniforms.uniforms {
-        destroy(uniform);
+destroy :: (uniforms: ShaderUniforms($O)) {
+    #if O {
+        for uniform: uniforms.uniforms {
+            destroy(uniform);
+        }
     }
     array_free(uniforms.uniforms);
 }

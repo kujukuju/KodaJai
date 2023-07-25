@@ -1,18 +1,16 @@
 AnimatedModel :: struct {
     model: *Model;
     animations: ModelAnimations;
+    joints: [] Matrix4;
 }
 
-create_animated_model :: (model: *Model, animations: ModelAnimations) -> *AnimatedModel {
+create_animated_model :: (model: *Model, animations: ModelAnimations, joint_count: int) -> *AnimatedModel {
     animated_model := New(AnimatedModel);
     animated_model.model = model;
     animated_model.animations = animations;
+    animated_model.joints = NewArray(joint_count, Matrix4);
     return animated_model;
 }
-
-// load_animated_model :: (path: string) -> [..] *AnimatedModel, bool {
-
-// }
 
 draw :: (animated: AnimatedModel, animation: string, frame: float = 0.0, transform: Matrix4 = Matrix4Identity, shader: *Shader = null) {
     draw(animated, animation, frame, transform, get_perspective_matrix(), shader);
@@ -24,8 +22,8 @@ draw :: (animated: AnimatedModel, animation: string, frame: float = 0.0, transfo
     }
 
     if shader == null {
-        if model.shader {
-            shader = model.shader;
+        if animated.model.shader {
+            shader = animated.model.shader;
         } else {
             shader = get_default_shader(animated.model.geometry[0].attributes);
         }
@@ -48,13 +46,15 @@ draw :: (animated: AnimatedModel, animation: string, frame: float = 0.0, transfo
     uniforms: ShaderUniforms;
     defer destroy(uniforms);
     
-    uniforms["projection"] = create_uniform("projection", projection);
-    uniforms["model"] = create_uniform("model", model_mat);
-    uniforms["view"] = create_uniform("view", view);
+    uniforms[xx "projection"] = create_uniform("projection", projection);
+    uniforms[xx "model"] = create_uniform("model", model_mat);
+    uniforms[xx "view"] = create_uniform("view", view);
 
     joints := get_joints(animated.animations, animation, frame, 100);
+    assert(animated.joints.count == 100, "Shouldn't allocate different sizes arrays.");
+    memcpy(animated.joints.data, joints.data, size_of(type_of(joints)));
 
-    uniforms["uJoints"] = create_uniform("uJoints", joints);
+    uniforms[xx "uJoints"] = create_uniform("uJoints", joints);
     
     apply_uniforms(shader, uniforms);
 
@@ -111,13 +111,15 @@ draw :: (animated: AnimatedModel, mix: [] AnimationMix, transform: Matrix4 = Mat
     uniforms: ShaderUniforms;
     defer destroy(uniforms);
     
-    uniforms["projection"] = create_uniform("projection", projection);
-    uniforms["model"] = create_uniform("model", model_mat);
-    uniforms["view"] = create_uniform("view", view);
+    uniforms[xx "projection"] = create_uniform("projection", projection);
+    uniforms[xx "model"] = create_uniform("model", model_mat);
+    uniforms[xx "view"] = create_uniform("view", view);
 
     joints := get_joints(animated.animations, mix, 100);
+    assert(animated.joints.count == 100, "Shouldn't allocate different sizes arrays.");
+    memcpy(animated.joints.data, joints.data, size_of(type_of(joints)));
 
-    uniforms["uJoints"] = create_uniform("uJoints", joints);
+    uniforms[xx "uJoints"] = create_uniform("uJoints", joints);
     
     apply_uniforms(shader, uniforms);
 

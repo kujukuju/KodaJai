@@ -211,7 +211,7 @@ remap_animations :: (animations: *ModelAnimations, source: ModelAnimations, rema
 
         map_index, has_map_index := table_find(*target_to_source_indices, index);
         if !has_map_index {
-            print("Warning. The target has a bone that wasn't mapped: %\n", joint.name);
+            print("Warning. The target has a bone that wasn't mapped: % %\n", index, joint.name);
         }
     }
 
@@ -368,40 +368,40 @@ remap_animations :: (animations: *ModelAnimations, source: ModelAnimations, rema
                 }
             } else if has_source_index {
                 // TODO
-                frame := array_add(*animation.frames[joint_index]);
+                // frame := array_add(*animation.frames[joint_index]);
 
-                target_translation := animations.bone_hierarchy[joint_index].translation;
-                target_scale := animations.bone_hierarchy[joint_index].scale;
+                // target_translation := animations.bone_hierarchy[joint_index].translation;
+                // target_scale := animations.bone_hierarchy[joint_index].scale;
 
-                target_bind := target_binds[joint_index];
-                source_bind := source_binds[source_joint_index];
+                // target_bind := target_binds[joint_index];
+                // source_bind := source_binds[source_joint_index];
 
-                local_target_bind := local_target_binds[joint_index];
-                local_target_inverse_bind := local_target_inverse_binds[joint_index];
-                local_source_bind := local_source_binds[source_joint_index];
-                local_source_inverse_bind := local_source_inverse_binds[source_joint_index];
+                // local_target_bind := local_target_binds[joint_index];
+                // local_target_inverse_bind := local_target_inverse_binds[joint_index];
+                // local_source_bind := local_source_binds[source_joint_index];
+                // local_source_inverse_bind := local_source_inverse_binds[source_joint_index];
 
-                // while the target bone parent doesn't have a source mapping, accumulate the local bind offset
-                local_accumulated_target_bind := local_target_bind;
-                current_joint_index := joint_index;
-                current_parent_index := animations.bone_hierarchy[current_joint_index].parent;
-                while !table_find_pointer(*target_to_source_indices, current_parent_index) && current_joint_index != current_parent_index {
-                    local_accumulated_target_bind = animations.bone_hierarchy[current_parent_index].transform * local_accumulated_target_bind;
+                // // while the target bone parent doesn't have a source mapping, accumulate the local bind offset
+                // local_accumulated_target_bind := local_target_bind;
+                // current_joint_index := joint_index;
+                // current_parent_index := animations.bone_hierarchy[current_joint_index].parent;
+                // while !table_find_pointer(*target_to_source_indices, current_parent_index) && current_joint_index != current_parent_index {
+                //     local_accumulated_target_bind = animations.bone_hierarchy[current_parent_index].transform * local_accumulated_target_bind;
 
-                    current_joint_index = current_parent_index;
-                    current_parent_index = animations.bone_hierarchy[current_joint_index].parent;
-                }
+                //     current_joint_index = current_parent_index;
+                //     current_parent_index = animations.bone_hierarchy[current_joint_index].parent;
+                // }
 
-                // target_bind_to_source_bind := local_source_bind * local_target_inverse_bind;
-                target_bind_to_source_bind := local_source_bind * inverse(local_accumulated_target_bind);
+                // // target_bind_to_source_bind := local_source_bind * local_target_inverse_bind;
+                // target_bind_to_source_bind := local_source_bind * inverse(local_accumulated_target_bind);
 
-                target_frame := target_bind_to_source_bind * local_target_bind;
+                // target_frame := target_bind_to_source_bind * local_target_bind;
 
-                modified_translation, modified_rotation, modified_scale := decompose_matrix4(target_frame);
+                // modified_translation, modified_rotation, modified_scale := decompose_matrix4(target_frame);
 
-                frame.translation = modified_translation;
-                frame.rotation = modified_rotation;
-                frame.scale = modified_scale;
+                // frame.translation = modified_translation;
+                // frame.rotation = modified_rotation;
+                // frame.scale = modified_scale;
             }
         }
     }
@@ -464,6 +464,10 @@ rename_animations :: (animations: *ModelAnimations, name_overrides: [] [2] strin
         }
 
         print("Could not find name override for souce name %.\n", name_override[0]);
+        print("Available names are:\n");
+        for animation: animations.animations {
+            print("\t%\n", animation.name);
+        }
         assert(false, "Could not find name override.");
     }
 }
@@ -517,7 +521,6 @@ delete_animations  :: (animations: *ModelAnimations, name_deletions: [] string) 
 get_animation_duration :: (animations: ModelAnimations, name: string) -> float {
     for animation: animations.animations {
         if animation.name == name {
-            print("found % %\n", animation.name, animation.max_frame);
             return animation.max_frame;
         }
     }
@@ -547,6 +550,19 @@ destroy :: (animation: Animation) {
     }
     array_free(animation.frames);
     array_free(animation.bone_weights);
+}
+
+get_joint_index :: (animations: ModelAnimations, name: string) -> int {
+    for i: 0..animations.joint_indices.count - 1 {
+        real_index := animations.joint_indices[i];
+        bone := animations.bone_hierarchy[real_index];
+        
+        if bone.name == name {
+            return i;
+        }
+    }
+
+    return -1;
 }
 
 // this will apply the animations in the order received, not all at the same time
@@ -720,7 +736,7 @@ get_joints :: (animations: ModelAnimations, mix: [] AnimationMix, $count: int) -
 get_joints :: (animations: ModelAnimations, $count: int) -> [count] Matrix4 {
     joints: [count] Matrix4;
     casted: [] Matrix4;
-    casted = output;
+    casted = joints;
     get_joints(animations, *casted);
 
     return joints;
@@ -797,8 +813,7 @@ get_joints :: (animations: ModelAnimations, animation: Animation, frame: float, 
         parent_transform := Matrix4Identity;
         if joint.parent != i {
             parent_transform = joints_bones[joint.parent];
-            empty: Matrix4;
-            assert(parent_transform != empty, "If there's a parent it shouldn't be empty. At least identity.");
+            assert(parent_transform != Matrix4.{}, "If there's a parent it shouldn't be empty. At least identity.");
         }
 
         interpolated_matrix: Matrix4;
@@ -948,6 +963,8 @@ load_animation_gltf_data :: (animations: *ModelAnimations, json: GltfJson, binar
                 animation.name = copy_string(<< current_animation.name);
             }
 
+            print("Current animation name is: %\n", animation.name);
+
             // the animation samplers inputs are times
             // the animation samplers outputs are the transformations, presumably for each time
 
@@ -971,6 +988,8 @@ load_animation_gltf_data :: (animations: *ModelAnimations, json: GltfJson, binar
                 }
 
                 bone_index := << table_find_pointer(*node_to_bone_remap, node_index);
+                print("Assigning to bone index %\n", bone_index);
+                print("Bone index % is %\n", bone_index, animations.bone_hierarchy[bone_index].name);
 
                 sampler := current_animation.samplers[sampler_index];
                 time_view := get_accessor_view(accessors[sampler.input], "SCALAR");
@@ -1073,6 +1092,8 @@ load_animation_gltf_data :: (animations: *ModelAnimations, json: GltfJson, binar
             }
 
             calculate_bone_weights(animations, animation);
+
+            print("animation.name animation.frames[1].count % %\n", animation.name, animation.frames[1].count);
         }
     }
 

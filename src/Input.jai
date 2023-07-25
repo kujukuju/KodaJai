@@ -173,6 +173,17 @@ InputState :: enum_flags u8 {
     START :: 0x2;
 }
 
+InputFeature :: enum u32 {
+    None :: 0x0;
+    Keys :: 0x1;
+    ControllerButtons :: 0x2;
+    ControllerMove :: 0x4;
+    MouseButtons :: 0x8;
+    MouseScroll :: 0x10;
+    MouseMove :: 0x20;
+    All :: 0xffffffff;
+}
+
 input: struct {
     keys: [KEY_COUNT] InputState;
     released_keys: [KEY_COUNT] bool;
@@ -200,8 +211,10 @@ input: struct {
     scroll_delta_y: float64;
 }
 
-update_inputs :: () {
+update_inputs :: (update_features: InputFeature = .All) {
     // TODO should this be called here?
+
+    // TODO all this update feature shit is gonna have to be redone and reorganized at some poitn
 
     for joystick: GLFW_JOYSTICK_1..GLFW_JOYSTICK_LAST {
         if !glfwJoystickPresent(xx joystick) {
@@ -217,129 +230,141 @@ update_inputs :: () {
             continue;
         }
 
-        for index: 0..BUTTON_COUNT - 1 {
-            button_down := cast(bool) (state.buttons[index] & GLFW_PRESS);
-            input.released_buttons[index] = input.buttons[index] && !button_down;
+        if update_features & .ControllerButtons {
+            for index: 0..BUTTON_COUNT - 1 {
+                button_down := cast(bool) (state.buttons[index] & GLFW_PRESS);
+                input.released_buttons[index] = input.buttons[index] && !button_down;
 
-            // clear the start value
-            input.buttons[index] &= ~InputState.START;
+                // clear the start value
+                input.buttons[index] &= ~InputState.START;
 
-            // set the start value if this is a new input
-            if button_down & !input.buttons[index] {
-                input.buttons[index] |= InputState.START;
-            }
-            
-            if button_down {
-                input.buttons[index] |= InputState.DOWN;
-                input.controller_active = true;
-            } else {
-                input.buttons[index] &= ~InputState.DOWN;
+                // set the start value if this is a new input
+                if button_down & !input.buttons[index] {
+                    input.buttons[index] |= InputState.START;
+                }
+                
+                if button_down {
+                    input.buttons[index] |= InputState.DOWN;
+                    input.controller_active = true;
+                } else {
+                    input.buttons[index] &= ~InputState.DOWN;
+                }
             }
         }
 
-        input.controller_left.x = state.axes[GLFW_GAMEPAD_AXIS_LEFT_X];
-        input.controller_left.y = state.axes[GLFW_GAMEPAD_AXIS_LEFT_Y];
-        input.controller_right.x = state.axes[GLFW_GAMEPAD_AXIS_RIGHT_X];
-        input.controller_right.y = state.axes[GLFW_GAMEPAD_AXIS_RIGHT_Y];
+        if update_features & .ControllerMove {
+            input.controller_left.x = state.axes[GLFW_GAMEPAD_AXIS_LEFT_X];
+            input.controller_left.y = state.axes[GLFW_GAMEPAD_AXIS_LEFT_Y];
+            input.controller_right.x = state.axes[GLFW_GAMEPAD_AXIS_RIGHT_X];
+            input.controller_right.y = state.axes[GLFW_GAMEPAD_AXIS_RIGHT_Y];
 
-        length_left := length(input.controller_left) * (1.0 + joystick_padding * 2) - joystick_padding;
-        length_left = min(max(length_left, 0.0), 1.0);
-        input.controller_left = normalize(input.controller_left) * length_left;
+            length_left := length(input.controller_left) * (1.0 + joystick_padding * 2) - joystick_padding;
+            length_left = min(max(length_left, 0.0), 1.0);
+            input.controller_left = normalize(input.controller_left) * length_left;
 
-        length_right := length(input.controller_right) * (1.0 + joystick_padding * 2) - joystick_padding;
-        length_right = min(max(length_right, 0.0), 1.0);
-        input.controller_right = normalize(input.controller_right) * length_right;
+            length_right := length(input.controller_right) * (1.0 + joystick_padding * 2) - joystick_padding;
+            length_right = min(max(length_right, 0.0), 1.0);
+            input.controller_right = normalize(input.controller_right) * length_right;
 
-        if joystick_projected {
-            if length_left > 0 {
-                angle := atan2(input.controller_left.y, input.controller_left.x);
-                denom := max(abs(cos(angle)), abs(sin(angle)));
-                input.controller_left /= denom;
-            }
-            if length_right > 0 {
-                angle := atan2(input.controller_right.y, input.controller_right.x);
-                denom := max(abs(cos(angle)), abs(sin(angle)));
-                input.controller_right /= denom;
+            if joystick_projected {
+                if length_left > 0 {
+                    angle := atan2(input.controller_left.y, input.controller_left.x);
+                    denom := max(abs(cos(angle)), abs(sin(angle)));
+                    input.controller_left /= denom;
+                }
+                if length_right > 0 {
+                    angle := atan2(input.controller_right.y, input.controller_right.x);
+                    denom := max(abs(cos(angle)), abs(sin(angle)));
+                    input.controller_right /= denom;
+                }
             }
         }
     }
 
-    last_raw_mouse_x := raw_mouse_x;
-    last_raw_mouse_y := raw_mouse_y;
-    glfwGetCursorPos(koda.window, *raw_mouse_x, *raw_mouse_y);
-    input.mouse_delta_x = raw_mouse_x - last_raw_mouse_x;
-    input.mouse_delta_y = raw_mouse_y - last_raw_mouse_y;
-    input.mouse = xy(xx raw_mouse_x, xx raw_mouse_y);
+    if update_features & .MouseMove {
+        last_raw_mouse_x := raw_mouse_x;
+        last_raw_mouse_y := raw_mouse_y;
+        glfwGetCursorPos(koda.window, *raw_mouse_x, *raw_mouse_y);
+        input.mouse_delta_x = raw_mouse_x - last_raw_mouse_x;
+        input.mouse_delta_y = raw_mouse_y - last_raw_mouse_y;
+        input.mouse = xy(xx raw_mouse_x, xx raw_mouse_y);
+    }
 
-    input.scroll_delta_x = accumulated_scroll[0];
-    input.scroll_delta_y = accumulated_scroll[1];
-    accumulated_scroll[0] = 0;
-    accumulated_scroll[1] = 0;
+    if update_features & .MouseScroll {
+        input.scroll_delta_x = accumulated_scroll[0];
+        input.scroll_delta_y = accumulated_scroll[1];
+        accumulated_scroll[0] = 0;
+        accumulated_scroll[1] = 0;
+    }
 
     // TODO probably need a more generic way to clear all inputs when not captured
-    input.mouse_left &= ~InputState.START;
-    mouse_left := glfwGetMouseButton(koda.window, GLFW_MOUSE_BUTTON_LEFT);
-    input.released_mouse_left = input.mouse_left && !mouse_left;
-    if mouse_left && !input.mouse_left {
-        input.mouse_left |= InputState.START;
-        input.mouse_left_start = input.mouse;
-        input.mouse_left_drag = .{};
-    }
-    if mouse_left {
-        input.mouse_left |= InputState.DOWN;
-        input.mouse_left_drag += Vector2.{xx input.mouse_delta_x, xx input.mouse_delta_y};
-    } else {
-        input.mouse_left &= ~InputState.DOWN;
-    }
-
-    input.mouse_right &= ~InputState.START;
-    mouse_right := glfwGetMouseButton(koda.window, GLFW_MOUSE_BUTTON_RIGHT);
-    input.released_mouse_right = input.mouse_right && !mouse_right;
-    if mouse_right && !input.mouse_right {
-        input.mouse_right |= InputState.START;
-        input.mouse_right_start = input.mouse;
-        input.mouse_right_drag = .{};
-    }
-    if mouse_right {
-        input.mouse_right |= InputState.DOWN;
-        input.mouse_right_drag += Vector2.{xx input.mouse_delta_x, xx input.mouse_delta_y};
-    } else {
-        input.mouse_right &= ~InputState.DOWN;
-    }
-
-    input.mouse_middle &= ~InputState.START;
-    mouse_middle := glfwGetMouseButton(koda.window, GLFW_MOUSE_BUTTON_MIDDLE);
-    input.released_mouse_middle = input.mouse_middle && !mouse_middle;
-    if mouse_middle && !input.mouse_middle {
-        input.mouse_middle |= InputState.START;
-        input.mouse_middle_start = input.mouse;
-        input.mouse_middle_drag = .{};
-    }
-    if mouse_middle {
-        input.mouse_middle |= InputState.DOWN;
-        input.mouse_middle_drag += Vector2.{xx input.mouse_delta_x, xx input.mouse_delta_y};
-    } else {
-        input.mouse_middle &= ~InputState.DOWN;
-    }
-
-    for key_code, index: glfw_key_map {
-        key_value := glfwGetKey(koda.window, key_code);
-        key_down: bool = cast(bool) (key_value & GLFW_PRESS);
-        input.released_keys[index] = input.keys[index] && !key_down;
-
-        // clear the start value
-        input.keys[index] &= ~InputState.START;
-
-        // set the start value if this is a new input
-        if key_down & !input.keys[index] {
-            input.keys[index] |= InputState.START;
+    if update_features & .MouseButtons {
+        input.mouse_left &= ~InputState.START;
+        mouse_left := glfwGetMouseButton(koda.window, GLFW_MOUSE_BUTTON_LEFT);
+        input.released_mouse_left = input.mouse_left && !mouse_left;
+        if mouse_left && !input.mouse_left {
+            input.mouse_left |= InputState.START;
+            input.mouse_left_start = input.mouse;
+            input.mouse_left_drag = .{};
         }
-        
-        if key_down {
-            input.keys[index] |= InputState.DOWN;
-            input.controller_active = false;
+        if mouse_left {
+            input.mouse_left |= InputState.DOWN;
+            input.mouse_left_drag += Vector2.{xx input.mouse_delta_x, xx input.mouse_delta_y};
         } else {
-            input.keys[index] &= ~InputState.DOWN;
+            input.mouse_left &= ~InputState.DOWN;
+        }
+
+        input.mouse_right &= ~InputState.START;
+        mouse_right := glfwGetMouseButton(koda.window, GLFW_MOUSE_BUTTON_RIGHT);
+        input.released_mouse_right = input.mouse_right && !mouse_right;
+        if mouse_right && !input.mouse_right {
+            input.mouse_right |= InputState.START;
+            input.mouse_right_start = input.mouse;
+            input.mouse_right_drag = .{};
+        }
+        if mouse_right {
+            input.mouse_right |= InputState.DOWN;
+            input.mouse_right_drag += Vector2.{xx input.mouse_delta_x, xx input.mouse_delta_y};
+        } else {
+            input.mouse_right &= ~InputState.DOWN;
+        }
+
+        input.mouse_middle &= ~InputState.START;
+        mouse_middle := glfwGetMouseButton(koda.window, GLFW_MOUSE_BUTTON_MIDDLE);
+        input.released_mouse_middle = input.mouse_middle && !mouse_middle;
+        if mouse_middle && !input.mouse_middle {
+            input.mouse_middle |= InputState.START;
+            input.mouse_middle_start = input.mouse;
+            input.mouse_middle_drag = .{};
+        }
+        if mouse_middle {
+            input.mouse_middle |= InputState.DOWN;
+            input.mouse_middle_drag += Vector2.{xx input.mouse_delta_x, xx input.mouse_delta_y};
+        } else {
+            input.mouse_middle &= ~InputState.DOWN;
+        }
+    }
+
+    if update_features & .Keys {
+        for key_code, index: glfw_key_map {
+            key_value := glfwGetKey(koda.window, key_code);
+            key_down: bool = cast(bool) (key_value & GLFW_PRESS);
+            input.released_keys[index] = input.keys[index] && !key_down;
+
+            // clear the start value
+            input.keys[index] &= ~InputState.START;
+
+            // set the start value if this is a new input
+            if key_down & !input.keys[index] {
+                input.keys[index] |= InputState.START;
+            }
+            
+            if key_down {
+                input.keys[index] |= InputState.DOWN;
+                input.controller_active = false;
+            } else {
+                input.keys[index] &= ~InputState.DOWN;
+            }
         }
     }
 

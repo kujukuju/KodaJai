@@ -211,11 +211,11 @@ draw_text :: (text: Text) {
         uniforms: ShaderUniforms;
         defer destroy(uniforms);
         
-        uniforms["uTexture"] = create_uniform("uTexture", character.texture);
+        uniforms[xx "uTexture"] = create_uniform("uTexture", character.texture);
 
-        uniforms["projection"] = create_uniform("projection", projection);
+        uniforms[xx "projection"] = create_uniform("projection", projection);
 
-        uniforms["uTint"] = create_uniform("uTint", text.tint);
+        uniforms[xx "uTint"] = create_uniform("uTint", text.tint);
 
         apply_uniforms(*default_font_shader, uniforms);
 
