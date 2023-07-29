@@ -6,6 +6,12 @@ ShaderEntry :: struct {
 
 default_shaders: [..] ShaderEntry;
 
+clear_default_shaders :: () {
+    while default_shaders.count > 0 {
+        remove_default_shader(default_shaders[default_shaders.count - 1].shader);
+    }
+}
+
 init_default_shaders :: () {
     set_default_shader(.[.Position, .Texcoord], *default_shader);
     set_default_shader(.[.Position, .Normal, .Texcoord], *default_shader3);
@@ -41,4 +47,14 @@ set_default_shader :: (attributes: [] Attribute, shader: *Shader) {
     shader_entry := array_add(*default_shaders);
     array_copy(*shader_entry.attributes, attributes);
     shader_entry.shader = shader;
+}
+
+remove_default_shader :: (shader: *Shader) {
+    for *shader_entry, shader_index: default_shaders {
+        if shader_entry.shader == shader {
+            array_free(shader_entry.attributes);
+            array_ordered_remove_by_index(*default_shaders, shader_index);
+            break;
+        }
+    } 
 }

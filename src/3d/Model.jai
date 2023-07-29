@@ -353,6 +353,13 @@ load_model_gltf_data :: (json: GltfJson, binary: [] u8, should_upload: bool) -> 
             model := models[model_index];
             model_index += 1;
 
+            if primitive.material {
+                material := json.materials[<< primitive.material];
+                print("Loaded material: %\n", material);
+
+                model.cull_face = !material.doubleSided;
+            }
+
             has_diffuse_texture := true;
             has_diffuse_texture = has_diffuse_texture && primitive.material;
             has_diffuse_texture = has_diffuse_texture && json.materials[<< primitive.material].pbrMetallicRoughness;
@@ -360,14 +367,13 @@ load_model_gltf_data :: (json: GltfJson, binary: [] u8, should_upload: bool) -> 
             has_diffuse_texture = has_diffuse_texture && json.textures[json.materials[<< primitive.material].pbrMetallicRoughness.baseColorTexture.index].source;
             if has_diffuse_texture {
                 material := json.materials[<< primitive.material];
-                print("Loaded material: %\n", material);
-                model.cull_face = !material.doubleSided;
 
                 texture_name := material.name;
                 assert(!!texture_name, "I thought materials always had to have a name...");
                 
                 texture_index := material.pbrMetallicRoughness.baseColorTexture.index;
                 texture := get_texture(json, bufferviews, texture_index);
+                print("Loaded texture: %\n", texture);
 
                 assert(!has_uniform(model.uniforms, "uTexture0"), "Cannot already have a diffuse texture.");
                 model.uniforms[xx "uTexture0"] = create_uniform("uTexture0", texture);

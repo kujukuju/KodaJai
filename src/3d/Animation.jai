@@ -42,9 +42,9 @@ AnimationMix :: struct {
     frame: float = 0.0;
 }
 
-load_animations :: (path: string, name_override: string = "", base_only: bool = false, stationary_bone: string = "") -> ModelAnimations, bool {
+load_animations :: (path: string, name_override: string = "", base_only: bool = false, stationary_bone: string = "", stationary_axis: Vector3 = .{}) -> ModelAnimations, bool {
     animations: ModelAnimations;
-    success := load_animations(*animations, path, name_override, base_only, stationary_bone);
+    success := load_animations(*animations, path, name_override, base_only, stationary_bone, stationary_axis);
     if !success {
         destroy(animations);
         return .{}, false;
@@ -53,7 +53,7 @@ load_animations :: (path: string, name_override: string = "", base_only: bool = 
     return animations, true;
 }
 
-load_animations :: (animations: *ModelAnimations, path: string, name_override: string = "", base_only: bool = false, stationary_bone: string = "") -> bool {
+load_animations :: (animations: *ModelAnimations, path: string, name_override: string = "", base_only: bool = false, stationary_bone: string = "", stationary_axis: Vector3 = .{}) -> bool {
     file, success := read_entire_file(path);
     defer free(file);
     if !success {
@@ -61,14 +61,14 @@ load_animations :: (animations: *ModelAnimations, path: string, name_override: s
     }
 
     if ends_with(path, ".glb") {
-        success := load_animation_glb(animations, file, name_override, base_only, stationary_bone);
+        success := load_animation_glb(animations, file, name_override, base_only, stationary_bone, stationary_axis);
         if !success {
             return false;
         }
 
         return true;
     } else if ends_with(path, ".gltf") {
-        success := load_animation_gltf(animations, file, path, name_override, base_only, stationary_bone);
+        success := load_animation_gltf(animations, file, path, name_override, base_only, stationary_bone, stationary_axis);
         if !success {
             return false;
         }
@@ -80,11 +80,11 @@ load_animations :: (animations: *ModelAnimations, path: string, name_override: s
     }
 }
 
-load_remap_animations :: (target: string, animation_source: string, remap: [] [2] string = .[], name_override: string = "", stationary_bone: string = "") -> ModelAnimations, bool {
+load_remap_animations :: (target: string, animation_source: string, root_bone: string, remap: [] [2] string = .[], name_override: string = "", stationary_bone: string = "", stationary_axis: Vector3 = .{}) -> ModelAnimations, bool {
     animations: ModelAnimations;
     load_animations(*animations, target, base_only = true);
 
-    success := load_remap_animations(*animations, target, animation_source, remap, name_override, stationary_bone);
+    success := load_remap_animations(*animations, target, animation_source, root_bone, remap, name_override, stationary_bone, stationary_axis);
     if !success {
         destroy(animations);
         return .{}, false;
@@ -93,14 +93,14 @@ load_remap_animations :: (target: string, animation_source: string, remap: [] [2
     return animations, true;
 }
 
-load_remap_animations :: (animations: *ModelAnimations, animation_source: string, remap: [] [2] string = .[], name_override: string = "", stationary_bone: string = "") -> bool {
-    source_animations, source_success := load_animations(animation_source, name_override, stationary_bone = stationary_bone);
+load_remap_animations :: (animations: *ModelAnimations, animation_source: string, root_bone: string, remap: [] [2] string = .[], name_override: string = "", stationary_bone: string = "", stationary_axis: Vector3 = .{}) -> bool {
+    source_animations, source_success := load_animations(animation_source, name_override, stationary_bone = stationary_bone, stationary_axis = stationary_axis);
     defer destroy(source_animations);
     if !source_success {
         return false;
     }
 
-    if !remap_animations(animations, source_animations, remap) {
+    if !remap_animations(animations, source_animations, root_bone, remap) {
         return false;
     }
 
@@ -112,8 +112,16 @@ load_remap_animations :: (animations: *ModelAnimations, animation_source: string
     return true;
 }
 
-remap_animations :: (animations: *ModelAnimations, source: ModelAnimations, remap: [] [2] string) -> bool {
+// the root bone is used to map the animations, because attempting to correct the bind pose when bones aren't in use can be bad, apparently?
+remap_animations :: (animations: *ModelAnimations, source: ModelAnimations, root_bone: string, remap: [] [2] string) -> bool {
     assert(!!animations.bone_hierarchy, "You cannot remap animations if you haven't yet established any bones.");
+
+    // go backwards for each bone looking at the parents to determine which bones are valid above the root
+    valid_target_indices: Table(int, bool);
+    valid_target_indices.allocator = temp;
+    for bone_index: animations.joint_indices {
+        table_set(*valid_target_indices, bone_index, true);
+    }
 
     // if the remap animations are empty we'll remap by matching bone names
     real_remap: [] [2] string;
@@ -303,6 +311,7 @@ remap_animations :: (animations: *ModelAnimations, source: ModelAnimations, rema
             // we only apply the frames if they exist because otherwise the data will
             // get pulled from the bind pose in the hierarchy
             source_joint_index, has_source_index := table_find(*target_to_source_indices, joint_index);
+            is_valid_target_index := table_contains(*valid_target_indices, joint_index);
             if has_source_index && source_animation.frames[source_joint_index].count > 0 {
                 array_copy(*animation.frames[joint_index], source_animation.frames[source_joint_index]);
 
@@ -366,42 +375,42 @@ remap_animations :: (animations: *ModelAnimations, source: ModelAnimations, rema
                     animation.frames[joint_index][frame_index].rotation = modified_rotation;
                     animation.frames[joint_index][frame_index].scale = modified_scale;
                 }
-            } else if has_source_index {
+            } else if has_source_index && is_valid_target_index {
                 // TODO
-                // frame := array_add(*animation.frames[joint_index]);
+                frame := array_add(*animation.frames[joint_index]);
 
-                // target_translation := animations.bone_hierarchy[joint_index].translation;
-                // target_scale := animations.bone_hierarchy[joint_index].scale;
+                target_translation := animations.bone_hierarchy[joint_index].translation;
+                target_scale := animations.bone_hierarchy[joint_index].scale;
 
-                // target_bind := target_binds[joint_index];
-                // source_bind := source_binds[source_joint_index];
+                target_bind := target_binds[joint_index];
+                source_bind := source_binds[source_joint_index];
 
-                // local_target_bind := local_target_binds[joint_index];
-                // local_target_inverse_bind := local_target_inverse_binds[joint_index];
-                // local_source_bind := local_source_binds[source_joint_index];
-                // local_source_inverse_bind := local_source_inverse_binds[source_joint_index];
+                local_target_bind := local_target_binds[joint_index];
+                local_target_inverse_bind := local_target_inverse_binds[joint_index];
+                local_source_bind := local_source_binds[source_joint_index];
+                local_source_inverse_bind := local_source_inverse_binds[source_joint_index];
 
-                // // while the target bone parent doesn't have a source mapping, accumulate the local bind offset
-                // local_accumulated_target_bind := local_target_bind;
-                // current_joint_index := joint_index;
-                // current_parent_index := animations.bone_hierarchy[current_joint_index].parent;
-                // while !table_find_pointer(*target_to_source_indices, current_parent_index) && current_joint_index != current_parent_index {
-                //     local_accumulated_target_bind = animations.bone_hierarchy[current_parent_index].transform * local_accumulated_target_bind;
+                // while the target bone parent doesn't have a source mapping, accumulate the local bind offset
+                local_accumulated_target_bind := local_target_bind;
+                current_joint_index := joint_index;
+                current_parent_index := animations.bone_hierarchy[current_joint_index].parent;
+                while !table_find_pointer(*target_to_source_indices, current_parent_index) && current_joint_index != current_parent_index {
+                    local_accumulated_target_bind = animations.bone_hierarchy[current_parent_index].transform * local_accumulated_target_bind;
 
-                //     current_joint_index = current_parent_index;
-                //     current_parent_index = animations.bone_hierarchy[current_joint_index].parent;
-                // }
+                    current_joint_index = current_parent_index;
+                    current_parent_index = animations.bone_hierarchy[current_joint_index].parent;
+                }
 
-                // // target_bind_to_source_bind := local_source_bind * local_target_inverse_bind;
-                // target_bind_to_source_bind := local_source_bind * inverse(local_accumulated_target_bind);
+                // target_bind_to_source_bind := local_source_bind * local_target_inverse_bind;
+                target_bind_to_source_bind := local_source_bind * inverse(local_accumulated_target_bind);
 
-                // target_frame := target_bind_to_source_bind * local_target_bind;
+                target_frame := target_bind_to_source_bind * local_target_bind;
 
-                // modified_translation, modified_rotation, modified_scale := decompose_matrix4(target_frame);
+                modified_translation, modified_rotation, modified_scale := decompose_matrix4(target_frame);
 
-                // frame.translation = modified_translation;
-                // frame.rotation = modified_rotation;
-                // frame.scale = modified_scale;
+                frame.translation = modified_translation;
+                frame.rotation = modified_rotation;
+                frame.scale = modified_scale;
             }
         }
     }
@@ -674,6 +683,10 @@ get_joints :: (animations: ModelAnimations, mix: [] AnimationMix, $count: int) -
                     
                     current_weights[bone_index] = lerp(current_weights[bone_index], bone_weight, percentage_new);
                 }
+
+                if bone_index == 1 {
+                    current[bone_index].rotation = rotation;
+                }
             }
         }
     }
@@ -688,19 +701,33 @@ get_joints :: (animations: ModelAnimations, mix: [] AnimationMix, $count: int) -
     }
 
     // now the same animation code
-    joints_bones: [..] Matrix4;
-    joints_bones.allocator = temp;
-    array_reserve(*joints_bones, bone_count);
-    joints_bones.count = bone_count;
+    joint_bones: [..] Matrix4;
+    joint_bones.allocator = temp;
+    array_resize(*joint_bones, bone_count);
+
+    for i: 0..joint_bones.count - 1 {
+        joint_bones[i] = animations.bone_hierarchy[i].transform;
+    }
 
     for i: 0..bone_count - 1 {
         joint := animations.bone_hierarchy[i];
+
+        valid_skin_bone := false;
+        for valid_index: animations.joint_indices {
+            if i == valid_index {
+                valid_skin_bone = true;
+                break;
+            }
+        }
+        if !valid_skin_bone {
+            continue;
+        }
 
         // if the joint parent isn't itself then set the parent
         // parent_transform := animation.world;
         parent_transform := Matrix4Identity;
         if joint.parent != i {
-            parent_transform = joints_bones[joint.parent];
+            parent_transform = joint_bones[joint.parent];
             empty: Matrix4;
             assert(parent_transform != empty, "If there's a parent it shouldn't be empty. At least identity.");
         }
@@ -715,14 +742,14 @@ get_joints :: (animations: ModelAnimations, mix: [] AnimationMix, $count: int) -
         interpolated_matrix = scale(interpolated_matrix, bone_scale);
 
         // local_transform := interpolated_matrix;
-        joints_bones[i] = parent_transform * interpolated_matrix;
+        joint_bones[i] = parent_transform * interpolated_matrix;
     }
 
     joints: [count] Matrix4;
 
     for i: 0..animations.joint_indices.count - 1 {
         real_index := animations.joint_indices[i];
-        joints[i] = joints_bones[real_index];
+        joints[i] = joint_bones[real_index];
     }
 
     for i: 0..animations.inverse_binds.count - 1 {
@@ -842,7 +869,7 @@ get_joints :: (animations: ModelAnimations, animation: Animation, frame: float, 
 
 #scope_file
 
-load_animation_glb :: (animations: *ModelAnimations, file: string, name_override: string, base_only: bool, stationary_bone: string) -> bool {
+load_animation_glb :: (animations: *ModelAnimations, file: string, name_override: string, base_only: bool, stationary_bone: string, stationary_axis: Vector3) -> bool {
     json, binary, json_memory, valid := load_glb(file);
     defer free(json_memory);
     if !valid {
@@ -851,23 +878,23 @@ load_animation_glb :: (animations: *ModelAnimations, file: string, name_override
 
     print("Beginning load...\n");
 
-    success := load_animation_gltf_data(animations, json, binary, name_override, base_only, stationary_bone);
+    success := load_animation_gltf_data(animations, json, binary, name_override, base_only, stationary_bone, stationary_axis);
     print("Load was %\n", success);
     return success;
 }
 
-load_animation_gltf :: (animations: *ModelAnimations, file: string, path: string, name_override: string, base_only: bool, stationary_bone: string) -> bool {
+load_animation_gltf :: (animations: *ModelAnimations, file: string, path: string, name_override: string, base_only: bool, stationary_bone: string, stationary_axis: Vector3) -> bool {
     json, binary, json_memory, valid := load_gltf(file, path);
     defer free(json_memory);
     if !valid {
         return false;
     }
 
-    success := load_animation_gltf_data(animations, json, binary, name_override, base_only, stationary_bone);
+    success := load_animation_gltf_data(animations, json, binary, name_override, base_only, stationary_bone, stationary_axis);
     return success;
 }
 
-load_animation_gltf_data :: (animations: *ModelAnimations, json: GltfJson, binary: [] u8, name_override: string, base_only: bool, stationary_bone: string) -> bool {
+load_animation_gltf_data :: (animations: *ModelAnimations, json: GltfJson, binary: [] u8, name_override: string, base_only: bool, stationary_bone: string, stationary_axis: Vector3) -> bool {
     assert(json.scenes.count == 1, "I'm not sure how to handle multiple scenes.");
     scene := json.scenes[0];
     assert(!!scene.nodes, "I'm not sure how to handle the root node not being labelled.");
@@ -963,8 +990,6 @@ load_animation_gltf_data :: (animations: *ModelAnimations, json: GltfJson, binar
                 animation.name = copy_string(<< current_animation.name);
             }
 
-            print("Current animation name is: %\n", animation.name);
-
             // the animation samplers inputs are times
             // the animation samplers outputs are the transformations, presumably for each time
 
@@ -988,8 +1013,6 @@ load_animation_gltf_data :: (animations: *ModelAnimations, json: GltfJson, binar
                 }
 
                 bone_index := << table_find_pointer(*node_to_bone_remap, node_index);
-                print("Assigning to bone index %\n", bone_index);
-                print("Bone index % is %\n", bone_index, animations.bone_hierarchy[bone_index].name);
 
                 sampler := current_animation.samplers[sampler_index];
                 time_view := get_accessor_view(accessors[sampler.input], "SCALAR");
@@ -1044,7 +1067,7 @@ load_animation_gltf_data :: (animations: *ModelAnimations, json: GltfJson, binar
                             for a: 0..animation.frames[bone_index].count - 1 {
                                 if time_view[i] == animation.frames[bone_index][a].frame {
                                     if stationary_bone && animations.bone_hierarchy[bone_index].name == stationary_bone {
-                                        animation.frames[bone_index][a].translation.y = translation_view[i].y;
+                                        animation.frames[bone_index][a].translation = translation_view[i] * stationary_axis;
                                     } else {
                                         animation.frames[bone_index][a].translation = translation_view[i];
                                     }
@@ -1092,8 +1115,6 @@ load_animation_gltf_data :: (animations: *ModelAnimations, json: GltfJson, binar
             }
 
             calculate_bone_weights(animations, animation);
-
-            print("animation.name animation.frames[1].count % %\n", animation.name, animation.frames[1].count);
         }
     }
 
