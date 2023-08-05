@@ -56,7 +56,10 @@ create_geometries :: (vertices: [] float32, indices: [] u32, attributes: [] Attr
 }
 
 load_serialized_geometry :: (serialized_path: string, hash_files: [$N] string, fallback: () -> *Geometry, should_upload: bool = true) -> *Geometry, bool {
-    geometry, success := read_serialized(serialized_path, hash_files, *Geometry);
+    geometry := New(Geometry);
+    geometry_raw, success := read_serialized(serialized_path, hash_files, Geometry);
+
+    geometry.* = geometry_raw;
 
     if success {
         geometry.vao_ = 0;
@@ -70,6 +73,7 @@ load_serialized_geometry :: (serialized_path: string, hash_files: [$N] string, f
         return geometry, true;
     }
 
+    free(geometry);
     geometry = fallback();
     if should_upload {
         upload(geometry);

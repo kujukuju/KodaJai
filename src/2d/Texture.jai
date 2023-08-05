@@ -4,6 +4,7 @@ Texture :: struct {
     height: s32;
     format: PixelFormat;
     wrap: TextureWrap;
+    border_color: Color;
     data: *u8;
 }
 
@@ -98,6 +99,10 @@ upload :: (texture: *Texture) {
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, wrap_format);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+
+    if texture.wrap == .Border {
+        glTexParameterfv(GL_TEXTURE_2D, GL_TEXTURE_BORDER_COLOR, texture.border_color.component.data);
+    }
 
     eight_divible := (texture.width * texture.height) % 8 == 0;
     four_divisible := (texture.width * texture.height) % 4 == 0;

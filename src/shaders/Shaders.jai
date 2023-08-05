@@ -127,18 +127,18 @@ apply_uniforms :: (shader: *Shader, uniforms: ShaderUniforms, printing: bool = f
     }
 
     // the uniforms stay in order for the shaders uniforms, so after we apply all the uniforms we can lookup the texture indices by iterating over them in order
-    for *uniform: uniforms.uniforms {
+    // for *uniform: uniforms.uniforms {
         texture_index: s32;
 
-        for *shader_uniform: shader.uniforms.uniforms {
-            if shader_uniform.location == -1 {
+        for *uniform: shader.uniforms.uniforms {
+            if uniform.location == -1 {
                 continue;
             }
 
-            if uniform.name == shader_uniform.name {
+            // if uniform.name == shader_uniform.name {
                 // TODO this could be improved if I force uniform names to be less than a certain size, and use fixed strings
                 location := glGetUniformLocation(shader.program, uniform.name);
-                shader_uniform.location = location;
+                uniform.location = location;
                 if location == -1 {
                     break;
                 }
@@ -236,20 +236,20 @@ apply_uniforms :: (shader: *Shader, uniforms: ShaderUniforms, printing: bool = f
                     //     }
                     //     glUniform1uiv(location, xx texture_values.count, texture_values.data);
                 }
-            } else {
-                if shader_uniform.type == {
-                    case .Texture;
-                        texture_index += 1;
-                    case .Texture3;
-                        texture_index += 1;
-                    case .CubemapTexture;
-                        texture_index += 1;
-                    // case .TextureN;
-                    //     texture_index += cast(u32) shader_uniform.uint1n.count;
-                }
-            }
+            // } else {
+            //     if shader_uniform.type == {
+            //         case .Texture;
+            //             texture_index += 1;
+            //         case .Texture3;
+            //             texture_index += 1;
+            //         case .CubemapTexture;
+            //             texture_index += 1;
+            //         // case .TextureN;
+            //         //     texture_index += cast(u32) shader_uniform.uint1n.count;
+            //     }
+            // }
         }
-    }
+    // }
 
     // TODO is it important to set back glActiveTexture(GL_TEXTURE0); here?
 }

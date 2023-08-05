@@ -39,7 +39,13 @@ AnimationMix :: struct {
     name: string;
     weight: float;
     absolute: bool = false;
+    bone_weights: [] float;
     frame: float = 0.0;
+}
+
+AnimationPrecursoryBoneWeight :: struct {
+    name: string;
+    weight: float;
 }
 
 load_animations :: (path: string, name_override: string = "", base_only: bool = false, stationary_bone: string = "", stationary_axis: Vector3 = .{}) -> ModelAnimations, bool {
@@ -512,7 +518,7 @@ remove_yaw_rotations :: (animations: ModelAnimations, animation: *Animation, bon
     }
 }
 
-delete_animations  :: (animations: *ModelAnimations, name_deletions: [] string) {
+delete_animations :: (animations: *ModelAnimations, name_deletions: [] string) {
     for name_delete: name_deletions {
         for i: 0..animations.animations.count - 1 {
             if animations.animations[i].name == name_delete {
@@ -630,9 +636,15 @@ get_joints :: (animations: ModelAnimations, mix: [] AnimationMix, $count: int) -
             // if we're using an absolute animation we will respect the weight of the individual bones, otherwise we don't because they're mixed never overwritten
             bone_weight: float;
             if mix[i].absolute {
-                bone_weight = max(mix[i].weight, 0.0) * animation.bone_weights[bone_index];
+                bone_weight = max(mix[i].weight, 0.0);
+                if mix[i].bone_weights {
+                    bone_weight *= mix[i].bone_weights[bone_index];
+                }
             } else {
                 bone_weight = max(mix[i].weight, 0.0);
+                if mix[i].bone_weights {
+                    bone_weight *= mix[i].bone_weights[bone_index];
+                }
             }
 
             if animation.frames[bone_index].count > 0 {
@@ -684,9 +696,9 @@ get_joints :: (animations: ModelAnimations, mix: [] AnimationMix, $count: int) -
                     current_weights[bone_index] = lerp(current_weights[bone_index], bone_weight, percentage_new);
                 }
 
-                if bone_index == 1 {
-                    current[bone_index].rotation = rotation;
-                }
+                // if bone_index == 1 {
+                //     current[bone_index].rotation = rotation;
+                // }
             }
         }
     }
@@ -812,6 +824,35 @@ get_joints :: (animations: ModelAnimations, joints: *[] Matrix4) {
     }
 }
 
+// get_joints_no_inverse :: (animations: ModelAnimations, joints: *[] Matrix4) {
+//     assert(joints.count >= animations.joint_indices.count);
+
+//     joints_bones: [..] Matrix4;
+//     joints_bones.allocator = temp;
+//     array_reserve(*joints_bones, animations.bone_hierarchy.count);
+//     joints_bones.count = animations.bone_hierarchy.count;
+
+//     for i: 0..animations.bone_hierarchy.count - 1 {
+//         joint := animations.bone_hierarchy[i];
+
+//         // if the joint parent isn't itself then set the parent
+//         parent_transform := Matrix4Identity;
+//         if joint.parent != i {
+//             parent_transform = joints_bones[joint.parent];
+//             empty: Matrix4;
+//             assert(parent_transform != empty, "If there's a parent it shouldn't be empty. At least identity.");
+//         }
+
+//         interpolated_matrix := joint.transform;
+//         joints_bones[i] = parent_transform * interpolated_matrix;
+//     }
+
+//     for i: 0..animations.joint_indices.count - 1 {
+//         real_index := animations.joint_indices[i];
+//         joints.data[i] = joints_bones[real_index];
+//     }
+// }
+
 get_joints :: (animations: ModelAnimations, name: string, frame: float, $count: int) -> [count] Matrix4 {
     for animation: animations.animations {
         if animation.name == name {
@@ -867,6 +908,48 @@ get_joints :: (animations: ModelAnimations, animation: Animation, frame: float, 
     return joints;
 }
 
+create_bone_weights :: (animations: ModelAnimations, bone_weights: [] AnimationPrecursoryBoneWeight) -> [] float {
+    valid: [..] bool;
+    valid.allocator = temp;
+    array_resize(*valid, animations.bone_hierarchy.count);
+
+    weights: [..] float;
+    // weights.allocator = temp;
+    array_resize(*weights, animations.bone_hierarchy.count);
+
+    for i: 0..valid.count - 1 {
+        weights[i] = 1.0;
+    }
+
+    for bone, bone_index: animations.bone_hierarchy {
+        for bone_weight: bone_weights {
+            if bone.name == bone_weight.name {
+                valid[bone_index] = true;
+                weights[bone_index] = bone_weight.weight;
+            }
+        }
+    }
+
+    // I think we can assume that, at least, parents are of a lower index, so this is valid
+    for bone_index: 0..valid.count - 1 {
+        if !valid[bone_index] {
+            valid[bone_index] = true;
+            weights[bone_index] = weights[animations.bone_hierarchy[bone_index].parent];
+        }
+    }
+
+    return weights;
+
+    // final_weights := NewArray(animations.joint_indices.count, float);
+
+    // for i: 0..animations.joint_indices.count - 1 {
+    //     bone_index := animations.joint_indices[i];
+    //     final_weights[i] = weights[bone_index];
+    // }
+
+    // return final_weights;
+}
+
 #scope_file
 
 load_animation_glb :: (animations: *ModelAnimations, file: string, name_override: string, base_only: bool, stationary_bone: string, stationary_axis: Vector3) -> bool {
@@ -876,10 +959,7 @@ load_animation_glb :: (animations: *ModelAnimations, file: string, name_override
         return false;
     }
 
-    print("Beginning load...\n");
-
     success := load_animation_gltf_data(animations, json, binary, name_override, base_only, stationary_bone, stationary_axis);
-    print("Load was %\n", success);
     return success;
 }
 

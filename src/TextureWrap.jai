@@ -3,6 +3,7 @@ TextureWrap :: enum {
     Clamp;
     Repeat;
     MirroredRepeat;
+    Border;
 }
 
 get_gl_format :: (wrap: TextureWrap) -> s32 {
@@ -13,5 +14,8 @@ get_gl_format :: (wrap: TextureWrap) -> s32 {
             return GL_REPEAT;
         case .MirroredRepeat;
             return GL_MIRRORED_REPEAT;
+        case .Border;
+            // for now this is forced transparent I guess
+            return GL_CLAMP_TO_BORDER;
     }
 }

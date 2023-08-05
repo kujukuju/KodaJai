@@ -14,6 +14,9 @@ read_serialized :: (serialized_path: string, hash_files: [$N] string, $T: Type) 
     file, success := read_entire_file(serialized_path, log_errors = false);
     defer free(file);
 
+    // TODO the serializer isn't working for geometries, so ignoring it for now
+    success = false;
+
     if success {
         file_bytes: [] u8;
         file_bytes.data = file.data;
@@ -32,8 +35,6 @@ read_serialized :: (serialized_path: string, hash_files: [$N] string, $T: Type) 
 
         serialized_hash := deserialize_hash(file_bytes);
         if serialized_hash.hash == cache_hash && serialized_hash.size == cache_size {
-            print("Skipping serialized read for %. Reading serialized. % = %, % = %\n", T, serialized_hash.hash, cache_hash, serialized_hash.size, cache_size);
-
             data_bytes: [] u8;
             data_bytes.data = file_bytes.data + size_of(SerializedStructureHash);
             data_bytes.count = file_bytes.count - size_of(SerializedStructureHash);
@@ -45,6 +46,8 @@ read_serialized :: (serialized_path: string, hash_files: [$N] string, $T: Type) 
             return serialized, true;
         }
     }
+
+    print("Could not read serialized %.\n", serialized_path);
 
     empty: T;
     return empty, false;
@@ -68,8 +71,10 @@ write_serialized :: (serialized_path: string, hash_files: [$N] string, data: $T)
 #scope_file
 
 deserialize_hash :: (bytes: [] u8) -> SerializedStructureHash {
+    index: int;
+
     hash: SerializedStructureHash;
-    memcpy(*hash, bytes.data, size_of(SerializedStructureHash));
+    serializer.read(bytes, *index, *hash);
 
     return hash;
 }
