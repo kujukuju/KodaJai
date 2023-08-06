@@ -318,30 +318,67 @@ get_decal_vertices :: (vertices: *[..] float32, indices: *[..] u32, world_triang
     }
 }
 
-add_decal_vertices :: (vertices: *[..] float32, indices: *[..] u32, world_triangle: [3] Vector3, world_normals: [3] Vector3, colors: [3] Vector4, uv_range: [2] Vector3, inverted_transform: Matrix4) {
+add_decal_vertices :: (vertices: *[..] float32, indices: *[..] u32, world_triangle: $T, $world_triangle_attributes: [$N] Attribute, uv_range: [2] $U, inverted_transform: Matrix4) {
+    // T is expected to be a type that only has properties that are of type `[3] Something`, and the first property should be [3] Vector3 that is the position
+    #run () {
+        assert(type_info(T).type == .STRUCT, "The type provided as world_triangle must be a struct.");
+        assert(U == Vector2 || U == Vector3, "The type of uv_range must either be a Vector2 or a Vector3.");
+
+        info := cast(*Type_Info_Struct) type_info(T);
+        assert(info.members.count == world_triangle_attributes.count, "There must be the same amount of members in world_triangle and world_triangle_attributes.");
+
+        for member, member_index: info.members {
+            assert(member.type.type == .ARRAY, "Each entry in world_triangle must be an array.");
+
+            member_array_type := cast(*Type_Info_Array) member.type;
+            assert(member_array_type.array_type == .FIXED, "Each entry in world_triangle must be a fixed array.");
+            assert(member_array_type.array_count == 3, "Each entry in world_triangle must be a fixed array of size 3.");
+        }
+    }();
+
+    position_name :: #run () -> string {
+        info := cast(*Type_Info_Struct) type_info(T);
+        position_index := -1;
+        for attribute, attribute_index: world_triangle_attributes {
+            if attribute == .Position {
+                position_index = attribute_index;
+                break;
+            }
+        }
+
+        assert(position_index >= 0, "Your world_triangle must have a position attribute in it.");
+
+        return tprint("world_triangle.%", info.members[position_index].name);
+    }();
+
+    #insert #run tprint("world_vertices := %;\n", position_name);
+
     triangle: Triangle3 = ---;
-    triangle.a = inline transform_point(inverted_transform, world_triangle[0]);
-    triangle.b = inline transform_point(inverted_transform, world_triangle[1]);
-    triangle.c = inline transform_point(inverted_transform, world_triangle[2]);
+    triangle.a = inline transform_point(inverted_transform, world_vertices[0]);
+    triangle.b = inline transform_point(inverted_transform, world_vertices[1]);
+    triangle.c = inline transform_point(inverted_transform, world_vertices[2]);
 
     uv_size := uv_range[1] - uv_range[0];
 
-    texcoords: [3] Vector3 = ---;
-    texcoords[0].x = (triangle.a.x + 0.5) * uv_size.x + uv_range[0].x;
-    texcoords[0].y = (triangle.a.y + 0.5) * uv_size.y + uv_range[0].y;
-    texcoords[0].z = (triangle.a.z + 0.5) * uv_size.z + uv_range[0].z;
-    texcoords[1].x = (triangle.b.x + 0.5) * uv_size.x + uv_range[0].x;
-    texcoords[1].y = (triangle.b.y + 0.5) * uv_size.y + uv_range[0].y;
-    texcoords[1].z = (triangle.b.z + 0.5) * uv_size.z + uv_range[0].z;
-    texcoords[2].x = (triangle.c.x + 0.5) * uv_size.x + uv_range[0].x;
-    texcoords[2].y = (triangle.c.y + 0.5) * uv_size.y + uv_range[0].y;
-    texcoords[2].z = (triangle.c.z + 0.5) * uv_size.z + uv_range[0].z;
+    texcoords: [3] U = ---;
+    texcoords[0] = (triangle.a + 0.5) * uv_size + uv_range[0];
+    texcoords[1] = (triangle.b + 0.5) * uv_size + uv_range[0];
+    texcoords[2] = (triangle.c + 0.5) * uv_size + uv_range[0];
+    // texcoords[0].x = (triangle.a.x + 0.5) * uv_size.x + uv_range[0].x;
+    // texcoords[0].y = (triangle.a.y + 0.5) * uv_size.y + uv_range[0].y;
+    // texcoords[0].z = (triangle.a.z + 0.5) * uv_size.z + uv_range[0].z;
+    // texcoords[1].x = (triangle.b.x + 0.5) * uv_size.x + uv_range[0].x;
+    // texcoords[1].y = (triangle.b.y + 0.5) * uv_size.y + uv_range[0].y;
+    // texcoords[1].z = (triangle.b.z + 0.5) * uv_size.z + uv_range[0].z;
+    // texcoords[2].x = (triangle.c.x + 0.5) * uv_size.x + uv_range[0].x;
+    // texcoords[2].y = (triangle.c.y + 0.5) * uv_size.y + uv_range[0].y;
+    // texcoords[2].z = (triangle.c.z + 0.5) * uv_size.z + uv_range[0].z;
 
     aabb :: AABB3.{.{-0.5, -0.5, -0.5}, .{0.5, 0.5, 0.5}};
 
     // this thing expects vec3 texcoords
-    expected_stride :: 3 + 3 + 3 + 4;
-    add_vertices :: expected_stride * 3;
+    expected_triangle_stride :: #run size_of(T) / size_of(float) + size_of(U) * 3 / size_of(float);
+    expected_stride :: expected_triangle_stride / 3;
     memcpy_size :: expected_stride * size_of(float);
 
     vertex_entries: [expected_stride] float = ---;
@@ -352,7 +389,7 @@ add_decal_vertices :: (vertices: *[..] float32, indices: *[..] u32, world_triang
         inline array_reserve(vertices, 1024 * expected_stride);
     }
 
-    if vertices.count + add_vertices > vertices.allocated {
+    if vertices.count + expected_triangle_stride > vertices.allocated {
         inline array_reserve(vertices, vertices.allocated * 2);
     }
 
@@ -360,19 +397,61 @@ add_decal_vertices :: (vertices: *[..] float32, indices: *[..] u32, world_triang
         for vertex_index: 0..2 {
             current_index := cast(u32) vertices.count / expected_stride;
 
-            vertex_entries[0] = world_triangle[vertex_index].x;
-            vertex_entries[1] = world_triangle[vertex_index].y;
-            vertex_entries[2] = world_triangle[vertex_index].z;
-            vertex_entries[3] = world_normals[vertex_index].x;
-            vertex_entries[4] = world_normals[vertex_index].y;
-            vertex_entries[5] = world_normals[vertex_index].z;
-            vertex_entries[6] = texcoords[vertex_index].x;
-            vertex_entries[7] = texcoords[vertex_index].y;
-            vertex_entries[8] = texcoords[vertex_index].z;
-            vertex_entries[9] = colors[vertex_index].x;
-            vertex_entries[10] = colors[vertex_index].y;
-            vertex_entries[11] = colors[vertex_index].z;
-            vertex_entries[12] = colors[vertex_index].w;
+            #insert #run () -> string {
+                info := cast(*Type_Info_Struct) type_info(T);
+                attribute_count := enum_count(Attribute);
+
+                current_float_index := 0;
+
+                builder: String_Builder;
+
+                for i: 0..attribute_count - 1 {
+                    current_attribute := cast(Attribute) i;
+
+                    if current_attribute == .Texcoord && U == Vector2 {
+                        append(*builder, tprint("vertex_entries[%] = texcoords[vertex_index].x;\n", current_float_index));
+                        current_float_index += 1;
+                        append(*builder, tprint("vertex_entries[%] = texcoords[vertex_index].y;\n", current_float_index));
+                        current_float_index += 1;
+                    } else if current_attribute == .Texcoord3 && U == Vector3 {
+                        append(*builder, tprint("vertex_entries[%] = texcoords[vertex_index].x;\n", current_float_index));
+                        current_float_index += 1;
+                        append(*builder, tprint("vertex_entries[%] = texcoords[vertex_index].y;\n", current_float_index));
+                        current_float_index += 1;
+                        append(*builder, tprint("vertex_entries[%] = texcoords[vertex_index].z;\n", current_float_index));
+                        current_float_index += 1;
+                    }
+
+                    for member_index: 0..world_triangle_attributes.count - 1 {
+                        member_attribute_value := world_triangle_attributes[member_index];
+
+                        if member_attribute_value == current_attribute {
+                            member := info.members[member_index];
+                            member_float_count := get_attribute_size(member_attribute_value);
+
+                            for i: 0..member_float_count - 1 {
+                                append(*builder, tprint("vertex_entries[%] = ((cast(*float) *world_triangle.%[vertex_index]) + %).*;\n", current_float_index, member.name, i));
+                                current_float_index += 1;
+                            }
+                        }
+                    }
+                }
+
+                return builder_to_string(*builder);
+            }();
+            // vertex_entries[0] = world_triangle[vertex_index].x;
+            // vertex_entries[1] = world_triangle[vertex_index].y;
+            // vertex_entries[2] = world_triangle[vertex_index].z;
+            // vertex_entries[3] = world_normals[vertex_index].x;
+            // vertex_entries[4] = world_normals[vertex_index].y;
+            // vertex_entries[5] = world_normals[vertex_index].z;
+            // vertex_entries[6] = texcoords[vertex_index].x;
+            // vertex_entries[7] = texcoords[vertex_index].y;
+            // vertex_entries[8] = texcoords[vertex_index].z;
+            // vertex_entries[9] = colors[vertex_index].x;
+            // vertex_entries[10] = colors[vertex_index].y;
+            // vertex_entries[11] = colors[vertex_index].z;
+            // vertex_entries[12] = colors[vertex_index].w;
 
             memcpy(vertices.data + vertices.count, vertex_entries.data, memcpy_size);
             vertices.count += expected_stride;

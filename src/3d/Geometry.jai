@@ -18,6 +18,7 @@ Attribute :: enum {
     Color;
     JointIndices;
     JointWeights;
+    Float;
 }
 
 SerializedGeometryHash :: struct {
@@ -31,6 +32,10 @@ SerializedGeometry :: struct {
 }
 
 create_geometry :: (vertices: [] float32, indices: [] u32, attributes: [] Attribute, should_upload: bool = true) -> *Geometry {
+    for i: 1..attributes.count - 1 {
+        assert(attributes[i] >= attributes[i - 1], "Cannot create geometry with misordered attributes.");
+    }
+
     geometry := New(Geometry);
 
     array_copy(*geometry.vertices, vertices);
@@ -47,6 +52,10 @@ create_geometry :: (vertices: [] float32, indices: [] u32, attributes: [] Attrib
 }
 
 create_geometries :: (vertices: [] float32, indices: [] u32, attributes: [] Attribute, should_upload: bool = true) -> [..] *Geometry {
+    for i: 1..attributes.count - 1 {
+        assert(attributes[i] >= attributes[i - 1], "Cannot create geometry with misordered attributes.");
+    }
+
     geometries: [..] *Geometry;
     array_reserve(*geometries, 1);
 
@@ -506,6 +515,8 @@ get_attribute_size :: (attribute: Attribute) -> int {
             return 4;
         case .JointWeights;
             return 4;
+        case .Float;
+            return 1;
     }
 }
 
@@ -1033,10 +1044,10 @@ load_geometry_gltf_data :: (json: GltfJson, binary: [] u8) -> [..] *Geometry, bo
 
             for i: 0..attribute_count - 1 {
                 for accessors, accessor_type_value: attribute_accessors {
-                    accessor_type := cast(Attribute) accessor_type_value;
+                    attribute_type := cast(Attribute) accessor_type_value;
 
                     for accessor: accessors {
-                        if #complete accessor_type == {
+                        if #complete attribute_type == {
                             case .Position;
                                 accessor_data := cast(*float32) accessor.view.data;
                                 array_add(*geometry.vertices, accessor_data[i * 3], accessor_data[i * 3 + 1], accessor_data[i * 3 + 2]);
@@ -1079,8 +1090,10 @@ load_geometry_gltf_data :: (json: GltfJson, binary: [] u8) -> [..] *Geometry, bo
                                 }
                             case .JointWeights;
                                 accessor_data := cast(*float32) accessor.view.data;
-                                // print("weights % % % %\n", accessor_data[i * 4], accessor_data[i * 4 + 1], accessor_data[i * 4 + 2], accessor_data[i * 4 + 3]);
                                 array_add(*geometry.vertices, accessor_data[i * 4], accessor_data[i * 4 + 1], accessor_data[i * 4 + 2], accessor_data[i * 4 + 3]);
+                            case .Float;
+                                accessor_data := cast(*float32) accessor.view.data;
+                                array_add(*geometry.vertices, accessor_data[i]);
                         }
                     }
                 }
