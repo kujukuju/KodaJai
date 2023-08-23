@@ -171,9 +171,11 @@ unload :: (model: *Model) {
     }
 }
 
-destroy :: (model: *Model) {
-    for geometry: model.geometry {
-        destroy(geometry);
+destroy :: (model: *Model, children: bool = true) {
+    if children {
+        for geometry: model.geometry {
+            destroy(geometry);
+        }
     }
     // TODO should destroy textures here unless I move ownership later
     array_free(model.geometry);

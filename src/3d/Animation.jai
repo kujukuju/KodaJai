@@ -594,6 +594,15 @@ get_joint_index :: (animations: ModelAnimations, name: string) -> int {
 // so 0.5 -> 0.5 -> 1.0, the last animation would be weighted at 2x the other strengths, and 1.0 -> 1.0 -> 1.0, the last
 // animation is equal to the previous mixed animation strength
 get_joints :: (animations: ModelAnimations, mix: [] AnimationMix, $count: int) -> [count] Matrix4 {
+    result: [count] Matrix4;
+    view: [] Matrix4;
+    view = result;
+    get_joints(animations, mix, *view);
+    return result;
+}
+
+get_joints :: (animations: ModelAnimations, mix: [] AnimationMix, joints: *[] Matrix4)  {
+    assert(joints.count >= animations.joint_indices.count);
     assert(animations.animations.count > 0);
     assert(mix.count > 0);
     // assert(mix[0].weight == 1, "The way this animation mixing works it doesn't make sense to start with anything other than 1.");
@@ -695,21 +704,14 @@ get_joints :: (animations: ModelAnimations, mix: [] AnimationMix, $count: int) -
                     
                     current_weights[bone_index] = lerp(current_weights[bone_index], bone_weight, percentage_new);
                 }
-
-                // if bone_index == 1 {
-                //     current[bone_index].rotation = rotation;
-                // }
             }
         }
     }
 
     // if not a single animation was found return the bind pose
     if !found_any {
-        output: [count] Matrix4;
-        casted: [] Matrix4;
-        casted = output;
-        get_joints(animations, *casted);
-        return output;
+        get_joints(animations, joints);
+        return;
     }
 
     // now the same animation code
@@ -757,19 +759,15 @@ get_joints :: (animations: ModelAnimations, mix: [] AnimationMix, $count: int) -
         joint_bones[i] = parent_transform * interpolated_matrix;
     }
 
-    joints: [count] Matrix4;
-
     for i: 0..animations.joint_indices.count - 1 {
         real_index := animations.joint_indices[i];
-        joints[i] = joint_bones[real_index];
+        joints.*[i] = joint_bones[real_index];
     }
 
     for i: 0..animations.inverse_binds.count - 1 {
-        joints[i] = joints[i] * animations.inverse_binds[i];
+        joints.*[i] = joints.*[i] * animations.inverse_binds[i];
         // joints[i] = animation.inverse_world * joints[i];
     }
-
-    return joints;
 }
 
 get_joints :: (animations: ModelAnimations, $count: int) -> [count] Matrix4 {

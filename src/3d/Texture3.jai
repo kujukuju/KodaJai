@@ -5,6 +5,7 @@ Texture3 :: struct {
     depth: s32;
     format: PixelFormat;
     wrap: [3] TextureWrap;
+    border_color: Color;
     data: *u8;
 }
 
@@ -106,6 +107,10 @@ upload :: (texture: *Texture3) {
     // glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
     // glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_MIN_FILTER, GL_NEAREST_MIPMAP_LINEAR);
     // glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+
+    if texture.wrap[0] == .Border || texture.wrap[1] == .Border || texture.wrap[2] == .Border {
+        glTexParameterfv(GL_TEXTURE_3D, GL_TEXTURE_BORDER_COLOR, texture.border_color.component.data);
+    }
 
     eight_divible := (texture.width * texture.height * texture.depth) % 8 == 0;
     four_divisible := (texture.width * texture.height * texture.depth) % 4 == 0;

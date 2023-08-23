@@ -8,14 +8,14 @@ SerializedStructureHash :: struct {
     size: s64;
 }
 
+// if you reuse memory you can basically never free it because itll be offset by the hash value
 // checks the hash files against the saved hash to see whether or not the serialized file needs to be updated
-read_serialized :: (serialized_path: string, hash_files: [$N] string, $T: Type) -> T, bool {
+read_serialized :: (serialized_path: string, hash_files: [$N] string, data: *$T, $reuse_memory: bool = false) -> bool {
     // TODO maybe use file mod time
     file, success := read_entire_file(serialized_path, log_errors = false);
-    defer free(file);
-
-    // TODO the serializer isn't working for geometries, so ignoring it for now
-    success = false;
+    #if !reuse_memory {
+        defer free(file);
+    }
 
     if success {
         file_bytes: [] u8;
@@ -23,37 +23,34 @@ read_serialized :: (serialized_path: string, hash_files: [$N] string, $T: Type) 
         file_bytes.count = file.count;
 
         if file_bytes.count < size_of(SerializedStructureHash) {
-            empty: T;
-            return empty, false;
+            return false;
         }
 
         cache_hash, cache_size, cache_success := get_hash_from_files(hash_files);
         if !cache_success {
-            empty: T;
-            return empty, false;
+            return false;
         }
 
         serialized_hash := deserialize_hash(file_bytes);
         if serialized_hash.hash == cache_hash && serialized_hash.size == cache_size {
-            data_bytes: [] u8;
-            data_bytes.data = file_bytes.data + size_of(SerializedStructureHash);
-            data_bytes.count = file_bytes.count - size_of(SerializedStructureHash);
+            // data_bytes: [] u8;
+            // data_bytes.data = file_bytes.data + size_of(SerializedStructureHash);
+            // data_bytes.count = file_bytes.count - size_of(SerializedStructureHash);
             
-            serialized: T;
-            index: int;
-            serializer.read(data_bytes, *index, *serialized);
+            serialized: SerializeStructure(T);
+            serializer_read(file_bytes, *serialized, 0, reuse_memory);
+            data.* = serialized.data;
 
-            return serialized, true;
+            return true;
         }
     }
 
     print("Could not read serialized %.\n", serialized_path);
 
-    empty: T;
-    return empty, false;
+    return false;
 }
 
-write_serialized :: (serialized_path: string, hash_files: [$N] string, data: $T) {
+write_serialized :: (serialized_path: string, hash_files: [$N] string, data: $T, $reuse_memory: bool = false) {
     cache_hash, cache_size, cache_success := get_hash_from_files(hash_files);
     assert(cache_success, "Could not read hash files for writing serialized data.");
 
@@ -63,7 +60,7 @@ write_serialized :: (serialized_path: string, hash_files: [$N] string, data: $T)
 
     bytes: [..] u8;
     defer array_free(bytes);
-    serializer.write(*bytes, serialized);
+    serializer_write(*bytes, serialized, reuse_memory);
 
     write_entire_file(serialized_path, bytes.data, bytes.count);
 }
@@ -74,7 +71,7 @@ deserialize_hash :: (bytes: [] u8) -> SerializedStructureHash {
     index: int;
 
     hash: SerializedStructureHash;
-    serializer.read(bytes, *index, *hash);
+    hash = (cast(*SerializedStructureHash) bytes.data).*;
 
     return hash;
 }

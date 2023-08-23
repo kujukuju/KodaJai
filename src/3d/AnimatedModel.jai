@@ -12,6 +12,15 @@ create_animated_model :: (model: *Model, animations: ModelAnimations, joint_coun
     return animated_model;
 }
 
+destroy :: (animated: *AnimatedModel, children: bool = true) {
+    if children {
+        destroy(animated.model, children);
+        destroy(animated.animations);
+    }
+    array_free(animated.joints);
+    free(animated);
+}
+
 draw :: (animated: AnimatedModel, animation: string, frame: float = 0.0, transform: Matrix4 = Matrix4Identity, shader: *Shader = null) {
     draw(animated, animation, frame, transform, get_perspective_matrix(), shader);
 }
@@ -50,11 +59,11 @@ draw :: (animated: AnimatedModel, animation: string, frame: float = 0.0, transfo
     uniforms[xx "model"] = create_uniform("model", model_mat);
     uniforms[xx "view"] = create_uniform("view", view);
 
-    joints := get_joints(animated.animations, animation, frame, 100);
-    assert(animated.joints.count == 100, "Shouldn't allocate different sizes arrays.");
-    memcpy(animated.joints.data, joints.data, size_of(type_of(joints)));
+    get_joints(animated.animations, animation, frame, *animated.joints);
+    // assert(animated.joints.count == 100, "Shouldn't allocate different sizes arrays.");
+    // memcpy(animated.joints.data, joints.data, size_of(type_of(joints)));
 
-    uniforms[xx "uJoints"] = create_uniform("uJoints", joints);
+    uniforms[xx "uJoints"] = create_uniform("uJoints", animated.joints);
     
     apply_uniforms(shader, uniforms);
 
@@ -115,11 +124,9 @@ draw :: (animated: AnimatedModel, mix: [] AnimationMix, transform: Matrix4 = Mat
     uniforms[xx "model"] = create_uniform("model", model_mat);
     uniforms[xx "view"] = create_uniform("view", view);
 
-    joints := get_joints(animated.animations, mix, 100);
-    assert(animated.joints.count == 100, "Shouldn't allocate different sizes arrays.");
-    memcpy(animated.joints.data, joints.data, size_of(type_of(joints)));
+    get_joints(animated.animations, mix, *animated.joints);
 
-    uniforms[xx "uJoints"] = create_uniform("uJoints", joints);
+    uniforms[xx "uJoints"] = create_uniform("uJoints", animated.joints);
     
     apply_uniforms(shader, uniforms);
 

@@ -64,11 +64,9 @@ create_geometries :: (vertices: [] float32, indices: [] u32, attributes: [] Attr
     return geometries;
 }
 
-load_serialized_geometry :: (serialized_path: string, hash_files: [$N] string, fallback: () -> *Geometry, should_upload: bool = true) -> *Geometry, bool {
-    geometry := New(Geometry);
-    geometry_raw, success := read_serialized(serialized_path, hash_files, Geometry);
-
-    geometry.* = geometry_raw;
+load_serialized_geometry :: (serialized_path: string, hash_files: [$N] string, fallback: () -> *Geometry, should_upload: bool = true, $reuse_memory: bool = false) -> *Geometry, bool {
+    geometry: *Geometry;
+    success := read_serialized(serialized_path, hash_files, *geometry, reuse_memory);
 
     if success {
         geometry.vao_ = 0;
@@ -82,18 +80,18 @@ load_serialized_geometry :: (serialized_path: string, hash_files: [$N] string, f
         return geometry, true;
     }
 
-    free(geometry);
     geometry = fallback();
     if should_upload {
         upload(geometry);
     }
 
-    write_serialized(serialized_path, hash_files, geometry);
+    write_serialized(serialized_path, hash_files, geometry, reuse_memory);
     return geometry, true;
 }
 
-load_serialized_geometries :: (serialized_path: string, hash_files: [$N] string, fallback: () -> [..] *Geometry, should_upload: bool = true) -> [..] *Geometry, bool {
-    geometries, success := read_serialized(serialized_path, hash_files, [..] *Geometry);
+load_serialized_geometries :: (serialized_path: string, hash_files: [$N] string, fallback: () -> [..] *Geometry, should_upload: bool = true, $reuse_memory: bool = false) -> [..] *Geometry, bool {
+    geometries: [..] *Geometry;
+    success := read_serialized(serialized_path, hash_files, *geometries, reuse_memory);
 
     if success {
         for geometry: geometries {
@@ -118,7 +116,7 @@ load_serialized_geometries :: (serialized_path: string, hash_files: [$N] string,
         }
     }
 
-    write_serialized(serialized_path, hash_files, geometries);
+    write_serialized(serialized_path, hash_files, geometries, reuse_memory);
     return geometries, true;
 }
 
@@ -192,10 +190,8 @@ load_geometries :: (path: string, should_upload: bool = true) -> [..] *Geometry,
 
 // TODO remove this, if youre directly serializing or deserializing things it shouldnt have anything to do with a hash
 deserialize_geometry :: (bytes: [] u8, should_upload: bool = true) -> *Geometry {
-    geometry := New(Geometry);
-
-    index: int;
-    serializer.read(bytes, *index, geometry);
+    geometry: *Geometry;
+    serializer_read(bytes, *geometry);
     geometry.vao_ = 0;
     geometry.vbo_ = 0;
     geometry.ebo_ = 0;
@@ -209,7 +205,7 @@ deserialize_geometry :: (bytes: [] u8, should_upload: bool = true) -> *Geometry 
 
 serialize_geometry :: (geometry: *Geometry) -> [..] u8 {
     bytes: [..] u8;
-    serializer.write(*bytes, geometry.*);
+    serializer_write(*bytes, geometry);
 
     print("wrote % bytes for geometry.\n", bytes.count);
 

@@ -126,6 +126,9 @@ apply_uniforms :: (shader: *Shader, uniforms: ShaderUniforms, printing: bool = f
         }
     }
 
+    // TODO because currently the shader does not own its own memory, this is leaking memory every frame
+    // TODO so the shader should have uniforms that it owns, and then there should be an unowned stack uniform that gets applied or something
+
     // the uniforms stay in order for the shaders uniforms, so after we apply all the uniforms we can lookup the texture indices by iterating over them in order
     // for *uniform: uniforms.uniforms {
         texture_index: s32;
@@ -140,7 +143,7 @@ apply_uniforms :: (shader: *Shader, uniforms: ShaderUniforms, printing: bool = f
                 location := glGetUniformLocation(shader.program, uniform.name);
                 uniform.location = location;
                 if location == -1 {
-                    break;
+                    continue;
                 }
 
                 if #complete uniform.type == {

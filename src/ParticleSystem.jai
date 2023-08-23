@@ -1,19 +1,22 @@
 
-ParticleSystem :: struct (TextureType: Type, ParticleGpu: Type, ParticleCpu: Type, Particle: Type, update_function: #type (particle: *Particle, time: float, dt: float), sort_function: #type (a: ParticleGpu, b: ParticleGpu) -> float) {
+ParticleSystem :: struct (TextureType: Type, ParticleGpu: Type, ParticleCpu: Type, Particle: Type, update_function: #type (particle: *Particle, time: float, dt: float), sort: bool = true) {
     texture: TextureType;
     last_render_time: float64;
     particles_gpu: [..] ParticleGpu;
     particles_cpu: [..] ParticleCpu;
+    particles_gpu_buffer: [..] ParticleGpu;
+    particles_cpu_buffer: [..] ParticleCpu;
     vao: GLuint;
     vbo: GLuint;
     ebo: GLuint;
     particle_vbo: GLuint;
     particle_vbo_allocated: int;
     shader: *Shader;
+    uniforms: ShaderUniforms;
 }
 
-particle_system_create :: (texture: $T, shader: *Shader, $PG: Type, $PC: Type, $P: Type, $update_function: #type (particle: *P, time: float, dt: float), $sort_function: #type (a: PG, b: PG) -> float) -> ParticleSystem(T, PG, PC, P, update_function, sort_function) {
-    system: ParticleSystem(T, PG, PC, P, update_function, sort_function);
+particle_system_create :: (texture: $T, shader: *Shader, $PG: Type, $PC: Type, $P: Type, $update_function: #type (particle: *P, time: float, dt: float), $sort: bool = true) -> ParticleSystem(T, PG, PC, P, update_function, sort) {
+    system: ParticleSystem(T, PG, PC, P, update_function, sort);
     system.texture = texture;
     system.shader = shader;
 
@@ -81,24 +84,43 @@ particle_system_create :: (texture: $T, shader: *Shader, $PG: Type, $PC: Type, $
     return system;
 }
 
-particle_system_update_and_render :: (system: *ParticleSystem($T, $PG, $PC, $P, $update_function, $sort_function), time: float64) {
+particle_system_update_and_render :: (system: *ParticleSystem($T, $PG, $PC, $P, $update_function, $sort), time: float64) {
     dt := cast(float) (time - system.last_render_time);
     system.last_render_time = time;
 
-    i := 0;
-    while i < system.particles_gpu.count {
-        if time >= system.particles_cpu[i].start + system.particles_cpu[i].duration {
-            array_ordered_remove_by_index(*system.particles_gpu, i);
-            array_ordered_remove_by_index(*system.particles_cpu, i);
+    // TODO I could do this a LOT better by removing them all in a single pass, man am I dumb
+    insert_index := 0;
+    check_index := 0;
+    while check_index < system.particles_cpu.count {
+        if system.particles_cpu[check_index].destroy {
+            check_index += 1;
         } else {
-            i += 1;
+            if insert_index != check_index {
+                system.particles_cpu[insert_index] = system.particles_cpu[check_index];
+                system.particles_gpu[insert_index] = system.particles_gpu[check_index];
+            }
+
+            insert_index += 1;
+            check_index += 1;
         }
     }
+    system.particles_cpu.count -= check_index - insert_index;
+    system.particles_gpu.count -= check_index - insert_index;
+
+    // i := 0;
+    // while i < system.particles_gpu.count {
+    //     if system.particles_cpu[i].destroy {
+    //         array_ordered_remove_by_index(*system.particles_gpu, i);
+    //         array_ordered_remove_by_index(*system.particles_cpu, i);
+    //     } else {
+    //         i += 1;
+    //     }
+    // }
 
     time_float := cast(float) time;
-    particle: P = ---;
 
-    for i: 0..system.particles_gpu.count - 1 {
+    parallel_for(0, system.particles_gpu.count, (i: int, system: *ParticleSystem($T, $PG, $PC, $P, $update_function, $sort), time: float, dt: float) {
+        particle: P = ---;
         particle.particle_gpu = system.particles_gpu[i];
         particle.particle_cpu = system.particles_cpu[i];
 
@@ -106,11 +128,50 @@ particle_system_update_and_render :: (system: *ParticleSystem($T, $PG, $PC, $P, 
 
         system.particles_gpu[i] = particle.particle_gpu;
         system.particles_cpu[i] = particle.particle_cpu;
-    }
+    }, system, cast(float) time, dt);
+    // for i: 0..system.particles_gpu.count - 1 {
+    //     particle: P = ---;
+    //     particle.particle_gpu = system.particles_gpu[i];
+    //     particle.particle_cpu = system.particles_cpu[i];
 
-    particle_quick_sort(system.particles_gpu, system.particles_cpu, (a: PG, b: PG) -> float {
-        return inline sort_function(a, b);
-    });
+    //     inline update_function(*particle, time_float, dt);
+
+    //     system.particles_gpu[i] = particle.particle_gpu;
+    //     system.particles_cpu[i] = particle.particle_cpu;
+    // }
+
+    array_reserve(*depth_values, system.particles_gpu.allocated);
+    array_reserve(*system.particles_gpu_buffer, system.particles_gpu.allocated);
+    array_reserve(*system.particles_cpu_buffer, system.particles_gpu.allocated);
+
+    depth_values.count = system.particles_gpu.count;
+    system.particles_gpu_buffer.count = system.particles_gpu.count;
+    system.particles_cpu_buffer.count = system.particles_gpu.count;
+
+    view := koda.view;
+    #if sort {
+        p := Vector4.{0, 0, 0, 1};
+        for particle, index: system.particles_gpu {
+            p.xyz = particle.position;
+            
+            w := view._41 * p.x + view._42 * p.y + view._43 * p.z + view._44 * p.w;
+            z := view._31 * p.x + view._32 * p.y + view._33 * p.z + view._34 * p.w;
+            depth_values[index] = .{z / w, cast(s32) index};
+        }
+
+        quick_sort_threaded(depth_values);
+        // quick_sort(depth_values, (a: DepthEntry, b: DepthEntry) -> float {
+        //     return a.depth - b.depth;
+        // });
+
+        for entry, index: depth_values {
+            system.particles_gpu_buffer[index] = system.particles_gpu[entry.index];
+            system.particles_cpu_buffer[index] = system.particles_cpu[entry.index];
+        }
+
+        system.particles_gpu.data, system.particles_gpu_buffer.data = system.particles_gpu_buffer.data, system.particles_gpu.data;
+        system.particles_cpu.data, system.particles_cpu_buffer.data = system.particles_cpu_buffer.data, system.particles_cpu.data;
+    }
 
     if system.particle_vbo_allocated >= system.particles_gpu.count {
         glBindBuffer(GL_ARRAY_BUFFER, system.particle_vbo);
@@ -127,8 +188,9 @@ particle_system_update_and_render :: (system: *ParticleSystem($T, $PG, $PC, $P, 
 
     use_shader(system.shader);
 
-    view := koda.view;
     projection := get_perspective_matrix();
+
+    apply_uniforms(system.shader, system.uniforms);
 
     uniforms: ShaderUniforms;
     defer destroy(uniforms);
@@ -139,17 +201,21 @@ particle_system_update_and_render :: (system: *ParticleSystem($T, $PG, $PC, $P, 
     
     apply_uniforms(system.shader, uniforms);
 
+    depth_func := get_depth_func();
+    defer set_depth_func(depth_func);
+    set_depth_func(.LessEqual);
+
     glBindVertexArray(system.vao);
     glDrawElementsInstanced(GL_TRIANGLES, cast(u32) particle_indices.count, GL_UNSIGNED_INT, null, cast(u32) system.particles_gpu.count);
     glBindVertexArray(0);
 }
 
-particle_system_add_particle :: (system: *ParticleSystem($T, $PG, $PC, $P, $update_function, $sort_function), particle: P) {
+particle_system_add_particle :: (system: *ParticleSystem($T, $PG, $PC, $P, $update_function, $sort), particle: P) {
     array_add(*system.particles_gpu, particle.particle_gpu);
     array_add(*system.particles_cpu, particle.particle_cpu);
 }
 
-particle_system_add_particle :: (system: *ParticleSystem($T, $PG, $PC, $P, $update_function, $sort_function), particles: ..P) {
+particle_system_add_particle :: (system: *ParticleSystem($T, $PG, $PC, $P, $update_function, $sort), particles: ..P) {
     if system.particles_gpu.allocated < system.particles_gpu.count + particles.count {
         desired_count := next_power_of_two(system.particles_gpu.count + particles.count);
         array_reserve(*system.particles_gpu, desired_count);
@@ -166,9 +232,18 @@ particle_system_add_particle :: (system: *ParticleSystem($T, $PG, $PC, $P, $upda
     system.particles_cpu.count += particles.count;
 }
 
+DepthEntry :: struct {
+    depth: float;
+    index: s32;
+}
+
 #scope_file
 
+depth_values: [..] DepthEntry;
+
 particle_quick_sort :: (array1: [] $T, array2: [] $O, f: (T, T) -> $R) {
+    // TODO I should probably pre calculate all R values and sort 3 arrays at the same time
+
     quicksort_helper :: (a: *T, b: *O, n: s64, f: (T, T) -> R) {
         if n < 2 return;
 
@@ -216,3 +291,5 @@ particle_indices :: u32.[
     0, 1, 2,
     0, 2, 3,
 ];
+
+#import "Sort";

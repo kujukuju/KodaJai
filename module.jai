@@ -72,6 +72,9 @@
 #load "src/noise/VolumeNoise.jai";
 #load "src/noise/Worley.jai";
 
+#load "src/parallel/Parallel.jai";
+#load "src/parallel/ParallelQuickSort.jai";
+
 #load "src/shaders/CubemapShader.jai";
 #load "src/shaders/DefaultEllipseShader.jai";
 #load "src/shaders/DefaultShader.jai";
@@ -174,11 +177,11 @@ texture_shader3: TextureShader3;
 torus_shader: TorusShader3;
 default_ellipse_shader: DefaultEllipseShader;
 default_font_shader: FontShader;
-serializer: Serializer;
 
 #scope_module
 
 static_sprite: Sprite;
+core_count :: #run get_number_of_processors();
 
 #load "src/assets/TriplexSansBold.jai";
 #load "src/assets/White.jai";
@@ -188,8 +191,9 @@ static_sprite: Sprite;
 #import "File_Utilities";
 #import "stb_image_write";
 #import "Hash";
+#import "System";
 
 #import "ContiguousJsonJai"(ASSERT = false, ASM = !WASM);
 #import "FixedStringJai";
-#import "JaiSerializer";
 #import "JaiBoundingTree";
+#import "JaiSerializer";

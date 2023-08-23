@@ -211,7 +211,7 @@ input: struct {
     scroll_delta_y: float64;
 }
 
-update_inputs :: (update_features: InputFeature = .All) {
+update_inputs :: ($update_features: InputFeature = .All) {
     // TODO should this be called here?
 
     // TODO all this update feature shit is gonna have to be redone and reorganized at some poitn
@@ -230,7 +230,7 @@ update_inputs :: (update_features: InputFeature = .All) {
             continue;
         }
 
-        if update_features & .ControllerButtons {
+        #if update_features & .ControllerButtons {
             for index: 0..BUTTON_COUNT - 1 {
                 button_down := cast(bool) (state.buttons[index] & GLFW_PRESS);
                 input.released_buttons[index] = input.buttons[index] && !button_down;
@@ -252,7 +252,7 @@ update_inputs :: (update_features: InputFeature = .All) {
             }
         }
 
-        if update_features & .ControllerMove {
+        #if update_features & .ControllerMove {
             input.controller_left.x = state.axes[GLFW_GAMEPAD_AXIS_LEFT_X];
             input.controller_left.y = state.axes[GLFW_GAMEPAD_AXIS_LEFT_Y];
             input.controller_right.x = state.axes[GLFW_GAMEPAD_AXIS_RIGHT_X];
@@ -281,7 +281,7 @@ update_inputs :: (update_features: InputFeature = .All) {
         }
     }
 
-    if update_features & .MouseMove {
+    #if update_features & .MouseMove {
         last_raw_mouse_x := raw_mouse_x;
         last_raw_mouse_y := raw_mouse_y;
         glfwGetCursorPos(koda.window, *raw_mouse_x, *raw_mouse_y);
@@ -290,7 +290,7 @@ update_inputs :: (update_features: InputFeature = .All) {
         input.mouse = xy(xx raw_mouse_x, xx raw_mouse_y);
     }
 
-    if update_features & .MouseScroll {
+    #if update_features & .MouseScroll {
         input.scroll_delta_x = accumulated_scroll[0];
         input.scroll_delta_y = accumulated_scroll[1];
         accumulated_scroll[0] = 0;
@@ -298,7 +298,7 @@ update_inputs :: (update_features: InputFeature = .All) {
     }
 
     // TODO probably need a more generic way to clear all inputs when not captured
-    if update_features & .MouseButtons {
+    #if update_features & .MouseButtons {
         input.mouse_left &= ~InputState.START;
         mouse_left := glfwGetMouseButton(koda.window, GLFW_MOUSE_BUTTON_LEFT);
         input.released_mouse_left = input.mouse_left && !mouse_left;
@@ -345,7 +345,7 @@ update_inputs :: (update_features: InputFeature = .All) {
         }
     }
 
-    if update_features & .Keys {
+    #if update_features & .Keys {
         for key_code, index: glfw_key_map {
             key_value := glfwGetKey(koda.window, key_code);
             key_down: bool = cast(bool) (key_value & GLFW_PRESS);
