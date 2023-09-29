@@ -117,6 +117,7 @@
 #load "src/ShaderUniforms.jai";
 #load "src/SwapBuffer.jai";
 #load "src/Text.jai";
+#load "src/TextureInterp.jai";
 #load "src/TextureWrap.jai";
 #load "src/Time.jai";
 #load "src/Utilities.jai";
@@ -139,6 +140,7 @@ koda: struct {
     fovy: float = 0.5 * PI;
     active_program: GLuint;
     cull_face: bool = true;
+    cull_face_mode: CullFaceMode = .Back;
 };
 
 // get_koda_asset_path :: () -> string {
@@ -197,3 +199,5 @@ core_count :: #run get_number_of_processors();
 #import "FixedStringJai";
 #import "JaiBoundingTree";
 #import "JaiSerializer";
+#load "../JaiCapture/module.jai";
+#import "JaiParallel";

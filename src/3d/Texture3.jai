@@ -5,22 +5,24 @@ Texture3 :: struct {
     depth: s32;
     format: PixelFormat;
     wrap: [3] TextureWrap;
+    interp: TextureInterp;
     border_color: Color;
     data: *u8;
 }
 
-create_texture3 :: (bytes: [] u8, wrap: TextureWrap = .Clamp, should_upload: bool = true) -> Texture3 {
+create_texture3 :: (bytes: [] u8, wrap: TextureWrap = .Clamp, interp: TextureInterp = .LinearMipmap, should_upload: bool = true) -> Texture3 {
     wrap_array: [3] TextureWrap;
     wrap_array[0] = wrap;
     wrap_array[1] = wrap;
     wrap_array[2] = wrap;
 
-    return create_texture3(bytes, wrap_array, should_upload);
+    return create_texture3(bytes, wrap_array, interp, should_upload);
 }
 
-create_texture3 :: (bytes: [] u8, wrap: [3] TextureWrap, should_upload: bool = true) -> Texture3 {
+create_texture3 :: (bytes: [] u8, wrap: [3] TextureWrap, interp: TextureInterp, should_upload: bool = true) -> Texture3 {
     texture := load_data(bytes);
     texture.wrap = wrap;
+    texture.interp = interp;
 
     if texture.data == null {
         print("Could not load texture.\n");
@@ -34,16 +36,16 @@ create_texture3 :: (bytes: [] u8, wrap: [3] TextureWrap, should_upload: bool = t
     return texture;
 }
 
-create_texture3 :: (image: Image3, wrap: TextureWrap = .Clamp, should_upload: bool = true) -> Texture3 {
+create_texture3 :: (image: Image3, wrap: TextureWrap = .Clamp, interp: TextureInterp = .LinearMipmap, should_upload: bool = true) -> Texture3 {
     wrap_array: [3] TextureWrap;
     wrap_array[0] = wrap;
     wrap_array[1] = wrap;
     wrap_array[2] = wrap;
 
-    return create_texture3(image, wrap_array, should_upload);
+    return create_texture3(image, wrap_array, interp, should_upload);
 }
 
-create_texture3 :: (image: Image3, wrap: [3] TextureWrap, should_upload: bool = true) -> Texture3 {
+create_texture3 :: (image: Image3, wrap: [3] TextureWrap, interp: TextureWrap, should_upload: bool = true) -> Texture3 {
     if !image.pixels.data {
         print("Could not create texture.\n");
         return .{};
@@ -56,6 +58,7 @@ create_texture3 :: (image: Image3, wrap: [3] TextureWrap, should_upload: bool = 
     texture.depth = xx image.depth;
     texture.format = image.format;
     texture.wrap = wrap;
+    texture.interp = interp;
 
     if should_upload {
         upload(*texture);
@@ -64,16 +67,16 @@ create_texture3 :: (image: Image3, wrap: [3] TextureWrap, should_upload: bool = 
     return texture;
 }
 
-load_texture3 :: (path: string, wrap: TextureWrap = .Clamp, should_upload: bool = true) -> Texture3 {
+load_texture3 :: (path: string, wrap: TextureWrap = .Clamp, interp: TextureInterp = .LinearMipmap, should_upload: bool = true) -> Texture3 {
     wrap_array: [3] TextureWrap;
     wrap_array[0] = wrap;
     wrap_array[1] = wrap;
     wrap_array[2] = wrap;
 
-    return load_texture3(path, wrap_array, should_upload);
+    return load_texture3(path, wrap_array, interp, should_upload);
 }
 
-load_texture3 :: (path: string, wrap: [3] TextureWrap, should_upload: bool = true) -> Texture3 {
+load_texture3 :: (path: string, wrap: [3] TextureWrap, interp: TextureInterp, should_upload: bool = true) -> Texture3 {
     file, success := read_entire_file(path, false);
     defer free(file);
 
@@ -81,7 +84,7 @@ load_texture3 :: (path: string, wrap: [3] TextureWrap, should_upload: bool = tru
     bytes.data = file.data;
     bytes.count = file.count;
 
-    return create_texture3(bytes, wrap, should_upload);
+    return create_texture3(bytes, wrap, interp, should_upload);
 }
 
 upload :: (texture: *Texture3) {
@@ -96,13 +99,16 @@ upload :: (texture: *Texture3) {
     wrap_formats[1] = get_gl_format(texture.wrap[1]);
     wrap_formats[2] = get_gl_format(texture.wrap[2]);
 
+    interp_min_format := get_gl_min_format(texture.interp);
+    interp_mag_format := get_gl_mag_format(texture.interp);
+
     glGenTextures(1, *texture.buffer);
     glBindTexture(GL_TEXTURE_3D, texture.buffer);
     glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_WRAP_S, wrap_formats[0]);
     glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_WRAP_T, wrap_formats[1]);
     glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_WRAP_R, wrap_formats[2]);
-    glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-    glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_MIN_FILTER, interp_min_format);
+    glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_MAG_FILTER, interp_mag_format);
     // glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
     // glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
     // glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_MIN_FILTER, GL_NEAREST_MIPMAP_LINEAR);

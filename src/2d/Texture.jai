@@ -4,13 +4,15 @@ Texture :: struct {
     height: s32;
     format: PixelFormat;
     wrap: TextureWrap;
+    interp: TextureInterp;
     border_color: Color;
     data: *u8;
 }
 
-create_texture :: (bytes: [] u8, wrap: TextureWrap = .Clamp, should_upload: bool = true) -> Texture {
+create_texture :: (bytes: [] u8, wrap: TextureWrap = .Clamp, interp: TextureInterp = .LinearMipmap, should_upload: bool = true) -> Texture {
     texture := load_data(bytes);
     texture.wrap = wrap;
+    texture.interp = interp;
 
     if texture.data == null {
         print("Could not load texture.\n");
@@ -24,7 +26,7 @@ create_texture :: (bytes: [] u8, wrap: TextureWrap = .Clamp, should_upload: bool
     return texture;
 }
 
-create_texture :: (image: Image, wrap: TextureWrap = .Clamp, should_upload: bool = true) -> Texture {
+create_texture :: (image: Image, wrap: TextureWrap = .Clamp, interp: TextureInterp = .LinearMipmap, should_upload: bool = true) -> Texture {
     if !image.pixels.data {
         print("Could not create texture.\n");
         return .{};
@@ -36,6 +38,7 @@ create_texture :: (image: Image, wrap: TextureWrap = .Clamp, should_upload: bool
     texture.height = xx image.height;
     texture.format = image.format;
     texture.wrap = wrap;
+    texture.interp = interp;
 
     if should_upload {
         upload(*texture);
@@ -44,7 +47,7 @@ create_texture :: (image: Image, wrap: TextureWrap = .Clamp, should_upload: bool
     return texture;
 }
 
-load_texture :: (path: string, wrap: TextureWrap = .Clamp, should_upload: bool = true) -> Texture {
+load_texture :: (path: string, wrap: TextureWrap = .Clamp, interp: TextureInterp = .LinearMipmap, should_upload: bool = true) -> Texture {
     file, success := read_entire_file(path, false);
     defer free(file);
 
@@ -52,7 +55,7 @@ load_texture :: (path: string, wrap: TextureWrap = .Clamp, should_upload: bool =
     bytes.data = file.data;
     bytes.count = file.count;
 
-    return create_texture(bytes, wrap, should_upload);
+    return create_texture(bytes, wrap, interp, should_upload);
 }
 
 // TODO update texture more efficiently from image
@@ -92,13 +95,15 @@ upload :: (texture: *Texture) {
     assert(!!texture.data, "Cannot generate texture with no data.");
 
     wrap_format := get_gl_format(texture.wrap);
+    interp_min_format := get_gl_min_format(texture.interp);
+    interp_mag_format := get_gl_mag_format(texture.interp);
 
     glGenTextures(1, *texture.buffer);
     glBindTexture(GL_TEXTURE_2D, texture.buffer);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, wrap_format);	
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, wrap_format);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, interp_min_format);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, interp_mag_format);
 
     if texture.wrap == .Border {
         glTexParameterfv(GL_TEXTURE_2D, GL_TEXTURE_BORDER_COLOR, texture.border_color.component.data);

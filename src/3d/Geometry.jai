@@ -293,6 +293,10 @@ upload_append :: (geometry: *Geometry, float_count: int, index_count: int) {
 }
 
 unload :: (geometry: *Geometry) {
+    if !geometry.vao_ {
+        return;
+    }
+
     glDeleteBuffers(1, *geometry.ebo_);
     glDeleteBuffers(1, *geometry.vbo_);
     glDeleteVertexArrays(1, *geometry.vao_);
@@ -303,9 +307,11 @@ unload :: (geometry: *Geometry) {
 }
 
 destroy :: (geometry: *Geometry) {
-    glDeleteBuffers(1, *geometry.ebo_);
-    glDeleteBuffers(1, *geometry.vbo_);
-    glDeleteVertexArrays(1, *geometry.vao_);
+    if geometry.vao_ {
+        glDeleteBuffers(1, *geometry.ebo_);
+        glDeleteBuffers(1, *geometry.vbo_);
+        glDeleteVertexArrays(1, *geometry.vao_);
+    }
 
     array_free(geometry.vertices);
     array_free(geometry.indices);
@@ -622,11 +628,11 @@ load_geometry_obj :: (file: string) -> [..] *Geometry, bool {
         return index, current;
     }
 
-    get_until_space_or_newline :: (file: string, index: int) -> int, string {
+    get_until_space_or_slash_or_newline :: (file: string, index: int) -> int, string {
         current: string;
         current.data = file.data + index;
         initial_index := index;
-        while index < file.count && file[index] != #char " " && file[index] != #char "\n" {
+        while index < file.count && file[index] != #char " " && file[index] != #char "/" && file[index] != #char "\n" {
             index += 1;
         }
 
@@ -639,7 +645,7 @@ load_geometry_obj :: (file: string) -> [..] *Geometry, bool {
         current: string;
         current.data = file.data + index;
         initial_index := index;
-        while index < file.count && file[index] != #char "/" {
+        while index < file.count && file[index] != #char "/" && file[index] != #char " " {
             index += 1;
 
             if file[index] == #char " " || file[index] == #char "\n" {
@@ -694,9 +700,9 @@ load_geometry_obj :: (file: string) -> [..] *Geometry, bool {
             y_string: string;
             z_string: string;
 
-            index, x_string = get_until_space_or_newline(file, index + 2);
-            index, y_string = get_until_space_or_newline(file, index + 1);
-            index, z_string = get_until_space_or_newline(file, index + 1);
+            index, x_string = get_until_space_or_slash_or_newline(file, index + 2);
+            index, y_string = get_until_space_or_slash_or_newline(file, index + 1);
+            index, z_string = get_until_space_or_slash_or_newline(file, index + 1);
 
             x_value := string_to_float(x_string);
             y_value := string_to_float(y_string);
@@ -707,8 +713,8 @@ load_geometry_obj :: (file: string) -> [..] *Geometry, bool {
             x_string: string;
             y_string: string;
 
-            index, x_string = get_until_space_or_newline(file, index + 3);
-            index, y_string = get_until_space_or_newline(file, index + 1);
+            index, x_string = get_until_space_or_slash_or_newline(file, index + 3);
+            index, y_string = get_until_space_or_slash_or_newline(file, index + 1);
 
             x_value := string_to_float(x_string);
             y_value := string_to_float(y_string);
@@ -719,9 +725,9 @@ load_geometry_obj :: (file: string) -> [..] *Geometry, bool {
             y_string: string;
             z_string: string;
 
-            index, x_string = get_until_space_or_newline(file, index + 3);
-            index, y_string = get_until_space_or_newline(file, index + 1);
-            index, z_string = get_until_space_or_newline(file, index + 1);
+            index, x_string = get_until_space_or_slash_or_newline(file, index + 3);
+            index, y_string = get_until_space_or_slash_or_newline(file, index + 1);
+            index, z_string = get_until_space_or_slash_or_newline(file, index + 1);
 
             x_value := string_to_float(x_string);
             y_value := string_to_float(y_string);
@@ -741,20 +747,45 @@ load_geometry_obj :: (file: string) -> [..] *Geometry, bool {
             vn3_string: string;
             vt3_string: string;
 
-            index, v1_string = get_until_slash_exit_space_newline(file, index + 2);
-            index, vt1_string = get_until_slash_exit_space_newline(file, index + 1);
-            index, vn1_string = get_until_space_or_newline(file, index + 1);
+            t: string;
+            t.data = file.data + index;
+            t.count = 20;
 
-            index, v2_string = get_until_slash_exit_space_newline(file, index + 1);
-            index, vt2_string = get_until_slash_exit_space_newline(file, index + 1);
-            index, vn2_string = get_until_space_or_newline(file, index + 1);
+            index, v1_string = get_until_space_or_slash_or_newline(file, index + 2);
+            if normals.count > 0 && texcoords.count > 0 {
+                index, vt1_string = get_until_space_or_slash_or_newline(file, index + 1);
+                index, vn1_string = get_until_space_or_slash_or_newline(file, index + 1);
+            } else if texcoords.count > 0 {
+                index, vt1_string = get_until_space_or_slash_or_newline(file, index + 1);
+            } else if normals.count > 0 {
+                index, vn1_string = get_until_space_or_slash_or_newline(file, index + 2);
+            }
 
-            index, v3_string = get_until_slash_exit_space_newline(file, index + 1);
-            index, vt3_string = get_until_slash_exit_space_newline(file, index + 1);
-            newline_index := get_until_newline(file, index + 1);
-            index, vn3_string = get_until_space_or_newline(file, index + 1);
+            index, v2_string = get_until_space_or_slash_or_newline(file, index + 1);
+            if normals.count > 0 && texcoords.count > 0 {
+                index, vt2_string = get_until_space_or_slash_or_newline(file, index + 1);
+                index, vn2_string = get_until_space_or_slash_or_newline(file, index + 1);
+            } else if texcoords.count > 0 {
+                index, vt2_string = get_until_space_or_slash_or_newline(file, index + 1);
+            } else if normals.count > 0 {
+                index, vn2_string = get_until_space_or_slash_or_newline(file, index + 2);
+            }
 
-            assert(newline_index == index, "Found a space where a newline was expected. Probably the obj file isn't triangularized.");
+            index, v3_string = get_until_space_or_slash_or_newline(file, index + 1);
+            if normals.count > 0 && texcoords.count > 0 {
+                index, vt3_string = get_until_space_or_slash_or_newline(file, index + 1);
+                newline_index := get_until_newline(file, index + 1);
+                index, vn3_string = get_until_space_or_slash_or_newline(file, index + 1);
+                assert(newline_index == index, "Found a space where a newline was expected. Probably the obj file isn't triangularized.");
+            } else if texcoords.count > 0 {
+                newline_index := get_until_newline(file, index + 1);
+                index, vt3_string = get_until_space_or_slash_or_newline(file, index + 1);
+                assert(newline_index == index, "Found a space where a newline was expected. Probably the obj file isn't triangularized.");
+            } else if normals.count > 0 {
+                newline_index := get_until_newline(file, index + 2);
+                index, vn3_string = get_until_space_or_slash_or_newline(file, index + 2);
+                assert(newline_index == index, "Found a space where a newline was expected. Probably the obj file isn't triangularized.");
+            }
 
             stride := 3;
             if normals.count > 0 {

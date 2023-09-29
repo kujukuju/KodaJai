@@ -107,7 +107,7 @@ create_image :: (texture: Texture) -> Image {
 }
 
 destroy :: (image: Image) {
-    array_free(image.pixels);
+    stbi_image_free(image.pixels.data);
 }
 
 get_png_bytes :: (image: Image) -> [] u8 {
@@ -328,6 +328,14 @@ draw_polygon :: (image: *Image, polygon: [] Vector2, color: Color) {
 
 draw_polygon :: (image: *Image, polygon: [] Point2, color: Color) {
     assert(false);
+}
+
+get_pixel_raw :: (image: Image, point: Point2) -> Color {
+    stride := get_stride(image.format);
+    index := image.width * point.y + point.x;
+
+    rgba := image.pixels.data + index * stride;
+    return color(rgba[0], rgba[1], rgba[2], rgba[3]);
 }
 
 get_pixel :: (image: Image, point: Point2) -> Color {

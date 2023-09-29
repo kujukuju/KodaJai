@@ -852,21 +852,39 @@ get_joints :: (animations: ModelAnimations, joints: *[] Matrix4) {
 // }
 
 get_joints :: (animations: ModelAnimations, name: string, frame: float, $count: int) -> [count] Matrix4 {
+    output: [count] Matrix4;
+    casted: [] Matrix4;
+    casted.data = output.data;
+    casted.count = output.count;
+    get_joints(animations, name, frame, *casted);
+    return output;
+}
+
+get_joints :: (animations: ModelAnimations, name: string, frame: float, joints: *[] Matrix4) {
     for animation: animations.animations {
         if animation.name == name {
-            return get_joints(animations, animation, frame, count);
+            get_joints(animations, animation, frame, joints);
+            return;
         }
     }
 
     // if not a single animation was found return the bind pose
-    output: [count] Matrix4;
-    casted: [] Matrix4;
-    casted = output;
-    get_joints(animations, *casted);
-    return output;
+    get_joints(animations, joints);
 }
 
 get_joints :: (animations: ModelAnimations, animation: Animation, frame: float, $count: int) -> [count] Matrix4 {
+    joints: [count] Matrix4;
+    joint_view: [] Matrix4;
+    joint_view.data = joints.data;
+    joint_view.count = joints.count;
+    get_joints(animations, animation, frame, *joint_view);
+    return joints;
+}
+
+get_joints :: (animations: ModelAnimations, animation: Animation, frame: float, joints: *[] Matrix4) {
+    assert(joints.count >= animations.joint_indices.count);
+    assert(animations.animations.count > 0);
+
     joints_bones: [..] Matrix4;
     joints_bones.allocator = temp;
     array_reserve(*joints_bones, animations.bone_hierarchy.count);
@@ -892,18 +910,14 @@ get_joints :: (animations: ModelAnimations, animation: Animation, frame: float, 
         joints_bones[i] = parent_transform * interpolated_matrix;
     }
 
-    joints: [count] Matrix4;
-
     for i: 0..animations.joint_indices.count - 1 {
         real_index := animations.joint_indices[i];
-        joints[i] = joints_bones[real_index];
+        joints.*[i] = joints_bones[real_index];
     }
 
     for i: 0..animations.inverse_binds.count - 1 {
-        joints[i] = joints[i] * animations.inverse_binds[i];
+        joints.*[i] = joints.*[i] * animations.inverse_binds[i];
     }
-
-    return joints;
 }
 
 create_bone_weights :: (animations: ModelAnimations, bone_weights: [] AnimationPrecursoryBoneWeight) -> [] float {

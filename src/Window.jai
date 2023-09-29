@@ -95,6 +95,16 @@ destroy_window :: () {
     glfwTerminate();
 }
 
+set_icon :: (image: Image) {
+    assert(image.format == .RGBA, "Your window icon must be of format RGBA.");
+    glfw_image: GLFWimage;
+    glfw_image.width = cast(s32) image.width;
+    glfw_image.height = cast(s32) image.height;
+    glfw_image.pixels = image.pixels.data;
+
+    glfwSetWindowIcon(koda.window, 1, *glfw_image);
+}
+
 set_viewport :: (width: int, height: int) {
     koda.viewport_width = width;
     koda.viewport_height = height;
@@ -353,6 +363,47 @@ set_cull_face :: (enabled: bool) {
     } else {
         glDisable(GL_CULL_FACE);
     }
+}
+
+CullFaceMode :: enum u32 {
+    Front;
+    Back;
+    FrontAndBack;
+}
+
+convert_cull_face_mode :: (value: CullFaceMode) -> u32 {
+    if #complete value == {
+        case .Front;
+            return GL_FRONT;
+        case .Back;
+            return GL_BACK;
+        case .FrontAndBack;
+            return GL_FRONT_AND_BACK;
+    }
+}
+
+convert_cull_face_mode :: (value: u32) -> CullFaceMode {
+    if value == GL_FRONT {
+        return .Front;
+    } else if value == GL_BACK {
+        return .Back;
+    } else if value == GL_FRONT_AND_BACK {
+        return .FrontAndBack;
+    }
+
+    return .Back;
+}
+
+get_cull_face_mode :: () -> CullFaceMode {
+    cull_face_mode: s32;
+    glGetIntegerv(GL_CULL_FACE_MODE, *cull_face_mode);
+    return convert_cull_face_mode(cast(u32) cull_face_mode);
+}
+
+set_cull_face_mode :: (value: CullFaceMode) {
+    koda.cull_face_mode = value;
+    cull_face_mode := convert_cull_face_mode(value);
+    glCullFace(cull_face_mode);
 }
 
 clear :: (color: Color) {

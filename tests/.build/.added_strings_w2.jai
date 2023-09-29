@@ -650,34 +650,6 @@ return index, false;
 //
 // #insert text. Generated from C:/Users/Kuju/Projects/KodaJai/tests/../../ContiguousJsonJai/reader.jai:290.
 //
-if name == "primitives" {
-InnerType :: #run type_of(result.primitives);
-index, success = json_parse_into(content, index, cast(*InnerType) ((cast(*u8) result) + 0), memory, relative, contiguous_memory, keep_strings_in_place);
-if !success {
-return index, false;
-}
-} else if name == "weights" {
-InnerType :: #run type_of(result.weights);
-index, success = json_parse_into(content, index, cast(*InnerType) ((cast(*u8) result) + 40), memory, relative, contiguous_memory, keep_strings_in_place);
-if !success {
-return index, false;
-}
-} else if name == "name" {
-InnerType :: #run type_of(result.name);
-index, success = json_parse_into(content, index, cast(*InnerType) ((cast(*u8) result) + 80), memory, relative, contiguous_memory, keep_strings_in_place);
-if !success {
-return index, false;
-}
-} else {
-index, success = skip_unknown_type(content, index);
-if !success {
-return index, false;
-}
-}
-
-//
-// #insert text. Generated from C:/Users/Kuju/Projects/KodaJai/tests/../../ContiguousJsonJai/reader.jai:290.
-//
 if name == "name" {
 InnerType :: #run type_of(result.name);
 index, success = json_parse_into(content, index, cast(*InnerType) ((cast(*u8) result) + 0), memory, relative, contiguous_memory, keep_strings_in_place);
@@ -729,6 +701,34 @@ return index, false;
 } else if name == "doubleSided" {
 InnerType :: #run type_of(result.doubleSided);
 index, success = json_parse_into(content, index, cast(*InnerType) ((cast(*u8) result) + 76), memory, relative, contiguous_memory, keep_strings_in_place);
+if !success {
+return index, false;
+}
+} else {
+index, success = skip_unknown_type(content, index);
+if !success {
+return index, false;
+}
+}
+
+//
+// #insert text. Generated from C:/Users/Kuju/Projects/KodaJai/tests/../../ContiguousJsonJai/reader.jai:290.
+//
+if name == "primitives" {
+InnerType :: #run type_of(result.primitives);
+index, success = json_parse_into(content, index, cast(*InnerType) ((cast(*u8) result) + 0), memory, relative, contiguous_memory, keep_strings_in_place);
+if !success {
+return index, false;
+}
+} else if name == "weights" {
+InnerType :: #run type_of(result.weights);
+index, success = json_parse_into(content, index, cast(*InnerType) ((cast(*u8) result) + 40), memory, relative, contiguous_memory, keep_strings_in_place);
+if !success {
+return index, false;
+}
+} else if name == "name" {
+InnerType :: #run type_of(result.name);
+index, success = json_parse_into(content, index, cast(*InnerType) ((cast(*u8) result) + 80), memory, relative, contiguous_memory, keep_strings_in_place);
 if !success {
 return index, false;
 }
@@ -886,6 +886,34 @@ return index, false;
 //
 // #insert text. Generated from C:/Users/Kuju/Projects/KodaJai/tests/../../ContiguousJsonJai/reader.jai:290.
 //
+if name == "channels" {
+InnerType :: #run type_of(result.channels);
+index, success = json_parse_into(content, index, cast(*InnerType) ((cast(*u8) result) + 0), memory, relative, contiguous_memory, keep_strings_in_place);
+if !success {
+return index, false;
+}
+} else if name == "samplers" {
+InnerType :: #run type_of(result.samplers);
+index, success = json_parse_into(content, index, cast(*InnerType) ((cast(*u8) result) + 40), memory, relative, contiguous_memory, keep_strings_in_place);
+if !success {
+return index, false;
+}
+} else if name == "name" {
+InnerType :: #run type_of(result.name);
+index, success = json_parse_into(content, index, cast(*InnerType) ((cast(*u8) result) + 80), memory, relative, contiguous_memory, keep_strings_in_place);
+if !success {
+return index, false;
+}
+} else {
+index, success = skip_unknown_type(content, index);
+if !success {
+return index, false;
+}
+}
+
+//
+// #insert text. Generated from C:/Users/Kuju/Projects/KodaJai/tests/../../ContiguousJsonJai/reader.jai:290.
+//
 if name == "baseColorFactor" {
 InnerType :: #run type_of(result.baseColorFactor);
 index, success = json_parse_into(content, index, cast(*InnerType) ((cast(*u8) result) + 0), memory, relative, contiguous_memory, keep_strings_in_place);
@@ -926,49 +954,15 @@ return index, false;
 //
 // #insert text. Generated from C:/Users/Kuju/Projects/KodaJai/tests/../../ContiguousJsonJai/reader.jai:290.
 //
-if name == "channels" {
-InnerType :: #run type_of(result.channels);
+if name == "sampler" {
+InnerType :: #run type_of(result.sampler);
 index, success = json_parse_into(content, index, cast(*InnerType) ((cast(*u8) result) + 0), memory, relative, contiguous_memory, keep_strings_in_place);
 if !success {
 return index, false;
 }
-} else if name == "samplers" {
-InnerType :: #run type_of(result.samplers);
-index, success = json_parse_into(content, index, cast(*InnerType) ((cast(*u8) result) + 40), memory, relative, contiguous_memory, keep_strings_in_place);
-if !success {
-return index, false;
-}
-} else if name == "name" {
-InnerType :: #run type_of(result.name);
-index, success = json_parse_into(content, index, cast(*InnerType) ((cast(*u8) result) + 80), memory, relative, contiguous_memory, keep_strings_in_place);
-if !success {
-return index, false;
-}
-} else {
-index, success = skip_unknown_type(content, index);
-if !success {
-return index, false;
-}
-}
-
-//
-// #insert text. Generated from C:/Users/Kuju/Projects/KodaJai/tests/../../ContiguousJsonJai/reader.jai:290.
-//
-if name == "index" {
-InnerType :: #run type_of(result.index);
-index, success = json_parse_into(content, index, cast(*InnerType) ((cast(*u8) result) + 0), memory, relative, contiguous_memory, keep_strings_in_place);
-if !success {
-return index, false;
-}
-} else if name == "texCoord" {
-InnerType :: #run type_of(result.texCoord);
+} else if name == "target" {
+InnerType :: #run type_of(result.target);
 index, success = json_parse_into(content, index, cast(*InnerType) ((cast(*u8) result) + 8), memory, relative, contiguous_memory, keep_strings_in_place);
-if !success {
-return index, false;
-}
-} else if name == "strength" {
-InnerType :: #run type_of(result.strength);
-index, success = json_parse_into(content, index, cast(*InnerType) ((cast(*u8) result) + 16), memory, relative, contiguous_memory, keep_strings_in_place);
 if !success {
 return index, false;
 }
@@ -1010,6 +1004,34 @@ return index, false;
 //
 // #insert text. Generated from C:/Users/Kuju/Projects/KodaJai/tests/../../ContiguousJsonJai/reader.jai:290.
 //
+if name == "index" {
+InnerType :: #run type_of(result.index);
+index, success = json_parse_into(content, index, cast(*InnerType) ((cast(*u8) result) + 0), memory, relative, contiguous_memory, keep_strings_in_place);
+if !success {
+return index, false;
+}
+} else if name == "texCoord" {
+InnerType :: #run type_of(result.texCoord);
+index, success = json_parse_into(content, index, cast(*InnerType) ((cast(*u8) result) + 8), memory, relative, contiguous_memory, keep_strings_in_place);
+if !success {
+return index, false;
+}
+} else if name == "strength" {
+InnerType :: #run type_of(result.strength);
+index, success = json_parse_into(content, index, cast(*InnerType) ((cast(*u8) result) + 16), memory, relative, contiguous_memory, keep_strings_in_place);
+if !success {
+return index, false;
+}
+} else {
+index, success = skip_unknown_type(content, index);
+if !success {
+return index, false;
+}
+}
+
+//
+// #insert text. Generated from C:/Users/Kuju/Projects/KodaJai/tests/../../ContiguousJsonJai/reader.jai:290.
+//
 if name == "input" {
 InnerType :: #run type_of(result.input);
 index, success = json_parse_into(content, index, cast(*InnerType) ((cast(*u8) result) + 0), memory, relative, contiguous_memory, keep_strings_in_place);
@@ -1025,6 +1047,28 @@ return index, false;
 } else if name == "output" {
 InnerType :: #run type_of(result.output);
 index, success = json_parse_into(content, index, cast(*InnerType) ((cast(*u8) result) + 24), memory, relative, contiguous_memory, keep_strings_in_place);
+if !success {
+return index, false;
+}
+} else {
+index, success = skip_unknown_type(content, index);
+if !success {
+return index, false;
+}
+}
+
+//
+// #insert text. Generated from C:/Users/Kuju/Projects/KodaJai/tests/../../ContiguousJsonJai/reader.jai:290.
+//
+if name == "node" {
+InnerType :: #run type_of(result.node);
+index, success = json_parse_into(content, index, cast(*InnerType) ((cast(*u8) result) + 0), memory, relative, contiguous_memory, keep_strings_in_place);
+if !success {
+return index, false;
+}
+} else if name == "path" {
+InnerType :: #run type_of(result.path);
+index, success = json_parse_into(content, index, cast(*InnerType) ((cast(*u8) result) + 8), memory, relative, contiguous_memory, keep_strings_in_place);
 if !success {
 return index, false;
 }
@@ -1088,28 +1132,6 @@ return index, false;
 //
 // #insert text. Generated from C:/Users/Kuju/Projects/KodaJai/tests/../../ContiguousJsonJai/reader.jai:290.
 //
-if name == "sampler" {
-InnerType :: #run type_of(result.sampler);
-index, success = json_parse_into(content, index, cast(*InnerType) ((cast(*u8) result) + 0), memory, relative, contiguous_memory, keep_strings_in_place);
-if !success {
-return index, false;
-}
-} else if name == "target" {
-InnerType :: #run type_of(result.target);
-index, success = json_parse_into(content, index, cast(*InnerType) ((cast(*u8) result) + 8), memory, relative, contiguous_memory, keep_strings_in_place);
-if !success {
-return index, false;
-}
-} else {
-index, success = skip_unknown_type(content, index);
-if !success {
-return index, false;
-}
-}
-
-//
-// #insert text. Generated from C:/Users/Kuju/Projects/KodaJai/tests/../../ContiguousJsonJai/reader.jai:290.
-//
 if name == "index" {
 InnerType :: #run type_of(result.index);
 index, success = json_parse_into(content, index, cast(*InnerType) ((cast(*u8) result) + 0), memory, relative, contiguous_memory, keep_strings_in_place);
@@ -1147,28 +1169,6 @@ return index, false;
 } else if name == "componentType" {
 InnerType :: #run type_of(result.componentType);
 index, success = json_parse_into(content, index, cast(*InnerType) ((cast(*u8) result) + 16), memory, relative, contiguous_memory, keep_strings_in_place);
-if !success {
-return index, false;
-}
-} else {
-index, success = skip_unknown_type(content, index);
-if !success {
-return index, false;
-}
-}
-
-//
-// #insert text. Generated from C:/Users/Kuju/Projects/KodaJai/tests/../../ContiguousJsonJai/reader.jai:290.
-//
-if name == "node" {
-InnerType :: #run type_of(result.node);
-index, success = json_parse_into(content, index, cast(*InnerType) ((cast(*u8) result) + 0), memory, relative, contiguous_memory, keep_strings_in_place);
-if !success {
-return index, false;
-}
-} else if name == "path" {
-InnerType :: #run type_of(result.path);
-index, success = json_parse_into(content, index, cast(*InnerType) ((cast(*u8) result) + 8), memory, relative, contiguous_memory, keep_strings_in_place);
 if !success {
 return index, false;
 }

@@ -362,7 +362,7 @@ draw_cube_border :: (lower: Vector3, upper: Vector3, transform: Matrix4 = Matrix
     glDrawArrays(GL_LINES, 0, xx vertices.count);
 }
 
-draw_sphere :: (position: Vector3, color: Color = .{1, 1, 1, 1}) {
+draw_sphere :: (position: Vector3, dimensions: Vector3 = .{1, 1, 1}, color: Color = .{1, 1, 1, 1}) {
     // no radius control yet
     if !sphere_loaded {
         load_sphere();
@@ -373,6 +373,7 @@ draw_sphere :: (position: Vector3, color: Color = .{1, 1, 1, 1}) {
     projection := get_perspective_matrix();
     model := Matrix4Identity;
     model = translate(model, position);
+    model = scale(model, dimensions);
     view := koda.view;
 
     white_texture := get_white_texture();

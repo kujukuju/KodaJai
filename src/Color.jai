@@ -2,7 +2,19 @@ Color :: struct {
     r, g, b, a: float;
 
 #place r;
+    rg: Vector2 = ---;
+#place r;
+    rgb: Vector3 = ---;
+#place r;
     component: [4] float = ---;
+
+#place g;
+    gb: Vector2 = ---;
+#place g;
+    gba: Vector3 = ---;
+
+#place b;
+    ba: Vector2 = ---;
 }
 
 operator == :: (a: Color, b: Color) -> bool {
