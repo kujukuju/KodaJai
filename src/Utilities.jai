@@ -161,8 +161,6 @@ get_orthographic_matrix :: () -> Matrix4 {
 //     0, 0, 0, 1,
 // };
 
-#scope_module
-
 print_stack_trace :: () {
     node := context.stack_trace;
     while node {

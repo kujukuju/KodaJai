@@ -39,7 +39,11 @@ create_image :: (bytes: [] u8) -> Image {
     comp: s32;
     width: s32;
     height: s32;
-    image.pixels.data = stbi_load_from_memory(bytes.data, xx bytes.count, *width, *height, *comp, 0);
+    // stupid fucking not default allocator shit
+    stbi_data := stbi_load_from_memory(bytes.data, xx bytes.count, *width, *height, *comp, 0);
+    defer stbi_image_free(stbi_data);
+    image.pixels = NewArray(width * height * comp, u8);
+    memcpy(image.pixels.data, stbi_data, image.pixels.count);
     image.pixels.count = width * height * comp;
     image.width = width;
     image.height = height;
@@ -107,7 +111,7 @@ create_image :: (texture: Texture) -> Image {
 }
 
 destroy :: (image: Image) {
-    stbi_image_free(image.pixels.data);
+    array_free(image.pixels);
 }
 
 get_png_bytes :: (image: Image) -> [] u8 {

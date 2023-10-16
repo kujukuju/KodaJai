@@ -408,6 +408,7 @@ set_abort_shortcut :: (enabled: bool) {
 #scope_module
 
 resolve_mouse_capture :: () {
+    print("resolving % %\n", mouse_capture, mouse_currently_captured);
     if mouse_capture && mouse_currently_captured {
         glfwSetInputMode(koda.window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
         glfwSetInputMode(koda.window, GLFW_STICKY_MOUSE_BUTTONS, GLFW_TRUE);

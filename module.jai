@@ -39,7 +39,6 @@
 #load "src/2d/Container2.jai";
 #load "src/2d/FramedSprite.jai";
 #load "src/2d/Image.jai";
-#load "src/2d/PixelFormat.jai";
 #load "src/2d/RenderTexture.jai";
 #load "src/2d/Shapes2.jai";
 #load "src/2d/Sprite.jai";
@@ -109,12 +108,14 @@
 #load "src/ParticleSystem.jai";
 #load "src/Pass.jai";
 #load "src/Pipeline.jai";
+#load "src/PixelFormat.jai";
 #load "src/Point2.jai";
 #load "src/Point3.jai";
 #load "src/Point4.jai";
 #load "src/Renderable.jai";
 #load "src/SerializeStructure.jai";
 #load "src/ShaderUniforms.jai";
+#load "src/StorageFormat.jai";
 #load "src/SwapBuffer.jai";
 #load "src/Text.jai";
 #load "src/TextureInterp.jai";

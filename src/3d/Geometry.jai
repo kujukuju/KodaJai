@@ -443,8 +443,8 @@ rotate_vertices :: (geometry: *Geometry, axis: Vector3, radians: float) {
     }
 }
 
-get_indices :: (geometry: Geometry) -> [..] int {
-    indices: [..] int;
+get_indices :: (geometry: Geometry, $T: Type = int) -> [..] T {
+    indices: [..] T;
     array_reserve(*indices, geometry.indices.count);
 
     for index: geometry.indices {

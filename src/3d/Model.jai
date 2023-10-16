@@ -201,7 +201,7 @@ get_aabb :: (model: Model) -> AABB3 {
         aabb = merge(aabb, model.geometry[i].aabb);
     }
 
-    return aabb;
+    return transform_aabb(get_transform(model), aabb);
 }
 
 draw :: (model: Model, transform: Matrix4 = Matrix4Identity, shader: *Shader = null) {

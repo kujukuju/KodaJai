@@ -4,25 +4,27 @@ Texture3 :: struct {
     height: s32;
     depth: s32;
     format: PixelFormat;
+    storage: StorageFormat;
     wrap: [3] TextureWrap;
     interp: TextureInterp;
     border_color: Color;
     data: *u8;
 }
 
-create_texture3 :: (bytes: [] u8, wrap: TextureWrap = .Clamp, interp: TextureInterp = .LinearMipmap, should_upload: bool = true) -> Texture3 {
+create_texture3 :: (bytes: [] u8, wrap: TextureWrap = .Clamp, interp: TextureInterp = .Linear, storage: StorageFormat = .U8, should_upload: bool = true) -> Texture3 {
     wrap_array: [3] TextureWrap;
     wrap_array[0] = wrap;
     wrap_array[1] = wrap;
     wrap_array[2] = wrap;
 
-    return create_texture3(bytes, wrap_array, interp, should_upload);
+    return create_texture3(bytes, wrap_array, interp, storage, should_upload);
 }
 
-create_texture3 :: (bytes: [] u8, wrap: [3] TextureWrap, interp: TextureInterp, should_upload: bool = true) -> Texture3 {
+create_texture3 :: (bytes: [] u8, wrap: [3] TextureWrap, interp: TextureInterp, storage: StorageFormat = .U8, should_upload: bool = true) -> Texture3 {
     texture := load_data(bytes);
     texture.wrap = wrap;
     texture.interp = interp;
+    texture.storage = storage;
 
     if texture.data == null {
         print("Could not load texture.\n");
@@ -36,16 +38,16 @@ create_texture3 :: (bytes: [] u8, wrap: [3] TextureWrap, interp: TextureInterp, 
     return texture;
 }
 
-create_texture3 :: (image: Image3, wrap: TextureWrap = .Clamp, interp: TextureInterp = .LinearMipmap, should_upload: bool = true) -> Texture3 {
+create_texture3 :: (image: Image3, wrap: TextureWrap = .Clamp, interp: TextureInterp = .Linear, storage: StorageFormat = .U8, should_upload: bool = true) -> Texture3 {
     wrap_array: [3] TextureWrap;
     wrap_array[0] = wrap;
     wrap_array[1] = wrap;
     wrap_array[2] = wrap;
 
-    return create_texture3(image, wrap_array, interp, should_upload);
+    return create_texture3(image, wrap_array, interp, storage, should_upload);
 }
 
-create_texture3 :: (image: Image3, wrap: [3] TextureWrap, interp: TextureWrap, should_upload: bool = true) -> Texture3 {
+create_texture3 :: (image: Image3, wrap: [3] TextureWrap, interp: TextureWrap, storage: StorageFormat, should_upload: bool = true) -> Texture3 {
     if !image.pixels.data {
         print("Could not create texture.\n");
         return .{};
@@ -59,6 +61,7 @@ create_texture3 :: (image: Image3, wrap: [3] TextureWrap, interp: TextureWrap, s
     texture.format = image.format;
     texture.wrap = wrap;
     texture.interp = interp;
+    texture.storage = storage;
 
     if should_upload {
         upload(*texture);
@@ -67,16 +70,16 @@ create_texture3 :: (image: Image3, wrap: [3] TextureWrap, interp: TextureWrap, s
     return texture;
 }
 
-load_texture3 :: (path: string, wrap: TextureWrap = .Clamp, interp: TextureInterp = .LinearMipmap, should_upload: bool = true) -> Texture3 {
+load_texture3 :: (path: string, wrap: TextureWrap = .Clamp, interp: TextureInterp = .Linear, storage: StorageFormat = .U8, should_upload: bool = true) -> Texture3 {
     wrap_array: [3] TextureWrap;
     wrap_array[0] = wrap;
     wrap_array[1] = wrap;
     wrap_array[2] = wrap;
 
-    return load_texture3(path, wrap_array, interp, should_upload);
+    return load_texture3(path, wrap_array, interp, storage, should_upload);
 }
 
-load_texture3 :: (path: string, wrap: [3] TextureWrap, interp: TextureInterp, should_upload: bool = true) -> Texture3 {
+load_texture3 :: (path: string, wrap: [3] TextureWrap, interp: TextureInterp, storage: StorageFormat, should_upload: bool = true) -> Texture3 {
     file, success := read_entire_file(path, false);
     defer free(file);
 
@@ -84,7 +87,7 @@ load_texture3 :: (path: string, wrap: [3] TextureWrap, interp: TextureInterp, sh
     bytes.data = file.data;
     bytes.count = file.count;
 
-    return create_texture3(bytes, wrap, interp, should_upload);
+    return create_texture3(bytes, wrap, interp, storage, should_upload);
 }
 
 upload :: (texture: *Texture3) {
@@ -127,18 +130,41 @@ upload :: (texture: *Texture3) {
     else if two_divisible then pixel_store = 2;
     else pixel_store = 1;
 
+    // storage_format := get_gl_format(texture.storage);
+
     glPixelStorei(GL_PACK_ALIGNMENT, pixel_store);
     if texture.format == .Gray {
-        glTexImage3D(GL_TEXTURE_3D, 0, GL_R8, xx texture.width, xx texture.height, xx texture.depth, 0, GL_RED, GL_UNSIGNED_BYTE, texture.data);
+        if texture.storage == .U8 {
+            glTexImage3D(GL_TEXTURE_3D, 0, GL_R8, xx texture.width, xx texture.height, xx texture.depth, 0, GL_RED, GL_UNSIGNED_BYTE, texture.data);
+        } else {
+            glTexImage3D(GL_TEXTURE_3D, 0, GL_R32F, xx texture.width, xx texture.height, xx texture.depth, 0, GL_RED, GL_FLOAT, texture.data);
+        }
     } else if texture.format == .RG {
-        glTexImage3D(GL_TEXTURE_3D, 0, GL_RG8, xx texture.width, xx texture.height, xx texture.depth, 0, GL_RG, GL_UNSIGNED_BYTE, texture.data);
+        if texture.storage == .U8 {
+            glTexImage3D(GL_TEXTURE_3D, 0, GL_RG8, xx texture.width, xx texture.height, xx texture.depth, 0, GL_RG, GL_UNSIGNED_BYTE, texture.data);
+        } else {
+            glTexImage3D(GL_TEXTURE_3D, 0, GL_RG32F, xx texture.width, xx texture.height, xx texture.depth, 0, GL_RG, GL_FLOAT, texture.data);
+        }
     } else if texture.format == .RGB {
-        glTexImage3D(GL_TEXTURE_3D, 0, GL_RGB8, xx texture.width, xx texture.height, xx texture.depth, 0, GL_RGB, GL_UNSIGNED_BYTE, texture.data);
+        if texture.storage == .U8 {
+            glTexImage3D(GL_TEXTURE_3D, 0, GL_RGB8, xx texture.width, xx texture.height, xx texture.depth, 0, GL_RGB, GL_UNSIGNED_BYTE, texture.data);
+        } else {
+            glTexImage3D(GL_TEXTURE_3D, 0, GL_RGB32F, xx texture.width, xx texture.height, xx texture.depth, 0, GL_RGB, GL_FLOAT, texture.data);
+        }
     } else if texture.format == .RGBA {
-        glTexImage3D(GL_TEXTURE_3D, 0, GL_RGBA8, xx texture.width, xx texture.height, xx texture.depth, 0, GL_RGBA, GL_UNSIGNED_BYTE, texture.data);
+        if texture.storage == .U8 {
+            glTexImage3D(GL_TEXTURE_3D, 0, GL_RGBA8, xx texture.width, xx texture.height, xx texture.depth, 0, GL_RGBA, GL_UNSIGNED_BYTE, texture.data);
+        } else {
+            glTexImage3D(GL_TEXTURE_3D, 0, GL_RGBA32F, xx texture.width, xx texture.height, xx texture.depth, 0, GL_RGBA, GL_FLOAT, texture.data);
+        }
     }
     
-    glGenerateMipmap(GL_TEXTURE_3D);
+    if #complete texture.interp == {
+        case .Linear;
+        case .LinearMipmap;
+            glGenerateMipmap(GL_TEXTURE_3D);
+        case .Nearest;
+    }
 }
 
 unload :: (texture: *Texture3) {
@@ -157,11 +183,21 @@ destroy :: (texture: Texture3) {
 }
 
 update_texture :: (texture: *Texture3, image: Image3) {
-    assert(false, "Not yet supported. Who even uses texture3...");
-    // assert(texture.width == image.width && texture.height == image.height, "Dimensions must match.");
-    // assert(texture.format == image.format, "Formats must match.");
+    assert(texture.width == image.width && texture.height == image.height && texture.depth == image.depth, "Dimensions must match.");
+    assert(texture.format == image.format, "Formats must match.");
     
-    // glTextureSubImage2D(texture.buffer, 0, 0, 0, xx texture.width, xx texture.height, get_gl_format(texture.format), GL_UNSIGNED_BYTE, image.pixels.data);
+    update_texture(texture, image.data);
+}
+
+update_texture :: (texture: *Texture3, bytes: [] u8) {
+    stride := get_stride(texture.format) * get_stride(texture.storage);
+    depth := bytes.count / stride / (texture.width * texture.height);
+
+    if texture.storage == .U8 {
+        glTextureSubImage3D(texture.buffer, 0, 0, 0, 0, xx texture.width, xx texture.height, xx depth, get_gl_format(texture.format), GL_UNSIGNED_BYTE, bytes.data);
+    } else {
+        glTextureSubImage3D(texture.buffer, 0, 0, 0, 0, xx texture.width, xx texture.height, xx depth, get_gl_format(texture.format), GL_FLOAT, bytes.data);
+    }
 }
 
 #scope_file

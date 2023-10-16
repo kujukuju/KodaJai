@@ -646,12 +646,12 @@ get_joints :: (animations: ModelAnimations, mix: [] AnimationMix, joints: *[] Ma
             bone_weight: float;
             if mix[i].absolute {
                 bone_weight = max(mix[i].weight, 0.0);
-                if mix[i].bone_weights {
+                if mix[i].bone_weights && mix[i].bone_weights.data {
                     bone_weight *= mix[i].bone_weights[bone_index];
                 }
             } else {
                 bone_weight = max(mix[i].weight, 0.0);
-                if mix[i].bone_weights {
+                if mix[i].bone_weights && mix[i].bone_weights.data {
                     bone_weight *= mix[i].bone_weights[bone_index];
                 }
             }

@@ -151,6 +151,8 @@ should_exit :: () -> bool {
     return exit;
 }
 
+force_draw :: should_exit;
+
 get_fullscreen :: () -> bool {
     return glfwGetWindowAttrib(koda.window, GLFW_MAXIMIZED) == GLFW_TRUE;
 }
@@ -188,6 +190,10 @@ get_mouse_capture :: () -> bool {
 
 set_mouse_capture :: (capture: bool) {
     if mouse_capture != capture {
+        if capture {
+            mouse_currently_captured = true;
+        }
+        
         mouse_capture = capture;
         resolve_mouse_capture();
     }

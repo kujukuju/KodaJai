@@ -2,6 +2,7 @@ Sprite :: struct {
     using #as renderable: Renderable;
     renderable.type = .Sprite;
     texture: Texture;
+    uniforms: ShaderUniforms;
     position: Vector2;
     rotation: float;
     width: float;
@@ -10,6 +11,7 @@ Sprite :: struct {
     tint: Color = .{1, 1, 1, 1};
     alpha: float = 1;
     texture_frame: Vector4 = .{0, 0, 1, 1};
+    shader: *Shader;
     vbo_: GLuint;
     vao_: GLuint;
     ebo_: GLuint;
@@ -73,7 +75,11 @@ create_sprite :: (texture: Texture, width: float, height: float, anchor: Vector2
 }
 
 // TODO I dont think this needs to be a pointer because the ebo, vbo, vao don't actually use pointers its for arrays right?
-destroy :: (sprite: Sprite) {
+destroy :: (sprite: Sprite, children: bool = true) {
+    if children {
+        destroy(sprite.texture);
+    }
+
     glDeleteBuffers(1, *sprite.ebo_);
     glDeleteBuffers(1, *sprite.vbo_);
     glDeleteVertexArrays(1, *sprite.vao_);
@@ -101,10 +107,17 @@ draw :: (sprite: Sprite, transform: Matrix4) {
 }
 
 draw :: (sprite: Sprite) {
-    use_shader(*default_shader);
+    shader: *Shader = sprite.shader;
+    if !shader {
+        shader = *default_shader;
+    }
+
+    use_shader(shader);
+
+    apply_uniforms(shader, sprite.uniforms);
 
     quaternion: Quaternion;
-    set_from_axis_and_angle(*quaternion, .{0, 0, 1}, sprite.rotation);
+    set_from_axis_and_angle(*quaternion, .{0, 0, 1}, -sprite.rotation);
     real_position := sprite.position + rotate(-sprite.anchor * xy(sprite.width, sprite.height), -sprite.rotation);
 
     // TODO do this matrix math more efficiently than using quaternions... in fact... shouldnt it be using a matrix3 for 2d?
@@ -128,7 +141,7 @@ draw :: (sprite: Sprite) {
     uniforms[xx "uTint"] = create_uniform("uTint", sprite.tint * sprite.alpha);
     uniforms[xx "uFrame"] = create_uniform("uFrame", sprite.texture_frame);
 
-    apply_uniforms(*default_shader, uniforms);
+    apply_uniforms(shader, uniforms);
 
     glBindVertexArray(sprite.vao_);
     defer glBindVertexArray(0);
