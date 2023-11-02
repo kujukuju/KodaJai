@@ -4,7 +4,7 @@ Shader :: struct {
     program: u32;
     vertex: string;
     fragment: string;
-    uniforms: ShaderUniforms(false);
+    uniforms: ShaderUniforms;
 }
 
 // TODO I need to auto create shaders with all their uniforms and defaults
@@ -117,11 +117,21 @@ apply_uniforms :: (shader: *Shader, uniforms: ShaderUniforms, printing: bool = f
         print_stack_trace();
     }
 
+    // final_uniforms: ShaderUniforms;
+    // defer destroy(final_uniforms);
+
+    // for uniform: shader.uniforms.uniforms {
+    //     shader.uniforms[xx uniform.name] = uniform;
+    //     shader.uniforms[xx uniform.name].ownership = false;
+    //     debug_shaders && print("set % % %\n", to_string(uniform.name), uniform, shader.uniforms[xx uniform.name].*);
+    // }
+
     for uniform: uniforms.uniforms {
         existing := shader.uniforms[xx uniform.name];
         shader.uniforms[xx uniform.name] = uniform;
+        shader.uniforms[xx uniform.name].ownership = false;
         
-        if existing.name {
+        if existing && existing.location {
             shader.uniforms[xx uniform.name].location = existing.location;
         }
     }

@@ -13,12 +13,12 @@ ParticleSystem :: struct (ParticleGpu: Type, ParticleCpu: Type, Particle: Type, 
     particle_vbo_allocated: int;
     shader: *Shader;
     uniforms: ShaderUniforms;
+    depth_func: DepthFunc = .LessEqual;
     indices_count: int;
     synchronous_lock: Mutex;
     limit_replace_index: int;
     last_uploaded_index: int;
     // this is debugging stuff
-    parallel: bool;
     parallel_allowed: bool;
 }
 
@@ -125,7 +125,7 @@ particle_system_create :: (shader: *Shader, $PG: Type, $PC: Type, $P: Type, $upd
 
             append(*builder, tprint("glEnableVertexAttribArray(current_attribute);\n"));
             if is_integer {
-                append(*builder, tprint("glVertexAttribPointer(current_attribute, %, GL_INT, GL_FALSE, %, cast(*void) %);\n", member_stride / size_of(float32), total_stride, stride_offset));
+                append(*builder, tprint("glVertexAttribIPointer(current_attribute, %, GL_INT, %, cast(*void) %);\n", member_stride / size_of(float32), total_stride, stride_offset));
             } else {
                 append(*builder, tprint("glVertexAttribPointer(current_attribute, %, GL_FLOAT, GL_FALSE, %, cast(*void) %);\n", member_stride / size_of(float32), total_stride, stride_offset));
             }
@@ -152,9 +152,9 @@ particle_system_update_and_render :: (system: *ParticleSystem($PG, $PC, $P, $upd
 }
 
 particle_system_update_and_render :: (system: *ParticleSystem($PG, $PC, $P, $update_function, $sort), time: float64, projection: Matrix4) {
-    old_parallel := system.parallel;
-    system.parallel = true;
-    defer system.parallel = old_parallel;
+    old_parallel := debug_parallel;
+    debug_parallel = true;
+    defer debug_parallel = old_parallel;
 
     dt := cast(float) (time - system.last_render_time);
     system.last_render_time = time;
@@ -200,7 +200,11 @@ particle_system_update_and_render :: (system: *ParticleSystem($PG, $PC, $P, $upd
             system.particles_cpu[i] = particle.particle_cpu;
         });
 
-        parallel_for(0, system.particles_gpu.count, captured_update_loop);
+        // parallel_for(0, system.particles_gpu.count, captured_update_loop);
+
+        for i: 0..system.particles_gpu.count - 1 {
+            captured_update_loop(i);
+        }
     }
 
     view := koda.view;
@@ -222,10 +226,10 @@ particle_system_update_and_render :: (system: *ParticleSystem($PG, $PC, $P, $upd
             system.depth_values[index] = .{z / w, cast(s32) index};
         }
 
-        quick_sort_threaded(system.depth_values);
-        // quick_sort(depth_values, (a: DepthEntry, b: DepthEntry) -> float {
-        //     return a.depth - b.depth;
-        // });
+        // quick_sort_threaded(system.depth_values);
+        quick_sort(system.depth_values, (a: DepthEntry, b: DepthEntry) -> float {
+            return a.depth - b.depth;
+        });
 
         for entry, index: system.depth_values {
             system.particles_gpu_buffer[index] = system.particles_gpu[entry.index];
@@ -242,11 +246,16 @@ particle_system_update_and_render :: (system: *ParticleSystem($PG, $PC, $P, $upd
             glBindBuffer(GL_ARRAY_BUFFER, system.particle_vbo);
             glBufferSubData(GL_ARRAY_BUFFER, 0, system.particles_gpu.count * size_of(PG), system.particles_gpu.data);
         } else {
+            // glBindBuffer(GL_ARRAY_BUFFER, system.particle_vbo);
+            // glBufferSubData(GL_ARRAY_BUFFER, 0, system.particles_gpu.count * size_of(PG), system.particles_gpu.data);
+
+            // TODO WHY DOESNT THIS VERSION WORK THOUGH
+
             starting_byte := system.last_uploaded_index * size_of(PG);
             size_bytes := system.particles_gpu.count * size_of(PG) - starting_byte;
 
             glBindBuffer(GL_ARRAY_BUFFER, system.particle_vbo);
-            glBufferSubData(GL_ARRAY_BUFFER, starting_byte, size_bytes, system.particles_gpu.data);
+            glBufferSubData(GL_ARRAY_BUFFER, starting_byte, size_bytes, (cast(*u8) system.particles_gpu.data) + starting_byte);
 
             system.last_uploaded_index = system.particles_gpu.count;
         }
@@ -274,7 +283,7 @@ particle_system_update_and_render :: (system: *ParticleSystem($PG, $PC, $P, $upd
 
     depth_func := get_depth_func();
     defer set_depth_func(depth_func);
-    set_depth_func(.LessEqual);
+    set_depth_func(system.depth_func);
 
     glBindVertexArray(system.vao);
     glDrawElementsInstanced(GL_TRIANGLES, cast(u32) system.indices_count, GL_UNSIGNED_INT, null, cast(u32) system.particles_gpu.count);
@@ -283,7 +292,7 @@ particle_system_update_and_render :: (system: *ParticleSystem($PG, $PC, $P, $upd
 
 // TODO add particles sorted insert, because then presumably the list is already sorted if its sorted after each update
 particle_system_add_particle :: (system: *ParticleSystem($PG, $PC, $P, $update_function, $sort), particle: P, $limit: int = 0) {
-    assert(!system.parallel || system.parallel_allowed, "Parallel! You idiot!");
+    assert(!debug_parallel || system.parallel_allowed, "Parallel! You idiot!");
     #if limit {
         if system.particles_gpu.count >= limit {
             system.particles_gpu[system.limit_replace_index] = particle.particle_gpu;
@@ -304,7 +313,7 @@ particle_system_add_particle :: (system: *ParticleSystem($PG, $PC, $P, $update_f
 }
 
 particle_system_add_particle :: (system: *ParticleSystem($PG, $PC, $P, $update_function, $sort), particles: ..P, $limit: int = 0) {
-    assert(!system.parallel || system.parallel_allowed, "Parallel! You idiot!");
+    assert(!debug_parallel || system.parallel_allowed, "Parallel! You idiot!");
     #if limit {
         if system.particles_gpu.count + particles.count > limit {
             if system.particles_gpu.allocated < limit {
@@ -362,6 +371,16 @@ particle_system_add_particle :: (system: *ParticleSystem($PG, $PC, $P, $update_f
         system.particles_gpu.count += particles.count;
         system.particles_cpu.count += particles.count;
     }
+}
+
+particle_system_lock_synchronous :: (system: *ParticleSystem) {
+    lock(*system.synchronous_lock);
+    system.parallel_allowed = true;
+}
+
+particle_system_unlock_synchronous :: (system: *ParticleSystem) {
+    system.parallel_allowed = false;
+    unlock(*system.synchronous_lock);
 }
 
 particle_system_add_particle_synchronous :: (system: *ParticleSystem($PG, $PC, $P, $update_function, $sort), particle: P, $limit: int = 0) {

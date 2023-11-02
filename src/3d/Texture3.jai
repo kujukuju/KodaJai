@@ -132,7 +132,8 @@ upload :: (texture: *Texture3) {
 
     // storage_format := get_gl_format(texture.storage);
 
-    glPixelStorei(GL_PACK_ALIGNMENT, pixel_store);
+    // glPixelStorei(GL_PACK_ALIGNMENT, pixel_store);
+    glPixelStorei(GL_PACK_ALIGNMENT, 1);
     if texture.format == .Gray {
         if texture.storage == .U8 {
             glTexImage3D(GL_TEXTURE_3D, 0, GL_R8, xx texture.width, xx texture.height, xx texture.depth, 0, GL_RED, GL_UNSIGNED_BYTE, texture.data);
@@ -190,6 +191,7 @@ update_texture :: (texture: *Texture3, image: Image3) {
 }
 
 update_texture :: (texture: *Texture3, bytes: [] u8) {
+    // TODO can upload this in parallel of it helps
     stride := get_stride(texture.format) * get_stride(texture.storage);
     depth := bytes.count / stride / (texture.width * texture.height);
 

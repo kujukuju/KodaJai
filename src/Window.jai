@@ -24,6 +24,20 @@ create_window :: (title: *u8, width: s32, height: s32, multisample: int = 0) {
         return;
     }
 
+    if !width || !height {
+        width = 1920;
+        height = 1080;
+
+        monitor := glfwGetPrimaryMonitor();
+        video_mode := glfwGetVideoMode(monitor);
+        if video_mode {
+            if video_mode.height <= 1080 || video_mode.width <= 1920 {
+                width = 1600;
+                height = 900;
+            }
+        }
+    }
+
     monitor_width := width;
     monitor_height := height;
     monitor := glfwGetPrimaryMonitor();
@@ -34,6 +48,8 @@ create_window :: (title: *u8, width: s32, height: s32, multisample: int = 0) {
             monitor_height = video_mode.height;
         }
     }
+    koda.windowed_width = width;
+    koda.windowed_height = height;
 
     if multisample {
         glfwWindowHint(GLFW_SAMPLES, xx multisample);
@@ -154,16 +170,32 @@ should_exit :: () -> bool {
 force_draw :: should_exit;
 
 get_fullscreen :: () -> bool {
-    return glfwGetWindowAttrib(koda.window, GLFW_MAXIMIZED) == GLFW_TRUE;
+    return glfwGetWindowAttrib(koda.window, GLFW_DECORATED) == GLFW_FALSE || !!glfwGetWindowMonitor(koda.window);
 }
 
-set_fullscreen :: (fullscreen: bool) {
+set_fullscreen :: (fullscreen: bool, borderless: bool) {
     if fullscreen {
-        glfwSetWindowAttrib(koda.window, GLFW_DECORATED, GLFW_FALSE);
-        glfwMaximizeWindow(koda.window);
+        if borderless {
+            monitor := glfwGetPrimaryMonitor();
+            video_mode := glfwGetVideoMode(monitor);
+            if video_mode {
+                glfwSetWindowAttrib(koda.window, GLFW_DECORATED, GLFW_FALSE);
+                glfwSetWindowMonitor(koda.window, null, 0, 0, video_mode.width, video_mode.height, 0);
+            }
+        } else {
+            monitor := glfwGetPrimaryMonitor();
+            video_mode := glfwGetVideoMode(monitor);
+            if video_mode {
+                glfwSetWindowMonitor(koda.window, monitor, 0, 0, video_mode.width, video_mode.height, video_mode.refreshRate);
+            }
+        }
     } else {
-        glfwSetWindowAttrib(koda.window, GLFW_DECORATED, GLFW_TRUE);
-        glfwRestoreWindow(koda.window);
+        monitor := glfwGetPrimaryMonitor();
+        video_mode := glfwGetVideoMode(monitor);
+        if video_mode {
+            glfwSetWindowAttrib(koda.window, GLFW_DECORATED, GLFW_TRUE);
+            glfwSetWindowMonitor(koda.window, null, cast(s32) (video_mode.width - koda.windowed_width) / 2, cast(s32) (video_mode.height - koda.windowed_height) / 2, cast(s32) koda.windowed_width, cast(s32) koda.windowed_height, 0);
+        }
     }
 }
 

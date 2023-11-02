@@ -133,6 +133,8 @@ koda: struct {
     last_height: int;
     viewport_width: int;
     viewport_height: int;
+    windowed_width: int;
+    windowed_height: int;
     frame_tracker: FrameTracker;
     time_tracker: TimeTracker;
     render_flipped: bool;

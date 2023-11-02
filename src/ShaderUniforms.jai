@@ -36,6 +36,7 @@ ShaderUniformType :: enum {
 
 ShaderUniform :: struct {
     name: *u8;
+    ownership: bool = true;
     type: ShaderUniformType;
     location: s32;
     union {
@@ -75,7 +76,7 @@ ShaderUniform :: struct {
     }
 }
 
-ShaderUniforms :: struct (ownership: bool = true) {
+ShaderUniforms :: struct {
     uniforms: [..] ShaderUniform;
 }
 
@@ -83,26 +84,26 @@ operator == :: (a: ShaderUniforms, b: ShaderUniforms) -> bool {
     return a.uniforms.data == b.uniforms.data;
 }
 
-operator [] :: (uniforms: ShaderUniforms, name: *u8) -> ShaderUniform {
+operator [] :: (uniforms: ShaderUniforms, name: *u8) -> *ShaderUniform {
     name_string := to_string(name);
 
-    for uniform: uniforms.uniforms {
+    for *uniform: uniforms.uniforms {
         if to_string(uniform.name) == name_string {
             return uniform;
         }
     }
 
-    return .{};
+    return null;
 }
 
 // TODO can optimize this by set_or_create method that won't delete memory, for example for animation
 
-operator *[] :: (uniforms: *ShaderUniforms($O), name: *u8) -> *ShaderUniform {
+operator *[] :: (uniforms: *ShaderUniforms, name: *u8) -> *ShaderUniform {
     name_string := to_string(name);
 
     for i: 0..uniforms.uniforms.count - 1 {
         if to_string(uniforms.uniforms[i].name) == name_string {
-            #if O {
+            if uniforms.uniforms[i].ownership {
                 destroy(uniforms.uniforms[i]);
             }
             return *uniforms.uniforms[i];
@@ -708,9 +709,9 @@ create_uniform :: ($name: *u8, value: CubemapTexture) -> ShaderUniform {
 //     return uniform;
 // }
 
-destroy :: (uniforms: ShaderUniforms($O)) {
-    #if O {
-        for uniform: uniforms.uniforms {
+destroy :: (uniforms: ShaderUniforms) {
+    for uniform: uniforms.uniforms {
+        if uniform.ownership {
             destroy(uniform);
         }
     }

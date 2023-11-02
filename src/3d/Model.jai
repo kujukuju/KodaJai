@@ -9,6 +9,7 @@ Model :: struct {
     cull_face: bool = true;
     shader: *Shader;
     name: string;
+    visible: bool = true;
 }
 
 SerializedModelHash :: struct {
@@ -209,6 +210,10 @@ draw :: (model: Model, transform: Matrix4 = Matrix4Identity, shader: *Shader = n
 }
 
 draw :: (model: Model, transform: Matrix4 = Matrix4Identity, projection: Matrix4, shader: *Shader = null) {
+    if !model.visible {
+        return;
+    }
+
     // // TODO this is temporary to get vert colors working
     // if model.geometry.count > 0 && matches_attributes(model.geometry[0], .Position, .Normal, .Texcoord, .Color) {
     //     shader = *default_color_shader3;

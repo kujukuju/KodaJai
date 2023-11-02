@@ -55,12 +55,12 @@ draw_fps :: (x: float, y: float) {
     draw_text(default_text, xy(x, y));
 }
 
-#scope_module
-
 tick_frame_tracker :: (tracker: *FrameTracker, time: float64) {
     tracker.history[tracker.next_index] = time;
     tracker.next_index = (tracker.next_index + 1) % tracker.history.count;
 }
+
+#scope_module
 
 #scope_file
 
