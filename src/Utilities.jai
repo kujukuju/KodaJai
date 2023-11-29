@@ -14,16 +14,38 @@ get_string :: (s: *u8) -> string {
     return result;
 }
 
-get_default_text :: () -> Text {
-    if !default_text_loaded {
-        default_text_loaded = true;
-        default_text_bytes: [] u8;
-        default_text_bytes.data = TriplexSansBold.data;
-        default_text_bytes.count = TriplexSansBold.count;
-        default_text = create_text("", default_text_bytes, 24);
+#run,stallable {
+    file_bytes: [] u8;
+    file_bytes.data = TriplexSansBold.data;
+    file_bytes.count = TriplexSansBold.count;
+
+    font := create_font(file_bytes, 24, false);
+    bytes: [..] u8;
+    serializer_write(*bytes, font, false);
+    byte_string: string;
+    byte_string.data = bytes.data;
+    byte_string.count = bytes.count;
+
+    write_entire_file(tprint("%/assets/TriplexSansBoldFont.font", #filepath), byte_string);
+};
+
+get_default_font :: () -> *Font {
+    if !default_font_loaded {
+        default_font_loaded = true;
+
+        file_bytes: [] u8;
+        file_bytes.data = TriplexSansBoldFont.data;
+        file_bytes.count = TriplexSansBoldFont.count;
+        serializer_read(file_bytes, *default_font, 0, false);
+
+        // default_font_loaded = true;
+        // default_font_bytes: [] u8;
+        // default_font_bytes.data = TriplexSansBold.data;
+        // default_font_bytes.count = TriplexSansBold.count;
+        // default_font = create_font(default_text_bytes, 24);
     }
 
-    return default_text;
+    return default_font;
 }
 
 get_white_texture :: () -> Texture {
@@ -177,8 +199,8 @@ print_stack_trace :: () {
 
 #scope_file
 
-default_text_loaded: bool = false;
-default_text: Text;
+default_font_loaded: bool = false;
+default_font: *Font;
 
 white_texture_loaded: bool = false;
 white_texture: Texture;

@@ -236,4 +236,3 @@ load_data :: (data: [] u8) -> Texture3 {
 
 #import "Basic";
 #import "File";
-#import "stb_image";

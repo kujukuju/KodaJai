@@ -153,8 +153,8 @@ particle_system_update_and_render :: (system: *ParticleSystem($PG, $PC, $P, $upd
 
 particle_system_update_and_render :: (system: *ParticleSystem($PG, $PC, $P, $update_function, $sort), time: float64, projection: Matrix4) {
     old_parallel := debug_parallel;
-    debug_parallel = true;
     defer debug_parallel = old_parallel;
+    debug_parallel = true;
 
     dt := cast(float) (time - system.last_render_time);
     system.last_render_time = time;
@@ -200,11 +200,11 @@ particle_system_update_and_render :: (system: *ParticleSystem($PG, $PC, $P, $upd
             system.particles_cpu[i] = particle.particle_cpu;
         });
 
-        // parallel_for(0, system.particles_gpu.count, captured_update_loop);
+        parallel_for(0, system.particles_gpu.count, captured_update_loop);
 
-        for i: 0..system.particles_gpu.count - 1 {
-            captured_update_loop(i);
-        }
+        // for i: 0..system.particles_gpu.count - 1 {
+        //     captured_update_loop(i);
+        // }
     }
 
     view := koda.view;
@@ -226,10 +226,11 @@ particle_system_update_and_render :: (system: *ParticleSystem($PG, $PC, $P, $upd
             system.depth_values[index] = .{z / w, cast(s32) index};
         }
 
-        // quick_sort_threaded(system.depth_values);
-        quick_sort(system.depth_values, (a: DepthEntry, b: DepthEntry) -> float {
-            return a.depth - b.depth;
-        });
+        quick_sort_threaded(system.depth_values);
+
+        // quick_sort(system.depth_values, (a: DepthEntry, b: DepthEntry) -> float {
+        //     return a.depth - b.depth;
+        // });
 
         for entry, index: system.depth_values {
             system.particles_gpu_buffer[index] = system.particles_gpu[entry.index];

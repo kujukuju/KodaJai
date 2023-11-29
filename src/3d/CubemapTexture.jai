@@ -208,4 +208,3 @@ load_data :: (data: [] u8) -> CubemapTexture {
 
 #import "Basic";
 #import "File";
-#import "stb_image";

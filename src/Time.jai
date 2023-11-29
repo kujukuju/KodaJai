@@ -38,8 +38,10 @@ draw_fps :: (x: float, y: float) {
     integer := cast(int) fps;
     remainder := cast(int) ((fps - integer) * 100);
 
-    default_text := get_default_text();
-    default_text.text = tprint("FPS: %.%", integer, remainder);
+    default_font := get_default_font();
+    content := tprint("FPS: %.%", integer, remainder);
+    // default_text := get_default_text();
+    // default_text.text = ;
 
     depth_test := get_depth_test();
     cull_face := get_cull_face();
@@ -52,7 +54,7 @@ draw_fps :: (x: float, y: float) {
     koda.view = Matrix4_Identity;
     defer koda.view = transform;
 
-    draw_text(default_text, xy(x, y));
+    draw_text(content, default_font, xy(x, y));
 }
 
 tick_frame_tracker :: (tracker: *FrameTracker, time: float64) {

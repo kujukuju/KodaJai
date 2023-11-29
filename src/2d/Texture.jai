@@ -256,6 +256,11 @@ draw :: (texture: Texture, position: Vector2, rotation: float = 0, scale: Vector
 #scope_file
 
 load_data :: (data: [] u8) -> Texture {
+    #if WASM {
+        assert(false, "Cannot load raw image data in wasm.");
+        return;
+    }
+
     texture: Texture;
     comp: s32;
     texture.data = stbi_load_from_memory(data.data, xx data.count, *texture.width, *texture.height, *comp, 0);
@@ -280,4 +285,3 @@ load_data :: (data: [] u8) -> Texture {
 
 #import "Basic";
 #import "File";
-#import "stb_image";

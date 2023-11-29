@@ -38,10 +38,12 @@
 #load "src/2d/Camera2.jai";
 #load "src/2d/Container2.jai";
 #load "src/2d/FramedSprite.jai";
+#load "src/2d/Font.jai";
 #load "src/2d/Image.jai";
 #load "src/2d/RenderTexture.jai";
 #load "src/2d/Shapes2.jai";
 #load "src/2d/Sprite.jai";
+#load "src/2d/Text.jai";
 #load "src/2d/Texture.jai";
 
 #load "src/3d/AnimatedModel.jai";
@@ -117,7 +119,6 @@
 #load "src/ShaderUniforms.jai";
 #load "src/StorageFormat.jai";
 #load "src/SwapBuffer.jai";
-#load "src/Text.jai";
 #load "src/TextureInterp.jai";
 #load "src/TextureWrap.jai";
 #load "src/Time.jai";
@@ -185,16 +186,24 @@ default_font_shader: FontShader;
 
 #scope_module
 
+#run print("WASM? %\n", WASM);
+
 static_sprite: Sprite;
-core_count :: #run get_number_of_processors();
+#if WASM {
+    core_count :: 8;
+} else {
+    core_count :: #run get_number_of_processors();
+    #import "stb_image";
+    #import "stb_image_write";
+}
 
 #load "src/assets/TriplexSansBold.jai";
+#load "src/assets/TriplexSansBoldFont.jai";
 #load "src/assets/White.jai";
 
 #import "String";
 #import "Hash_Table";
 #import "File_Utilities";
-#import "stb_image_write";
 #import "Hash";
 #import "System";
 

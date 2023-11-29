@@ -1,5 +1,5 @@
 #run () {
-    files := file_list("assets/");
+    files := file_list(tprint("%/../src/assets/", #filepath));
     for file: files {
         if ends_with(file, "jai") {
             continue;
@@ -42,7 +42,7 @@
         append(*builder, result);
         append(*builder, "\nDONE");
 
-        new_filepath := tprint("assets/%", new_filename);
+        new_filepath := tprint("%../src/assets/%", #filepath, new_filename);
         print("Writing file. %\n", new_filepath);
         write_entire_file(new_filepath, builder_to_string(*builder));
     }
