@@ -211,5 +211,4 @@ static_sprite: Sprite;
 #import "FixedStringJai";
 #import "JaiBoundingTree";
 #import "JaiSerializer";
-#load "../JaiCapture/module.jai";
-#import "JaiParallel";
+#import "JaiParallel"(WASM);

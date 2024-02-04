@@ -17,6 +17,10 @@ operator - :: (a: Point2, b: Point2) -> Point2 {
     return point2(a.x - b.x, a.y - b.y);
 }
 
+operator - :: (a: Point2) -> Point2 {
+    return point2(-a.x, -a.y);
+}
+
 point2 :: (x: int, y: int) -> Point2 {
     p: Point2 = ---;
     p.x = x;

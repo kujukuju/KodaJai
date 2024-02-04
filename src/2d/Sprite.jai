@@ -94,6 +94,14 @@ set_scale :: (sprite: *Sprite, scale: Vector2) {
     sprite.height = sprite.texture.height * scale.y;
 }
 
+get_aabb :: (sprite: Sprite) -> AABB2 {
+    aabb: AABB2 = ---;
+    aabb.lower = sprite.position - sprite.anchor * Vector2.{sprite.width, sprite.height};
+    aabb.upper = sprite.position + (1.0 - sprite.anchor) * Vector2.{sprite.width, sprite.height};
+
+    return aabb;
+}
+
 draw :: (sprite: Sprite, position: Vector2) {
     // TODO don't do it this way?
     new := sprite;

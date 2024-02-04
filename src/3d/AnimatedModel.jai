@@ -28,7 +28,7 @@ draw :: (animated: AnimatedModel, animation: string, frame: float = 0.0, transfo
         return;
     }
 
-    joints := NewArray(animated.animations.joint_indices.count, Matrix4, allocator = temp);
+    joints := NewArray(animated.animations.joint_indices.count, Matrix4,, allocator = temp);
     get_joints(animated.animations, animation, frame, *joints);
 
     draw(animated, joints, transform, projection, shader);
@@ -43,7 +43,7 @@ draw :: (animated: AnimatedModel, mix: [] AnimationMix, transform: Matrix4 = Mat
         return;
     }
 
-    joints := NewArray(animated.animations.joint_indices.count, Matrix4, allocator = temp);
+    joints := NewArray(animated.animations.joint_indices.count, Matrix4,, allocator = temp);
     get_joints(animated.animations, mix, *joints);
 
     draw(animated, joints, transform, projection, shader);

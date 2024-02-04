@@ -129,7 +129,7 @@ draw_rect :: (top_left: Vector2, dimensions: Vector2, color: Color = .{1, 1, 1, 
     uniforms: ShaderUniforms;
     defer destroy(uniforms);
 
-    uniforms[xx "uTexture"] = create_uniform("uTexture", cast(u32) 0);
+    uniforms[xx "uTexture"] = create_uniform("uTexture", white_texture);
     
     uniforms[xx "projection"] = create_uniform("projection", projection);
     uniforms[xx "model"] = create_uniform("model", model);

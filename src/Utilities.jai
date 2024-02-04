@@ -14,35 +14,36 @@ get_string :: (s: *u8) -> string {
     return result;
 }
 
-#run,stallable {
-    file_bytes: [] u8;
-    file_bytes.data = TriplexSansBold.data;
-    file_bytes.count = TriplexSansBold.count;
-
-    font := create_font(file_bytes, 24, false);
-    bytes: [..] u8;
-    serializer_write(*bytes, font, false);
-    byte_string: string;
-    byte_string.data = bytes.data;
-    byte_string.count = bytes.count;
-
-    write_entire_file(tprint("%/assets/TriplexSansBoldFont.font", #filepath), byte_string);
-};
-
 get_default_font :: () -> *Font {
+    // #run,stallable {
+    //     file_bytes: [] u8;
+    //     file_bytes.data = TriplexSansBold.data;
+    //     file_bytes.count = TriplexSansBold.count;
+
+    //     font := create_font(file_bytes, 24, false);
+    //     bytes: [..] u8;
+    //     serializer_write(*bytes, font, false);
+    //     byte_string: string;
+    //     byte_string.data = bytes.data;
+    //     byte_string.count = bytes.count;
+
+    //     write_entire_file(tprint("%/assets/TriplexSansBoldFont.font", #filepath), byte_string);
+    // };
+
     if !default_font_loaded {
         default_font_loaded = true;
 
         file_bytes: [] u8;
-        file_bytes.data = TriplexSansBoldFont.data;
-        file_bytes.count = TriplexSansBoldFont.count;
-        serializer_read(file_bytes, *default_font, 0, false);
+        file_bytes.data = TriplexSansBold.data;
+        file_bytes.count = TriplexSansBold.count;
+        default_font = create_font(file_bytes, 24, false);
 
-        // default_font_loaded = true;
-        // default_font_bytes: [] u8;
-        // default_font_bytes.data = TriplexSansBold.data;
-        // default_font_bytes.count = TriplexSansBold.count;
-        // default_font = create_font(default_text_bytes, 24);
+        // file_bytes: [] u8;
+        // file_bytes.data = TriplexSansBoldFont.data;
+        // file_bytes.count = TriplexSansBoldFont.count;
+        // serializer_read(file_bytes, *default_font, 0, false);
+
+        upload(default_font);
     }
 
     return default_font;

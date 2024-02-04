@@ -109,9 +109,11 @@ upload :: (texture: *Texture) {
         glTexParameterfv(GL_TEXTURE_2D, GL_TEXTURE_BORDER_COLOR, texture.border_color.component.data);
     }
 
-    eight_divible := (texture.width * texture.height) % 8 == 0;
-    four_divisible := (texture.width * texture.height) % 4 == 0;
-    two_divisible := (texture.width * texture.height) % 2 == 0;
+    stride := get_stride(texture.format);
+
+    eight_divible := (texture.width * stride) % 8 == 0;
+    four_divisible := (texture.width * stride) % 4 == 0;
+    two_divisible := (texture.width * stride) % 2 == 0;
     pixel_store: s32;
     if eight_divible then pixel_store = 8;
     else if four_divisible then pixel_store = 4;
@@ -119,6 +121,7 @@ upload :: (texture: *Texture) {
     else pixel_store = 1;
 
     glPixelStorei(GL_PACK_ALIGNMENT, pixel_store);
+    glPixelStorei(GL_UNPACK_ALIGNMENT, pixel_store);
     if texture.format == .Gray {
         glTexImage2D(GL_TEXTURE_2D, 0, GL_R8, xx texture.width, xx texture.height, 0, GL_RED, GL_UNSIGNED_BYTE, texture.data);
     } else if texture.format == .RG {

@@ -348,15 +348,20 @@ get_pixel :: (image: Image, point: Point2) -> Color {
     }
 
     stride := get_stride(image.format);
-    assert(stride == 4, "Haven't handled anything else yet.");
     index := image.width * point.y + point.x;
 
-    rgba: [] u8;
-    rgba.data = image.pixels.data + index * stride;
-    rgba.count = 4;
-    c := color(rgba[0], rgba[1], rgba[2], rgba[3]);
-
-    return c;
+    if stride == 1 {
+        return color(image.pixels[index * stride], 0, 0, 0);
+    } else if stride == 2 {
+        return color(image.pixels[index * stride], image.pixels[index * stride + 1], 0, 0);
+    } else if stride == 3 {
+        return color(image.pixels[index * stride], image.pixels[index * stride + 1], image.pixels[index * stride + 2], 0);
+    } else if stride == 4 {
+        return color(image.pixels[index * stride], image.pixels[index * stride + 1], image.pixels[index * stride + 2], image.pixels[index * stride + 3]);
+    } else {
+        assert(false, "This stride isn't supported.");
+        return .{};
+    }
 }
 
 draw :: (destination: *Image, source: Image) {
@@ -368,42 +373,57 @@ draw :: (destination: *Image, source: Image, position: Point2) {
     start := max(position, .{0, 0});
     end := min(point2(destination.width, destination.height), position + point2(source.width, source.height));
     dimensions := end - start;
-    source_offset := position - start;
+    source_start := -min(position, .{0, 0});
 
-    stride := get_stride(destination.format);
-    assert(destination.format == source.format, "I haven't decided yet how I want to handle this.");
-    assert(stride == 4, "I also don't handle anything else yet because of alpha.");
+    if destination.format == source.format {
+        stride := get_stride(destination.format);
 
-    dest_color_bytes: [] u8;
-    dest_color_bytes.count = stride;
-    source_color_bytes: [] u8;
-    source_color_bytes.count = stride;
+        for y: 0..dimensions.y - 1 {
+            destination_point := point2(start.x, start.y + y);
+            source_point := point2(source_start.x, source_start.y + y);
 
-    for y: 0..dimensions.y - 1 {
-        for x: 0..dimensions.x - 1 {
-            point := point2(x, y);
-            dest_point := start + point;
-            source_point := source_offset + point;
+            destination_data := destination.pixels.data + (destination_point.y * destination.width + destination_point.x) * stride;
+            source_data := source.pixels.data + (source_point.y * source.width + source_point.x) * stride;
 
-            dest_index := (dest_point.y * destination.width + dest_point.x) * stride;
-            source_index := (source_point.y * source.width + source_point.x) * stride;
-
-            dest_color_bytes.data = destination.pixels.data + dest_index;
-            source_color_bytes.data = source.pixels.data + source_index;
-
-            dest_color := color(dest_color_bytes[0], dest_color_bytes[1], dest_color_bytes[2], dest_color_bytes[3]);
-            source_color := color(source_color_bytes[0], source_color_bytes[1], source_color_bytes[2], source_color_bytes[3]);
-            
-            // TODO premultiply for easy math I guess
-            // dest_percent := dest_color.a / (dest_color.a + source_color.a);
-            // source_percent := source_color.a / (dest_color.a + source_color.a);
-
-            dest_color = source_color.a * color(source_color.r, source_color.g, source_color.b, 1.0) + (1.0 - source_color.a) * dest_color; //color(dest_color.r, dest_color.g, dest_color.b, 1.0);
-            dest_bytes := get_bytes(dest_color);
-
-            memcpy(destination.pixels.data + dest_index, dest_bytes.data, stride);
+            memcpy(destination_data, source_data, dimensions.x * stride);
         }
+    } else {
+        assert(destination.format == source.format, "I haven't decided yet how I want to handle this.");
     }
+
+
+
+
+    // dest_color_bytes: [] u8;
+    // dest_color_bytes.count = stride;
+    // source_color_bytes: [] u8;
+    // source_color_bytes.count = stride;
+
+    // for y: 0..dimensions.y - 1 {
+    //     for x: 0..dimensions.x - 1 {
+    //         point := point2(x, y);
+    //         dest_point := start + point;
+    //         source_point := source_offset + point;
+
+    //         dest_index := (dest_point.y * destination.width + dest_point.x) * stride;
+    //         source_index := (source_point.y * source.width + source_point.x) * stride;
+
+    //         dest_color_bytes.data = destination.pixels.data + dest_index;
+    //         source_color_bytes.data = source.pixels.data + source_index;
+
+    //         dest_color := color(dest_color_bytes[0], dest_color_bytes[1], dest_color_bytes[2], dest_color_bytes[3]);
+    //         source_color := color(source_color_bytes[0], source_color_bytes[1], source_color_bytes[2], source_color_bytes[3]);
+            
+    //         // TODO premultiply for easy math I guess
+    //         // dest_percent := dest_color.a / (dest_color.a + source_color.a);
+    //         // source_percent := source_color.a / (dest_color.a + source_color.a);
+
+    //         dest_color = source_color.a * color(source_color.r, source_color.g, source_color.b, 1.0) + (1.0 - source_color.a) * dest_color; //color(dest_color.r, dest_color.g, dest_color.b, 1.0);
+    //         dest_bytes := get_bytes(dest_color);
+
+    //         memcpy(destination.pixels.data + dest_index, dest_bytes.data, stride);
+    //     }
+    // }
 }
 
 draw :: (destination: *Image, source: Image, dest_position: Point2, dest_size: Point2, source_position: Point2, source_size: Point2) {

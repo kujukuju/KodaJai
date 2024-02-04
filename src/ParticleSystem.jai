@@ -1,5 +1,5 @@
 
-ParticleSystem :: struct (ParticleGpu: Type, ParticleCpu: Type, Particle: Type, update_function: #type (particle: *Particle, time: float, dt: float), sort: bool = true) {
+ParticleSystem :: struct (ParticleGpu: Type, ParticleCpu: Type, update_function: #type (particle_gpu: *ParticleGpu, particle_cpu: *ParticleCpu, time: float, dt: float) = null, sort: bool = true) {
     last_render_time: float64;
     particles_gpu: [..] ParticleGpu;
     particles_cpu: [..] ParticleCpu;
@@ -22,7 +22,12 @@ ParticleSystem :: struct (ParticleGpu: Type, ParticleCpu: Type, Particle: Type, 
     parallel_allowed: bool;
 }
 
-particle_system_create :: (shader: *Shader, $PG: Type, $PC: Type, $P: Type, $update_function: #type (particle: *P, time: float, dt: float), geometry: *Geometry = null, $sort: bool = true) -> ParticleSystem(PG, PC, P, update_function, sort) {
+ParentParticle :: struct (PG: Type, PC: Type) {
+    using pg: *PG;
+    using pc: *PC;
+}
+
+particle_system_create :: (shader: *Shader, $PG: Type, $PC: Type, $update_function: #type (particle_gpu: *PG, particle_cpu: *PC, time: float, dt: float) = null, geometry: *Geometry = null, $sort: bool = true) -> ParticleSystem(PG, PC, update_function, sort) {
     system: ParticleSystem(PG, PC, P, update_function, sort);
     system.shader = shader;
     init(*system.synchronous_lock);
@@ -147,11 +152,11 @@ particle_system_create :: (shader: *Shader, $PG: Type, $PC: Type, $P: Type, $upd
     return system;
 }
 
-particle_system_update_and_render :: (system: *ParticleSystem($PG, $PC, $P, $update_function, $sort), time: float64) {
+particle_system_update_and_render :: (system: *ParticleSystem($PG, $PC, $update_function, $sort), time: float64) {
     inline particle_system_update_and_render(system, time, get_perspective_matrix());
 }
 
-particle_system_update_and_render :: (system: *ParticleSystem($PG, $PC, $P, $update_function, $sort), time: float64, projection: Matrix4) {
+particle_system_update_and_render :: (system: *ParticleSystem($PG, $PC, $update_function, $sort), time: float64, projection: Matrix4) {
     old_parallel := debug_parallel;
     defer debug_parallel = old_parallel;
     debug_parallel = true;
@@ -186,21 +191,36 @@ particle_system_update_and_render :: (system: *ParticleSystem($PG, $PC, $P, $upd
     #if update_function {
         time_float := cast(float) time;
 
-        captured_update_loop := capture((i: int) {
-            system: *ParticleSystem(PG, PC, P, update_function, sort); @capture
-            time_float: float; @capture
-            dt: float; @capture
-            particle: P = ---;
-            particle.particle_gpu = system.particles_gpu[i];
-            particle.particle_cpu = system.particles_cpu[i];
+        // captured_update_loop := capture((i: int, thread: int) {
+        //     system: *ParticleSystem(PG, PC, P, update_function, sort); @capture
+        //     time_float: float; @capture
+        //     dt: float; @capture
+        //     particle: P = ---;
+        //     particle.particle_gpu = system.particles_gpu[i];
+        //     particle.particle_cpu = system.particles_cpu[i];
 
-            inline update_function(*particle, time_float, dt);
+        //     inline update_function(*particle, time_float, dt);
 
-            system.particles_gpu[i] = particle.particle_gpu;
-            system.particles_cpu[i] = particle.particle_cpu;
-        });
+        //     system.particles_gpu[i] = particle.particle_gpu;
+        //     system.particles_cpu[i] = particle.particle_cpu;
+        // });
 
-        parallel_for(0, system.particles_gpu.count, captured_update_loop);
+        parallel_for(0, system.particles_gpu.count, (i: int, thread: int, using data: struct {
+            system: *ParticleSystem(PG, PC, P, update_function, sort);
+            time_float: float;
+            dt: float;}) {
+            // system: *ParticleSystem(PG, PC, P, update_function, sort); @capture
+            // time_float: float; @capture
+            // dt: float; @capture
+            // particle: P = ---;
+            // particle.particle_gpu = system.particles_gpu[i];
+            // particle.particle_cpu = system.particles_cpu[i];
+
+            inline update_function(system.particles_gpu.data + i, system.particles_cpu + i, time_float, dt);
+
+            // system.particles_gpu[i] = particle.particle_gpu;
+            // system.particles_cpu[i] = particle.particle_cpu;
+        }, .{system, time_float, dt});
 
         // for i: 0..system.particles_gpu.count - 1 {
         //     captured_update_loop(i);
@@ -292,31 +312,42 @@ particle_system_update_and_render :: (system: *ParticleSystem($PG, $PC, $P, $upd
 }
 
 // TODO add particles sorted insert, because then presumably the list is already sorted if its sorted after each update
-particle_system_add_particle :: (system: *ParticleSystem($PG, $PC, $P, $update_function, $sort), particle: P, $limit: int = 0) {
+particle_system_add_particle :: (system: *ParticleSystem($PG, $PC, $update_function, $sort), particle_gpu: PG, particle_cpu: PC, $limit: int = 0) {
     assert(!debug_parallel || system.parallel_allowed, "Parallel! You idiot!");
     #if limit {
         if system.particles_gpu.count >= limit {
-            system.particles_gpu[system.limit_replace_index] = particle.particle_gpu;
-            system.particles_cpu[system.limit_replace_index] = particle.particle_cpu;
+            system.particles_gpu[system.limit_replace_index] = particle_gpu;
+            system.particles_cpu[system.limit_replace_index] = particle_cpu;
             system.limit_replace_index = (system.limit_replace_index + 1) % system.particles_gpu.count;
         } else {
             desired_count := next_power_of_two(system.particles_gpu.count + 1);
             reserve_count := min(desired_count, limit);
             array_reserve(*system.particles_gpu, reserve_count);
             array_reserve(*system.particles_cpu, reserve_count);
-            array_add(*system.particles_gpu, particle.particle_gpu);
-            array_add(*system.particles_cpu, particle.particle_cpu);
+            array_add(*system.particles_gpu, particle_gpu);
+            array_add(*system.particles_cpu, particle_cpu);
         }
     } else {
-        array_add(*system.particles_gpu, particle.particle_gpu);
-        array_add(*system.particles_cpu, particle.particle_cpu);
+        array_add(*system.particles_gpu, particle_gpu);
+        array_add(*system.particles_cpu, particle_cpu);
     }
 }
 
-particle_system_add_particle :: (system: *ParticleSystem($PG, $PC, $P, $update_function, $sort), particles: ..P, $limit: int = 0) {
+particle_system_add_particles :: (system: *ParticleSystem($PG, $PC, $update_function, $sort), particles_gpu: [$N] PG, particles_cpu: [N] PC, $limit: int = 0) {
+    gpu_view: [] PG = particles_gpu;
+    cpu_view: [] PC = particles_cpu;
+
+    particle_system_add_particles(system, gpu_view, cpu_view, limit);
+}
+
+particle_system_add_particles :: (system: *ParticleSystem($PG, $PC, $update_function, $sort), particles_gpu: [] PG, particles_cpu: [] PC, $limit: int = 0) {
     assert(!debug_parallel || system.parallel_allowed, "Parallel! You idiot!");
+    assert(particles_gpu.count == particles_cpu.count, "You must have the same amount of gpu and cpu particles.");
+    
+    // TODO now that I'm passing in arrays of gpu and cpu separately I can do this way more efficiently
+
     #if limit {
-        if system.particles_gpu.count + particles.count > limit {
+        if system.particles_gpu.count + particles_gpu.count > limit {
             if system.particles_gpu.allocated < limit {
                 array_reserve(*system.particles_gpu, limit);
                 array_reserve(*system.particles_cpu, limit);
@@ -327,50 +358,50 @@ particle_system_add_particle :: (system: *ParticleSystem($PG, $PC, $P, $update_f
 
             next_particle_index := 0;
             for offset: system.particles_gpu.count..limit - 1 {
-                (system.particles_gpu.data + offset).* = particles[next_particle_index].particle_gpu;
-                (system.particles_cpu.data + offset).* = particles[next_particle_index].particle_cpu;
+                (system.particles_gpu.data + offset).* = particles_gpu[next_particle_index];
+                (system.particles_cpu.data + offset).* = particles_cpu[next_particle_index];
 
                 next_particle_index += 1;
             }
 
-            for i: next_particle_index..particles.count - 1 {
-                (system.particles_gpu.data + system.limit_replace_index).* = particles[i].particle_gpu;
-                (system.particles_cpu.data + system.limit_replace_index).* = particles[i].particle_cpu;
+            for i: next_particle_index..particles_gpu.count - 1 {
+                (system.particles_gpu.data + system.limit_replace_index).* = particles_gpu[i];
+                (system.particles_cpu.data + system.limit_replace_index).* = particles_cpu[i];
 
                 system.limit_replace_index = (system.limit_replace_index + 1) % system.particles_gpu.count;
             }
         } else {
-            if system.particles_gpu.allocated < system.particles_gpu.count + particles.count {
-                desired_count := next_power_of_two(system.particles_gpu.count + particles.count);
+            if system.particles_gpu.allocated < system.particles_gpu.count + particles_gpu.count {
+                desired_count := next_power_of_two(system.particles_gpu.count + particles_gpu.count);
                 reserve_count := min(desired_count, limit);
                 array_reserve(*system.particles_gpu, reserve_count);
                 array_reserve(*system.particles_cpu, reserve_count);
             }
 
-            for i: 0..particles.count - 1 {
+            for i: 0..particles_gpu.count - 1 {
                 offset := system.particles_gpu.count + i;
-                (system.particles_gpu.data + offset).* = particles[i].particle_gpu;
-                (system.particles_cpu.data + offset).* = particles[i].particle_cpu;
+                (system.particles_gpu.data + offset).* = particles_gpu[i];
+                (system.particles_cpu.data + offset).* = particles_cpu[i];
             }
 
-            system.particles_gpu.count += particles.count;
-            system.particles_cpu.count += particles.count;
+            system.particles_gpu.count += particles_gpu.count;
+            system.particles_cpu.count += particles_gpu.count;
         }
     } else {
-        if system.particles_gpu.allocated < system.particles_gpu.count + particles.count {
-            desired_count := next_power_of_two(system.particles_gpu.count + particles.count);
+        if system.particles_gpu.allocated < system.particles_gpu.count + particles_gpu.count {
+            desired_count := next_power_of_two(system.particles_gpu.count + particles_gpu.count);
             array_reserve(*system.particles_gpu, desired_count);
             array_reserve(*system.particles_cpu, desired_count);
         }
 
-        for i: 0..particles.count - 1 {
+        for i: 0..particles_gpu.count - 1 {
             offset := system.particles_gpu.count + i;
-            (system.particles_gpu.data + offset).* = particles[i].particle_gpu;
-            (system.particles_cpu.data + offset).* = particles[i].particle_cpu;
+            (system.particles_gpu.data + offset).* = particles_gpu[i];
+            (system.particles_cpu.data + offset).* = particles_cpu[i];
         }
 
-        system.particles_gpu.count += particles.count;
-        system.particles_cpu.count += particles.count;
+        system.particles_gpu.count += particles_gpu.count;
+        system.particles_cpu.count += particles_gpu.count;
     }
 }
 
@@ -384,24 +415,31 @@ particle_system_unlock_synchronous :: (system: *ParticleSystem) {
     unlock(*system.synchronous_lock);
 }
 
-particle_system_add_particle_synchronous :: (system: *ParticleSystem($PG, $PC, $P, $update_function, $sort), particle: P, $limit: int = 0) {
+particle_system_add_particle_synchronous :: (system: *ParticleSystem($PG, $PC, $update_function, $sort), particle_gpu: PG, particle_cpu: PC, $limit: int = 0) {
     lock(*system.synchronous_lock);
     defer unlock(*system.synchronous_lock);
 
     system.parallel_allowed = true;
     defer system.parallel_allowed = false;
 
-    particle_system_add_particle(system, particle, limit);
+    particle_system_add_particle(system, particle_gpu, particle_cpu, limit);
 }
 
-particle_system_add_particle_synchronous :: (system: *ParticleSystem($PG, $PC, $P, $update_function, $sort), particles: ..P, $limit: int = 0) {
+particle_system_add_particles_synchronous :: (system: *ParticleSystem($PG, $PC, $update_function, $sort), particles_gpu: [$N] PG, particles_cpu: [N] PC, $limit: int = 0) {
+    gpu_view: [] PG = particles_gpu;
+    cpu_view: [] PC = particles_cpu;
+
+    particle_system_add_particles_synchronous(system, gpu_view, cpu_view, limit);
+}
+
+particle_system_add_particles_synchronous :: (system: *ParticleSystem($PG, $PC, $update_function, $sort), particles_gpu: [] PG, particles_cpu: [] PC, $limit: int = 0) {
     lock(*system.synchronous_lock);
     defer unlock(*system.synchronous_lock);
 
     system.parallel_allowed = true;
     defer system.parallel_allowed = false;
 
-    particle_system_add_particle(system, ..particles, limit);
+    particle_system_add_particles(system, particles_gpu, particles_cpu, limit);
 }
 
 particle_system_clear :: (system: *ParticleSystem) {
