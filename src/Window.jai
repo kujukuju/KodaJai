@@ -5,8 +5,6 @@ koda_init :: () {
         exit(-1);
     }
 
-    // initialize time
-    init_time();
     init_default_shaders();
     init_quick_sort(core_count);
     parallel_init();
@@ -138,7 +136,7 @@ should_exit :: () -> bool {
 
     exit := glfwWindowShouldClose(koda.window) == GLFW_TRUE;
 
-    time := get_time();
+    time := seconds_since_init();
     tick_frame_tracker(*koda.frame_tracker, time);
 
     // TODO sleep_milliseconds is garbage on windows, use something else like locks and threads

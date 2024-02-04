@@ -28,7 +28,7 @@ ParentParticle :: struct (PG: Type, PC: Type) {
 }
 
 particle_system_create :: (shader: *Shader, $PG: Type, $PC: Type, $update_function: #type (particle_gpu: *PG, particle_cpu: *PC, time: float, dt: float) = null, geometry: *Geometry = null, $sort: bool = true) -> ParticleSystem(PG, PC, update_function, sort) {
-    system: ParticleSystem(PG, PC, P, update_function, sort);
+    system: ParticleSystem(PG, PC, update_function, sort);
     system.shader = shader;
     init(*system.synchronous_lock);
 
@@ -191,40 +191,13 @@ particle_system_update_and_render :: (system: *ParticleSystem($PG, $PC, $update_
     #if update_function {
         time_float := cast(float) time;
 
-        // captured_update_loop := capture((i: int, thread: int) {
-        //     system: *ParticleSystem(PG, PC, P, update_function, sort); @capture
-        //     time_float: float; @capture
-        //     dt: float; @capture
-        //     particle: P = ---;
-        //     particle.particle_gpu = system.particles_gpu[i];
-        //     particle.particle_cpu = system.particles_cpu[i];
-
-        //     inline update_function(*particle, time_float, dt);
-
-        //     system.particles_gpu[i] = particle.particle_gpu;
-        //     system.particles_cpu[i] = particle.particle_cpu;
-        // });
-
         parallel_for(0, system.particles_gpu.count, (i: int, thread: int, using data: struct {
-            system: *ParticleSystem(PG, PC, P, update_function, sort);
+            system: *ParticleSystem(PG, PC, update_function, sort);
             time_float: float;
             dt: float;}) {
-            // system: *ParticleSystem(PG, PC, P, update_function, sort); @capture
-            // time_float: float; @capture
-            // dt: float; @capture
-            // particle: P = ---;
-            // particle.particle_gpu = system.particles_gpu[i];
-            // particle.particle_cpu = system.particles_cpu[i];
 
-            inline update_function(system.particles_gpu.data + i, system.particles_cpu + i, time_float, dt);
-
-            // system.particles_gpu[i] = particle.particle_gpu;
-            // system.particles_cpu[i] = particle.particle_cpu;
+            inline update_function(system.particles_gpu.data + i, system.particles_cpu.data + i, time_float, dt);
         }, .{system, time_float, dt});
-
-        // for i: 0..system.particles_gpu.count - 1 {
-        //     captured_update_loop(i);
-        // }
     }
 
     view := koda.view;
