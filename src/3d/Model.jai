@@ -244,6 +244,7 @@ draw :: (model: Model, transform: Matrix4 = Matrix4Identity, projection: Matrix4
     }
     assert(!!shader, "Could not find appropriate shader for model attributes.");
 
+    // TODO shouldn't I leave it as it is?
     cull_face := koda.cull_face;
     if cull_face != model.cull_face {
         set_cull_face(model.cull_face);
@@ -368,11 +369,11 @@ load_model_gltf_data :: (json: GltfJson, binary: [] u8, should_upload: bool) -> 
 
             has_diffuse_texture := true;
             has_diffuse_texture = has_diffuse_texture && primitive.material;
-            has_diffuse_texture = has_diffuse_texture && json.materials[<< primitive.material].pbrMetallicRoughness;
-            has_diffuse_texture = has_diffuse_texture && json.materials[<< primitive.material].pbrMetallicRoughness.baseColorTexture;
-            has_diffuse_texture = has_diffuse_texture && json.textures[json.materials[<< primitive.material].pbrMetallicRoughness.baseColorTexture.index].source;
+            has_diffuse_texture = has_diffuse_texture && json.materials[primitive.material.*].pbrMetallicRoughness;
+            has_diffuse_texture = has_diffuse_texture && json.materials[primitive.material.*].pbrMetallicRoughness.baseColorTexture;
+            has_diffuse_texture = has_diffuse_texture && json.textures[json.materials[primitive.material.*].pbrMetallicRoughness.baseColorTexture.index].source;
             if has_diffuse_texture {
-                material := json.materials[<< primitive.material];
+                material := json.materials[primitive.material.*];
 
                 texture_name := material.name;
                 assert(!!texture_name, "I thought materials always had to have a name...");
@@ -382,14 +383,35 @@ load_model_gltf_data :: (json: GltfJson, binary: [] u8, should_upload: bool) -> 
 
                 assert(!has_uniform(model.uniforms, "uTexture0"), "Cannot already have a diffuse texture.");
                 model.uniforms[xx "uTexture0"] = create_uniform("uTexture0", texture);
+            } else {
+                has_diffuse_color := !!primitive.material;
+                has_diffuse_color = has_diffuse_color && json.materials[primitive.material.*].pbrMetallicRoughness;
+                if has_diffuse_color {
+                    material := json.materials[primitive.material.*];
+
+                    texture_name := material.name;
+                    assert(!!texture_name, "I thought materials always had to have a name...");
+
+                    diffuse_color_values := material.pbrMetallicRoughness.baseColorFactor;
+                    print("Could not find texture image for %. Baking a new texture from the diffuse color.\n", texture_name.*);
+
+                    diffuse_color := color(diffuse_color_values[0], diffuse_color_values[1], diffuse_color_values[2], diffuse_color_values[3]);
+
+                    texture_image := create_image(1, 1, .RGBA);
+                    draw_pixel(*texture_image, .{0, 0}, diffuse_color);
+
+                    texture := create_texture(texture_image, interp = .Nearest);
+                    assert(!has_uniform(model.uniforms, "uTexture0"), "Cannot already have a diffuse texture.");
+                    model.uniforms[xx "uTexture0"] = create_uniform("uTexture0", texture);
+                }
             }
 
             has_normal_texture := true;
             has_normal_texture = has_normal_texture && primitive.material;
-            has_normal_texture = has_normal_texture && json.materials[<< primitive.material].normalTexture;
-            has_normal_texture = has_normal_texture && json.textures[json.materials[<< primitive.material].normalTexture.index].source;
+            has_normal_texture = has_normal_texture && json.materials[primitive.material.*].normalTexture;
+            has_normal_texture = has_normal_texture && json.textures[json.materials[primitive.material.*].normalTexture.index].source;
             if has_normal_texture {
-                material := json.materials[<< primitive.material];
+                material := json.materials[primitive.material.*];
                 model.cull_face = !material.doubleSided;
 
                 texture_name := material.name;

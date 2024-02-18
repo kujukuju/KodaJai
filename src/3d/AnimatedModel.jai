@@ -65,6 +65,7 @@ draw :: (animated: AnimatedModel, joints: [] Matrix4, transform: Matrix4 = Matri
             shader = get_default_shader(animated.model.geometry[0].attributes);
         }
     }
+    assert(!!shader, tprint("Could not find appropriate shader for animated model with attribtues %.\n", animated.model.geometry[0].attributes));
 
     cull_face := koda.cull_face;
     if cull_face != animated.model.cull_face {

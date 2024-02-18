@@ -127,6 +127,14 @@ set_viewport :: (width: int, height: int) {
 }
 
 should_exit :: () -> bool {
+    // #if !PRODUCTION {
+    //     err := glGetError();
+    //     while err != GL_NO_ERROR {
+    //         print("GL error: %\n", err);
+    //         err = glGetError();
+    //     }
+    // }
+
     // end and begin
     glfwSwapBuffers(koda.window);
     glfwGetFramebufferSize(koda.window, *koda.width, *koda.height);
@@ -365,6 +373,20 @@ convert_blend_func :: (value: s32) -> BlendFunc {
     }
 
     return .Add;
+}
+
+get_blend :: () -> bool {
+    enabled: GLboolean;
+    glGetBooleanv(GL_BLEND, *enabled);
+    return enabled;
+}
+
+set_blend :: (enabled: bool) {
+    if enabled {
+        glEnable(GL_BLEND);
+    } else {
+        glDisable(GL_BLEND);
+    }
 }
 
 get_blend_func :: () -> BlendFunc, BlendFunc {

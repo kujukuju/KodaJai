@@ -533,6 +533,18 @@ delete_animations :: (animations: *ModelAnimations, name_deletions: [] string) {
     }
 }
 
+delete_animations_starting_with :: (animations: *ModelAnimations, start: string) {
+    i := 0;
+    while i < animations.animations.count {
+        if starts_with(animations.animations[i].name, start) {
+            print("Deleting animation: %\n", animations.animations[i].name);
+            array_ordered_remove_by_index(*animations.animations, i);
+        } else {
+            i += 1;
+        }
+    }
+}
+
 get_animation_duration :: (animations: ModelAnimations, name: string) -> float {
     for animation: animations.animations {
         if animation.name == name {
@@ -542,7 +554,7 @@ get_animation_duration :: (animations: ModelAnimations, name: string) -> float {
 
     assert(false, "Could not find animation duration for given name.");
     return 0.0;
-}
+} @thread
 
 destroy :: (animations: ModelAnimations) {
     // these are shared arrays
@@ -578,7 +590,7 @@ get_joint_index :: (animations: ModelAnimations, name: string) -> int {
     }
 
     return -1;
-}
+} @thread
 
 // this will apply the animations in the order received, not all at the same time
 // as such the weights dont have to add up to 1, you can merge with the previous animation to create a new animation
@@ -593,15 +605,15 @@ get_joint_index :: (animations: ModelAnimations, name: string) -> int {
 // if you aren't using absolute animations, a weight of 1.0 will be treated as mixed into the existing weights provided
 // so 0.5 -> 0.5 -> 1.0, the last animation would be weighted at 2x the other strengths, and 1.0 -> 1.0 -> 1.0, the last
 // animation is equal to the previous mixed animation strength
-get_joints :: (animations: ModelAnimations, mix: [] AnimationMix, $count: int) -> [count] Matrix4 {
+get_joints :: (animations: ModelAnimations, mix: [] AnimationMix, $count: int, looping: bool = true) -> [count] Matrix4 {
     result: [count] Matrix4;
     view: [] Matrix4;
     view = result;
-    get_joints(animations, mix, *view);
+    get_joints(animations, mix, *view, looping);
     return result;
-}
+} @thread
 
-get_joints :: (animations: ModelAnimations, mix: [] AnimationMix, joints: *[] Matrix4)  {
+get_joints :: (animations: ModelAnimations, mix: [] AnimationMix, joints: *[] Matrix4, looping: bool = true)  {
     assert(joints.count >= animations.joint_indices.count);
     assert(animations.animations.count > 0);
     assert(mix.count > 0);
@@ -657,7 +669,7 @@ get_joints :: (animations: ModelAnimations, mix: [] AnimationMix, joints: *[] Ma
             }
 
             if animation.frames[bone_index].count > 0 {
-                translation, rotation, scale := get_interpolated_components(animation.frames[bone_index], mix[i].frame);
+                translation, rotation, scale := get_interpolated_components(animation.frames[bone_index], mix[i].frame, looping);
 
                 if current_weights[bone_index] == 0 && i == 0 {
                     current[bone_index].translation = translation;
@@ -665,7 +677,7 @@ get_joints :: (animations: ModelAnimations, mix: [] AnimationMix, joints: *[] Ma
                     current[bone_index].scale = scale;
 
                     current_weights[bone_index] = bone_weight;
-                } else if bone_weight > 0 {
+                } else if bone_weight > 0.00001 {
                     percentage_new: float;
                     if mix[i].absolute {
                         percentage_new = bone_weight;
@@ -690,7 +702,7 @@ get_joints :: (animations: ModelAnimations, mix: [] AnimationMix, joints: *[] Ma
                     current[bone_index].scale = scale;
 
                     current_weights[bone_index] = bone_weight;
-                } else if bone_weight > 0 {
+                } else if bone_weight > 0.00001 {
                     percentage_new: float;
                     if mix[i].absolute {
                         percentage_new = bone_weight;
@@ -768,7 +780,7 @@ get_joints :: (animations: ModelAnimations, mix: [] AnimationMix, joints: *[] Ma
         joints.*[i] = joints.*[i] * animations.inverse_binds[i];
         // joints[i] = animation.inverse_world * joints[i];
     }
-}
+} @thread
 
 get_joints :: (animations: ModelAnimations, $count: int) -> [count] Matrix4 {
     joints: [count] Matrix4;
@@ -777,7 +789,7 @@ get_joints :: (animations: ModelAnimations, $count: int) -> [count] Matrix4 {
     get_joints(animations, *casted);
 
     return joints;
-}
+} @thread
 
 // get_joints :: (animations: ModelAnimations, joints: *[..] Matrix4) {
 //     if joints.count < animations.joint_indices.count {
@@ -820,7 +832,7 @@ get_joints :: (animations: ModelAnimations, joints: *[] Matrix4) {
     for i: 0..animations.inverse_binds.count - 1 {
         joints.data[i] = joints.data[i] * animations.inverse_binds[i];
     }
-}
+} @thread
 
 // get_joints_no_inverse :: (animations: ModelAnimations, joints: *[] Matrix4) {
 //     assert(joints.count >= animations.joint_indices.count);
@@ -851,37 +863,37 @@ get_joints :: (animations: ModelAnimations, joints: *[] Matrix4) {
 //     }
 // }
 
-get_joints :: (animations: ModelAnimations, name: string, frame: float, $count: int) -> [count] Matrix4 {
+get_joints :: (animations: ModelAnimations, name: string, frame: float, $count: int, looping: bool = true) -> [count] Matrix4 {
     output: [count] Matrix4;
     casted: [] Matrix4;
     casted.data = output.data;
     casted.count = output.count;
-    get_joints(animations, name, frame, *casted);
+    get_joints(animations, name, frame, *casted, looping);
     return output;
-}
+} @thread
 
-get_joints :: (animations: ModelAnimations, name: string, frame: float, joints: *[] Matrix4) {
+get_joints :: (animations: ModelAnimations, name: string, frame: float, joints: *[] Matrix4, looping: bool = true) {
     for animation: animations.animations {
         if animation.name == name {
-            get_joints(animations, animation, frame, joints);
+            get_joints(animations, animation, frame, joints, looping);
             return;
         }
     }
 
     // if not a single animation was found return the bind pose
     get_joints(animations, joints);
-}
+} @thread
 
-get_joints :: (animations: ModelAnimations, animation: Animation, frame: float, $count: int) -> [count] Matrix4 {
+get_joints :: (animations: ModelAnimations, animation: Animation, frame: float, $count: int, looping: bool = true) -> [count] Matrix4 {
     joints: [count] Matrix4;
     joint_view: [] Matrix4;
     joint_view.data = joints.data;
     joint_view.count = joints.count;
-    get_joints(animations, animation, frame, *joint_view);
+    get_joints(animations, animation, frame, *joint_view, looping);
     return joints;
-}
+} @thread
 
-get_joints :: (animations: ModelAnimations, animation: Animation, frame: float, joints: *[] Matrix4) {
+get_joints :: (animations: ModelAnimations, animation: Animation, frame: float, joints: *[] Matrix4, looping: bool = true) {
     assert(joints.count >= animations.joint_indices.count);
     assert(animations.animations.count > 0);
 
@@ -904,7 +916,7 @@ get_joints :: (animations: ModelAnimations, animation: Animation, frame: float, 
         if animation.frames[i].count == 0 {
             interpolated_matrix = joint.transform;
         } else {
-            interpolated_matrix = get_interpolated_matrix(animation.frames[i], frame);
+            interpolated_matrix = get_interpolated_matrix(animation.frames[i], frame, looping);
         }
 
         joints_bones[i] = parent_transform * interpolated_matrix;
@@ -918,7 +930,7 @@ get_joints :: (animations: ModelAnimations, animation: Animation, frame: float, 
     for i: 0..animations.inverse_binds.count - 1 {
         joints.*[i] = joints.*[i] * animations.inverse_binds[i];
     }
-}
+} @thread
 
 create_bone_weights :: (animations: ModelAnimations, bone_weights: [] AnimationPrecursoryBoneWeight) -> [] float {
     valid: [..] bool;
@@ -1295,14 +1307,14 @@ calculate_bone_weights :: (animations: ModelAnimations, animation: *Animation) {
     }
 
     // we normalize back to [0, 1]
-    if largest_weight > 0 {
+    if largest_weight > 0.00001 {
         for i: 0..animations.bone_hierarchy.count - 1 {
             animation.bone_weights[i] /= largest_weight;
         }
     }
 }
 
-get_interpolated_components :: (frames: [..] AnimationFrame, frame: float) -> Vector3, Quaternion, Vector3 {
+get_interpolated_components :: (frames: [..] AnimationFrame, frame: float, looping: bool = true) -> Vector3, Quaternion, Vector3 {
     assert(frames.count > 0, "Cannot get an interpolated transform if there are no frames.");
 
     frame_translation: Vector3;
@@ -1321,7 +1333,12 @@ get_interpolated_components :: (frames: [..] AnimationFrame, frame: float) -> Ve
         starting_index := 0;
         ending_index := 0;
 
-        wrapped_frame := fmod_cycling(frame - minimum_frame, maximum_frame - minimum_frame) + minimum_frame;
+        wrapped_frame: float;
+        if looping {
+            wrapped_frame = fmod_cycling(frame - minimum_frame, maximum_frame - minimum_frame) + minimum_frame;
+        } else {
+            wrapped_frame = clamp(frame, minimum_frame, maximum_frame);
+        }
 
         i := frames.count - 2;
         while i >= 0 {
@@ -1355,10 +1372,10 @@ get_interpolated_components :: (frames: [..] AnimationFrame, frame: float) -> Ve
     }
 
     return frame_translation, frame_rotation, frame_scale;
-}
+} @thread
 
-get_interpolated_matrix :: (frames: [..] AnimationFrame, frame: float) -> Matrix4 {
-    frame_translation, frame_rotation, frame_scale := get_interpolated_components(frames, frame);
+get_interpolated_matrix :: (frames: [..] AnimationFrame, frame: float, looping: bool) -> Matrix4 {
+    frame_translation, frame_rotation, frame_scale := get_interpolated_components(frames, frame, looping);
 
     interpolated_matrix := Matrix4Identity;
     interpolated_matrix = translate(interpolated_matrix, frame_translation);
@@ -1366,7 +1383,7 @@ get_interpolated_matrix :: (frames: [..] AnimationFrame, frame: float) -> Matrix
     interpolated_matrix = scale(interpolated_matrix, frame_scale);
 
     return interpolated_matrix;
-}
+} @thread
 
 precursory_animation_code :: (json: GltfJson, binary: [] u8) -> int, [..] [] u8, [..] [] u8, [..] GltfAccessorInfo, Table(int, int), Table(int, int), [..] int {
     skin_joints: [..] int;

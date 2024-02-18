@@ -165,11 +165,8 @@ pad_font :: (font: *Font, padding: float) {
 
 upload :: (font: *Font) {
     if font.vao {
-        print("NOT uploading\n");
         return;
     }
-
-    print("uploading\n");
 
     for i: 0..font.characters.count - 1 {
         if !font.characters[i].pixels {

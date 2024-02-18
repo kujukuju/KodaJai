@@ -1,5 +1,5 @@
 
-#module_parameters(WASM := false);
+#module_parameters(PRODUCTION := false, WASM := false);
 
 #if WASM {
     #import "JaiWasmGL";

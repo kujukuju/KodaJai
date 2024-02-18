@@ -41,7 +41,6 @@ in vec3 vNorm;
 in vec2 vTex;
 
 void main() {
-    // vec3 lightPos = vec3(5.0, 10.0, -10.0);
     vec3 lightColor = vec3(1.0, 1.0, 1.0);
     vec3 ambient = vec3(0.2, 0.2, 0.2);
     vec4 objectColor = texture(uTexture0, vTex);
@@ -57,5 +56,7 @@ void main() {
     vec4 result = vec4(ambient + diffuse, 1.0) * objectColor;
 
     FragColor = vec4(result.rgb, 1.0);
+
+    // FragColor = vec4(1.0);
 }
 DONE
