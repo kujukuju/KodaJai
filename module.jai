@@ -67,6 +67,8 @@
 #load "src/3d/TorusGeometry.jai";
 #load "src/3d/VolumetricCloud.jai";
 
+#load "src/deferred/FramebufferPass.jai";
+
 #load "src/noise/Noise.jai";
 #load "src/noise/Perlin.jai";
 #load "src/noise/PerlinWorley.jai";
