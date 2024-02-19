@@ -27,3 +27,14 @@ get_gl_mag_format :: (interp: TextureInterp) -> s32 {
             return GL_NEAREST;
     }
 }
+
+get_mipmap :: (interp: TextureInterp) -> bool {
+    if #complete interp == {
+        case .Linear;
+            return false;
+        case .LinearMipmap;
+            return true;
+        case .Nearest;
+            return false;
+    }
+}

@@ -397,7 +397,7 @@ load_model_gltf_data :: (json: GltfJson, binary: [] u8, should_upload: bool) -> 
 
                     diffuse_color := color(diffuse_color_values[0], diffuse_color_values[1], diffuse_color_values[2], diffuse_color_values[3]);
 
-                    texture_image := create_image(1, 1, .RGBA);
+                    texture_image := create_image(1, 1, .RGBA8);
                     draw_pixel(*texture_image, .{0, 0}, diffuse_color);
 
                     texture := create_texture(texture_image, interp = .Nearest);

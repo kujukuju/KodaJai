@@ -8,6 +8,10 @@ camera: Camera3;
 
 models: [..] *Model;
 
+color_shader: ColorShader;
+point_light_shader: PointLightShader;
+directional_light_shader: DirectionalLightShader;
+
 main :: () {
     koda_init();
 
@@ -25,16 +29,28 @@ main :: () {
 
     koda.fovy = 0.5 * PI;
 
-    positions: [4] Vector3;
-    colors: [4] Color;
-
-    color_shader: ColorShader;
-
     light_direction := Vector3.{0, 0, -1};
     light_direction = rotate(light_direction, Quaternion.{0.173, 0.277, 0.257, 0.910});
     light_direction.y, light_direction.z = light_direction.z, light_direction.y;
     light_direction.z = -light_direction.z;
-    color_shader.uniforms[xx "uLightDirection"] = create_uniform("uLightDirection", light_direction);
+
+    // color_shader.uniforms[xx "uLightDirection"] = create_uniform("uLightDirection", light_direction);
+
+    directional_light_shader.uniforms[xx "uLightDirection"] = create_uniform("uLightDirection", light_direction);
+    directional_light_shader.uniforms[xx "uLightConstant"] = create_uniform("uLightConstant", 0.0);
+    directional_light_shader.uniforms[xx "uLightLinear"] = create_uniform("uLightLinear", 0.04);
+    directional_light_shader.uniforms[xx "uLightExp"] = create_uniform("uLightExp", 0.4);
+    directional_light_shader.uniforms[xx "uSpecularPower"] = create_uniform("uSpecularPower", 0.0);
+    directional_light_shader.uniforms[xx "uDiffuseIntensity"] = create_uniform("uDiffuseIntensity", 0.5);
+    directional_light_shader.uniforms[xx "uAmbientIntensity"] = create_uniform("uAmbientIntensity", 0.5);
+
+    point_light_shader.uniforms[xx "uScreenSize"] = create_uniform("uScreenSize", Vector2.{cast(float) koda.width, cast(float) koda.height});
+    point_light_shader.uniforms[xx "uLightConstant"] = create_uniform("uLightConstant", 0.0);
+    point_light_shader.uniforms[xx "uLightLinear"] = create_uniform("uLightLinear", 0.0);
+    point_light_shader.uniforms[xx "uLightExp"] = create_uniform("uLightExp", 0.3);
+    point_light_shader.uniforms[xx "uSpecularPower"] = create_uniform("uSpecularPower", 0.0);
+    point_light_shader.uniforms[xx "uDiffuseIntensity"] = create_uniform("uDiffuseIntensity", 0.9);
+    point_light_shader.uniforms[xx "uAmbientIntensity"] = create_uniform("uAmbientIntensity", 0.5);
 
     models = load_models("low_poly_medieval_tavern_reexported.glb");
     for model: models {
@@ -50,9 +66,6 @@ main :: () {
 
     while !should_exit() {
         reset_temporary_storage();
-
-        // glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-        // // clear(.{0, 0, 0, 1});
 
         update_inputs();
 

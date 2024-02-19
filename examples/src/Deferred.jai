@@ -1,7 +1,10 @@
 
 frame_buffer: GLuint;
-deferred_textures: [4] GLuint;
-depth_texture: GLuint;
+deferred_textures: [4] Texture;
+depth_texture: Texture;
+
+vbo: GLuint;
+vao: GLuint;
 
 DeferredType :: enum {
     Position;
@@ -18,20 +21,17 @@ draw_buffers :: GLenum.[GL_COLOR_ATTACHMENT0, GL_COLOR_ATTACHMENT1, GL_COLOR_ATT
 deferred_initialize :: () {
     glGenFramebuffers(1, *frame_buffer);
     glBindFramebuffer(GL_DRAW_FRAMEBUFFER, frame_buffer);
-    glViewport(0, 0, cast(u32) koda.width, cast(u32) koda.height);
 
-    glGenTextures(texture_types.count, deferred_textures.data);
-    glGenTextures(1, *depth_texture);
+    // glGenTextures(texture_types.count, deferred_textures.data);
+    // glGenTextures(1, *depth_texture);
 
     for i: 0..texture_types.count - 1 {
-       glBindTexture(GL_TEXTURE_2D, deferred_textures[i]);
-       glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB32F, cast(u32) koda.width, cast(u32) koda.height, 0, GL_RGB, GL_FLOAT, null);
-       glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0 + cast(u32) i, GL_TEXTURE_2D, deferred_textures[i], 0);
+        deferred_textures[i] = create_texture(koda.width, koda.height, .RGB32F, .Clamp, .Linear);
+        glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0 + cast(u32) i, GL_TEXTURE_2D, deferred_textures[i].buffer, 0);
     }
 
-    glBindTexture(GL_TEXTURE_2D, depth_texture);
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_DEPTH_COMPONENT32F, cast(u32) koda.width, cast(u32) koda.height, 0, GL_DEPTH_COMPONENT, GL_FLOAT, null);
-    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D, depth_texture, 0);
+    depth_texture = create_texture(koda.width, koda.height, .Depth32F, .Clamp, .Linear);
+    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D, depth_texture.buffer, 0);
 
     glDrawBuffers(draw_buffers.count, draw_buffers.data);
 
@@ -43,19 +43,48 @@ deferred_initialize :: () {
     }
 
     glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0);
+
+    light_sphere_geometry := create_icosphere(1, 1);
+    light_sphere = create_model(light_sphere_geometry);
+    light_sphere.shader = *point_light_shader;
+    assert(light_sphere_geometry.attributes.count == 1);
+
+    vertices :: Vector2.[
+        .{-1.0, 1.0}, .{-1.0, -1.0}, .{1.0, 1.0},
+        .{-1.0, -1.0}, .{1.0, -1.0}, .{1.0, 1.0},
+    ];
+
+    glGenBuffers(1, *vbo);
+    glBindBuffer(GL_ARRAY_BUFFER, vbo);
+    glBufferData(GL_ARRAY_BUFFER, size_of(type_of(vertices)), vertices.data, GL_STATIC_DRAW);
+
+    glGenVertexArrays(1, *vao);
+    glBindVertexArray(vao);
+
+    glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 2 * size_of(float), null);
+    glEnableVertexAttribArray(0);
+
+    glBindVertexArray(0);
 }
 
 deferred_render_geometry :: () {
     // bind for writing
     glBindFramebuffer(GL_DRAW_FRAMEBUFFER, frame_buffer);
-    glViewport(0, 0, cast(u32) koda.width, cast(u32) koda.height);
+
+    depth_write := get_depth_write();
+    defer set_depth_write(depth_write);
+    set_depth_write(true);
+
+    depth_test := get_depth_test();
+    defer set_depth_test(depth_test);
+    set_depth_test(true);
 
     blend := get_blend();
     defer set_blend(blend);
     set_blend(false);
 
     // clear the framebuffer
-    clear(.{0, 0, 0, 1});
+    clear(.Color | .Depth);
 
     for model: models {
         draw(model);
@@ -65,32 +94,67 @@ deferred_render_geometry :: () {
 deferred_render_lighting :: () {
     // restore the screen fbo
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
-    glViewport(0, 0, cast(u32) koda.width, cast(u32) koda.height);
+
+    blend := get_blend();
+    defer set_blend(blend);
+    set_blend(true);
+
+    blend_equation := get_blend_equation();
+    defer set_blend_equation(blend_equation);
+    set_blend_equation(.Add);
+
+    blend_src, blend_dst := get_blend_func();
+    defer set_blend_func(blend_src, blend_dst);
+    set_blend_func(.One, .One);
+
+    depth_write := get_depth_write();
+    defer set_depth_write(depth_write);
+    set_depth_write(false);
+
+    depth_test := get_depth_test();
+    defer set_depth_test(depth_test);
+    set_depth_test(false);
 
     // clear the screen
-    clear(.{0, 0, 0, 1});
+    clear(.Color);
 
     // bind for reading
     glBindFramebuffer(GL_READ_FRAMEBUFFER, frame_buffer);
-    glViewport(0, 0, cast(u32) koda.width, cast(u32) koda.height);
 
-    width := cast(s32) koda.width;
-    height := cast(s32) koda.height;
-    half_width := width / 2;
-    half_height := height / 2;
+    directional_light_shader.uniforms[xx "uPosition"] = create_uniform("uPosition", deferred_textures[0]);
+    directional_light_shader.uniforms[xx "uDiffuse"] = create_uniform("uDiffuse", deferred_textures[1]);
+    directional_light_shader.uniforms[xx "uNormal"] = create_uniform("uNormal", deferred_textures[2]);
 
-    // set the frame buffer read buffer for the blit copy operation
-    glReadBuffer(GL_COLOR_ATTACHMENT0 + 0);
-    glBlitFramebuffer(0, 0, width, height, 0, 0, half_width, half_height, GL_COLOR_BUFFER_BIT, GL_LINEAR);
+    // draw quad
+    use_shader(*directional_light_shader);
 
-    glReadBuffer(GL_COLOR_ATTACHMENT0 + 1);
-    glBlitFramebuffer(0, 0, width, height, 0, half_height, half_width, height, GL_COLOR_BUFFER_BIT, GL_LINEAR);
+    uniforms: ShaderUniforms;
+    defer destroy(uniforms);
+    
+    uniforms[xx "view"] = create_uniform("view", koda.view);
+    
+    apply_uniforms(*directional_light_shader, uniforms);
 
-    glReadBuffer(GL_COLOR_ATTACHMENT0 + 2);
-    glBlitFramebuffer(0, 0, width, height, half_width, half_height, width, height, GL_COLOR_BUFFER_BIT, GL_LINEAR);
+    glBindVertexArray(vao);
+    glDrawArrays(GL_TRIANGLES, 0, 6);
+    glBindVertexArray(0);
 
-    glReadBuffer(GL_COLOR_ATTACHMENT0 + 3);
-    glBlitFramebuffer(0, 0, width, height, half_width, 0, width, half_height, GL_COLOR_BUFFER_BIT, GL_LINEAR);
+    // draw point light
+    point_light_shader.uniforms[xx "uPosition"] = create_uniform("uPosition", deferred_textures[0]);
+    point_light_shader.uniforms[xx "uDiffuse"] = create_uniform("uDiffuse", deferred_textures[1]);
+    point_light_shader.uniforms[xx "uNormal"] = create_uniform("uNormal", deferred_textures[2]);
 
-    glBindFramebuffer(GL_FRAMEBUFFER, 0);
+    light_position :: Vector3.{2, 2, -2};
+    light_radius :: 4.0;
+
+    light_sphere.position = light_position;
+    light_sphere.scale = Vector3.{light_radius, light_radius, light_radius};
+
+    cull_face_mode := get_cull_face_mode();
+    defer set_cull_face_mode(cull_face_mode);
+    set_cull_face_mode(.Front);
+
+    draw(light_sphere);
 }
+
+light_sphere: Model;

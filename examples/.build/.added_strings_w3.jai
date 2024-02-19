@@ -1,99 +1,5 @@
 
 //
-// #insert text. Generated from C:/Users/Kuju/Projects/KodaJai/examples/../../ContiguousJsonJai/reader.jai:290.
-//
-if name == "asset" {
-InnerType :: #run type_of(result.asset);
-index, success = json_parse_into(content, index, cast(*InnerType) ((cast(*u8) result) + 0), memory, relative, contiguous_memory, keep_strings_in_place);
-if !success {
-return index, false;
-}
-} else if name == "scene" {
-InnerType :: #run type_of(result.scene);
-index, success = json_parse_into(content, index, cast(*InnerType) ((cast(*u8) result) + 40), memory, relative, contiguous_memory, keep_strings_in_place);
-if !success {
-return index, false;
-}
-} else if name == "buffers" {
-InnerType :: #run type_of(result.buffers);
-index, success = json_parse_into(content, index, cast(*InnerType) ((cast(*u8) result) + 48), memory, relative, contiguous_memory, keep_strings_in_place);
-if !success {
-return index, false;
-}
-} else if name == "bufferViews" {
-InnerType :: #run type_of(result.bufferViews);
-index, success = json_parse_into(content, index, cast(*InnerType) ((cast(*u8) result) + 88), memory, relative, contiguous_memory, keep_strings_in_place);
-if !success {
-return index, false;
-}
-} else if name == "scenes" {
-InnerType :: #run type_of(result.scenes);
-index, success = json_parse_into(content, index, cast(*InnerType) ((cast(*u8) result) + 128), memory, relative, contiguous_memory, keep_strings_in_place);
-if !success {
-return index, false;
-}
-} else if name == "accessors" {
-InnerType :: #run type_of(result.accessors);
-index, success = json_parse_into(content, index, cast(*InnerType) ((cast(*u8) result) + 168), memory, relative, contiguous_memory, keep_strings_in_place);
-if !success {
-return index, false;
-}
-} else if name == "images" {
-InnerType :: #run type_of(result.images);
-index, success = json_parse_into(content, index, cast(*InnerType) ((cast(*u8) result) + 208), memory, relative, contiguous_memory, keep_strings_in_place);
-if !success {
-return index, false;
-}
-} else if name == "samplers" {
-InnerType :: #run type_of(result.samplers);
-index, success = json_parse_into(content, index, cast(*InnerType) ((cast(*u8) result) + 248), memory, relative, contiguous_memory, keep_strings_in_place);
-if !success {
-return index, false;
-}
-} else if name == "textures" {
-InnerType :: #run type_of(result.textures);
-index, success = json_parse_into(content, index, cast(*InnerType) ((cast(*u8) result) + 288), memory, relative, contiguous_memory, keep_strings_in_place);
-if !success {
-return index, false;
-}
-} else if name == "materials" {
-InnerType :: #run type_of(result.materials);
-index, success = json_parse_into(content, index, cast(*InnerType) ((cast(*u8) result) + 328), memory, relative, contiguous_memory, keep_strings_in_place);
-if !success {
-return index, false;
-}
-} else if name == "meshes" {
-InnerType :: #run type_of(result.meshes);
-index, success = json_parse_into(content, index, cast(*InnerType) ((cast(*u8) result) + 368), memory, relative, contiguous_memory, keep_strings_in_place);
-if !success {
-return index, false;
-}
-} else if name == "nodes" {
-InnerType :: #run type_of(result.nodes);
-index, success = json_parse_into(content, index, cast(*InnerType) ((cast(*u8) result) + 408), memory, relative, contiguous_memory, keep_strings_in_place);
-if !success {
-return index, false;
-}
-} else if name == "skins" {
-InnerType :: #run type_of(result.skins);
-index, success = json_parse_into(content, index, cast(*InnerType) ((cast(*u8) result) + 448), memory, relative, contiguous_memory, keep_strings_in_place);
-if !success {
-return index, false;
-}
-} else if name == "animations" {
-InnerType :: #run type_of(result.animations);
-index, success = json_parse_into(content, index, cast(*InnerType) ((cast(*u8) result) + 456), memory, relative, contiguous_memory, keep_strings_in_place);
-if !success {
-return index, false;
-}
-} else {
-index, success = skip_unknown_type(content, index);
-if !success {
-return index, false;
-}
-}
-
-//
 // #insert text. Generated from C:/Users/Kuju/Projects/KodaJai/examples/../../ContiguousJsonJai/reader.jai:41.
 //
 if result.asset.copyright {
@@ -342,6 +248,100 @@ if result.animations.data[result_animations_iterator].name {
 result.animations.data[result_animations_iterator].name = xx ((cast(*u8) result.animations.data[result_animations_iterator].name) + pointer_offset);
 }
 }
+}
+}
+
+//
+// #insert text. Generated from C:/Users/Kuju/Projects/KodaJai/examples/../../ContiguousJsonJai/reader.jai:290.
+//
+if name == "asset" {
+InnerType :: #run type_of(result.asset);
+index, success = json_parse_into(content, index, cast(*InnerType) ((cast(*u8) result) + 0), memory, relative, contiguous_memory, keep_strings_in_place);
+if !success {
+return index, false;
+}
+} else if name == "scene" {
+InnerType :: #run type_of(result.scene);
+index, success = json_parse_into(content, index, cast(*InnerType) ((cast(*u8) result) + 40), memory, relative, contiguous_memory, keep_strings_in_place);
+if !success {
+return index, false;
+}
+} else if name == "buffers" {
+InnerType :: #run type_of(result.buffers);
+index, success = json_parse_into(content, index, cast(*InnerType) ((cast(*u8) result) + 48), memory, relative, contiguous_memory, keep_strings_in_place);
+if !success {
+return index, false;
+}
+} else if name == "bufferViews" {
+InnerType :: #run type_of(result.bufferViews);
+index, success = json_parse_into(content, index, cast(*InnerType) ((cast(*u8) result) + 88), memory, relative, contiguous_memory, keep_strings_in_place);
+if !success {
+return index, false;
+}
+} else if name == "scenes" {
+InnerType :: #run type_of(result.scenes);
+index, success = json_parse_into(content, index, cast(*InnerType) ((cast(*u8) result) + 128), memory, relative, contiguous_memory, keep_strings_in_place);
+if !success {
+return index, false;
+}
+} else if name == "accessors" {
+InnerType :: #run type_of(result.accessors);
+index, success = json_parse_into(content, index, cast(*InnerType) ((cast(*u8) result) + 168), memory, relative, contiguous_memory, keep_strings_in_place);
+if !success {
+return index, false;
+}
+} else if name == "images" {
+InnerType :: #run type_of(result.images);
+index, success = json_parse_into(content, index, cast(*InnerType) ((cast(*u8) result) + 208), memory, relative, contiguous_memory, keep_strings_in_place);
+if !success {
+return index, false;
+}
+} else if name == "samplers" {
+InnerType :: #run type_of(result.samplers);
+index, success = json_parse_into(content, index, cast(*InnerType) ((cast(*u8) result) + 248), memory, relative, contiguous_memory, keep_strings_in_place);
+if !success {
+return index, false;
+}
+} else if name == "textures" {
+InnerType :: #run type_of(result.textures);
+index, success = json_parse_into(content, index, cast(*InnerType) ((cast(*u8) result) + 288), memory, relative, contiguous_memory, keep_strings_in_place);
+if !success {
+return index, false;
+}
+} else if name == "materials" {
+InnerType :: #run type_of(result.materials);
+index, success = json_parse_into(content, index, cast(*InnerType) ((cast(*u8) result) + 328), memory, relative, contiguous_memory, keep_strings_in_place);
+if !success {
+return index, false;
+}
+} else if name == "meshes" {
+InnerType :: #run type_of(result.meshes);
+index, success = json_parse_into(content, index, cast(*InnerType) ((cast(*u8) result) + 368), memory, relative, contiguous_memory, keep_strings_in_place);
+if !success {
+return index, false;
+}
+} else if name == "nodes" {
+InnerType :: #run type_of(result.nodes);
+index, success = json_parse_into(content, index, cast(*InnerType) ((cast(*u8) result) + 408), memory, relative, contiguous_memory, keep_strings_in_place);
+if !success {
+return index, false;
+}
+} else if name == "skins" {
+InnerType :: #run type_of(result.skins);
+index, success = json_parse_into(content, index, cast(*InnerType) ((cast(*u8) result) + 448), memory, relative, contiguous_memory, keep_strings_in_place);
+if !success {
+return index, false;
+}
+} else if name == "animations" {
+InnerType :: #run type_of(result.animations);
+index, success = json_parse_into(content, index, cast(*InnerType) ((cast(*u8) result) + 456), memory, relative, contiguous_memory, keep_strings_in_place);
+if !success {
+return index, false;
+}
+} else {
+index, success = skip_unknown_type(content, index);
+if !success {
+return index, false;
 }
 }
 

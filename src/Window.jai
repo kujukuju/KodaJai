@@ -88,12 +88,14 @@ create_window :: (title: *u8, width: s32, height: s32, multisample: int = 0) {
     koda.last_height = height;
     set_viewport(width, height);
 
-    glEnable(GL_BLEND);
-    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+    set_blend(true);
+    set_blend_func(.SrcAlpha, .OneMinusSrcAlpha);
 
     glFrontFace(GL_CCW);
     glEnable(GL_DEPTH_TEST);
     glEnable(GL_CULL_FACE);
+
+    glClearColor(0.0, 0.0, 0.0, 1.0);
 
     // TODO
     // glEnable(GL_SCISSOR_TEST);
@@ -336,7 +338,21 @@ set_depth_test :: (enabled: bool) {
     }
 }
 
-BlendFunc :: enum s32 {
+get_blend :: () -> bool {
+    enabled: GLboolean;
+    glGetBooleanv(GL_BLEND, *enabled);
+    return enabled;
+}
+
+set_blend :: (enabled: bool) {
+    if enabled {
+        glEnable(GL_BLEND);
+    } else {
+        glDisable(GL_BLEND);
+    }
+}
+
+BlendEquation :: enum {
     Add;
     Subtract;
     ReverseSubtract;
@@ -344,7 +360,7 @@ BlendFunc :: enum s32 {
     Max;
 }
 
-convert_blend_func :: (value: BlendFunc) -> s32 {
+convert_blend_equation :: (value: BlendEquation) -> u32 {
     if #complete value == {
         case .Add;
             return GL_FUNC_ADD;
@@ -359,7 +375,7 @@ convert_blend_func :: (value: BlendFunc) -> s32 {
     }
 }
 
-convert_blend_func :: (value: s32) -> BlendFunc {
+convert_blend_equation :: (value: u32) -> BlendEquation {
     if value == GL_FUNC_ADD {
         return .Add;
     } else if value == GL_FUNC_SUBTRACT {
@@ -375,37 +391,149 @@ convert_blend_func :: (value: s32) -> BlendFunc {
     return .Add;
 }
 
-get_blend :: () -> bool {
-    enabled: GLboolean;
-    glGetBooleanv(GL_BLEND, *enabled);
-    return enabled;
+get_blend_equation :: () -> BlendEquation {
+    real_equation: s32;
+    glGetIntegerv(GL_BLEND_EQUATION_RGB, *real_equation);
+    equation := convert_blend_equation(cast(u32) real_equation);
+
+    return equation;
 }
 
-set_blend :: (enabled: bool) {
-    if enabled {
-        glEnable(GL_BLEND);
-    } else {
-        glDisable(GL_BLEND);
-    }
+set_blend_equation :: (equation: BlendEquation) {
+    real_equation := convert_blend_equation(equation);
+
+    glBlendEquation(real_equation);
 }
 
-get_blend_func :: () -> BlendFunc, BlendFunc {
+get_blend_equation_seperate :: () -> BlendEquation, BlendEquation {
     real_rgb: s32;
     glGetIntegerv(GL_BLEND_EQUATION_RGB, *real_rgb);
-    rgb := convert_blend_func(real_rgb);
+    rgb := convert_blend_equation(cast(u32) real_rgb);
 
     real_alpha: s32;
     glGetIntegerv(GL_BLEND_EQUATION_ALPHA, *real_alpha);
-    alpha := convert_blend_func(real_alpha);
+    alpha := convert_blend_equation(cast(u32) real_alpha);
 
     return rgb, alpha;
 }
 
-set_blend_func :: (rgb: BlendFunc, alpha: BlendFunc) {
-    real_rgb := convert_blend_func(rgb);
-    real_alpha := convert_blend_func(alpha);
+set_blend_equation_seperate :: (rgb: BlendEquation, alpha: BlendEquation) {
+    real_rgb := convert_blend_equation(rgb);
+    real_alpha := convert_blend_equation(alpha);
 
-    glBlendEquationSeparate(xx real_rgb, xx real_alpha);
+    glBlendEquationSeparate(real_rgb, real_alpha);
+}
+
+BlendFunc :: enum {
+    Zero;
+    One;
+    SrcColor;
+    OneMinusSrcColor;
+    DstColor;
+    OneMinusDstColor;
+    SrcAlpha;
+    OneMinusSrcAlpha;
+    DstAlpha;
+    OneMinusDstAlpha;
+}
+
+convert_blend_func :: (value: BlendFunc) -> u32 {
+    if #complete value == {
+        case .Zero;
+            return GL_ZERO;
+        case .One;
+            return GL_ONE;
+        case .SrcColor;
+            return GL_SRC_COLOR;
+        case .OneMinusSrcColor;
+            return GL_ONE_MINUS_SRC_COLOR;
+        case .DstColor;
+            return GL_DST_COLOR;
+        case .OneMinusDstColor;
+            return GL_ONE_MINUS_DST_COLOR;
+        case .SrcAlpha;
+            return GL_SRC_ALPHA;
+        case .OneMinusSrcAlpha;
+            return GL_ONE_MINUS_SRC_ALPHA;
+        case .DstAlpha;
+            return GL_DST_ALPHA;
+        case .OneMinusDstAlpha;
+            return GL_ONE_MINUS_DST_ALPHA;
+    }
+}
+
+convert_blend_func :: (value: u32) -> BlendFunc {
+    if value == GL_ZERO {
+        return .Zero;
+    } else if value == GL_ONE {
+        return .One;
+    } else if value == GL_SRC_COLOR {
+        return .SrcColor;
+    } else if value == GL_ONE_MINUS_SRC_COLOR {
+        return .OneMinusSrcColor;
+    } else if value == GL_DST_COLOR {
+        return .DstColor;
+    } else if value == GL_ONE_MINUS_DST_COLOR {
+        return .OneMinusDstColor;
+    } else if value == GL_SRC_ALPHA {
+        return .SrcAlpha;
+    } else if value == GL_ONE_MINUS_SRC_ALPHA {
+        return .OneMinusSrcAlpha;
+    } else if value == GL_DST_ALPHA {
+        return .DstAlpha;
+    } else if value == GL_ONE_MINUS_DST_ALPHA {
+        return .OneMinusDstAlpha;
+    }
+
+    return .One;
+}
+
+get_blend_func :: () -> BlendFunc, BlendFunc {
+    real_src: s32;
+    glGetIntegerv(GL_BLEND_SRC_RGB, *real_src);
+    src := convert_blend_func(cast(u32) real_src);
+
+    real_dst: s32;
+    glGetIntegerv(GL_BLEND_SRC_ALPHA, *real_dst);
+    dst := convert_blend_func(cast(u32) real_dst);
+
+    return src, dst;
+}
+
+set_blend_func :: (src: BlendFunc, dst: BlendFunc) {
+    real_src := convert_blend_func(src);
+    real_dst := convert_blend_func(dst);
+
+    glBlendFunc(real_src, real_dst);
+}
+
+get_blend_func_separate :: () -> BlendFunc, BlendFunc, BlendFunc, BlendFunc {
+    real_src_color: s32;
+    glGetIntegerv(GL_BLEND_SRC_RGB, *real_src_color);
+    src_color := convert_blend_func(cast(u32) real_src_color);
+
+    real_dst_color: s32;
+    glGetIntegerv(GL_BLEND_DST_RGB, *real_dst_color);
+    dst_color := convert_blend_func(cast(u32) real_dst_color);
+
+    real_src_alpha: s32;
+    glGetIntegerv(GL_BLEND_SRC_ALPHA, *real_src_alpha);
+    src_alpha := convert_blend_func(cast(u32) real_src_alpha);
+
+    real_dst_alpha: s32;
+    glGetIntegerv(GL_BLEND_DST_ALPHA, *real_dst_alpha);
+    dst_alpha := convert_blend_func(cast(u32) real_dst_alpha);
+
+    return src_color, dst_color, src_alpha, dst_alpha;
+}
+
+set_blend_func_separate :: (src_color: BlendFunc, dst_color: BlendFunc, src_alpha: BlendFunc, dst_alpha: BlendFunc) {
+    real_src_color := convert_blend_func(src_color);
+    real_dst_color := convert_blend_func(dst_color);
+    real_src_alpha := convert_blend_func(src_alpha);
+    real_dst_alpha := convert_blend_func(dst_alpha);
+
+    glBlendFuncSeparate(real_src_color, real_dst_color, real_src_alpha, real_dst_alpha);
 }
 
 get_cull_face :: () -> bool {
@@ -464,9 +592,51 @@ set_cull_face_mode :: (value: CullFaceMode) {
     glCullFace(cull_face_mode);
 }
 
-clear :: (color: Color) {
+ClearMask :: enum_flags {
+    Color;
+    Depth;
+    Stencil;
+}
+
+convert_clear_mask :: (mask: ClearMask) -> u32 {
+    real_mask: u32;
+    if mask & .Color {
+        real_mask |= GL_COLOR_BUFFER_BIT;
+    }
+    if mask & .Depth {
+        real_mask |= GL_DEPTH_BUFFER_BIT;
+    }
+    if mask & .Stencil {
+        real_mask |= GL_STENCIL_BUFFER_BIT;
+    }
+
+    return real_mask;
+}
+
+convert_clear_mask :: (real_mask: u32) -> ClearMask {
+    mask: ClearMask;
+    if real_mask & GL_COLOR_BUFFER_BIT {
+        mask |= .Color;
+    }
+    if real_mask & GL_DEPTH_BUFFER_BIT {
+        mask |= .Depth;
+    }
+    if real_mask & GL_STENCIL_BUFFER_BIT {
+        mask |= .Stencil;
+    }
+
+    return mask;
+}
+
+clear :: (color: Color, $mask: ClearMask = .Color | .Depth) {
+    real_mask := #run convert_clear_mask(mask);
     glClearColor(color.r, color.g, color.b, color.a);
-    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+    glClear(real_mask);
+}
+
+clear :: ($mask: ClearMask = .Color | .Depth) {
+    real_mask := #run convert_clear_mask(mask);
+    glClear(real_mask);
 }
 
 begin_render_target :: (render_texture: *RenderTexture) {

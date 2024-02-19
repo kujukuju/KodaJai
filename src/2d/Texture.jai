@@ -47,6 +47,21 @@ create_texture :: (image: Image, wrap: TextureWrap = .Clamp, interp: TextureInte
     return texture;
 }
 
+create_texture :: (width: int, height: int, format: PixelFormat = .RGBA8, wrap: TextureWrap = .Clamp, interp: TextureInterp = .LinearMipmap, should_upload: bool = true) -> Texture {
+    texture: Texture;
+    texture.width = xx width;
+    texture.height = xx height;
+    texture.format = format;
+    texture.wrap = wrap;
+    texture.interp = interp;
+
+    if should_upload {
+        upload(*texture);
+    }
+
+    return texture;
+}
+
 load_texture :: (path: string, wrap: TextureWrap = .Clamp, interp: TextureInterp = .LinearMipmap, should_upload: bool = true) -> Texture {
     file, success := read_entire_file(path, false);
     defer free(file);
@@ -92,11 +107,10 @@ upload :: (texture: *Texture) {
         return;
     }
     
-    assert(!!texture.data, "Cannot generate texture with no data.");
-
     wrap_format := get_gl_format(texture.wrap);
     interp_min_format := get_gl_min_format(texture.interp);
     interp_mag_format := get_gl_mag_format(texture.interp);
+    has_mipmap := get_mipmap(texture.interp);
 
     glGenTextures(1, *texture.buffer);
     glBindTexture(GL_TEXTURE_2D, texture.buffer);
@@ -122,17 +136,16 @@ upload :: (texture: *Texture) {
 
     glPixelStorei(GL_PACK_ALIGNMENT, pixel_store);
     glPixelStorei(GL_UNPACK_ALIGNMENT, pixel_store);
-    if texture.format == .Gray {
-        glTexImage2D(GL_TEXTURE_2D, 0, GL_R8, xx texture.width, xx texture.height, 0, GL_RED, GL_UNSIGNED_BYTE, texture.data);
-    } else if texture.format == .RG {
-        glTexImage2D(GL_TEXTURE_2D, 0, GL_RG8, xx texture.width, xx texture.height, 0, GL_RG, GL_UNSIGNED_BYTE, texture.data);
-    } else if texture.format == .RGB {
-        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB8, xx texture.width, xx texture.height, 0, GL_RGB, GL_UNSIGNED_BYTE, texture.data);
-    } else if texture.format == .RGBA {
-        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, xx texture.width, xx texture.height, 0, GL_RGBA, GL_UNSIGNED_BYTE, texture.data);
-    }
+
+    gl_format := get_gl_format(texture.format);
+    gl_internal_format := get_gl_internal_format(texture.format);
+    gl_type := get_gl_type(texture.format);
+
+    glTexImage2D(GL_TEXTURE_2D, 0, gl_internal_format, xx texture.width, xx texture.height, 0, gl_format, gl_type, texture.data);
     
-    glGenerateMipmap(GL_TEXTURE_2D);
+    if has_mipmap {
+        glGenerateMipmap(GL_TEXTURE_2D);
+    }
 }
 
 unload :: (texture: *Texture) {
@@ -274,13 +287,15 @@ load_data :: (data: [] u8) -> Texture {
     }
     
     if comp == 1 {
-        texture.format = .Gray;
+        texture.format = .Gray8;
     } else if comp == 2 {
-        texture.format = .RG;
+        texture.format = .RG8;
     } else if comp == 3 {
-        texture.format = .RGB;
+        texture.format = .RGB8;
     } else if comp == 4 {
-        texture.format = .RGBA;
+        texture.format = .RGBA8;
+    } else {
+        assert(false, "Unknown texture comp format.\n");
     }
 
     return texture;

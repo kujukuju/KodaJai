@@ -52,7 +52,7 @@ create_font :: (bytes: [] u8, pixel_height: int, should_upload: bool = true) -> 
             continue;
         }
 
-        font.characters[c] = create_image(ft_face.glyph.bitmap.width, ft_face.glyph.bitmap.rows, .Gray);
+        font.characters[c] = create_image(ft_face.glyph.bitmap.width, ft_face.glyph.bitmap.rows, .Gray8);
         // print("image % % %\n", c, font.characters[c].width, font.characters[c].height);
         memcpy(font.characters[c].pixels.data, ft_face.glyph.bitmap.buffer, font.characters[c].pixels.count);
 
