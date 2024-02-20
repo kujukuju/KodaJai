@@ -5,6 +5,8 @@ Shader :: struct {
     vertex: string;
     fragment: string;
     uniforms: ShaderUniforms;
+    vertex_extra: [] string;
+    fragment_extra: [] string;
 }
 
 // TODO I need to auto create shaders with all their uniforms and defaults
@@ -42,32 +44,103 @@ initialize_shader :: (shader: *Shader) {
         return;
     }
 
-    make_shader_object :: (shader: string, shader_type: GLenum) -> GLuint, bool #must {
+    make_shader_object :: (shader: string, extra: [] string, shader_type: GLenum) -> GLuint, bool #must {
         shader_object := glCreateShader(shader_type);
 
-		length: GLint = xx shader.count;
-        glShaderSource(shader_object, 1, *shader.data, *length);
+        source_strings := NewArray(extra.count + 1, *u8,, allocator = temp);
+        source_lengths := NewArray(extra.count + 1, s32,, allocator = temp);
+
+        source_strings[0] = shader.data;
+        source_lengths[0] = cast(s32) shader.count;
+        for i: 0..extra.count - 1 {
+            source_strings[i] = extra[i].data;
+            source_lengths[i] = cast(s32) extra[i].count;
+        }
+
+        glShaderSource(shader_object, 1, source_strings.data, source_lengths.data);
         glCompileShader(shader_object);
 
-        success: GLint;
+        success: s32;
         glGetShaderiv(shader_object, GL_COMPILE_STATUS, *success);
 
         if !success {
             message: [512] u8;
             glGetShaderInfoLog(shader_object, 512, null, message.data);
-            print("Shader compile error: % %\n", shader, to_string(message.data));
+
+            type_string: string;
+            if shader_type == {
+                case GL_VERTEX_SHADER;
+                    type_string = "Vertex Shader";
+                case GL_FRAGMENT_SHADER;
+                    type_string = "Fragment Shader";
+                case;
+                    type_string = "Unknown Shader Type";
+            }
+
+            // try to build out the error data, but we're allowed to exit at any point to avoid super deep nesting
+            error_line: string = "Could not find shader error line. This is an internal library error.";
+            defer print("Shader compile error:\n\t%\n\t%\n\t%\n", type_string, error_line, to_string(message.data));
+
+            source_index_string: string;
+            source_index_string.data = message.data;
+            source_index_string.count = message.count;
+            
+            if source_index_string[0] == #char "\0" {
+                return 0, false;
+            }
+
+            index := 0;
+            while index < source_index_string.count && source_index_string[index] != #char "(" && source_index_string[index] != #char "\0" {
+                index += 1;
+            }
+            source_index_string.count = index;
+
+            source_index, source_index_found := parse_int(*source_index_string);
+            if !source_index_found {
+                return 0, false;
+            }
+
+            if message[index] != #char "(" {
+                return 0, false;
+            }
+
+            line_number_string: string;
+            line_number_string.data = message.data + index + 1;
+            line_number_string.count = message.count - index - 1;
+
+            index = 0;
+            while index < line_number_string.count && line_number_string[index] != #char ")" && line_number_string[index] != #char "\0" {
+                index += 1;
+            }
+            line_number_string.count = index;
+
+            line_number, line_number_found := parse_int(*line_number_string);
+            if !line_number_found {
+                return 0, false;
+            }
+            line_index := line_number - 1;
+
+            error_source: string;
+            error_source.data = source_strings[source_index];
+            error_source.count = source_lengths[source_index];
+
+            shader_lines := split(error_source, "\n",, allocator = temp);
+            if line_index < shader_lines.count {
+                error_line = shader_lines[line_index];
+            }
+
             return 0, false;
         }
 
         return shader_object, true;
     }
 
-    shader_v, success_v := make_shader_object(shader.vertex, GL_VERTEX_SHADER);
+    shader_v, success_v := make_shader_object(shader.vertex, shader.vertex_extra, GL_VERTEX_SHADER);
     defer glDeleteShader(shader_v);
     if !success_v {
         print("Could not initialized vertex shader.\n");
     }
-    shader_f, success_f := make_shader_object(shader.fragment, GL_FRAGMENT_SHADER);
+    shader_f, success_f := make_shader_object(shader.fragment, shader.fragment_extra, GL_FRAGMENT_SHADER);
     defer glDeleteShader(shader_f);
     if !success_f {
         print("Could not initialized fragment shader.\n");

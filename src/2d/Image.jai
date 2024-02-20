@@ -1,3 +1,5 @@
+
+// TODO the pixel format should be compile time so I can modify the methods for float vs bytef
 Image :: struct {
     pixels: [] u8;
     width: int;
@@ -265,13 +267,21 @@ draw_pixel :: (image: *Image, point: Point2, color: Color) {
     stride := get_stride(image.format);
     index := (point.y * image.width + point.x) * stride;
     
-    bytes: [4] u8;
-    bytes.data[0] = cast(u8) round(color.r * 255);
-    bytes.data[1] = cast(u8) round(color.g * 255);
-    bytes.data[2] = cast(u8) round(color.b * 255);
-    bytes.data[3] = cast(u8) round(color.a * 255);
+    if is_float(image.format) {
+        assert(image.format == .R32F || image.format == .RG32F || image.format == .RGB32F || image.format == .RGBA32F);
 
-    memcpy(image.pixels.data + index, bytes.data, stride);
+        memcpy(image.pixels.data + index, *color, stride);
+    } else {
+        assert(image.format == .R8 || image.format == .RG8 || image.format == .RGB8 || image.format == .RGBA8);
+
+        bytes: [4] u8 = ---;
+        bytes.data[0] = cast(u8) round(color.r * 255);
+        bytes.data[1] = cast(u8) round(color.g * 255);
+        bytes.data[2] = cast(u8) round(color.b * 255);
+        bytes.data[3] = cast(u8) round(color.a * 255);
+
+        memcpy(image.pixels.data + index, bytes.data, stride);
+    }
 }
 
 draw_rectangle :: (image: *Image, point: Vector2, size: Vector2, color: Color) {

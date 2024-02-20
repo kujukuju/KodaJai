@@ -1,71 +1,77 @@
 
-geometry_pass: FramebufferPass(3, true, false);
-lighting_pass: FramebufferPass(0, true, true);
-// frame_buffer: GLuint;
-// deferred_textures: [4] Texture;
-// depth_texture: Texture;
+SsaoPass :: struct {
+    using #as pass: FramebufferPass(1, false, true);
+    pass.initializer = (pass: *FramebufferPass(count, depth, drawable)) {
+        MAX_KERNEL_SIZE :: 64;
+        kernel: [MAX_KERNEL_SIZE] Vector3;
+        
+        for i: 0..kernel.count - 1 {  
+            sample: Vector3;
+            sample.x = 2.0 * random_get_zero_to_one() - 1.0;
+            sample.y = 2.0 * random_get_zero_to_one() - 1.0;
+            sample.z = random_get_zero_to_one();
+            sample = normalize(sample);
+            sample *= random_get_zero_to_one();
 
-vbo: GLuint;
-vao: GLuint;
+            // acceleration function so more points are located closer to the origin
+            scale := cast(float) i / MAX_KERNEL_SIZE;      
+            sample *= (0.1 + 0.9 * scale * scale);
+            
+            kernel[i] = sample;
+        }
+        pass.uniforms[xx "uKernel"] = create_uniform("uKernel", kernel);
 
-DeferredType :: enum {
-    Position;
-    Diffuse;
-    Normal;
-    Texcoord;
+        noise_width :: 4;
+        noise_height :: 4;
+        noise_image := create_image(4, 4, .RGB32F);
+        for y: 0..noise_height - 1 {
+            for x: 0..noise_width - 1 {
+                // we rotate around the color in tangent space (z axis)
+                // TODO so just use RG32F...
+                color: Color;
+                color.r = random_get_zero_to_one() * 2.0 - 1.0;
+                color.g = random_get_zero_to_one() * 2.0 - 1.0;
+                color.b = 0;
+                draw_pixel(*noise_image, .{x, y}, color);
+            }
+        }
+        noise_texture := create_texture(noise_image, .Repeat, .Nearest);
+        pass.uniforms[xx "uNoise"] = create_uniform("uNoise", noise_texture);
+    };
 }
 
-texture_types :: DeferredType.[.Position, .Diffuse, .Normal, .Texcoord];
-draw_buffers :: GLenum.[GL_COLOR_ATTACHMENT0, GL_COLOR_ATTACHMENT1, GL_COLOR_ATTACHMENT2, GL_COLOR_ATTACHMENT3];
+geometry_pass: FramebufferPass(3, true, false);
+ssao_pass: SsaoPass;
+lighting_pass: FramebufferPass(0, false, true);
 
-#run assert(cast(int) DeferredType.Texcoord == 3, "This needs to count or I can't lookup by casting.");
+geometry_shader: GeometryShader;
+ambient_occlusion_shader: AmbientOcclusionShader;
+point_light_shader: PointLightShader;
+directional_light_shader: DirectionalLightShader;
+
+// TODO side by side screenshot of framebuffer texture with linear vs nearest... I think it needs to be nearest
 
 deferred_initialize :: () {
     init_framebuffer_pass(*geometry_pass, .RGBA32F, .RGBA32F, .RGBA32F);
+    // init_framebuffer_pass(*ssao_pass, *ambient_occlusion_shader, .R32F);
+    init_framebuffer_pass(*ssao_pass, *ambient_occlusion_shader, .RGBA32F);
     init_framebuffer_pass(*lighting_pass, *directional_light_shader);
-    // glGenFramebuffers(1, *frame_buffer);
-    // glBindFramebuffer(GL_DRAW_FRAMEBUFFER, frame_buffer);
-
-    // for i: 0..texture_types.count - 1 {
-    //     deferred_textures[i] = create_texture(koda.width, koda.height, .RGB32F, .Clamp, .Linear);
-    //     glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0 + cast(u32) i, GL_TEXTURE_2D, deferred_textures[i].buffer, 0);
-    // }
-
-    // depth_texture = create_texture(koda.width, koda.height, .Depth32F, .Clamp, .Linear);
-    // glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D, depth_texture.buffer, 0);
-
-    // glDrawBuffers(draw_buffers.count, draw_buffers.data);
-
-    // status := glCheckFramebufferStatus(GL_FRAMEBUFFER);
-
-    // if status != GL_FRAMEBUFFER_COMPLETE {
-    //     print("Framebuffer error: %\n", status);
-    //     return;
-    // }
-
-    // glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0);
 
     light_sphere_geometry := create_icosphere(1, 1);
     light_sphere = create_model(light_sphere_geometry);
     light_sphere.shader = *point_light_shader;
     assert(light_sphere_geometry.attributes.count == 1);
+    
+    for model: models {
+        model.shader = *geometry_shader;
+    }
+}
 
-    // vertices :: Vector2.[
-    //     .{-1.0, 1.0}, .{-1.0, -1.0}, .{1.0, 1.0},
-    //     .{-1.0, -1.0}, .{1.0, -1.0}, .{1.0, 1.0},
-    // ];
-
-    // glGenBuffers(1, *vbo);
-    // glBindBuffer(GL_ARRAY_BUFFER, vbo);
-    // glBufferData(GL_ARRAY_BUFFER, size_of(type_of(vertices)), vertices.data, GL_STATIC_DRAW);
-
-    // glGenVertexArrays(1, *vao);
-    // glBindVertexArray(vao);
-
-    // glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 2 * size_of(float), null);
-    // glEnableVertexAttribArray(0);
-
-    // glBindVertexArray(0);
+deferred_render :: () {
+    deferred_render_geometry();
+    deferred_render_ssao();
+    deferred_render_ssao_to_screen();
+    // deferred_render_lighting();
 }
 
 deferred_render_geometry :: () {
@@ -89,13 +95,39 @@ deferred_render_geometry :: () {
     }
 }
 
-deferred_render_lighting :: () {
-    // restore the screen fbo
-    // glBindFramebuffer(GL_FRAMEBUFFER, 0);
+deferred_render_ssao :: () {
+    framebuffer_bind_write(ssao_pass);
+
+    projection := get_perspective_matrix();
+    ssao_pass.uniforms[xx "view"] = create_uniform("view", koda.view);
+    ssao_pass.uniforms[xx "projection"] = create_uniform("projection", projection);
+
+    ssao_pass.uniforms[xx "uPosition"] = create_uniform("uPosition", geometry_pass.textures[0]);
+    ssao_pass.uniforms[xx "uNormal"] = create_uniform("uNormal", geometry_pass.textures[2]);
+    ssao_pass.uniforms[xx "uDepth"] = create_uniform("uDepth", geometry_pass.depth_texture);
+
+    assert(ssao_pass.uniforms[xx "uNoise"].type == .Texture);
+    noise_texture := ssao_pass.uniforms[xx "uNoise"].texture;
+    noise_scale := Vector2.{cast(float) koda.width / noise_texture.width, cast(float) koda.height / noise_texture.height};
+    ssao_pass.uniforms[xx "uNoiseScale"] = create_uniform("uNoiseScale", noise_scale);
+
+    draw(ssao_pass);
+}
+
+deferred_render_ssao_to_screen :: () {
+    framebuffer_bind_read(ssao_pass);
     framebuffer_bind_write_screen();
 
-    // bind for reading
-    // framebuffer_bind_read(framebuffer);
+    width := cast(s32) koda.width;
+    height := cast(s32) koda.height;
+
+    glReadBuffer(GL_COLOR_ATTACHMENT0);
+    glBlitFramebuffer(0, 0, width, height, 0, 0, width, height, GL_COLOR_BUFFER_BIT, GL_LINEAR);
+}
+
+deferred_render_lighting :: () {
+    // restore the screen fbo
+    framebuffer_bind_write_screen();
 
     blend := get_blend();
     defer set_blend(blend);
@@ -109,14 +141,7 @@ deferred_render_lighting :: () {
     defer set_blend_func(blend_src, blend_dst);
     set_blend_func(.One, .One);
 
-    depth_write := get_depth_write();
-    defer set_depth_write(depth_write);
-    set_depth_write(false);
-
-    depth_test := get_depth_test();
-    defer set_depth_test(depth_test);
-    set_depth_test(false);
-
+    lighting_pass.uniforms[xx "view"] = create_uniform("view", koda.view);
     lighting_pass.uniforms[xx "uPosition"] = create_uniform("uPosition", geometry_pass.textures[0]);
     lighting_pass.uniforms[xx "uDiffuse"] = create_uniform("uDiffuse", geometry_pass.textures[1]);
     lighting_pass.uniforms[xx "uNormal"] = create_uniform("uNormal", geometry_pass.textures[2]);
@@ -124,6 +149,7 @@ deferred_render_lighting :: () {
     draw(lighting_pass);
 
     // draw point light
+    point_light_shader.uniforms[xx "view"] = create_uniform("view", koda.view);
     point_light_shader.uniforms[xx "uPosition"] = create_uniform("uPosition", geometry_pass.textures[0]);
     point_light_shader.uniforms[xx "uDiffuse"] = create_uniform("uDiffuse", geometry_pass.textures[1]);
     point_light_shader.uniforms[xx "uNormal"] = create_uniform("uNormal", geometry_pass.textures[2]);
@@ -138,6 +164,14 @@ deferred_render_lighting :: () {
     cull_face_mode := get_cull_face_mode();
     defer set_cull_face_mode(cull_face_mode);
     set_cull_face_mode(.Front);
+
+    depth_write := get_depth_write();
+    defer set_depth_write(depth_write);
+    set_depth_write(false);
+
+    depth_test := get_depth_test();
+    defer set_depth_test(depth_test);
+    set_depth_test(false);
 
     draw(light_sphere);
 }

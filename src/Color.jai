@@ -1,3 +1,5 @@
+
+// TODO do the same thing jai does with matrices so you can have any type of color and you can do methods like interface/Color
 Color :: struct {
     r, g, b, a: float;
 
@@ -5,6 +7,8 @@ Color :: struct {
     rg: Vector2 = ---;
 #place r;
     rgb: Vector3 = ---;
+#place r;
+    rgba: Vector4 = ---;
 #place r;
     component: [4] float = ---;
 

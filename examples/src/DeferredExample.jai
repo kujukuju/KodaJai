@@ -8,10 +8,6 @@ camera: Camera3;
 
 models: [..] *Model;
 
-color_shader: ColorShader;
-point_light_shader: PointLightShader;
-directional_light_shader: DirectionalLightShader;
-
 main :: () {
     koda_init();
 
@@ -53,11 +49,6 @@ main :: () {
     point_light_shader.uniforms[xx "uAmbientIntensity"] = create_uniform("uAmbientIntensity", 0.5);
 
     models = load_models("low_poly_medieval_tavern_reexported.glb");
-    for model: models {
-        print("Model: % % % %\n", model.name, model.geometry.count, model.geometry[0].attributes, model.geometry[0].vertices.count);
-        model.shader = *color_shader;
-        model.cull_face = false;
-    }
 
     camera.position = .{6, 4, 3};
     look_at(*camera, .{3, 2, -2});
@@ -101,9 +92,7 @@ main :: () {
 
         koda.view = get_transform(camera);
 
-        deferred_render_geometry();
-
-        deferred_render_lighting();
+        deferred_render();
 
         draw_fps(10, 10);
 
@@ -119,7 +108,8 @@ main :: () {
 #import "JaiGLFW";
 
 #import "Basic";
+#import "GL";
 #import "Hash_Table";
 #import "Math";
+#import "Random";
 #import "String";
-#import "GL";

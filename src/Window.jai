@@ -53,6 +53,10 @@ create_window :: (title: *u8, width: s32, height: s32, multisample: int = 0) {
         glfwWindowHint(GLFW_SAMPLES, xx multisample);
     }
 
+    #if OS == .MACOS {
+        glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE);
+    }
+
     glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, MINIMUM_GL_MAJOR_VERSION);
     glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, MINIMUM_GL_MINOR_VERSION);
     koda.window = glfwCreateWindow(width, height, title, null, null);

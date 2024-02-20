@@ -3,6 +3,10 @@ PixelFormat :: enum {
     Gray16;
     Gray16F;
     Gray32F;
+    R8 :: Gray8;
+    R16 :: Gray16;
+    R16F :: Gray16F;
+    R32F :: Gray32F;
     RG8;
     RG16;
     RG16F;
@@ -172,5 +176,44 @@ get_gl_type :: (format: PixelFormat) -> u32 {
             return GL_FLOAT;
         case .Depth32F;
             return GL_FLOAT;
+    }
+}
+
+is_float :: (format: PixelFormat) -> bool {
+    if #complete format == {
+        case .Gray8;
+            return false;
+        case .Gray16;
+            return false;
+        case .Gray16F;
+            return true;
+        case .Gray32F;
+            return true;
+        case .RG8;
+            return false;
+        case .RG16;
+            return false;
+        case .RG16F;
+            return true;
+        case .RG32F;
+            return true;
+        case .RGB8;
+            return false;
+        case .RGB16;
+            return false;
+        case .RGB16F;
+            return true;
+        case .RGB32F;
+            return true;
+        case .RGBA8;
+            return false;
+        case .RGBA16;
+            return false;
+        case .RGBA16F;
+            return true;
+        case .RGBA32F;
+            return true;
+        case .Depth32F;
+            return true;
     }
 }
