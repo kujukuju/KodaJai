@@ -1,6 +1,7 @@
 
 SsaoPass :: struct {
     using #as pass: FramebufferPass(1, false, true);
+
     pass.initializer = (pass: *FramebufferPass(count, depth, drawable)) {
         MAX_KERNEL_SIZE :: 64;
         kernel: [MAX_KERNEL_SIZE] Vector3;
@@ -42,19 +43,22 @@ SsaoPass :: struct {
 
 geometry_pass: FramebufferPass(3, true, false);
 ssao_pass: SsaoPass;
+ssao_blur_pass: FramebufferPass(1, false, true);
 lighting_pass: FramebufferPass(0, false, true);
 
 geometry_shader: GeometryShader;
 ambient_occlusion_shader: AmbientOcclusionShader;
+guided_blur_shader: GuidedBlurShader;
 point_light_shader: PointLightShader;
 directional_light_shader: DirectionalLightShader;
 
 // TODO side by side screenshot of framebuffer texture with linear vs nearest... I think it needs to be nearest
 
 deferred_initialize :: () {
-    init_framebuffer_pass(*geometry_pass, .RGBA32F, .RGBA32F, .RGBA32F);
-    // init_framebuffer_pass(*ssao_pass, *ambient_occlusion_shader, .R32F);
-    init_framebuffer_pass(*ssao_pass, *ambient_occlusion_shader, .RGBA32F);
+    // continue using rgba for byte alignment
+    init_framebuffer_pass(*geometry_pass, .RGBA16F, .RGBA16F, .RGBA8);
+    init_framebuffer_pass(*ssao_pass, *ambient_occlusion_shader, .R8);
+    init_framebuffer_pass(*ssao_blur_pass, *guided_blur_shader, .RGBA16F);
     init_framebuffer_pass(*lighting_pass, *directional_light_shader);
 
     light_sphere_geometry := create_icosphere(1, 1);
@@ -70,7 +74,8 @@ deferred_initialize :: () {
 deferred_render :: () {
     deferred_render_geometry();
     deferred_render_ssao();
-    deferred_render_ssao_to_screen();
+    deferred_render_ssao_blur();
+    deferred_render_ssao_blur_to_screen();
     // deferred_render_lighting();
 }
 
@@ -98,12 +103,16 @@ deferred_render_geometry :: () {
 deferred_render_ssao :: () {
     framebuffer_bind_write(ssao_pass);
 
+    blend := get_blend();
+    defer set_blend(blend);
+    set_blend(false);
+
     projection := get_perspective_matrix();
     ssao_pass.uniforms[xx "view"] = create_uniform("view", koda.view);
     ssao_pass.uniforms[xx "projection"] = create_uniform("projection", projection);
 
     ssao_pass.uniforms[xx "uPosition"] = create_uniform("uPosition", geometry_pass.textures[0]);
-    ssao_pass.uniforms[xx "uNormal"] = create_uniform("uNormal", geometry_pass.textures[2]);
+    ssao_pass.uniforms[xx "uNormal"] = create_uniform("uNormal", geometry_pass.textures[1]);
     ssao_pass.uniforms[xx "uDepth"] = create_uniform("uDepth", geometry_pass.depth_texture);
 
     assert(ssao_pass.uniforms[xx "uNoise"].type == .Texture);
@@ -116,6 +125,35 @@ deferred_render_ssao :: () {
 
 deferred_render_ssao_to_screen :: () {
     framebuffer_bind_read(ssao_pass);
+    framebuffer_bind_write_screen();
+
+    width := cast(s32) koda.width;
+    height := cast(s32) koda.height;
+
+    glReadBuffer(GL_COLOR_ATTACHMENT0);
+    glBlitFramebuffer(0, 0, width, height, 0, 0, width, height, GL_COLOR_BUFFER_BIT, GL_LINEAR);
+}
+
+deferred_render_ssao_blur :: () {
+    framebuffer_bind_write(ssao_blur_pass);
+
+    blend := get_blend();
+    defer set_blend(blend);
+    set_blend(false);
+
+    projection := get_perspective_matrix();
+    ssao_blur_pass.uniforms[xx "view"] = create_uniform("view", koda.view);
+    ssao_blur_pass.uniforms[xx "projection"] = create_uniform("projection", projection);
+
+    ssao_blur_pass.uniforms[xx "uPosition"] = create_uniform("uPosition", geometry_pass.textures[0]);
+    ssao_blur_pass.uniforms[xx "uNormal"] = create_uniform("uNormal", geometry_pass.textures[1]);
+    ssao_blur_pass.uniforms[xx "uSsao"] = create_uniform("uSsao", ssao_pass.textures[0]);
+
+    draw(ssao_blur_pass);
+}
+
+deferred_render_ssao_blur_to_screen :: () {
+    framebuffer_bind_read(ssao_blur_pass);
     framebuffer_bind_write_screen();
 
     width := cast(s32) koda.width;
@@ -143,16 +181,16 @@ deferred_render_lighting :: () {
 
     lighting_pass.uniforms[xx "view"] = create_uniform("view", koda.view);
     lighting_pass.uniforms[xx "uPosition"] = create_uniform("uPosition", geometry_pass.textures[0]);
-    lighting_pass.uniforms[xx "uDiffuse"] = create_uniform("uDiffuse", geometry_pass.textures[1]);
-    lighting_pass.uniforms[xx "uNormal"] = create_uniform("uNormal", geometry_pass.textures[2]);
+    lighting_pass.uniforms[xx "uNormal"] = create_uniform("uNormal", geometry_pass.textures[1]);
+    lighting_pass.uniforms[xx "uDiffuse"] = create_uniform("uDiffuse", geometry_pass.textures[2]);
 
     draw(lighting_pass);
 
     // draw point light
     point_light_shader.uniforms[xx "view"] = create_uniform("view", koda.view);
     point_light_shader.uniforms[xx "uPosition"] = create_uniform("uPosition", geometry_pass.textures[0]);
-    point_light_shader.uniforms[xx "uDiffuse"] = create_uniform("uDiffuse", geometry_pass.textures[1]);
-    point_light_shader.uniforms[xx "uNormal"] = create_uniform("uNormal", geometry_pass.textures[2]);
+    point_light_shader.uniforms[xx "uNormal"] = create_uniform("uNormal", geometry_pass.textures[1]);
+    point_light_shader.uniforms[xx "uDiffuse"] = create_uniform("uDiffuse", geometry_pass.textures[2]);
 
     light_position :: Vector3.{2, 2, -2};
     light_radius :: 4.0;

@@ -37,9 +37,8 @@ GEOMETRY_FRAGMENT_SHADER :: #string ___glsl
 #version 330 core
 
 layout (location = 0) out vec3 PositionOut;
-layout (location = 1) out vec3 DiffuseOut;     
-layout (location = 2) out vec3 NormalOut;     
-layout (location = 3) out vec3 TexcoordOut;  
+layout (location = 1) out vec3 NormalOut;
+layout (location = 2) out vec3 DiffuseOut;
   
 uniform sampler2D uTexture0;
 
@@ -64,8 +63,7 @@ void main() {
     diffuse = smoothstep(-180.0, -10.0, vPos.y) * (diffuse - c) + c;
 
     PositionOut = vPos;
-    DiffuseOut = diffuse;
     NormalOut = normal;
-    TexcoordOut = vec3(vTex, 0.0);
+    DiffuseOut = diffuse;
 }
 ___glsl;

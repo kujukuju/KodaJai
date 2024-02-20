@@ -40,6 +40,7 @@ init_framebuffer_pass_internal :: (pass: *FramebufferPass($count, $depth, $drawa
         glBindFramebuffer(GL_DRAW_FRAMEBUFFER, pass.framebuffer);
 
         for channel, index: channels {
+            // TODO nearest?
             pass.textures[index] = create_texture(koda.width, koda.height, channel, .Clamp, .Linear);
             glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0 + cast(u32) index, GL_TEXTURE_2D, pass.textures[index].buffer, 0);
         }

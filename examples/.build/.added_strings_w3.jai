@@ -982,15 +982,21 @@ return index, false;
 //
 // #insert text. Generated from C:/Users/Kuju/Projects/KodaJai/examples/../../ContiguousJsonJai/reader.jai:290.
 //
-if name == "index" {
-InnerType :: #run type_of(result.index);
+if name == "count" {
+InnerType :: #run type_of(result.count);
 index, success = json_parse_into(content, index, cast(*InnerType) ((cast(*u8) result) + 0), memory, relative, contiguous_memory, keep_strings_in_place);
 if !success {
 return index, false;
 }
-} else if name == "texCoord" {
-InnerType :: #run type_of(result.texCoord);
+} else if name == "indices" {
+InnerType :: #run type_of(result.indices);
 index, success = json_parse_into(content, index, cast(*InnerType) ((cast(*u8) result) + 8), memory, relative, contiguous_memory, keep_strings_in_place);
+if !success {
+return index, false;
+}
+} else if name == "values" {
+InnerType :: #run type_of(result.values);
+index, success = json_parse_into(content, index, cast(*InnerType) ((cast(*u8) result) + 32), memory, relative, contiguous_memory, keep_strings_in_place);
 if !success {
 return index, false;
 }
@@ -1082,21 +1088,15 @@ return index, false;
 //
 // #insert text. Generated from C:/Users/Kuju/Projects/KodaJai/examples/../../ContiguousJsonJai/reader.jai:290.
 //
-if name == "count" {
-InnerType :: #run type_of(result.count);
+if name == "index" {
+InnerType :: #run type_of(result.index);
 index, success = json_parse_into(content, index, cast(*InnerType) ((cast(*u8) result) + 0), memory, relative, contiguous_memory, keep_strings_in_place);
 if !success {
 return index, false;
 }
-} else if name == "indices" {
-InnerType :: #run type_of(result.indices);
+} else if name == "texCoord" {
+InnerType :: #run type_of(result.texCoord);
 index, success = json_parse_into(content, index, cast(*InnerType) ((cast(*u8) result) + 8), memory, relative, contiguous_memory, keep_strings_in_place);
-if !success {
-return index, false;
-}
-} else if name == "values" {
-InnerType :: #run type_of(result.values);
-index, success = json_parse_into(content, index, cast(*InnerType) ((cast(*u8) result) + 32), memory, relative, contiguous_memory, keep_strings_in_place);
 if !success {
 return index, false;
 }
