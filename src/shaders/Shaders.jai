@@ -50,8 +50,8 @@ initialize_shader :: (shader: *Shader) {
         source_strings := NewArray(extra.count + 1, *u8,, allocator = temp);
         source_lengths := NewArray(extra.count + 1, s32,, allocator = temp);
 
-        source_strings[0] = shader.data;
-        source_lengths[0] = cast(s32) shader.count;
+        source_strings[source_strings.count - 1] = shader.data;
+        source_lengths[source_strings.count - 1] = cast(s32) shader.count;
         for i: 0..extra.count - 1 {
             source_strings[i] = extra[i].data;
             source_lengths[i] = cast(s32) extra[i].count;

@@ -133,13 +133,13 @@ set_viewport :: (width: int, height: int) {
 }
 
 should_exit :: () -> bool {
-    // #if !PRODUCTION {
-    //     err := glGetError();
-    //     while err != GL_NO_ERROR {
-    //         print("GL error: %\n", err);
-    //         err = glGetError();
-    //     }
-    // }
+    #if !PRODUCTION {
+        err := glGetError();
+        while err != GL_NO_ERROR {
+            print("GL error: %\n", err);
+            err = glGetError();
+        }
+    }
 
     // end and begin
     glfwSwapBuffers(koda.window);

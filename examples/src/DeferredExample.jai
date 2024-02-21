@@ -37,15 +37,15 @@ main :: () {
     directional_light_shader.uniforms[xx "uLightLinear"] = create_uniform("uLightLinear", 0.04);
     directional_light_shader.uniforms[xx "uLightExp"] = create_uniform("uLightExp", 0.4);
     directional_light_shader.uniforms[xx "uSpecularPower"] = create_uniform("uSpecularPower", 0.0);
-    directional_light_shader.uniforms[xx "uDiffuseIntensity"] = create_uniform("uDiffuseIntensity", 0.5);
-    directional_light_shader.uniforms[xx "uAmbientIntensity"] = create_uniform("uAmbientIntensity", 0.5);
+    directional_light_shader.uniforms[xx "uDiffuseIntensity"] = create_uniform("uDiffuseIntensity", 1.8);
+    directional_light_shader.uniforms[xx "uAmbientIntensity"] = create_uniform("uAmbientIntensity", 0.2);
 
     point_light_shader.uniforms[xx "uScreenSize"] = create_uniform("uScreenSize", Vector2.{cast(float) koda.width, cast(float) koda.height});
     point_light_shader.uniforms[xx "uLightConstant"] = create_uniform("uLightConstant", 0.0);
     point_light_shader.uniforms[xx "uLightLinear"] = create_uniform("uLightLinear", 0.0);
     point_light_shader.uniforms[xx "uLightExp"] = create_uniform("uLightExp", 0.3);
     point_light_shader.uniforms[xx "uSpecularPower"] = create_uniform("uSpecularPower", 0.0);
-    point_light_shader.uniforms[xx "uDiffuseIntensity"] = create_uniform("uDiffuseIntensity", 0.9);
+    point_light_shader.uniforms[xx "uDiffuseIntensity"] = create_uniform("uDiffuseIntensity", 0.5);
     point_light_shader.uniforms[xx "uAmbientIntensity"] = create_uniform("uAmbientIntensity", 0.5);
 
     models = load_models("low_poly_medieval_tavern_reexported.glb");
@@ -54,6 +54,8 @@ main :: () {
     look_at(*camera, .{3, 2, -2});
 
     deferred_initialize();
+
+    clear(.{0, 0, 0, 1});
 
     while !should_exit() {
         reset_temporary_storage();
@@ -95,12 +97,6 @@ main :: () {
         deferred_render();
 
         draw_fps(10, 10);
-
-        err := glGetError();
-        while err != GL_NO_ERROR {
-            print("GL error: %\n", err);
-            err = glGetError();
-        }
     }
 }
 

@@ -1,5 +1,5 @@
 
-FramebufferPass :: struct (count: int, depth: bool, drawable: bool) {
+FramebufferPass :: struct (count: int, depth: bool, drawable: bool, multisample: int = 0) {
     framebuffer: u32;
     // the output textures
     textures: [count] Texture;
@@ -8,28 +8,28 @@ FramebufferPass :: struct (count: int, depth: bool, drawable: bool) {
     uniforms: ShaderUniforms;
     vao: u32;
     vbo: u32;
-    initializer: #type (pass: *FramebufferPass(count, depth, drawable));
+    initializer: #type (pass: *FramebufferPass(count, depth, drawable, multisample));
 }
 
-create_framebuffer_pass :: (shader: *Shader, $channels: ..PixelFormat, $depth: bool, $drawable: bool) -> FramebufferPass(channels.count, depth, drawable) {
+create_framebuffer_pass :: (shader: *Shader, $channels: ..PixelFormat, $depth: bool, $drawable: bool, $multisample: int = 0) -> FramebufferPass(channels.count, depth, drawable, multisample) {
     pass: FramebufferPass(channels.count, depth, drawable);
     init_framebuffer_pass(*pass, shader);
 
     return pass;
 }
 
-init_framebuffer_pass :: (pass: *FramebufferPass($count, $depth, true), shader: *Shader, channels: ..PixelFormat) {
+init_framebuffer_pass :: (pass: *FramebufferPass($count, $depth, true, $multisample), shader: *Shader, channels: ..PixelFormat) {
     assert(!!shader, "If your framebuffer pass is drawable you must provide a shader.\n");
     init_framebuffer_pass_internal(pass, shader, ..channels);
 }
 
-init_framebuffer_pass :: (pass: *FramebufferPass($count, $depth, false), channels: ..PixelFormat) {
+init_framebuffer_pass :: (pass: *FramebufferPass($count, $depth, false, $multisample), channels: ..PixelFormat) {
     init_framebuffer_pass_internal(pass, null, ..channels);
 }
 
-init_framebuffer_pass_internal :: (pass: *FramebufferPass($count, $depth, $drawable), shader: *Shader, channels: ..PixelFormat) {
+init_framebuffer_pass_internal :: (pass: *FramebufferPass($count, $depth, $drawable, $multisample), shader: *Shader, channels: ..PixelFormat) {
     if count != channels.count {
-        assert(false, "Passed invalid number of channels to a framebuffer pass.\n");
+        assert(false, "Passed invalid number of predefined channels to initialize a framebuffer pass.\n");
         return;
     }
 
@@ -41,7 +41,7 @@ init_framebuffer_pass_internal :: (pass: *FramebufferPass($count, $depth, $drawa
 
         for channel, index: channels {
             // TODO nearest?
-            pass.textures[index] = create_texture(koda.width, koda.height, channel, .Clamp, .Linear);
+            pass.textures[index] = create_texture(koda.width, koda.height, channel, .Clamp, .Linear, multisample);
             glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0 + cast(u32) index, GL_TEXTURE_2D, pass.textures[index].buffer, 0);
         }
 
@@ -91,16 +91,38 @@ init_framebuffer_pass_internal :: (pass: *FramebufferPass($count, $depth, $drawa
     }
 }
 
-framebuffer_bind_write :: (pass: FramebufferPass) {
+// TODO I'm not actually sure if there's a use for a read and write bind
+
+// framebuffer_bind :: (pass: FramebufferPass($c, $depth, $dr, $m)) {
+//     glBindFramebuffer(GL_DRAW_FRAMEBUFFER, pass.framebuffer);
+
+//     #if depth {
+//         clear(.Color | .Depth);
+//     } else {
+//         clear(.Color);
+//     }
+// }
+
+// framebuffer_bind_screen :: () {
+//     glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0);
+
+//     clear(.Color | .Depth);
+// }
+
+framebuffer_bind_write :: (pass: FramebufferPass($c, $depth, $dr, $m)) {
     glBindFramebuffer(GL_DRAW_FRAMEBUFFER, pass.framebuffer);
 
-    clear(.Color | .Depth);
+    #if depth {
+        clear(.Color | .Depth);
+    } else {
+        clear(.Color);
+    }
 }
 
 framebuffer_bind_write_screen :: () {
     glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0);
 
-    clear(.Color);
+    clear(.Color | .Depth);
 }
 
 framebuffer_bind_read :: (pass: FramebufferPass) {
@@ -109,6 +131,19 @@ framebuffer_bind_read :: (pass: FramebufferPass) {
 
 framebuffer_bind_read_screen :: () {
     glBindFramebuffer(GL_READ_FRAMEBUFFER, 0);
+}
+
+framebuffer_resolve_into :: (pass: FramebufferPass($p_count, $p_d, $p_dr, $p_ms), resolved: FramebufferPass($r_count, $r_d, $r_dr, $r_ms), $resolve_depth: bool = true) {
+    assert(p_count == r_count, "You cannot resolve into a framebuffer with a different amount of textures.");
+
+    framebuffer_bind_read(pass);
+    framebuffer_bind_write(resolved);
+
+    for i: 0..p_count - 1 {
+        glReadBuffer(GL_COLOR_ATTACHMENT0 + i);
+        glWriteBuffer(GL_COLOR_ATTACHMENT0 + i);
+        glBlitFramebuffer(0, 0, width, height, 0, 0, width, height, GL_COLOR_BUFFER_BIT, GL_LINEAR);
+    }
 }
 
 draw :: (pass: FramebufferPass($count, $depth, $drawable)) {

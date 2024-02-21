@@ -6,6 +6,7 @@ Texture :: struct {
     wrap: TextureWrap;
     interp: TextureInterp;
     border_color: Color;
+    multisample: int;
     data: *u8;
 }
 
@@ -47,13 +48,14 @@ create_texture :: (image: Image, wrap: TextureWrap = .Clamp, interp: TextureInte
     return texture;
 }
 
-create_texture :: (width: int, height: int, format: PixelFormat = .RGBA8, wrap: TextureWrap = .Clamp, interp: TextureInterp = .LinearMipmap, should_upload: bool = true) -> Texture {
+create_texture :: (width: int, height: int, format: PixelFormat = .RGBA8, wrap: TextureWrap = .Clamp, interp: TextureInterp = .LinearMipmap, multisample: int = 0, should_upload: bool = true) -> Texture {
     texture: Texture;
     texture.width = xx width;
     texture.height = xx height;
     texture.format = format;
     texture.wrap = wrap;
     texture.interp = interp;
+    texture.multisample = multisample;
 
     if should_upload {
         upload(*texture);
@@ -141,7 +143,11 @@ upload :: (texture: *Texture) {
     gl_internal_format := get_gl_internal_format(texture.format);
     gl_type := get_gl_type(texture.format);
 
-    glTexImage2D(GL_TEXTURE_2D, 0, gl_internal_format, xx texture.width, xx texture.height, 0, gl_format, gl_type, texture.data);
+    if texture.multisample > 1 {
+        glTexImage2DMultisample(GL_TEXTURE_2D, cast(u32) texture.multisample, cast(u32) gl_internal_format, xx texture.width, xx texture.height, GL_TRUE);
+    } else {
+        glTexImage2D(GL_TEXTURE_2D, 0, gl_internal_format, xx texture.width, xx texture.height, 0, gl_format, gl_type, texture.data);
+    }
     
     if has_mipmap {
         glGenerateMipmap(GL_TEXTURE_2D);

@@ -42,29 +42,40 @@ SsaoPass :: struct {
 }
 
 geometry_pass: FramebufferPass(3, true, false);
+geometry_pass_resolved: FramebufferPass(3, true, false);
 ssao_pass: SsaoPass;
 ssao_blur_pass: FramebufferPass(1, false, true);
-lighting_pass: FramebufferPass(0, false, true);
+lighting_pass: FramebufferPass(1, false, true);
+faaa_pass: FramebufferPass(1, false, true);
 
+// in reality you would do your guided blur in your final render instead of another pass
 geometry_shader: GeometryShader;
 ambient_occlusion_shader: AmbientOcclusionShader;
 guided_blur_shader: GuidedBlurShader;
 point_light_shader: PointLightShader;
 directional_light_shader: DirectionalLightShader;
+faaa_shader: FAAAShader;
 
 // TODO side by side screenshot of framebuffer texture with linear vs nearest... I think it needs to be nearest
 
 deferred_initialize :: () {
     // continue using rgba for byte alignment
     init_framebuffer_pass(*geometry_pass, .RGBA16F, .RGBA16F, .RGBA8);
+    init_framebuffer_pass(*geometry_pass_resolved, .RGBA16F, .RGBA16F, .RGBA8);
     init_framebuffer_pass(*ssao_pass, *ambient_occlusion_shader, .R8);
-    init_framebuffer_pass(*ssao_blur_pass, *guided_blur_shader, .RGBA16F);
-    init_framebuffer_pass(*lighting_pass, *directional_light_shader);
+    init_framebuffer_pass(*ssao_blur_pass, *guided_blur_shader, .R8);
+    init_framebuffer_pass(*lighting_pass, *directional_light_shader, .RGBA8);
+    init_framebuffer_pass(*faaa_pass, *faaa_shader, .RGBA8);
 
     light_sphere_geometry := create_icosphere(1, 1);
     light_sphere = create_model(light_sphere_geometry);
     light_sphere.shader = *point_light_shader;
     assert(light_sphere_geometry.attributes.count == 1);
+
+    cube_geometry := create_cube(.{100.0, 100.0, 100.0});
+    cube_model = create_model(cube_geometry);
+    cube_model.shader = *geometry_shader;
+    assert(cube_geometry.attributes.count == 1);
     
     for model: models {
         model.shader = *geometry_shader;
@@ -74,9 +85,13 @@ deferred_initialize :: () {
 deferred_render :: () {
     deferred_render_geometry();
     deferred_render_ssao();
+    // deferred_render_ssao_to_screen();
     deferred_render_ssao_blur();
-    deferred_render_ssao_blur_to_screen();
-    // deferred_render_lighting();
+    // deferred_render_ssao_blur_to_screen();
+    deferred_render_lighting();
+    deferred_render_lighting_to_screen();
+    deferred_render_faaa();
+    // deferred_render_faaa_to_screen();
 }
 
 deferred_render_geometry :: () {
@@ -98,6 +113,12 @@ deferred_render_geometry :: () {
     for model: models {
         draw(model);
     }
+
+    cull_face_mode := get_cull_face_mode();
+    defer set_cull_face_mode(cull_face_mode);
+    set_cull_face_mode(.Front);
+
+    draw(cube_model);
 }
 
 deferred_render_ssao :: () {
@@ -147,7 +168,7 @@ deferred_render_ssao_blur :: () {
 
     ssao_blur_pass.uniforms[xx "uPosition"] = create_uniform("uPosition", geometry_pass.textures[0]);
     ssao_blur_pass.uniforms[xx "uNormal"] = create_uniform("uNormal", geometry_pass.textures[1]);
-    ssao_blur_pass.uniforms[xx "uSsao"] = create_uniform("uSsao", ssao_pass.textures[0]);
+    ssao_blur_pass.uniforms[xx "uSSAO"] = create_uniform("uSSAO", ssao_pass.textures[0]);
 
     draw(ssao_blur_pass);
 }
@@ -164,54 +185,102 @@ deferred_render_ssao_blur_to_screen :: () {
 }
 
 deferred_render_lighting :: () {
-    // restore the screen fbo
-    framebuffer_bind_write_screen();
+    framebuffer_bind_write(lighting_pass);
 
     blend := get_blend();
     defer set_blend(blend);
-    set_blend(true);
-
-    blend_equation := get_blend_equation();
-    defer set_blend_equation(blend_equation);
-    set_blend_equation(.Add);
-
-    blend_src, blend_dst := get_blend_func();
-    defer set_blend_func(blend_src, blend_dst);
-    set_blend_func(.One, .One);
+    set_blend(false);
 
     lighting_pass.uniforms[xx "view"] = create_uniform("view", koda.view);
     lighting_pass.uniforms[xx "uPosition"] = create_uniform("uPosition", geometry_pass.textures[0]);
     lighting_pass.uniforms[xx "uNormal"] = create_uniform("uNormal", geometry_pass.textures[1]);
     lighting_pass.uniforms[xx "uDiffuse"] = create_uniform("uDiffuse", geometry_pass.textures[2]);
+    lighting_pass.uniforms[xx "uSSAO"] = create_uniform("uSSAO", ssao_blur_pass.textures[0]);
 
     draw(lighting_pass);
 
-    // draw point light
-    point_light_shader.uniforms[xx "view"] = create_uniform("view", koda.view);
-    point_light_shader.uniforms[xx "uPosition"] = create_uniform("uPosition", geometry_pass.textures[0]);
-    point_light_shader.uniforms[xx "uNormal"] = create_uniform("uNormal", geometry_pass.textures[1]);
-    point_light_shader.uniforms[xx "uDiffuse"] = create_uniform("uDiffuse", geometry_pass.textures[2]);
+    {
+        blend := get_blend();
+        defer set_blend(blend);
+        set_blend(true);
 
-    light_position :: Vector3.{2, 2, -2};
-    light_radius :: 4.0;
+        blend_equation := get_blend_equation();
+        defer set_blend_equation(blend_equation);
+        set_blend_equation(.Add);
 
-    light_sphere.position = light_position;
-    light_sphere.scale = Vector3.{light_radius, light_radius, light_radius};
+        blend_src, blend_dst := get_blend_func();
+        defer set_blend_func(blend_src, blend_dst);
+        set_blend_func(.One, .One);
 
-    // technically if you want to do this right you would reenable the depth test, use back face culling, and use a stencil buffer to indicate front facing or back facing sphere
-    cull_face_mode := get_cull_face_mode();
-    defer set_cull_face_mode(cull_face_mode);
-    set_cull_face_mode(.Front);
+        // draw point light
+        point_light_shader.uniforms[xx "view"] = create_uniform("view", koda.view);
+        point_light_shader.uniforms[xx "uPosition"] = create_uniform("uPosition", geometry_pass.textures[0]);
+        point_light_shader.uniforms[xx "uNormal"] = create_uniform("uNormal", geometry_pass.textures[1]);
+        point_light_shader.uniforms[xx "uDiffuse"] = create_uniform("uDiffuse", geometry_pass.textures[2]);
 
-    depth_write := get_depth_write();
-    defer set_depth_write(depth_write);
-    set_depth_write(false);
+        light_position :: Vector3.{2, 2, -2};
+        light_radius :: 4.0;
 
-    depth_test := get_depth_test();
-    defer set_depth_test(depth_test);
-    set_depth_test(false);
+        light_sphere.position = light_position;
+        light_sphere.scale = Vector3.{light_radius, light_radius, light_radius};
 
-    draw(light_sphere);
+        // technically if you want to do this right you would reenable the depth test, use back face culling, and use a stencil buffer to indicate front facing or back facing sphere
+        cull_face_mode := get_cull_face_mode();
+        defer set_cull_face_mode(cull_face_mode);
+        set_cull_face_mode(.Front);
+
+        depth_write := get_depth_write();
+        defer set_depth_write(depth_write);
+        set_depth_write(false);
+
+        depth_test := get_depth_test();
+        defer set_depth_test(depth_test);
+        set_depth_test(false);
+
+        draw(light_sphere);
+    }
+}
+
+deferred_render_lighting_to_screen :: () {
+    framebuffer_bind_read(lighting_pass);
+    framebuffer_bind_write_screen();
+
+    width := cast(s32) koda.width;
+    height := cast(s32) koda.height;
+
+    glReadBuffer(GL_COLOR_ATTACHMENT0);
+    glBlitFramebuffer(0, 0, width, height, 0, 0, width, height, GL_COLOR_BUFFER_BIT, GL_LINEAR);
+}
+
+deferred_render_faaa :: () {
+    framebuffer_bind_write(faaa_pass);
+
+    blend := get_blend();
+    defer set_blend(blend);
+    set_blend(false);
+
+    projection := get_perspective_matrix();
+    faaa_pass.uniforms[xx "view"] = create_uniform("view", koda.view);
+    faaa_pass.uniforms[xx "projection"] = create_uniform("projection", projection);
+
+    faaa_pass.uniforms[xx "uColor"] = create_uniform("uColor", lighting_pass.textures[0]);
+    faaa_pass.uniforms[xx "uPosition"] = create_uniform("uPosition", geometry_pass.textures[0]);
+    faaa_pass.uniforms[xx "uNormal"] = create_uniform("uNormal", geometry_pass.textures[1]);
+    faaa_pass.uniforms[xx "uDepth"] = create_uniform("uDepth", geometry_pass.depth_texture);
+
+    draw(faaa_pass);
+}
+
+deferred_render_faaa_to_screen :: () {
+    framebuffer_bind_read(faaa_pass);
+    framebuffer_bind_write_screen();
+
+    width := cast(s32) koda.width;
+    height := cast(s32) koda.height;
+
+    glReadBuffer(GL_COLOR_ATTACHMENT0);
+    glBlitFramebuffer(0, 0, width, height, 0, 0, width, height, GL_COLOR_BUFFER_BIT, GL_LINEAR);
 }
 
 light_sphere: Model;
+cube_model: Model;

@@ -33,6 +33,7 @@ layout (location = 0) out vec4 FragColor;
 uniform sampler2D uPosition;
 uniform sampler2D uDiffuse;
 uniform sampler2D uNormal;
+uniform sampler2D uSSAO;
 
 uniform vec2 uScreenSize;
 
@@ -89,6 +90,8 @@ void main() {
 	vec3 normal = texture(uNormal, coord).xyz;
 	normal = normalize(normal);
 
-    FragColor = vec4(diffuse, 1.0) * calculateLight(position, normal);
+    float ssao = texture(uSSAO, coord).r;
+
+    FragColor = vec4(diffuse, 1.0) * calculateLight(position, normal) * 1.5 * ssao;
 }
 ___glsl

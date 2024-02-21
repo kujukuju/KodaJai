@@ -1,3 +1,6 @@
+
+// TODO you know... maybe this is just a bilateral blur? I'm not sure...
+
 GuidedBlurShader :: struct {
     using #as shader: Shader;
 
@@ -30,33 +33,64 @@ ___glsl
 GUIDED_BLUR_FRAGMENT_SHADER :: #string ___glsl
 #version 330 core
 
-layout (location = 0) out vec4 FragColor;
+layout (location = 0) out float FragColor;
 
-const float OFFSETS[4] = float[](-1.5, -0.5, 0.5, 1.5);
+// const float OFFSETS[4] = float[](-1.5, -0.5, 0.5, 1.5);
 
 uniform mat4 view;
 uniform mat4 projection;
 
 uniform sampler2D uPosition;
 uniform sampler2D uNormal;
-uniform sampler2D uSsao;
+uniform sampler2D uSSAO;
 
 in vec2 vCoord;
 in vec3 vCamera;
 in vec3 vCameraForward;
 
+float gaussian(float x, float sigma) {
+    return exp(-(x * x) / (2.0 * sigma * sigma));
+}
+
+float depthWeight(float depthDifference, float depthThreshold) {
+    return exp(-depthDifference / depthThreshold);
+}
+
 void main() {
-    float blurred = 0.0;
-    for (int i = 0 ; i < 4 ; i++) {
-        for (int j = 0 ; j < 4 ; j++) {
-            vec2 tc = vCoord;
-            tc.x += OFFSETS[j] / textureSize(uSsao, 0).x;
-            tc.y += OFFSETS[i] / textureSize(uSsao, 0).y;
-            blurred += texture(uSsao, tc).r;
+    float fragDepth = dot(vCamera - texture(uPosition, vCoord).rgb, vCameraForward);
+
+    vec2 positionDimensions = textureSize(uPosition, 0);
+    vec2 ssaoDimensions = textureSize(uSSAO, 0);
+
+    float accSSAO = 0.0;
+    float accWeight = 0.0;
+    for (int y = -2; y <= 2; y++) {
+        for (int x = -2; x <= 2; x++) {
+            vec2 spatialDelta = vec2(float(x), float(y));
+            float spatialDistance = length(spatialDelta);
+
+            vec2 positionCoord = vCoord + spatialDelta / positionDimensions;
+            vec2 ssaoCoord = vCoord + spatialDelta / ssaoDimensions;
+
+            float neighborDepth = dot(vCamera - texture(uPosition, positionCoord).rgb, vCameraForward);
+            float depthDifference = abs(fragDepth - neighborDepth);
+
+            float wSpatial = gaussian(spatialDistance, 2.0);
+            float wDepth = depthWeight(depthDifference, 0.02);
+
+            float weight = wSpatial * wDepth;
+
+            accSSAO += texture(uSSAO, ssaoCoord).r * weight;
+            accWeight += weight;
         }
     }
-    
-    blurred /= 4.0 * 4.0;
-    FragColor = vec4(vec3(blurred), 1.0);
+
+    if (accWeight < 0.00001) {
+        accWeight = 0.00001;
+    }
+
+    FragColor = accSSAO / accWeight;
+
+    // FragColor = vec4(vec3(texture(uSSAO, vCoord).r), 1.0);
 }
 ___glsl

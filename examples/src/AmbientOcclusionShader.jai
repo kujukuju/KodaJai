@@ -34,6 +34,7 @@ layout (location = 0) out float FragColor;
 
 const int MAX_KERNEL_SIZE = 64;
 const float SAMPLE_RADIUS = 0.5;
+const float FAR_RADIUS = 0.1;
 const float BIAS = 0.025;
 
 uniform mat4 view;
@@ -77,15 +78,16 @@ void main() {
         
         // get sample depth
         float sampleDepth = dot(vCamera - texture(uPosition, offset.xy).rgb, vCameraForward);
-        // float sampleDepth = vec3(view * vec4(texture(uPosition, offset.xy).rgb, 1.0)).z; // get depth value of kernel sample
         
         // range check & accumulate
         float rangeCheck = smoothstep(0.0, 1.0, SAMPLE_RADIUS / abs(viewFragPos.z - sampleDepth));
-        occlusion += (sampleDepth >= samplePos.z + BIAS ? 1.0 : 0.0) * rangeCheck;
+        float nearCheck = step(samplePos.z + BIAS, sampleDepth);
+        // float farCheck = smoothstep(-samplePos.z - SAMPLE_RADIUS - FAR_RADIUS, -samplePos.z - SAMPLE_RADIUS, -sampleDepth);
+        float farCheck = step(-samplePos.z - SAMPLE_RADIUS, -sampleDepth);
+        occlusion += nearCheck * farCheck * rangeCheck;
     }
     occlusion = 1.0 - occlusion / float(MAX_KERNEL_SIZE);
 
     FragColor = pow(occlusion, 2.0);
-    // FragColor = vec4(vec3(pow(occlusion, 2.0)), 0.0);
 }
 ___glsl

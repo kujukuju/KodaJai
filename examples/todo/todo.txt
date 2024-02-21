@@ -1,0 +1,21 @@
+
+smaa
+https://github.com/iryoku/smaa
+just smaa, good quality but not as fast
+requires at least 3 passes
+
+deferred msaa
+https://mynameismjp.wordpress.com/2010/08/16/deferred-msaa/
+probably wont antialias solid face colors or hard normals
+uses legitimate hardware level subpixel multisampling
+interpolates final aliased pixel value based on subpixel depth sampling I think
+
+faaa
+https://github.com/grebord/Fast-Adaptive-AA
+faster than low quality smaa
+much visually better than traditional fxaa, similar to smaa
+
+lxaa
+https://github.com/grebord/LXAA-Antialiasing-Shader
+based on timothy lottes console fxaa v3
+maybe similar speed to fxaa? very low blurring
