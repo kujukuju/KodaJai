@@ -10,7 +10,7 @@ FAAAShader :: struct {
 #scope_module
 
 FAAA_VERTEX_SHADER :: #string ___glsl
-#version 440 core
+#version 330 core
 
 layout (location = 0) in vec2 aPos;
 
@@ -32,7 +32,7 @@ void main() {
 ___glsl
 
 FAAA_FRAGMENT_SHADER :: #string ___glsl
-#version 440 core
+#version 330 core
 
 layout (location = 0) out vec4 FragColor;
 
@@ -171,10 +171,10 @@ layout (location = 0) out vec4 FragColor;
 	#define FXAA_QUALITY_P10 4.0 
 #endif
 
-const float OFFSET_MUL[12] = {FXAA_QUALITY_P0, FXAA_QUALITY_P1,
+const float OFFSET_MUL[12] = float[](FXAA_QUALITY_P0, FXAA_QUALITY_P1,
 	FXAA_QUALITY_P2, FXAA_QUALITY_P3, FXAA_QUALITY_P4, FXAA_QUALITY_P5,
 	FXAA_QUALITY_P6, FXAA_QUALITY_P7, FXAA_QUALITY_P8, FXAA_QUALITY_P9,
-	FXAA_QUALITY_P10, FXAA_QUALITY_P11};
+	FXAA_QUALITY_P10, FXAA_QUALITY_P11);
 
 const float edgeThreshold = (10.0 - FXAA_EDGE_THRESHOLD) * 0.0625;
 

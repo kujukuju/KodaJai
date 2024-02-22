@@ -1,5 +1,42 @@
 
-shadow map snapping
+shadow map snapping always
+
+render shadow map msaa and resolve it?
+
+try to faaa the shadow buffer
+
+use texture2DShadow for free stuff including PCF, which I might not want and can disable I think
+
+can probably fix the black background with a texture setting like clamp or limit the shader sample range
+
+maybe you can nearest the PCF and optimize it
+https://github.com/mrdoob/three.js/issues/15577
+
+interweaved ssao noise for cache efficiency
+https://developer.nvidia.com/sites/default/files/akamai/gamedev/docs/BAVOIL_ParticleShadowsAndCacheEfficientPost.pdf
+
+try making ssao texture a power of 2 like 1024x512 and see how that goes
+
+try making various textures sample nearest see how it affects performance and visuals
+
+try making ssao rgba see what happens
+
+try storing normals as half float or less 10 10 2 with reconstruction? idk
+
+try storing position as a half float? it's just used for lighting...
+
+actually if I can reconstruct position from depth is position used for anything at all?
+
+try reconstruting position from depth for more cache hits and f32 depth vs rgba32 for position
+
+allow locking world space resolution for the shadow buffer
+locking dimensions would be based on the 3 frustrum dimensions + frustrum diagonal at depth
+
+allow view direction lock for shadow matrix generation
+
+allow light direction lock for shadow matrix generation
+
+only fix world dimensions to direction locked boundaries if both locks are true
 
 smaa
 https://github.com/iryoku/smaa

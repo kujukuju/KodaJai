@@ -96,7 +96,7 @@ get_perspective_matrix :: () -> Matrix4 {
     BUILTIN :: true;
     #if BUILTIN {
         // this seems to be the _only_ matrix that doesn't rotate your camera around the near plane
-        aspect := cast(float) koda.viewport_width / koda.viewport_height;
+        aspect := cast(float) koda.width / koda.height;
 
         height := tan(fovy / 2.0);
         width := aspect * height;
@@ -115,12 +115,12 @@ get_perspective_matrix :: () -> Matrix4 {
         #if ZERO_ONE {
             // clip plane becomes [0, 1]
             fovy := 70.0 / 180.0 * PI;
-            // aspect := cast(float) abs(koda.viewport_width) / abs(koda.viewport_height);
+            // aspect := cast(float) abs(koda.width) / abs(koda.height);
             z_near := 0.1;
             z_far := 1000.0;
 
             h := cos(0.5 * fovy) / sin(0.5 * fovy);
-            w := h * koda.viewport_height / koda.viewport_width;
+            w := h * koda.height / koda.width;
 
             matrix: Matrix4 = Matrix4Identity;
             matrix.coef[0][0] = w;
@@ -132,7 +132,7 @@ get_perspective_matrix :: () -> Matrix4 {
         } else {
             // clip plane becomes [-1, 1]
             fovy := 70.0 / 180.0 * PI;
-            aspect := cast(float) koda.viewport_width / koda.viewport_height;
+            aspect := cast(float) koda.width / koda.height;
             z_near := 0.1;
             z_far := 1000.0;
 
@@ -159,9 +159,9 @@ get_perspective_matrix :: () -> Matrix4 {
 
 get_orthographic_matrix :: () -> Matrix4 {
     left := 0.0;
-    right := cast(float) koda.viewport_width;
-    top := cast(float) ifx koda.viewport_height < 0 then -koda.viewport_height else 0;
-    bottom := cast(float) ifx koda.viewport_height > 0 then koda.viewport_height else 0;
+    right := cast(float) koda.width;
+    top := cast(float) ifx koda.height < 0 then -koda.height else 0;
+    bottom := cast(float) ifx koda.height > 0 then koda.height else 0;
     z_far := -1.0;
     z_near := 1.0;
 
@@ -174,7 +174,7 @@ get_orthographic_matrix :: () -> Matrix4 {
     matrix.coef[2][3] = -z_near / (z_far - z_near);
     return matrix;
     
-    // return orthographic_projection_matrix(0.0, xx koda.viewport_width, 0.0, xx koda.viewport_height, 1.0, -1.0); 
+    // return orthographic_projection_matrix(0.0, xx koda.width, 0.0, xx koda.height, 1.0, -1.0); 
 }
 
 create_orthographic_matrix :: (left: float, right: float, bottom: float, top: float, near: float, far: float) -> Matrix4 {

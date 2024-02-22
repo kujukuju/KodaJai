@@ -9,7 +9,7 @@
     options.debug_for_expansions = true;
     options.import_path = .["C:/jai/modules", #run tprint("%../../", #filepath), "/usr/jai/modules"];
     
-    set_optimization(*options, .VERY_OPTIMIZED);
+    // set_optimization(*options, .VERY_OPTIMIZED);
 
     set_build_options(options, w);
 

@@ -132,15 +132,8 @@
 koda: struct {
     initialized: bool;
     window: *GLFWwindow;
-    width: s32;
-    height: s32;
-    last_width: int;
-    last_height: int;
-    // TODO just remove this right?
-    viewport_width: int;
-    viewport_height: int;
-    windowed_width: int;
-    windowed_height: int;
+    width: int;
+    height: int;
     frame_tracker: FrameTracker;
     time_tracker: TimeTracker;
     render_flipped: bool;

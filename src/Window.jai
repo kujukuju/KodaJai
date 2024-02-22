@@ -46,8 +46,6 @@ create_window :: (title: *u8, width: s32, height: s32, multisample: int = 0) {
             monitor_height = video_mode.height;
         }
     }
-    koda.windowed_width = width;
-    koda.windowed_height = height;
 
     if multisample {
         glfwWindowHint(GLFW_SAMPLES, xx multisample);
@@ -88,8 +86,6 @@ create_window :: (title: *u8, width: s32, height: s32, multisample: int = 0) {
 
     koda.width = width;
     koda.height = height;
-    koda.last_width = width;
-    koda.last_height = height;
     set_viewport(width, height);
 
     set_blend(true);
@@ -126,8 +122,8 @@ set_icon :: (image: Image) {
 }
 
 set_viewport :: (width: int, height: int) {
-    koda.viewport_width = width;
-    koda.viewport_height = height;
+    koda.width = width;
+    koda.height = height;
     
     glViewport(0, 0, xx width, xx height);
 }
@@ -142,9 +138,11 @@ should_exit :: () -> bool {
     }
 
     // end and begin
+    width: s32;
+    height: s32;
     glfwSwapBuffers(koda.window);
-    glfwGetFramebufferSize(koda.window, *koda.width, *koda.height);
-    if koda.last_width != koda.width || koda.last_height != koda.height {
+    glfwGetFramebufferSize(koda.window, *width, *height);
+    if koda.width != width || koda.height != height {
         set_viewport(koda.width, koda.height);
     }
 
@@ -206,7 +204,7 @@ set_fullscreen :: (fullscreen: bool, borderless: bool) {
         video_mode := glfwGetVideoMode(monitor);
         if video_mode {
             glfwSetWindowAttrib(koda.window, GLFW_DECORATED, GLFW_TRUE);
-            glfwSetWindowMonitor(koda.window, null, cast(s32) (video_mode.width - koda.windowed_width) / 2, cast(s32) (video_mode.height - koda.windowed_height) / 2, cast(s32) koda.windowed_width, cast(s32) koda.windowed_height, 0);
+            glfwSetWindowMonitor(koda.window, null, cast(s32) (video_mode.width - koda.width) / 2, cast(s32) (video_mode.height - koda.height) / 2, cast(s32) koda.width, cast(s32) koda.height, 0);
         }
     }
 }
