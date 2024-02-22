@@ -177,6 +177,21 @@ get_orthographic_matrix :: () -> Matrix4 {
     // return orthographic_projection_matrix(0.0, xx koda.viewport_width, 0.0, xx koda.viewport_height, 1.0, -1.0); 
 }
 
+create_orthographic_matrix :: (left: float, right: float, bottom: float, top: float, near: float, far: float) -> Matrix4 {
+    ortho: Matrix4;
+
+    ortho._11 = 2.0 / (right - left);
+    ortho._22 = 2.0 / (top - bottom);
+    ortho._33 = 2.0 / (far - near);
+    ortho._44 = 1.0;
+    
+    ortho._14 = -(right + left) / (right - left);
+    ortho._24 = -(top + bottom) / (top - bottom);
+    ortho._34 = -(far + near) / (far - near);
+
+    return ortho;
+}
+
 // Matrix4Identity :: Matrix4.{
 //     1, 0, 0, 0,
 //     0, 1, 0, 0,

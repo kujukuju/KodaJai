@@ -8,6 +8,8 @@ camera: Camera3;
 
 models: [..] *Model;
 
+light_direction: Vector3;
+
 main :: () {
     koda_init();
 
@@ -25,10 +27,12 @@ main :: () {
 
     koda.fovy = 0.5 * PI;
 
-    light_direction := Vector3.{0, 0, -1};
-    light_direction = rotate(light_direction, Quaternion.{0.173, 0.277, 0.257, 0.910});
-    light_direction.y, light_direction.z = light_direction.z, light_direction.y;
-    light_direction.z = -light_direction.z;
+    light_direction = Vector3.{-0.758616, -0.310689, -0.572684};
+    // light_direction = Vector3.{0, 0, -1};
+    // light_direction = rotate(light_direction, Quaternion.{0.173, 0.277, 0.257, 0.910});
+    // light_direction.y, light_direction.z = light_direction.z, light_direction.y;
+    // light_direction.z = -light_direction.z;
+    print("Light direction: %\n", light_direction);
 
     // color_shader.uniforms[xx "uLightDirection"] = create_uniform("uLightDirection", light_direction);
 

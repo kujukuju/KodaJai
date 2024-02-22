@@ -37,11 +37,12 @@ layout (location = 0) out float FragColor;
 
 // const float OFFSETS[4] = float[](-1.5, -0.5, 0.5, 1.5);
 
+const float gaussianWeights[25] = float[](0.3678794411714422, 0.5352614285189902, 0.6065306597126334, 0.5352614285189902, 0.3678794411714422, 0.5352614285189902, 0.7788007830714048, 0.8824969025845955, 0.7788007830714048, 0.5352614285189902, 0.6065306597126334, 0.8824969025845955, 1, 0.8824969025845955, 0.6065306597126334, 0.5352614285189902, 0.7788007830714048, 0.8824969025845955, 0.7788007830714048, 0.5352614285189902, 0.3678794411714422, 0.5352614285189902, 0.6065306597126334, 0.5352614285189902, 0.3678794411714422);
+
 uniform mat4 view;
 uniform mat4 projection;
 
 uniform sampler2D uPosition;
-uniform sampler2D uNormal;
 uniform sampler2D uSSAO;
 
 in vec2 vCoord;
@@ -56,6 +57,8 @@ float depthWeight(float depthDifference, float depthThreshold) {
     return exp(-depthDifference / depthThreshold);
 }
 
+// 1.245679
+
 void main() {
     float fragDepth = dot(vCamera - texture(uPosition, vCoord).rgb, vCameraForward);
 
@@ -64,10 +67,11 @@ void main() {
 
     float accSSAO = 0.0;
     float accWeight = 0.0;
+    int index = 0;
     for (int y = -2; y <= 2; y++) {
         for (int x = -2; x <= 2; x++) {
             vec2 spatialDelta = vec2(float(x), float(y));
-            float spatialDistance = length(spatialDelta);
+            // float spatialDistance = length(spatialDelta);
 
             vec2 positionCoord = vCoord + spatialDelta / positionDimensions;
             vec2 ssaoCoord = vCoord + spatialDelta / ssaoDimensions;
@@ -75,7 +79,7 @@ void main() {
             float neighborDepth = dot(vCamera - texture(uPosition, positionCoord).rgb, vCameraForward);
             float depthDifference = abs(fragDepth - neighborDepth);
 
-            float wSpatial = gaussian(spatialDistance, 2.0);
+            float wSpatial = gaussianWeights[index++];
             float wDepth = depthWeight(depthDifference, 0.02);
 
             float weight = wSpatial * wDepth;

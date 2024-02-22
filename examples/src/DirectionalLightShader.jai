@@ -34,6 +34,7 @@ uniform sampler2D uPosition;
 uniform sampler2D uDiffuse;
 uniform sampler2D uNormal;
 uniform sampler2D uSSAO;
+uniform sampler2D uShadow;
 
 uniform vec2 uScreenSize;
 
@@ -43,6 +44,9 @@ uniform vec3 uLightDirection;
 uniform float uLightConstant;
 uniform float uLightLinear;
 uniform float uLightExp;
+
+uniform mat4 uShadowView;
+uniform mat4 uShadowProjection;
 
 uniform float uSpecularPower;
 uniform float uDiffuseIntensity;
@@ -82,6 +86,22 @@ vec4 calculateLight(vec3 position, vec3 normal) {
     return calcLightInternal(baseColor, uAmbientIntensity, uDiffuseIntensity, uLightDirection, position, normal);
 }
 
+float calcShadowFactor(vec3 position) {
+    vec4 shadowSpace = uShadowProjection * uShadowView * vec4(position, 1.0);
+
+    vec3 shadowCoord = shadowSpace.xyz / shadowSpace.w;
+    shadowCoord = shadowCoord * 0.5 + 0.5;
+
+    float shadowDepth = texture(uShadow, shadowCoord.xy).r;
+
+    const float bias = 0.005;
+    if (shadowCoord.z > shadowDepth + bias) {
+        return 0.2;
+    }
+
+    return 1.0;
+}
+
 void main() {
     vec2 coord = vCoord;
 
@@ -92,6 +112,8 @@ void main() {
 
     float ssao = texture(uSSAO, coord).r;
 
-    FragColor = vec4(diffuse, 1.0) * calculateLight(position, normal) * 1.5 * ssao;
+    float shadowFactor = calcShadowFactor(position);
+
+    FragColor = vec4(diffuse, 1.0) * calculateLight(position, normal) * 1.5 * ssao * shadowFactor;
 }
 ___glsl

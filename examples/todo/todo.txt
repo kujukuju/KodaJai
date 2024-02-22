@@ -1,4 +1,6 @@
 
+shadow map snapping
+
 smaa
 https://github.com/iryoku/smaa
 just smaa, good quality but not as fast
@@ -19,3 +21,4 @@ lxaa
 https://github.com/grebord/LXAA-Antialiasing-Shader
 based on timothy lottes console fxaa v3
 maybe similar speed to fxaa? very low blurring
+uses similar edge detesction as faaa but lower quality and faster

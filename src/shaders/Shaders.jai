@@ -135,16 +135,26 @@ initialize_shader :: (shader: *Shader) {
         return shader_object, true;
     }
 
-    shader_v, success_v := make_shader_object(shader.vertex, shader.vertex_extra, GL_VERTEX_SHADER);
-    defer glDeleteShader(shader_v);
-    if !success_v {
-        print("Could not initialized vertex shader.\n");
+    shader_v: u32;
+    success_v := true;
+    if shader.vertex {
+        shader_v, success_v = make_shader_object(shader.vertex, shader.vertex_extra, GL_VERTEX_SHADER);
+        if !success_v {
+            print("Could not initialized vertex shader.\n");
+        }
     }
-    shader_f, success_f := make_shader_object(shader.fragment, shader.fragment_extra, GL_FRAGMENT_SHADER);
-    defer glDeleteShader(shader_f);
-    if !success_f {
-        print("Could not initialized fragment shader.\n");
+    defer if shader.vertex glDeleteShader(shader_v);
+
+    shader_f: u32;
+    success_f := true;
+    if shader.fragment {
+        shader_f, success_f = make_shader_object(shader.fragment, shader.fragment_extra, GL_FRAGMENT_SHADER);
+        if !success_f {
+            print("Could not initialized fragment shader.\n");
+        }
     }
+    defer if shader.fragment glDeleteShader(shader_f);
+
     shader.program = glCreateProgram();
 
     if !success_v || !success_f || !shader.program {
@@ -156,8 +166,12 @@ initialize_shader :: (shader: *Shader) {
         assert(false, "Failure initializing shader.");
     }
 
-    glAttachShader(shader.program, shader_v);
-    glAttachShader(shader.program, shader_f);
+    if shader_v {
+        glAttachShader(shader.program, shader_v);
+    }
+    if shader_f {
+        glAttachShader(shader.program, shader_f);
+    }
     glLinkProgram(shader.program);
 
     success: GLint;

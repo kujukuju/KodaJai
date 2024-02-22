@@ -42,7 +42,6 @@ uniform mat4 projection;
 
 uniform sampler2D uPosition;
 uniform sampler2D uNormal;
-// uniform sampler2D uDepth;
 uniform sampler2D uNoise;
 
 uniform vec3 uKernel[MAX_KERNEL_SIZE];

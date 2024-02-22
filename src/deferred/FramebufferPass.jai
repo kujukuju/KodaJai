@@ -6,6 +6,8 @@ FramebufferPass :: struct (count: int, depth: bool, drawable: bool, multisample:
     depth_texture: Texture;
     shader: *Shader;
     uniforms: ShaderUniforms;
+    width: int;
+    height: int;
     vao: u32;
     vbo: u32;
     initializer: #type (pass: *FramebufferPass(count, depth, drawable, multisample));
@@ -13,27 +15,38 @@ FramebufferPass :: struct (count: int, depth: bool, drawable: bool, multisample:
 
 create_framebuffer_pass :: (shader: *Shader, $channels: ..PixelFormat, $depth: bool, $drawable: bool, $multisample: int = 0) -> FramebufferPass(channels.count, depth, drawable, multisample) {
     pass: FramebufferPass(channels.count, depth, drawable);
-    init_framebuffer_pass(*pass, shader);
+    init_framebuffer_pass(*pass, shader, ..channels);
 
     return pass;
 }
 
 init_framebuffer_pass :: (pass: *FramebufferPass($count, $depth, true, $multisample), shader: *Shader, channels: ..PixelFormat) {
     assert(!!shader, "If your framebuffer pass is drawable you must provide a shader.\n");
-    init_framebuffer_pass_internal(pass, shader, ..channels);
+    init_framebuffer_pass_internal(pass, shader, koda.width, koda.height, ..channels);
+}
+
+init_framebuffer_pass :: (pass: *FramebufferPass($count, $depth, true, $multisample), shader: *Shader, width: int, height: int, channels: ..PixelFormat) {
+    assert(!!shader, "If your framebuffer pass is drawable you must provide a shader.\n");
+    init_framebuffer_pass_internal(pass, shader, width, height, ..channels);
 }
 
 init_framebuffer_pass :: (pass: *FramebufferPass($count, $depth, false, $multisample), channels: ..PixelFormat) {
-    init_framebuffer_pass_internal(pass, null, ..channels);
+    init_framebuffer_pass_internal(pass, null, koda.width, koda.height, ..channels);
 }
 
-init_framebuffer_pass_internal :: (pass: *FramebufferPass($count, $depth, $drawable, $multisample), shader: *Shader, channels: ..PixelFormat) {
+init_framebuffer_pass :: (pass: *FramebufferPass($count, $depth, false, $multisample), width: int, height: int, channels: ..PixelFormat) {
+    init_framebuffer_pass_internal(pass, null, width, height, ..channels);
+}
+
+init_framebuffer_pass_internal :: (pass: *FramebufferPass($count, $depth, $drawable, $multisample), shader: *Shader, width: int, height: int, channels: ..PixelFormat) {
     if count != channels.count {
         assert(false, "Passed invalid number of predefined channels to initialize a framebuffer pass.\n");
         return;
     }
 
     pass.shader = shader;
+    pass.width = width;
+    pass.height = height;
     
     #if count > 0 || depth {
         glGenFramebuffers(1, *pass.framebuffer);
@@ -41,24 +54,25 @@ init_framebuffer_pass_internal :: (pass: *FramebufferPass($count, $depth, $drawa
 
         for channel, index: channels {
             // TODO nearest?
-            pass.textures[index] = create_texture(koda.width, koda.height, channel, .Clamp, .Linear, multisample);
+            pass.textures[index] = create_texture(width, height, channel, .Clamp, .Linear, multisample);
             glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0 + cast(u32) index, GL_TEXTURE_2D, pass.textures[index].buffer, 0);
         }
 
         #if depth {
-            pass.depth_texture = create_texture(koda.width, koda.height, .Depth32F, .Clamp, .Linear);
+            pass.depth_texture = create_texture(width, height, .Depth32F, .Clamp, .Linear);
             glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D, pass.depth_texture.buffer, 0);
         }
 
-        draw_buffers: [count] u32;
-        for i: 0..draw_buffers.count - 1 {
-            draw_buffers[i] = GL_COLOR_ATTACHMENT0 + cast(u32) i;
+        #if count > 0 {
+            draw_buffers: [count] u32;
+            for i: 0..draw_buffers.count - 1 {
+                draw_buffers[i] = GL_COLOR_ATTACHMENT0 + cast(u32) i;
+            }
+
+            glDrawBuffers(draw_buffers.count, draw_buffers.data);
         }
 
-        glDrawBuffers(draw_buffers.count, draw_buffers.data);
-
         status := glCheckFramebufferStatus(GL_FRAMEBUFFER);
-
         if status != GL_FRAMEBUFFER_COMPLETE {
             print("Framebuffer error: %\n", status);
             print_stack_trace();
@@ -111,6 +125,7 @@ init_framebuffer_pass_internal :: (pass: *FramebufferPass($count, $depth, $drawa
 
 framebuffer_bind_write :: (pass: FramebufferPass($c, $depth, $dr, $m)) {
     glBindFramebuffer(GL_DRAW_FRAMEBUFFER, pass.framebuffer);
+    glViewport(0, 0, xx pass.width, xx pass.height);
 
     #if depth {
         clear(.Color | .Depth);
@@ -121,6 +136,7 @@ framebuffer_bind_write :: (pass: FramebufferPass($c, $depth, $dr, $m)) {
 
 framebuffer_bind_write_screen :: () {
     glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0);
+    glViewport(0, 0, xx koda.viewport_width, xx koda.viewport_height);
 
     clear(.Color | .Depth);
 }
@@ -134,14 +150,14 @@ framebuffer_bind_read_screen :: () {
 }
 
 framebuffer_resolve_into :: (pass: FramebufferPass($p_count, $p_d, $p_dr, $p_ms), resolved: FramebufferPass($r_count, $r_d, $r_dr, $r_ms), $resolve_depth: bool = true) {
-    assert(p_count == r_count, "You cannot resolve into a framebuffer with a different amount of textures.");
+    assert(r_count == 1, "You cannot resolve into a framebuffer with more than 1 texture... Unless it's depth? But I haven't handled that yet.");
 
     framebuffer_bind_read(pass);
     framebuffer_bind_write(resolved);
 
+    // TODO doesn't work like this...
     for i: 0..p_count - 1 {
         glReadBuffer(GL_COLOR_ATTACHMENT0 + i);
-        glWriteBuffer(GL_COLOR_ATTACHMENT0 + i);
         glBlitFramebuffer(0, 0, width, height, 0, 0, width, height, GL_COLOR_BUFFER_BIT, GL_LINEAR);
     }
 }

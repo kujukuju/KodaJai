@@ -41,14 +41,17 @@ SsaoPass :: struct {
     };
 }
 
+shadow_pass: FramebufferPass(0, true, false);
+shadow_pass_out: FramebufferPass(1, false, true);
 geometry_pass: FramebufferPass(3, true, false);
-geometry_pass_resolved: FramebufferPass(3, true, false);
 ssao_pass: SsaoPass;
 ssao_blur_pass: FramebufferPass(1, false, true);
 lighting_pass: FramebufferPass(1, false, true);
 faaa_pass: FramebufferPass(1, false, true);
 
 // in reality you would do your guided blur in your final render instead of another pass
+shadow_projection_shader: ShadowProjectionShader;
+shadow_depth_resolve_shader: ShadowDepthResolveShader;
 geometry_shader: GeometryShader;
 ambient_occlusion_shader: AmbientOcclusionShader;
 guided_blur_shader: GuidedBlurShader;
@@ -58,11 +61,15 @@ faaa_shader: FAAAShader;
 
 // TODO side by side screenshot of framebuffer texture with linear vs nearest... I think it needs to be nearest
 
+shadow_view: Matrix4;
+shadow_projection: Matrix4;
+
 deferred_initialize :: () {
     // continue using rgba for byte alignment
+    init_framebuffer_pass(*shadow_pass, 4096, 4096);
+    init_framebuffer_pass(*shadow_pass_out, *shadow_depth_resolve_shader, .RGBA8);
     init_framebuffer_pass(*geometry_pass, .RGBA16F, .RGBA16F, .RGBA8);
-    init_framebuffer_pass(*geometry_pass_resolved, .RGBA16F, .RGBA16F, .RGBA8);
-    init_framebuffer_pass(*ssao_pass, *ambient_occlusion_shader, .R8);
+    init_framebuffer_pass(*ssao_pass, *ambient_occlusion_shader, koda.width / 2, koda.height / 2, .R8);
     init_framebuffer_pass(*ssao_blur_pass, *guided_blur_shader, .R8);
     init_framebuffer_pass(*lighting_pass, *directional_light_shader, .RGBA8);
     init_framebuffer_pass(*faaa_pass, *faaa_shader, .RGBA8);
@@ -83,18 +90,79 @@ deferred_initialize :: () {
 }
 
 deferred_render :: () {
+    perf_track("render");
+
+    deferred_render_shadows();
+    // deferred_render_shadows_to_screen();
     deferred_render_geometry();
+    // deferred_render_geometry_to_screen();
     deferred_render_ssao();
     // deferred_render_ssao_to_screen();
     deferred_render_ssao_blur();
     // deferred_render_ssao_blur_to_screen();
     deferred_render_lighting();
-    deferred_render_lighting_to_screen();
+    // deferred_render_lighting_to_screen();
     deferred_render_faaa();
-    // deferred_render_faaa_to_screen();
+    deferred_render_faaa_to_screen();
+
+    perf_tracker_print(1000);
+}
+
+deferred_render_shadows :: () {
+    perf_track("render_shadows");
+    
+    framebuffer_bind_write(shadow_pass);
+
+    shadow_view, shadow_projection = calculate_directional_shadow_matrices(light_direction, 10.0);
+
+    view := koda.view;
+    defer koda.view = view;
+    koda.view = shadow_view;
+
+    depth_write := get_depth_write();
+    defer set_depth_write(depth_write);
+    set_depth_write(true);
+
+    depth_test := get_depth_test();
+    defer set_depth_test(depth_test);
+    set_depth_test(true);
+
+    blend := get_blend();
+    defer set_blend(blend);
+    set_blend(false);
+
+    for model: models {
+        draw(model, projection = shadow_projection, shader = *shadow_projection_shader);
+    }
+
+    cull_face_mode := get_cull_face_mode();
+    defer set_cull_face_mode(cull_face_mode);
+    set_cull_face_mode(.Front);
+
+    draw(cube_model, projection = shadow_projection, shader = *shadow_projection_shader);
+}
+
+deferred_render_shadows_to_screen :: () {
+    framebuffer_bind_write(shadow_pass_out);
+    
+    blend := get_blend();
+    defer set_blend(blend);
+    set_blend(false);
+
+    shadow_pass_out.uniforms[xx "uDepth"] = create_uniform("uDepth", shadow_pass.depth_texture);
+
+    draw(shadow_pass_out);
+
+    framebuffer_bind_read(shadow_pass_out);
+    framebuffer_bind_write_screen();
+
+    glReadBuffer(GL_COLOR_ATTACHMENT0);
+    glBlitFramebuffer(0, 0, xx shadow_pass_out.width, xx shadow_pass_out.height, 0, 0, xx koda.width, xx koda.height, GL_COLOR_BUFFER_BIT, GL_LINEAR);
 }
 
 deferred_render_geometry :: () {
+    perf_track("render_geometry");
+
     // bind for writing
     framebuffer_bind_write(geometry_pass);
 
@@ -121,7 +189,16 @@ deferred_render_geometry :: () {
     draw(cube_model);
 }
 
+deferred_render_geometry_to_screen :: () {
+    framebuffer_bind_read(geometry_pass);
+    framebuffer_bind_write_screen();
+
+    glReadBuffer(GL_COLOR_ATTACHMENT0 + 2);
+    glBlitFramebuffer(0, 0, xx geometry_pass.width, xx geometry_pass.height, 0, 0, xx koda.width, xx koda.height, GL_COLOR_BUFFER_BIT, GL_LINEAR);
+}
+
 deferred_render_ssao :: () {
+    perf_track("render_ssao");
     framebuffer_bind_write(ssao_pass);
 
     blend := get_blend();
@@ -134,11 +211,10 @@ deferred_render_ssao :: () {
 
     ssao_pass.uniforms[xx "uPosition"] = create_uniform("uPosition", geometry_pass.textures[0]);
     ssao_pass.uniforms[xx "uNormal"] = create_uniform("uNormal", geometry_pass.textures[1]);
-    ssao_pass.uniforms[xx "uDepth"] = create_uniform("uDepth", geometry_pass.depth_texture);
 
     assert(ssao_pass.uniforms[xx "uNoise"].type == .Texture);
     noise_texture := ssao_pass.uniforms[xx "uNoise"].texture;
-    noise_scale := Vector2.{cast(float) koda.width / noise_texture.width, cast(float) koda.height / noise_texture.height};
+    noise_scale := Vector2.{cast(float) ssao_pass.width / noise_texture.width, cast(float) ssao_pass.height / noise_texture.height};
     ssao_pass.uniforms[xx "uNoiseScale"] = create_uniform("uNoiseScale", noise_scale);
 
     draw(ssao_pass);
@@ -148,14 +224,13 @@ deferred_render_ssao_to_screen :: () {
     framebuffer_bind_read(ssao_pass);
     framebuffer_bind_write_screen();
 
-    width := cast(s32) koda.width;
-    height := cast(s32) koda.height;
-
     glReadBuffer(GL_COLOR_ATTACHMENT0);
-    glBlitFramebuffer(0, 0, width, height, 0, 0, width, height, GL_COLOR_BUFFER_BIT, GL_LINEAR);
+    glBlitFramebuffer(0, 0, xx ssao_pass.width, xx ssao_pass.height, 0, 0, xx koda.width, xx koda.height, GL_COLOR_BUFFER_BIT, GL_LINEAR);
 }
 
 deferred_render_ssao_blur :: () {
+    perf_track("render_ssao_blur");
+
     framebuffer_bind_write(ssao_blur_pass);
 
     blend := get_blend();
@@ -167,7 +242,6 @@ deferred_render_ssao_blur :: () {
     ssao_blur_pass.uniforms[xx "projection"] = create_uniform("projection", projection);
 
     ssao_blur_pass.uniforms[xx "uPosition"] = create_uniform("uPosition", geometry_pass.textures[0]);
-    ssao_blur_pass.uniforms[xx "uNormal"] = create_uniform("uNormal", geometry_pass.textures[1]);
     ssao_blur_pass.uniforms[xx "uSSAO"] = create_uniform("uSSAO", ssao_pass.textures[0]);
 
     draw(ssao_blur_pass);
@@ -177,14 +251,13 @@ deferred_render_ssao_blur_to_screen :: () {
     framebuffer_bind_read(ssao_blur_pass);
     framebuffer_bind_write_screen();
 
-    width := cast(s32) koda.width;
-    height := cast(s32) koda.height;
-
     glReadBuffer(GL_COLOR_ATTACHMENT0);
-    glBlitFramebuffer(0, 0, width, height, 0, 0, width, height, GL_COLOR_BUFFER_BIT, GL_LINEAR);
+    glBlitFramebuffer(0, 0, xx ssao_blur_pass.width, xx ssao_blur_pass.height, 0, 0, xx koda.width, xx koda.height, GL_COLOR_BUFFER_BIT, GL_LINEAR);
 }
 
 deferred_render_lighting :: () {
+    perf_track("render_lighting");
+
     framebuffer_bind_write(lighting_pass);
 
     blend := get_blend();
@@ -196,6 +269,9 @@ deferred_render_lighting :: () {
     lighting_pass.uniforms[xx "uNormal"] = create_uniform("uNormal", geometry_pass.textures[1]);
     lighting_pass.uniforms[xx "uDiffuse"] = create_uniform("uDiffuse", geometry_pass.textures[2]);
     lighting_pass.uniforms[xx "uSSAO"] = create_uniform("uSSAO", ssao_blur_pass.textures[0]);
+    lighting_pass.uniforms[xx "uShadow"] = create_uniform("uShadow", shadow_pass.depth_texture);
+    lighting_pass.uniforms[xx "uShadowView"] = create_uniform("uShadowView", shadow_view);
+    lighting_pass.uniforms[xx "uShadowProjection"] = create_uniform("uShadowProjection", shadow_projection);
 
     draw(lighting_pass);
 
@@ -245,14 +321,13 @@ deferred_render_lighting_to_screen :: () {
     framebuffer_bind_read(lighting_pass);
     framebuffer_bind_write_screen();
 
-    width := cast(s32) koda.width;
-    height := cast(s32) koda.height;
-
     glReadBuffer(GL_COLOR_ATTACHMENT0);
-    glBlitFramebuffer(0, 0, width, height, 0, 0, width, height, GL_COLOR_BUFFER_BIT, GL_LINEAR);
+    glBlitFramebuffer(0, 0, xx lighting_pass.width, xx lighting_pass.height, 0, 0, xx koda.width, xx koda.height, GL_COLOR_BUFFER_BIT, GL_LINEAR);
 }
 
 deferred_render_faaa :: () {
+    perf_track("render_faaa");
+
     framebuffer_bind_write(faaa_pass);
 
     blend := get_blend();
@@ -264,9 +339,6 @@ deferred_render_faaa :: () {
     faaa_pass.uniforms[xx "projection"] = create_uniform("projection", projection);
 
     faaa_pass.uniforms[xx "uColor"] = create_uniform("uColor", lighting_pass.textures[0]);
-    faaa_pass.uniforms[xx "uPosition"] = create_uniform("uPosition", geometry_pass.textures[0]);
-    faaa_pass.uniforms[xx "uNormal"] = create_uniform("uNormal", geometry_pass.textures[1]);
-    faaa_pass.uniforms[xx "uDepth"] = create_uniform("uDepth", geometry_pass.depth_texture);
 
     draw(faaa_pass);
 }
@@ -275,11 +347,8 @@ deferred_render_faaa_to_screen :: () {
     framebuffer_bind_read(faaa_pass);
     framebuffer_bind_write_screen();
 
-    width := cast(s32) koda.width;
-    height := cast(s32) koda.height;
-
     glReadBuffer(GL_COLOR_ATTACHMENT0);
-    glBlitFramebuffer(0, 0, width, height, 0, 0, width, height, GL_COLOR_BUFFER_BIT, GL_LINEAR);
+    glBlitFramebuffer(0, 0, xx faaa_pass.width, xx faaa_pass.height, 0, 0, xx koda.width, xx koda.height, GL_COLOR_BUFFER_BIT, GL_LINEAR);
 }
 
 light_sphere: Model;

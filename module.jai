@@ -103,6 +103,8 @@
 #load "src/shaders/TorusShader3.jai";
 #load "src/shaders/VolumetricCloudShader.jai";
 
+#load "src/shadows/ShadowUtilities.jai";
+
 #load "src/CircleAllocator.jai";
 #load "src/Color.jai";
 #load "src/GltfLoader.jai";
@@ -134,6 +136,7 @@ koda: struct {
     height: s32;
     last_width: int;
     last_height: int;
+    // TODO just remove this right?
     viewport_width: int;
     viewport_height: int;
     windowed_width: int;
