@@ -7,6 +7,7 @@ Texture :: struct {
     interp: TextureInterp;
     border_color: Color;
     multisample: int;
+    shadow: bool;
     data: *u8;
 }
 
@@ -48,14 +49,14 @@ create_texture :: (image: Image, wrap: TextureWrap = .Clamp, interp: TextureInte
     return texture;
 }
 
-create_texture :: (width: int, height: int, format: PixelFormat = .RGBA8, wrap: TextureWrap = .Clamp, interp: TextureInterp = .LinearMipmap, multisample: int = 0, should_upload: bool = true) -> Texture {
+create_texture :: (width: int, height: int, format: PixelFormat = .RGBA8, wrap: TextureWrap = .Clamp, interp: TextureInterp = .LinearMipmap, shadow: bool = false, should_upload: bool = true) -> Texture {
     texture: Texture;
     texture.width = xx width;
     texture.height = xx height;
     texture.format = format;
     texture.wrap = wrap;
     texture.interp = interp;
-    texture.multisample = multisample;
+    texture.shadow = shadow;
 
     if should_upload {
         upload(*texture);
@@ -114,15 +115,25 @@ upload :: (texture: *Texture) {
     interp_mag_format := get_gl_mag_format(texture.interp);
     has_mipmap := get_mipmap(texture.interp);
 
+    texture_type: u32 = GL_TEXTURE_2D;
+    if texture.multisample > 1 {
+        texture_type = GL_TEXTURE_2D_MULTISAMPLE;
+    }
+
     glGenTextures(1, *texture.buffer);
-    glBindTexture(GL_TEXTURE_2D, texture.buffer);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, wrap_format);	
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, wrap_format);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, interp_min_format);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, interp_mag_format);
+    glBindTexture(texture_type, texture.buffer);
+    glTexParameteri(texture_type, GL_TEXTURE_WRAP_S, wrap_format);	
+    glTexParameteri(texture_type, GL_TEXTURE_WRAP_T, wrap_format);
+    glTexParameteri(texture_type, GL_TEXTURE_MIN_FILTER, interp_min_format);
+    glTexParameteri(texture_type, GL_TEXTURE_MAG_FILTER, interp_mag_format);
+
+    if texture.shadow {
+        glTexParameteri(texture_type, GL_TEXTURE_COMPARE_MODE, GL_COMPARE_REF_TO_TEXTURE);
+        glTexParameteri(texture_type, GL_TEXTURE_COMPARE_FUNC, GL_LEQUAL);
+    }
 
     if texture.wrap == .Border {
-        glTexParameterfv(GL_TEXTURE_2D, GL_TEXTURE_BORDER_COLOR, texture.border_color.component.data);
+        glTexParameterfv(texture_type, GL_TEXTURE_BORDER_COLOR, texture.border_color.component.data);
     }
 
     stride := get_stride(texture.format);
@@ -144,7 +155,7 @@ upload :: (texture: *Texture) {
     gl_type := get_gl_type(texture.format);
 
     if texture.multisample > 1 {
-        glTexImage2DMultisample(GL_TEXTURE_2D, cast(u32) texture.multisample, cast(u32) gl_internal_format, xx texture.width, xx texture.height, GL_TRUE);
+        glTexImage2DMultisample(GL_TEXTURE_2D_MULTISAMPLE, cast(u32) texture.multisample, cast(u32) gl_internal_format, xx texture.width, xx texture.height, GL_TRUE);
     } else {
         glTexImage2D(GL_TEXTURE_2D, 0, gl_internal_format, xx texture.width, xx texture.height, 0, gl_format, gl_type, texture.data);
     }

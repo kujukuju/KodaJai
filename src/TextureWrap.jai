@@ -15,7 +15,6 @@ get_gl_format :: (wrap: TextureWrap) -> s32 {
         case .MirroredRepeat;
             return GL_MIRRORED_REPEAT;
         case .Border;
-            // for now this is forced transparent I guess
             return GL_CLAMP_TO_BORDER;
     }
 }

@@ -2,6 +2,8 @@
 // note depth calculations use the depth value from view space
 // so we need to get the corners of the view matrix when they are max_depth distance away from the view camera plane
 
+// TODO it doesn't seem to actually work perfectly when it comes to pixel snapping and I'm not sure why but it doesn't matter for fixed perspective as far as I can tell
+
 // 1. we will enable pixel snapping if fixed shadow direction or fixed view direction is supplied, and shadow dimensions are supplied
 // 2. if pixel snapping is enabled the shadow projection dimensions will assume worst case scenario angles
 //    if pixel snapping is enabled and fixed shadow direction is enabled and fixed view direction is enabled the shadow projection matrix will assume best case scenario angles

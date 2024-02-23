@@ -52,12 +52,15 @@ faaa_pass: FramebufferPass(1, false, true);
 // in reality you would do your guided blur in your final render instead of another pass
 shadow_projection_shader: ShadowProjectionShader;
 shadow_depth_resolve_shader: ShadowDepthResolveShader;
+float_copy_shader: FloatCopyShader;
 geometry_shader: GeometryShader;
 ambient_occlusion_shader: AmbientOcclusionShader;
 guided_blur_shader: GuidedBlurShader;
 point_light_shader: PointLightShader;
 directional_light_shader: DirectionalLightShader;
 faaa_shader: FAAAShader;
+
+float_blur_shader: FloatBlurShader;
 
 // TODO side by side screenshot of framebuffer texture with linear vs nearest... I think it needs to be nearest
 
@@ -66,9 +69,9 @@ shadow_projection: Matrix4;
 
 deferred_initialize :: () {
     // continue using rgba for byte alignment
-    init_framebuffer_pass(*shadow_pass, 4096, 4096);
+    init_framebuffer_pass(*shadow_pass, 2048, 2048, .Depth16);
     init_framebuffer_pass(*shadow_pass_out, *shadow_depth_resolve_shader, .RGBA8);
-    init_framebuffer_pass(*geometry_pass, .RGBA16F, .RGBA16F, .RGBA8);
+    init_framebuffer_pass(*geometry_pass, .RGBA16F, .RGBA16F, .RGBA8, .Depth32F);
     init_framebuffer_pass(*ssao_pass, *ambient_occlusion_shader, koda.width / 2, koda.height / 2, .R8);
     init_framebuffer_pass(*ssao_blur_pass, *guided_blur_shader, .R8);
     init_framebuffer_pass(*lighting_pass, *directional_light_shader, .RGBA8);
@@ -120,7 +123,6 @@ deferred_render_shadows :: () {
         fixed_view_direction = false,
         fixed_shadow_direction = true,
         shadow_texture_dimensions = shadow_dimensions,
-        texture_lock_ratio = true,
         fixed_depth = true);
 
     view := koda.view;
@@ -341,10 +343,6 @@ deferred_render_faaa :: () {
     blend := get_blend();
     defer set_blend(blend);
     set_blend(false);
-
-    projection := get_perspective_matrix();
-    faaa_pass.uniforms[xx "view"] = create_uniform("view", koda.view);
-    faaa_pass.uniforms[xx "projection"] = create_uniform("projection", projection);
 
     faaa_pass.uniforms[xx "uColor"] = create_uniform("uColor", lighting_pass.textures[0]);
 

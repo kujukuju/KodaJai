@@ -39,7 +39,9 @@ init_framebuffer_pass :: (pass: *FramebufferPass($count, $depth, false, $multisa
 }
 
 init_framebuffer_pass_internal :: (pass: *FramebufferPass($count, $depth, $drawable, $multisample), shader: *Shader, width: int, height: int, channels: ..PixelFormat) {
-    if count != channels.count {
+    required_count := count;
+    if depth then required_count += 1;
+    if required_count != channels.count {
         assert(false, "Passed invalid number of predefined channels to initialize a framebuffer pass.\n");
         return;
     }
@@ -52,14 +54,19 @@ init_framebuffer_pass_internal :: (pass: *FramebufferPass($count, $depth, $drawa
         glGenFramebuffers(1, *pass.framebuffer);
         glBindFramebuffer(GL_DRAW_FRAMEBUFFER, pass.framebuffer);
 
-        for channel, index: channels {
-            // TODO nearest?
-            pass.textures[index] = create_texture(width, height, channel, .Clamp, .Linear, multisample);
+        assert(multisample == 0, "Multisamlping temporary disabled.\n");
+
+        // TODO nearest?
+        for index: 0..count - 1 {
+            channel := channels[index];
+            pass.textures[index] = create_texture(width, height, channel, .Clamp, .Linear);
             glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0 + cast(u32) index, GL_TEXTURE_2D, pass.textures[index].buffer, 0);
         }
 
         #if depth {
-            pass.depth_texture = create_texture(width, height, .Depth32F, .Clamp, .Linear, multisample);
+            pass.depth_texture = create_texture(width, height, channels[channels.count - 1], .Border, .Nearest, shadow = true, should_upload = false);
+            pass.depth_texture.border_color = .{1, 1, 1, 1};
+            upload(*pass.depth_texture);
             glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D, pass.depth_texture.buffer, 0);
         }
 
@@ -76,6 +83,7 @@ init_framebuffer_pass_internal :: (pass: *FramebufferPass($count, $depth, $drawa
         if status != GL_FRAMEBUFFER_COMPLETE {
             print("Framebuffer error: %\n", status);
             print_stack_trace();
+            assert(false, "Framebuffer error.\n");
         }
 
         glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0);
@@ -150,61 +158,64 @@ framebuffer_bind_read_screen :: () {
 }
 
 framebuffer_resolve_color :: (pass: FramebufferPass($p_c, $p_d, $p_dr, $p_ms), texture_index: int, resolved: FramebufferPass($r_c, $r_d, $r_dr, $r_ms)) {
+    assert(p_c > texture_index, "You cannot resolve a texture index that doesn't exist.");
     assert(r_c == 1, "You cannot resolve color into a framebuffer with more than 1 texture.");
 
     framebuffer_bind_read(pass);
     framebuffer_bind_write(resolved);
 
-    interp := GL_NEAREST;
+    interp: u32 = GL_NEAREST;
     if pass.width != resolved.width || pass.height != resolved.height {
         interp = GL_LINEAR;
     }
 
-    glReadBuffer(GL_COLOR_ATTACHMENT0 + texture_index);
+    glReadBuffer(GL_COLOR_ATTACHMENT0 + cast(u32) texture_index);
     glBlitFramebuffer(0, 0, xx pass.width, xx pass.height, 0, 0, xx resolved.width, xx resolved.height, GL_COLOR_BUFFER_BIT, interp);
 }
 
 framebuffer_resolve_color_screen :: (pass: FramebufferPass($p_c, $p_d, $p_dr, $p_ms), texture_index: int) {
+    assert(p_c > texture_index, "You cannot resolve a texture index that doesn't exist.");
+
     framebuffer_bind_read(pass);
     framebuffer_bind_write_screen();
 
-    interp := GL_NEAREST;
+    interp: u32 = GL_NEAREST;
     if pass.width != koda.width || pass.height != koda.height {
         interp = GL_LINEAR;
     }
 
-    glReadBuffer(GL_COLOR_ATTACHMENT0 + texture_index);
+    glReadBuffer(GL_COLOR_ATTACHMENT0 + cast(u32) texture_index);
     glBlitFramebuffer(0, 0, xx pass.width, xx pass.height, 0, 0, xx koda.width, xx koda.height, GL_COLOR_BUFFER_BIT, interp);
 }
 
-framebuffer_resolve_depth :: (pass: FramebufferPass($p_c, $p_d, $p_dr, $p_ms), texture_index: int, resolved: FramebufferPass($r_c, $r_d, $r_dr, $r_ms)) {
+framebuffer_resolve_depth :: (pass: FramebufferPass($p_c, $p_d, $p_dr, $p_ms), resolved: FramebufferPass($r_c, $r_d, $r_dr, $r_ms)) {
     assert(p_d && r_d, "You cannot resolve depth if both framebuffers don't have a depth texture.");
 
     framebuffer_bind_read(pass);
     framebuffer_bind_write(resolved);
 
-    interp := GL_NEAREST;
-    if pass.width != resolved.width || pass.height != resolved.height {
-        interp = GL_LINEAR;
-        print("Warning: I don't think it makes sense to resolve a depth buffer without having matching dimensions since depth values aren't linear... But okay here we go anyways...\n");
-    }
+    // interp: u32 = GL_NEAREST;
+    // if pass.width != resolved.width || pass.height != resolved.height {
+    //     interp = GL_LINEAR;
+    //     print("Warning: I don't think it makes sense to resolve a depth buffer without having matching dimensions since depth values aren't linear... But okay here we go anyways...\n");
+    // }
 
-    glBlitFramebuffer(0, 0, xx pass.width, xx pass.height, 0, 0, xx resolved.width, xx resolved.height, GL_DEPTH_BUFFER_BIT, interp);
+    glBlitFramebuffer(0, 0, xx pass.width, xx pass.height, 0, 0, xx resolved.width, xx resolved.height, GL_DEPTH_BUFFER_BIT, GL_NEAREST);
 }
 
-framebuffer_resolve_depth_screen :: (pass: FramebufferPass($p_c, $p_d, $p_dr, $p_ms), texture_index: int) {
+framebuffer_resolve_depth_screen :: (pass: FramebufferPass($p_c, $p_d, $p_dr, $p_ms)) {
     assert(p_d, "You cannot resolve depth if both framebuffers don't have a depth texture.");
 
     framebuffer_bind_read(pass);
     framebuffer_bind_write_screen();
 
-    interp := GL_NEAREST;
-    if pass.width != koda.width || pass.height != koda.height {
-        interp = GL_LINEAR;
-        print("Warning: I don't think it makes sense to resolve a depth buffer without having matching dimensions since depth values aren't linear... But okay here we go anyways...\n");
-    }
+    // interp: u32 = GL_NEAREST;
+    // if pass.width != koda.width || pass.height != koda.height {
+    //     interp = GL_LINEAR;
+    //     print("Warning: I don't think it makes sense to resolve a depth buffer without having matching dimensions since depth values aren't linear... But okay here we go anyways...\n");
+    // }
 
-    glBlitFramebuffer(0, 0, xx pass.width, xx pass.height, 0, 0, xx koda.width, xx koda.height, GL_DEPTH_BUFFER_BIT, interp);
+    glBlitFramebuffer(0, 0, xx pass.width, xx pass.height, 0, 0, xx koda.width, xx koda.height, GL_DEPTH_BUFFER_BIT, GL_NEAREST);
 }
 
 draw :: (pass: FramebufferPass($count, $depth, $drawable)) {

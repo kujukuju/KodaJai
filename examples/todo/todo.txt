@@ -1,11 +1,8 @@
 
-render shadow map msaa and resolve it?
-
 try to faaa the shadow buffer
+I tried this, and I still think it's probably possible, but I'm not sure how because the basic faaa relies on color values and depth values are very different
 
 use texture2DShadow for free stuff including PCF, which I might not want and can disable I think
-
-can probably fix the black background with a texture setting like clamp or limit the shader sample range
 
 maybe you can nearest the PCF and optimize it
 https://github.com/mrdoob/three.js/issues/15577

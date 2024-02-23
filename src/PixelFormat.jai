@@ -19,6 +19,9 @@ PixelFormat :: enum {
     RGBA16;
     RGBA16F;
     RGBA32F;
+    Depth16;
+    Depth24;
+    Depth32;
     Depth32F;
     // DepthStencil;
 };
@@ -57,6 +60,12 @@ get_stride :: (format: PixelFormat) -> int {
             return 8;
         case .RGBA32F;
             return 16;
+        case .Depth16;
+            return 2;
+        case .Depth24;
+            return 3;
+        case .Depth32;
+            return 4;
         case .Depth32F;
             return 4;
     }
@@ -96,6 +105,12 @@ get_gl_format :: (format: PixelFormat) -> u32 {
             return GL_RGBA;
         case .RGBA32F;
             return GL_RGBA;
+        case .Depth16;
+            return GL_DEPTH_COMPONENT;
+        case .Depth24;
+            return GL_DEPTH_COMPONENT;
+        case .Depth32;
+            return GL_DEPTH_COMPONENT;
         case .Depth32F;
             return GL_DEPTH_COMPONENT;
     }
@@ -135,6 +150,12 @@ get_gl_internal_format :: (format: PixelFormat) -> s32 {
             return GL_RGBA16F;
         case .RGBA32F;
             return GL_RGBA32F;
+        case .Depth16;
+            return GL_DEPTH_COMPONENT16;
+        case .Depth24;
+            return GL_DEPTH_COMPONENT24;
+        case .Depth32;
+            return GL_DEPTH_COMPONENT32;
         case .Depth32F;
             return GL_DEPTH_COMPONENT32F;
     }
@@ -174,6 +195,13 @@ get_gl_type :: (format: PixelFormat) -> u32 {
             return GL_HALF_FLOAT;
         case .RGBA32F;
             return GL_FLOAT;
+        case .Depth16;
+            return GL_UNSIGNED_SHORT;
+        case .Depth24;
+            // the way I'm handling this is inherently flawed and the pixel format shouldn't correspond to the gl type so there's no good answer here
+            return GL_FLOAT;
+        case .Depth32;
+            return GL_UNSIGNED_INT;
         case .Depth32F;
             return GL_FLOAT;
     }
@@ -212,6 +240,57 @@ is_float :: (format: PixelFormat) -> bool {
         case .RGBA16F;
             return true;
         case .RGBA32F;
+            return true;
+        case .Depth16;
+            return false;
+        case .Depth24;
+            return false;
+        case .Depth32;
+            return false;
+        case .Depth32F;
+            return true;
+    }
+}
+
+is_depth :: (format: PixelFormat) -> bool {
+    if #complete format == {
+        case .Gray8;
+            return false;
+        case .Gray16;
+            return false;
+        case .Gray16F;
+            return false;
+        case .Gray32F;
+            return false;
+        case .RG8;
+            return false;
+        case .RG16;
+            return false;
+        case .RG16F;
+            return false;
+        case .RG32F;
+            return false;
+        case .RGB8;
+            return false;
+        case .RGB16;
+            return false;
+        case .RGB16F;
+            return false;
+        case .RGB32F;
+            return false;
+        case .RGBA8;
+            return false;
+        case .RGBA16;
+            return false;
+        case .RGBA16F;
+            return false;
+        case .RGBA32F;
+            return false;
+        case .Depth16;
+            return true;
+        case .Depth24;
+            return true;
+        case .Depth32;
             return true;
         case .Depth32F;
             return true;

@@ -32,8 +32,8 @@ in vec2 vCoord;
 
 void main() {
     float depth = texture(uDepth, vCoord).r;
-    depth = depth * 2.0;
-    depth = pow(depth, 20.0);
+    // depth = depth * 2.0;
+    depth = pow(depth, 2.0);
 
     FragColor = vec4(vec3(depth), 1.0);
 }

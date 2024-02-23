@@ -34,7 +34,8 @@ uniform sampler2D uPosition;
 uniform sampler2D uDiffuse;
 uniform sampler2D uNormal;
 uniform sampler2D uSSAO;
-uniform sampler2D uShadow;
+uniform sampler2DShadow uShadow;
+// uniform sampler2D uShadow;
 
 uniform vec2 uScreenSize;
 
@@ -92,14 +93,20 @@ float calcShadowFactor(vec3 position) {
     vec3 shadowCoord = shadowSpace.xyz / shadowSpace.w;
     shadowCoord = shadowCoord * 0.5 + 0.5;
 
-    float shadowDepth = texture(uShadow, shadowCoord.xy).r;
-
-    const float bias = 0.001;
-    if (shadowCoord.z > shadowDepth + bias) {
-        return 0.2;
+    if (shadowCoord.x < 0.0 || shadowCoord.y < 0.0 || shadowCoord.x > 1.0 || shadowCoord.y > 1.0) {
+        return 1.0;
     }
 
-    return 1.0;
+    const float bias = 0.001;
+    return texture(uShadow, vec3(shadowCoord.xy, shadowCoord.z - bias));
+    
+    // float shadowDepth = texture(uShadow, shadowCoord.xy).r;
+
+    // if (shadowCoord.z > shadowDepth + bias) {
+    //     return 0.2;
+    // }
+
+    // return 1.0;
 }
 
 void main() {

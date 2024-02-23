@@ -14,18 +14,10 @@ FAAA_VERTEX_SHADER :: #string ___glsl
 
 layout (location = 0) in vec2 aPos;
 
-uniform mat4 view;
-
 out vec2 vCoord;
-out vec3 vCamera;
-out vec3 vCameraForward;
-out vec2 vNdc;
 
 void main() {
     vCoord = aPos * vec2(0.5, 0.5) + 0.5;
-    vCamera = vec3(inverse(view) * vec4(0.0, 0.0, 0.0, 1.0));
-    vCameraForward = vec3(inverse(view) * vec4(0.0, 0.0, -1.0, 0.0));
-    vNdc = aPos; // TODO might need to flip y?
 
     gl_Position = vec4(aPos, 0.0, 1.0);
 }
@@ -178,16 +170,9 @@ const float OFFSET_MUL[12] = float[](FXAA_QUALITY_P0, FXAA_QUALITY_P1,
 
 const float edgeThreshold = (10.0 - FXAA_EDGE_THRESHOLD) * 0.0625;
 
-uniform mat4 view;
-uniform mat4 projection;
-
 uniform sampler2D uColor;
 
 in vec2 vCoord;
-in vec3 vCamera;
-in vec3 vCameraForward;
-// TODO is this used?
-in vec2 vNdc;
 
 // TODO can this be removed to reuse samples instead of calling it every time you want a color?
 vec3 sampleColor(vec2 coord) {
