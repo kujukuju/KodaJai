@@ -69,7 +69,7 @@ shadow_projection: Matrix4;
 
 deferred_initialize :: () {
     // continue using rgba for byte alignment
-    init_framebuffer_pass(*shadow_pass, 2048, 2048, .Depth16);
+    init_framebuffer_pass(*shadow_pass, 4096, 4096, .Depth16);
     init_framebuffer_pass(*shadow_pass_out, *shadow_depth_resolve_shader, .RGBA8);
     init_framebuffer_pass(*geometry_pass, .RGBA16F, .RGBA16F, .RGBA8, .Depth32F);
     init_framebuffer_pass(*ssao_pass, *ambient_occlusion_shader, koda.width / 2, koda.height / 2, .R8);
@@ -120,7 +120,7 @@ deferred_render_shadows :: () {
     shadow_view, shadow_projection = calculate_directional_shadow_matrices(
         light_direction,
         10.0,
-        fixed_view_direction = false,
+        fixed_view_direction = true,
         fixed_shadow_direction = true,
         shadow_texture_dimensions = shadow_dimensions,
         fixed_depth = true);

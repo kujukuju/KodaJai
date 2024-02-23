@@ -97,7 +97,7 @@ float calcShadowFactor(vec3 position) {
         return 1.0;
     }
 
-    const float bias = 0.001;
+    const float bias = 0.002;
     return texture(uShadow, vec3(shadowCoord.xy, shadowCoord.z - bias));
     
     // float shadowDepth = texture(uShadow, shadowCoord.xy).r;
