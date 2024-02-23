@@ -35,7 +35,6 @@ uniform sampler2D uDiffuse;
 uniform sampler2D uNormal;
 uniform sampler2D uSSAO;
 uniform sampler2DShadow uShadow;
-// uniform sampler2D uShadow;
 
 uniform vec2 uScreenSize;
 
@@ -58,7 +57,7 @@ in vec3 vCamera;
 
 vec4 calcLightInternal(vec3 baseColor, float ambientIntensity, float diffuseIntensity, vec3 direction, vec3 position, vec3 normal) {
     vec4 ambientColor = vec4(baseColor * ambientIntensity, 1.0);
-    float diffuseFactor = dot(normal, -direction);
+    float diffuseFactor = dot(normal, -direction) * 0.7 + 0.3;
 
     vec4 diffuseColor = vec4(0, 0, 0, 0);
     vec4 specularColor = vec4(0, 0, 0, 0);
@@ -67,6 +66,14 @@ vec4 calcLightInternal(vec3 baseColor, float ambientIntensity, float diffuseInte
         diffuseColor = vec4(baseColor * diffuseIntensity * diffuseFactor, 1.0);
 
         vec3 vertexToEye = normalize(vCamera - position);
+
+        // float rimLightIntensity = dot(vertexToEye, normal);
+        // rimLightIntensity = 1.0 - rimLightIntensity;
+        // rimLightIntensity = max(0.0, rimLightIntensity);
+        // rimLightIntensity = pow(rimLightIntensity, 2.0);
+        // rimLightIntensity = smoothstep(0.3, 0.4, rimLightIntensity);
+        // diffuseColor.rgb += rimLightIntensity * baseColor;
+
         vec3 lightReflect = normalize(reflect(direction, normal));
         float specularFactor = dot(vertexToEye, lightReflect);        
         if (specularFactor > 0.0) {
@@ -97,16 +104,8 @@ float calcShadowFactor(vec3 position) {
         return 1.0;
     }
 
-    const float bias = 0.002;
+    const float bias = 0.004;
     return texture(uShadow, vec3(shadowCoord.xy, shadowCoord.z - bias));
-    
-    // float shadowDepth = texture(uShadow, shadowCoord.xy).r;
-
-    // if (shadowCoord.z > shadowDepth + bias) {
-    //     return 0.2;
-    // }
-
-    // return 1.0;
 }
 
 void main() {

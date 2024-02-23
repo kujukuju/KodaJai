@@ -51,10 +51,11 @@ calculate_directional_shadow_matrices :: (
     bottom_right_dir = normalize(bottom_right_dir);
     bottom_right_ray := Ray3.{camera_position, bottom_right_dir};
 
-    top_left_point := intersection_simple(max_depth_plane, top_left_ray);
-    top_right_point := intersection_simple(max_depth_plane, top_right_ray);
-    bottom_left_point := intersection_simple(max_depth_plane, bottom_left_ray);
-    bottom_right_point := intersection_simple(max_depth_plane, bottom_right_ray);
+    forward_point := camera_position + camera_forward * max_depth;
+    top_left_point := top_left_ray.p + top_left_ray.dir * max_depth; // intersection_simple(max_depth_plane, top_left_ray);
+    top_right_point := top_right_ray.p + top_right_ray.dir * max_depth; // intersection_simple(max_depth_plane, top_right_ray);
+    bottom_left_point := bottom_left_ray.p + bottom_left_ray.dir * max_depth; // intersection_simple(max_depth_plane, bottom_left_ray);
+    bottom_right_point := bottom_right_ray.p + bottom_right_ray.dir * max_depth; // intersection_simple(max_depth_plane, bottom_right_ray);
     near_top_left_point := camera_position;
     near_top_right_point := camera_position;
     near_bottom_left_point := camera_position;
@@ -62,6 +63,7 @@ calculate_directional_shadow_matrices :: (
     // TODO min_depth for near points if applicable
 
     frustum_points := Vector3.[
+        forward_point,
         top_left_point, 
         top_right_point, 
         bottom_left_point, 
@@ -138,12 +140,16 @@ calculate_directional_shadow_matrices :: (
 
         top_left_dir_ident := transform_point(projection_inv, .{-1, 1, -1});
         top_left_dir_ident = transform_vector(view_ident_inv, top_left_dir_ident);
+        top_left_dir_ident = normalize(top_left_dir_ident);
         top_right_dir_ident := transform_point(projection_inv, .{1, 1, -1});
         top_right_dir_ident = transform_vector(view_ident_inv, top_right_dir_ident);
+        top_right_dir_ident = normalize(top_right_dir_ident);
         bottom_left_dir_ident := transform_point(projection_inv, .{-1, -1, -1});
         bottom_left_dir_ident = transform_vector(view_ident_inv, bottom_left_dir_ident);
+        bottom_left_dir_ident = normalize(bottom_left_dir_ident);
         bottom_right_dir_ident := transform_point(projection_inv, .{1, -1, -1});
         bottom_right_dir_ident = transform_vector(view_ident_inv, bottom_right_dir_ident);
+        bottom_right_dir_ident = normalize(bottom_right_dir_ident);
 
         top_left_ray_ident := Ray3.{.{0, 0, 0}, top_left_dir_ident};
         top_right_ray_ident := Ray3.{.{0, 0, 0}, top_right_dir_ident};
@@ -152,10 +158,11 @@ calculate_directional_shadow_matrices :: (
 
         max_depth_plane_ident := create_plane3(.{0, 0, 0} + fixed_view_forward * max_depth, fixed_view_forward);
 
-        top_left_ident := intersection_simple(max_depth_plane_ident, top_left_ray_ident);
-        top_right_ident := intersection_simple(max_depth_plane_ident, top_right_ray_ident);
-        bottom_left_ident := intersection_simple(max_depth_plane_ident, bottom_left_ray_ident);
-        bottom_right_ident := intersection_simple(max_depth_plane_ident, bottom_right_ray_ident);
+        forward_ident := Vector3.{0, 0, 0} + normalize(transform_vector(view_ident_inv, .{0, 0, -1})) * max_depth;
+        top_left_ident := top_left_ray_ident.p + top_left_ray_ident.dir * max_depth; // intersection_simple(max_depth_plane_ident, top_left_ray_ident);
+        top_right_ident := top_right_ray_ident.p + top_right_ray_ident.dir * max_depth; // intersection_simple(max_depth_plane_ident, top_right_ray_ident);
+        bottom_left_ident := bottom_left_ray_ident.p + bottom_left_ray_ident.dir * max_depth; // intersection_simple(max_depth_plane_ident, bottom_left_ray_ident);
+        bottom_right_ident := bottom_right_ray_ident.p + bottom_right_ray_ident.dir * max_depth; // intersection_simple(max_depth_plane_ident, bottom_right_ray_ident);
         near_top_left_ident := Vector3.{0, 0, 0};
         near_top_right_ident := Vector3.{0, 0, 0};
         near_bottom_left_ident := Vector3.{0, 0, 0};
@@ -164,6 +171,7 @@ calculate_directional_shadow_matrices :: (
         shadow_plane := create_plane3(.{0, 0, 0}, fixed_view_forward);
 
         frustum_idents := Vector3.[
+            forward_ident,
             top_left_ident,
             top_right_ident,
             bottom_left_ident,
@@ -213,9 +221,13 @@ calculate_directional_shadow_matrices :: (
         // we can't clamp the shadow projection accurately since things can rotate so we'll assume worst case scenario
         // we'll adjust the shadow dimensions based on this
         top_left_dir_ident := transform_point(projection_inv, .{-1, 1, -1});
+        top_left_dir_ident = normalize(top_left_dir_ident);
         top_right_dir_ident := transform_point(projection_inv, .{1, 1, -1});
+        top_right_dir_ident = normalize(top_right_dir_ident);
         bottom_left_dir_ident := transform_point(projection_inv, .{-1, -1, -1});
+        bottom_left_dir_ident = normalize(bottom_left_dir_ident);
         bottom_right_dir_ident := transform_point(projection_inv, .{1, -1, -1});
+        bottom_right_dir_ident = normalize(bottom_right_dir_ident);
 
         top_left_ray_ident := Ray3.{.{0, 0, 0}, top_left_dir_ident};
         top_right_ray_ident := Ray3.{.{0, 0, 0}, top_right_dir_ident};
@@ -224,10 +236,11 @@ calculate_directional_shadow_matrices :: (
 
         max_depth_plane_ident := create_plane3(.{0, 0, -max_depth}, .{0, 0, -1});
 
-        top_left_ident := intersection_simple(max_depth_plane_ident, top_left_ray_ident);
-        top_right_ident := intersection_simple(max_depth_plane_ident, top_right_ray_ident);
-        bottom_left_ident := intersection_simple(max_depth_plane_ident, bottom_left_ray_ident);
-        bottom_right_ident := intersection_simple(max_depth_plane_ident, bottom_right_ray_ident);
+        forward_ident := Vector3.{0, 0, 0} + .{0, 0, -1} * max_depth;
+        top_left_ident := top_left_ray_ident.p + top_left_ray_ident.dir * max_depth; // intersection_simple(max_depth_plane_ident, top_left_ray_ident);
+        top_right_ident := top_right_ray_ident.p + top_right_ray_ident.dir * max_depth; // intersection_simple(max_depth_plane_ident, top_right_ray_ident);
+        bottom_left_ident := bottom_left_ray_ident.p + bottom_left_ray_ident.dir * max_depth; // intersection_simple(max_depth_plane_ident, bottom_left_ray_ident);
+        bottom_right_ident := bottom_right_ray_ident.p + bottom_right_ray_ident.dir * max_depth; // intersection_simple(max_depth_plane_ident, bottom_right_ray_ident);
         near_top_left_ident := Vector3.{0, 0, 0};
         near_top_right_ident := Vector3.{0, 0, 0};
         near_bottom_left_ident := Vector3.{0, 0, 0};
@@ -309,6 +322,8 @@ calculate_directional_shadow_matrices :: (
         ortho_start.y = cast(float) ortho_start_64.y;
         ortho_start.z = cast(float) ortho_start_64.z;
     }
+
+    // print("w h % %\n", ortho_width, ortho_height);
 
     shadow_view := make_look_at_matrix(ortho_start, ortho_start + shadow_forward * 10000, .{0, 1, 0}, false);
     shadow_projection := create_orthographic_matrix(-ortho_width / 2, ortho_width / 2, -ortho_height / 2, ortho_height / 2, 0, -ortho_depth);

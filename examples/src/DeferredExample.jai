@@ -39,10 +39,10 @@ main :: () {
     directional_light_shader.uniforms[xx "uLightDirection"] = create_uniform("uLightDirection", light_direction);
     directional_light_shader.uniforms[xx "uLightConstant"] = create_uniform("uLightConstant", 0.0);
     directional_light_shader.uniforms[xx "uLightLinear"] = create_uniform("uLightLinear", 0.04);
-    directional_light_shader.uniforms[xx "uLightExp"] = create_uniform("uLightExp", 0.4);
+    directional_light_shader.uniforms[xx "uLightExp"] = create_uniform("uLightExp", 0.2);
     directional_light_shader.uniforms[xx "uSpecularPower"] = create_uniform("uSpecularPower", 0.0);
-    directional_light_shader.uniforms[xx "uDiffuseIntensity"] = create_uniform("uDiffuseIntensity", 1.8);
-    directional_light_shader.uniforms[xx "uAmbientIntensity"] = create_uniform("uAmbientIntensity", 0.2);
+    directional_light_shader.uniforms[xx "uDiffuseIntensity"] = create_uniform("uDiffuseIntensity", 1.2);
+    directional_light_shader.uniforms[xx "uAmbientIntensity"] = create_uniform("uAmbientIntensity", 0.5);
 
     point_light_shader.uniforms[xx "uScreenSize"] = create_uniform("uScreenSize", Vector2.{cast(float) koda.width, cast(float) koda.height});
     point_light_shader.uniforms[xx "uLightConstant"] = create_uniform("uLightConstant", 0.0);
@@ -53,6 +53,7 @@ main :: () {
     point_light_shader.uniforms[xx "uAmbientIntensity"] = create_uniform("uAmbientIntensity", 0.5);
 
     models = load_models("low_poly_medieval_tavern_reexported.glb");
+    // models = load_models("low_poly_medieval_tavern_reexported_with_goblin.glb");
 
     camera.position = .{6, 4, 3};
     look_at(*camera, .{3, 2, -2});

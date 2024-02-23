@@ -47,6 +47,8 @@ geometry_pass: FramebufferPass(3, true, false);
 ssao_pass: SsaoPass;
 ssao_blur_pass: FramebufferPass(1, false, true);
 lighting_pass: FramebufferPass(1, false, true);
+edge_pass: FramebufferPass(1, false, true);
+sharpen_pass: FramebufferPass(1, false, true);
 faaa_pass: FramebufferPass(1, false, true);
 
 // in reality you would do your guided blur in your final render instead of another pass
@@ -58,6 +60,8 @@ ambient_occlusion_shader: AmbientOcclusionShader;
 guided_blur_shader: GuidedBlurShader;
 point_light_shader: PointLightShader;
 directional_light_shader: DirectionalLightShader;
+edge_shader: EdgeShader;
+sharpen_shader: SharpenShader;
 faaa_shader: FAAAShader;
 
 float_blur_shader: FloatBlurShader;
@@ -69,12 +73,14 @@ shadow_projection: Matrix4;
 
 deferred_initialize :: () {
     // continue using rgba for byte alignment
-    init_framebuffer_pass(*shadow_pass, 4096, 4096, .Depth16);
+    init_framebuffer_pass(*shadow_pass, 2048, 2048, .Depth16);
     init_framebuffer_pass(*shadow_pass_out, *shadow_depth_resolve_shader, .RGBA8);
     init_framebuffer_pass(*geometry_pass, .RGBA16F, .RGBA16F, .RGBA8, .Depth32F);
     init_framebuffer_pass(*ssao_pass, *ambient_occlusion_shader, koda.width / 2, koda.height / 2, .R8);
     init_framebuffer_pass(*ssao_blur_pass, *guided_blur_shader, .R8);
     init_framebuffer_pass(*lighting_pass, *directional_light_shader, .RGBA8);
+    init_framebuffer_pass(*edge_pass, *edge_shader, .RGBA8);
+    init_framebuffer_pass(*sharpen_pass, *sharpen_shader, .RGBA8);
     init_framebuffer_pass(*faaa_pass, *faaa_shader, .RGBA8);
 
     light_sphere_geometry := create_icosphere(1, 1);
@@ -105,6 +111,10 @@ deferred_render :: () {
     // deferred_render_ssao_blur_to_screen();
     deferred_render_lighting();
     // deferred_render_lighting_to_screen();
+    deferred_render_edge();
+    // deferred_render_edge_to_screen();
+    deferred_render_sharpen();
+    // deferred_render_sharpen_to_screen();
     deferred_render_faaa();
     deferred_render_faaa_to_screen();
 
@@ -323,7 +333,7 @@ deferred_render_lighting :: () {
         defer set_depth_test(depth_test);
         set_depth_test(false);
 
-        draw(light_sphere);
+        // draw(light_sphere);
     }
 }
 
@@ -335,6 +345,54 @@ deferred_render_lighting_to_screen :: () {
     glBlitFramebuffer(0, 0, xx lighting_pass.width, xx lighting_pass.height, 0, 0, xx koda.width, xx koda.height, GL_COLOR_BUFFER_BIT, GL_LINEAR);
 }
 
+deferred_render_edge :: () {
+    perf_track("render_edge");
+
+    framebuffer_bind_write(edge_pass);
+
+    blend := get_blend();
+    defer set_blend(blend);
+    set_blend(false);
+
+    edge_pass.uniforms[xx "view"] = create_uniform("view", koda.view);
+    edge_pass.uniforms[xx "uColor"] = create_uniform("uColor", lighting_pass.textures[0]);
+    edge_pass.uniforms[xx "uPosition"] = create_uniform("uPosition", geometry_pass.textures[0]);
+    edge_pass.uniforms[xx "uDepth"] = create_uniform("uDepth", geometry_pass.depth_texture);
+
+    draw(edge_pass);
+}
+
+deferred_render_edge_to_screen :: () {
+    framebuffer_bind_read(edge_pass);
+    framebuffer_bind_write_screen();
+
+    glReadBuffer(GL_COLOR_ATTACHMENT0);
+    glBlitFramebuffer(0, 0, xx edge_pass.width, xx edge_pass.height, 0, 0, xx koda.width, xx koda.height, GL_COLOR_BUFFER_BIT, GL_LINEAR);
+}
+
+deferred_render_sharpen :: () {
+    perf_track("render_sharpen");
+
+    framebuffer_bind_write(sharpen_pass);
+
+    blend := get_blend();
+    defer set_blend(blend);
+    set_blend(false);
+
+    sharpen_pass.uniforms[xx "view"] = create_uniform("view", koda.view);
+    sharpen_pass.uniforms[xx "uColor"] = create_uniform("uColor", edge_pass.textures[0]);
+
+    draw(sharpen_pass);
+}
+
+deferred_render_sharpen_to_screen :: () {
+    framebuffer_bind_read(sharpen_pass);
+    framebuffer_bind_write_screen();
+
+    glReadBuffer(GL_COLOR_ATTACHMENT0);
+    glBlitFramebuffer(0, 0, xx sharpen_pass.width, xx sharpen_pass.height, 0, 0, xx koda.width, xx koda.height, GL_COLOR_BUFFER_BIT, GL_LINEAR);
+}
+
 deferred_render_faaa :: () {
     perf_track("render_faaa");
 
@@ -344,7 +402,7 @@ deferred_render_faaa :: () {
     defer set_blend(blend);
     set_blend(false);
 
-    faaa_pass.uniforms[xx "uColor"] = create_uniform("uColor", lighting_pass.textures[0]);
+    faaa_pass.uniforms[xx "uColor"] = create_uniform("uColor", sharpen_pass.textures[0]);
 
     draw(faaa_pass);
 }

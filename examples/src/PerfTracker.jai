@@ -1,5 +1,5 @@
 
-PERF_TRACKER_ENABLED :: false;
+PERF_TRACKER_ENABLED :: true;
 
 #if PERF_TRACKER_ENABLED {
     perf_track :: ($name: string) #expand {
