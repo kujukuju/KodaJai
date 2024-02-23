@@ -114,7 +114,14 @@ deferred_render_shadows :: () {
     framebuffer_bind_write(shadow_pass);
 
     shadow_dimensions := Point2.{shadow_pass.width, shadow_pass.height};
-    shadow_view, shadow_projection = calculate_directional_shadow_matrices(light_direction, 10.0, fixed_shadow_direction = true, shadow_texture_dimensions = shadow_dimensions);
+    shadow_view, shadow_projection = calculate_directional_shadow_matrices(
+        light_direction,
+        10.0,
+        fixed_view_direction = false,
+        fixed_shadow_direction = true,
+        shadow_texture_dimensions = shadow_dimensions,
+        texture_lock_ratio = true,
+        fixed_depth = true);
 
     view := koda.view;
     defer koda.view = view;
