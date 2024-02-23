@@ -28,6 +28,13 @@ point2 :: (x: int, y: int) -> Point2 {
     return p;
 }
 
+vector2 :: (a: Point2) -> Vector2 {
+    v: Vector2 = ---;
+    v.x = cast(float) a.x;
+    v.y = cast(float) a.y;
+    return v;
+}
+
 min :: (a: Point2, b: Point2) -> Point2 {
     return point2(min(a.x, b.x), min(a.y, b.y));
 }
