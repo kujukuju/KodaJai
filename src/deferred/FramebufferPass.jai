@@ -64,7 +64,7 @@ init_framebuffer_pass_internal :: (pass: *FramebufferPass($count, $depth, $drawa
         }
 
         #if depth {
-            pass.depth_texture = create_texture(width, height, channels[channels.count - 1], .Border, .Linear, shadow = true, should_upload = false);
+            pass.depth_texture = create_texture(width, height, channels[channels.count - 1], .Border, .Nearest, shadow = true, should_upload = false);
             pass.depth_texture.border_color = .{1, 1, 1, 1};
             upload(*pass.depth_texture);
             glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D, pass.depth_texture.buffer, 0);

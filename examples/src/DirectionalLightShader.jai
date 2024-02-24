@@ -169,7 +169,7 @@ float calcShadowFactorExpand(vec3 position, vec3 normal) {
     vec3 positionDeltaY = dFdy(position);
     float positionDeltaLength = sqrt(dot(positionDeltaX, positionDeltaX) + dot(positionDeltaY, positionDeltaY));
 
-    float offsetScale = 4.0 / (positionDeltaLength * 100.0);
+    float offsetScale = 8.0 / (positionDeltaLength * 100.0 + 1.0);
     
     // const float maxBlurDepth = 0.002;
     // const float minBlurDepth = 0.0002;
@@ -184,13 +184,13 @@ float calcShadowFactorExpand(vec3 position, vec3 normal) {
     const float maxBlurDepth = 0.04;
     const float minBlurDepth = 0.0002;
     const float maxBlurGaussian = 8.0;
-    const float minBlurGaussian = 0.1;
+    const float minBlurGaussian = 0.01;
 
     // float shadowAverage = 0.0;
     // float maximumDepthDifference = 0.0;
     // float averageDepthDifference = 0.0;
-    float totalDepthDifference = 0.0;
-    float countDepthDifference = 0.0;
+    float totalDepthBlurDifference = 0.0;
+    // float countDepthDifference = 0.0;
     float depthDifferences[25];
     int depthIndex = 0;
     for (int y = -2; y <= 2; y++) {
@@ -207,12 +207,13 @@ float calcShadowFactorExpand(vec3 position, vec3 normal) {
             // maximumDepthDifference = max(maximumDepthDifference, depthDifference);
             // averageDepthDifference += max(depthDifference, 0.0) / 25.0;
             if (depthDifference > 0.0) {
-                totalDepthDifference += smoothstep(minBlurDepth, maxBlurDepth, depthDifference);
-                // totalDepthDifference += clamp(depthDifference / maxBlurDepth, 0.0, 1.0);
+                totalDepthBlurDifference += smoothstep(minBlurDepth, maxBlurDepth, depthDifference);
+                // totalDepthBlurDifference += clamp((depthDifference - minBlurDepth) / (maxBlurDepth - minBlurDepth), 0, 1);
+                // totalDepthBlurDifference += clamp(depthDifference / maxBlurDepth, 0.0, 1.0);
             } else {
-                totalDepthDifference += 1.0;
+                totalDepthBlurDifference += 0.0;
             }
-            countDepthDifference += 1.0;
+            // countDepthDifference += 1.0;
 
             depthDifferences[depthIndex] = depthDifference;
             depthIndex++;
@@ -221,13 +222,14 @@ float calcShadowFactorExpand(vec3 position, vec3 normal) {
         }
     }
 
-    countDepthDifference = max(countDepthDifference, 1.0);
-    float averageDepthDifference = totalDepthDifference / countDepthDifference;
+    float averageDepthBlurDifference = totalDepthBlurDifference / 25.0;
 
     // float blurGaussian = smoothstep(minBlurDepth, maxBlurDepth, maximumDepthDifference);
-    // float blurGaussian = smoothstep(minBlurDepth, maxBlurDepth, averageDepthDifference);
-    float blurGaussian = averageDepthDifference;
-    // blurGaussian = (maxBlurGaussian - minBlurGaussian) * blurGaussian + minBlurGaussian;
+    // float blurGaussian = smoothstep(minBlurDepth, maxBlurDepth, averageDepthBlurDifference);
+    float blurGaussian = averageDepthBlurDifference;
+    blurGaussian = (maxBlurGaussian - minBlurGaussian) * blurGaussian + minBlurGaussian;
+
+    // blurGaussian = 
 
     float shadowAverage = 0.0;
     float shadowWeight = 0.0;
@@ -247,8 +249,8 @@ float calcShadowFactorExpand(vec3 position, vec3 normal) {
         }
     }
 
-    return blurGaussian;
-    // return shadowAverage / shadowWeight;
+    // return blurGaussian;
+    return shadowAverage / shadowWeight;
 
     // float shadowSum = 0.0;
     // float shadowCount = 0.0;
@@ -304,8 +306,8 @@ void main() {
 
     // FragColor = vec4(vec3(shadowFactor), 1.0);
     // FragColor = vec4(vec3(ssao), 1.0);
-    FragColor = vec4(diffuse, 1.0) * calculateLight(position, normal) * 1.5 * ssao;
+    // FragColor = vec4(diffuse, 1.0) * calculateLight(position, normal) * 1.5 * ssao;
 
-    // FragColor = vec4(diffuse, 1.0) * calculateLight(position, normal) * 1.5 * ssao * shadowFactor;
+    FragColor = vec4(diffuse, 1.0) * calculateLight(position, normal) * 1.5 * ssao * shadowFactor;
 }
 ___glsl
