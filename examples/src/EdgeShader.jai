@@ -36,9 +36,7 @@ const float maxDepth = 10.0;
 const float minSeparation = 0.2 * 1.0;
 const float maxSeparation = 1.0 * 1.0;
 const float minDistance = 0.1;
-const float minDistance2 = minDistance * minDistance;
 const float maxDistance = 0.5;
-const float maxDistance2 = maxDistance * maxDistance;
 const vec2[8] offsets = vec2[8](vec2(-1, -1), vec2(0, -1), vec2(1, -1), vec2(1, 0), vec2(-1, 0), vec2(-1, 1), vec2(0, 1), vec2(1, 1));
 const vec3 colorModifier = vec3(0.224, 0.063, 0.099);
 
@@ -61,9 +59,7 @@ void main() {
     float depth = sqrt(depthSquared);
 
     float separation = smoothstep(minDepth, maxDepth, depth);
-    // float separation = (depth - minDepth) / (maxDepth - minDepth);
     separation = (minSeparation - maxSeparation) * separation + maxSeparation;
-    // float separation = mix(maxSeparation, minSeparation, sqrt(depthSquared) / 100.0);
 
     float maxDepthDifference = 0.0;
     for (int i = 0; i < 8; i++) {
@@ -86,30 +82,6 @@ void main() {
     float scaledMaxDistance = sqrt(depth * 0.1) * maxDistance;
 
     float diff = smoothstep(scaledMinDistance, scaledMaxDistance, sqrt(maxDepthDifference));
-    
-    // float diff = smoothstep(scaledMinDistance * scaledMinDistance, scaledMaxDistance * scaledMaxDistance, maxDepthDifference);
-    // float diff = smoothstep(minDistance, maxDistance, sqrt(maxDepthDifference));
-
-    // separation *= diff;
-    // maxDepthDifference = 0.0;
-    
-    // for (int i = 0; i < 8; i++) {
-    //     vec2 offset = offsets[i];
-    //     float offsetLength = length(offset);
-
-    //     vec2 sampleCoord = vCoord + offset * separation / positionSize;
-
-    //     vec3 samplePosition = texture(uPosition, sampleCoord).rgb;
-
-    //     vec3 depthDelta = samplePosition - position;
-    //     float depthDistanceSquared = dot(depthDelta, depthDelta);
-
-    //     maxDepthDifference = max(maxDepthDifference, depthDistanceSquared);
-    // }
-
-    // scaledMinDistance = sqrt(depth * 0.1) * minDistance;
-    // scaledMaxDistance = sqrt(depth * 0.1) * maxDistance;
-    // diff = smoothstep(scaledMinDistance, scaledMaxDistance, sqrt(maxDepthDifference));
 
     vec3 finalColor = color * (1.0 - diff) + lineColor * diff;
 
