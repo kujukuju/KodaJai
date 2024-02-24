@@ -595,6 +595,7 @@ set_cull_face_mode :: (value: CullFaceMode) {
 }
 
 ClearMask :: enum_flags {
+    None;
     Color;
     Depth;
     Stencil;
@@ -630,14 +631,14 @@ convert_clear_mask :: (real_mask: u32) -> ClearMask {
     return mask;
 }
 
-clear :: (color: Color, $mask: ClearMask = .Color | .Depth) {
-    real_mask := #run convert_clear_mask(mask);
+clear :: (color: Color, mask: ClearMask = .Color | .Depth) {
+    real_mask := convert_clear_mask(mask);
     glClearColor(color.r, color.g, color.b, color.a);
     glClear(real_mask);
 }
 
-clear :: ($mask: ClearMask = .Color | .Depth) {
-    real_mask := #run convert_clear_mask(mask);
+clear :: (mask: ClearMask = .Color | .Depth) {
+    real_mask := convert_clear_mask(mask);
     glClear(real_mask);
 }
 

@@ -131,22 +131,22 @@ init_framebuffer_pass_internal :: (pass: *FramebufferPass($count, $depth, $drawa
 //     clear(.Color | .Depth);
 // }
 
-framebuffer_bind_write :: (pass: FramebufferPass($c, $depth, $dr, $m)) {
+framebuffer_bind_write :: (pass: FramebufferPass($c, $depth, $dr, $m), mask: ClearMask = .Color | .Depth | .Stencil) {
     glBindFramebuffer(GL_DRAW_FRAMEBUFFER, pass.framebuffer);
     glViewport(0, 0, xx pass.width, xx pass.height);
 
     #if depth {
-        clear(.Color | .Depth);
+        clear(mask & (.Color | .Depth));
     } else {
-        clear(.Color);
+        clear(mask & .Color);
     }
 }
 
-framebuffer_bind_write_screen :: () {
+framebuffer_bind_write_screen :: (mask: ClearMask = .Color | .Depth | .Stencil) {
     glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0);
     glViewport(0, 0, xx koda.width, xx koda.height);
 
-    clear(.Color | .Depth);
+    clear(mask & (.Color | .Depth));
 }
 
 framebuffer_bind_read :: (pass: FramebufferPass) {

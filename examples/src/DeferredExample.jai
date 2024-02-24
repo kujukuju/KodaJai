@@ -52,11 +52,12 @@ main :: () {
     point_light_shader.uniforms[xx "uDiffuseIntensity"] = create_uniform("uDiffuseIntensity", 0.5);
     point_light_shader.uniforms[xx "uAmbientIntensity"] = create_uniform("uAmbientIntensity", 0.5);
 
-    models = load_models("low_poly_medieval_tavern_reexported.glb");
-    // models = load_models("low_poly_medieval_tavern_reexported_with_goblin.glb");
+    // models = load_models("low_poly_medieval_tavern_reexported.glb");
+    models = load_models("low_poly_medieval_tavern_reexported_with_goblin.glb");
 
     camera.position = .{6, 4, 3};
     look_at(*camera, .{3, 2, -2});
+    // camera.position -= get_forward_vector(camera) * 10.0;
 
     deferred_initialize();
 
