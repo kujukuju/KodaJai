@@ -29,7 +29,7 @@ main :: () {
 
     light_direction = Vector3.{-0.758616, -0.310689, -0.572684};
     // light_direction = Vector3.{0, -1, 0};
-    
+
     print("Light direction: %\n", light_direction);
 
     // color_shader.uniforms[xx "uLightDirection"] = create_uniform("uLightDirection", light_direction);
@@ -66,23 +66,25 @@ main :: () {
 
         update_inputs();
 
+        speed := ifx input.keys[Key.LEFT_SHIFT] then 0.001 else 0.1;
+
         if input.keys[Key.A] {
-            camera.position -= get_right_vector(camera) * 0.1;
+            camera.position -= get_right_vector(camera) * speed;
         }
         if input.keys[Key.D] {
-            camera.position += get_right_vector(camera) * 0.1;
+            camera.position += get_right_vector(camera) * speed;
         }
         if input.keys[Key.W] {
-            camera.position += get_forward_vector(camera) * 0.1;
+            camera.position += get_forward_vector(camera) * speed;
         }
         if input.keys[Key.S] {
-            camera.position -= get_forward_vector(camera) * 0.1;
+            camera.position -= get_forward_vector(camera) * speed;
         }
         if input.keys[Key.SPACE] {
-            camera.position += get_up_vector(camera) * 0.1;
+            camera.position += get_up_vector(camera) * speed;
         }
         if input.keys[Key.LEFT_CONTROL] {
-            camera.position -= get_up_vector(camera) * 0.1;
+            camera.position -= get_up_vector(camera) * speed;
         }
 
         set_mouse_capture(!!input.mouse_right);

@@ -43,6 +43,8 @@ SsaoPass :: struct {
 
 shadow_pass: FramebufferPass(0, true, false);
 shadow_pass_out: FramebufferPass(1, false, true);
+cascaded_shadow_pass: FramebufferPass(0, true, false);
+cascaded_shadow_pass_out: FramebufferPass(1, false, true);
 geometry_pass: FramebufferPass(3, true, false);
 ssao_pass: SsaoPass;
 ssao_blur_pass: FramebufferPass(1, false, true);
@@ -70,11 +72,15 @@ float_blur_shader: FloatBlurShader;
 
 shadow_view: Matrix4;
 shadow_projection: Matrix4;
+casc_shadow_view: Matrix4;
+casc_shadow_projection: Matrix4;
 
 deferred_initialize :: () {
     // continue using rgba for byte alignment
-    init_framebuffer_pass(*shadow_pass, 1024, 1024, .Depth32F);
+    init_framebuffer_pass(*shadow_pass, 2048, 2048, .Depth32F);
     init_framebuffer_pass(*shadow_pass_out, *shadow_depth_resolve_shader, .RGBA8);
+    init_framebuffer_pass(*cascaded_shadow_pass, 1024, 1024, .Depth32F);
+    init_framebuffer_pass(*cascaded_shadow_pass_out, *shadow_depth_resolve_shader, .RGBA8);
     init_framebuffer_pass(*geometry_pass, .RGBA16F, .RGBA16F, .RGBA8, .Depth32F);
     init_framebuffer_pass(*ssao_pass, *ambient_occlusion_shader, koda.width / 2, koda.height / 2, .R8);
     init_framebuffer_pass(*ssao_blur_pass, *guided_blur_shader, .R8);
@@ -88,7 +94,7 @@ deferred_initialize :: () {
     light_sphere.shader = *point_light_shader;
     assert(light_sphere_geometry.attributes.count == 1);
 
-    cube_geometry := create_cube(.{100.0, 100.0, 100.0});
+    cube_geometry := create_cube(.{200.0, 200.0, 200.0});
     cube_model = create_model(cube_geometry);
     cube_model.shader = *geometry_shader;
     assert(cube_geometry.attributes.count == 1);
@@ -103,6 +109,8 @@ deferred_render :: () {
 
     deferred_render_shadows();
     // deferred_render_shadows_to_screen();
+    deferred_render_cascaded_shadows();
+    // deferred_render_cascaded_shadows_to_screen();
     deferred_render_geometry();
     // deferred_render_geometry_to_screen();
     deferred_render_ssao();
@@ -119,33 +127,7 @@ deferred_render :: () {
     deferred_render_faaa_to_screen();
 
     deferred_render_small_shadows_to_screen();
-
-    // draw_line(draw_lines[0], draw_lines[1]);
-    // draw_line(draw_lines[0], draw_lines[1]);
-    // draw_line(draw_lines[0], draw_lines[2]);
-    // draw_line(draw_lines[0], draw_lines[3]);
-    // draw_line(draw_lines[0], draw_lines[4]);
-    // draw_line(draw_lines[1], draw_lines[2]);
-    // draw_line(draw_lines[2], draw_lines[3]);
-    // draw_line(draw_lines[3], draw_lines[4]);
-    // draw_line(draw_lines[4], draw_lines[1]);
-    // draw_line(draw_lines[5], draw_lines[1]);
-    // draw_line(draw_lines[5], draw_lines[2]);
-    // draw_line(draw_lines[5], draw_lines[3]);
-    // draw_line(draw_lines[5], draw_lines[4]);
-
-    // draw_line(draw_lines_cube[0], draw_lines_cube[1]);
-    // draw_line(draw_lines_cube[1], draw_lines_cube[2]);
-    // draw_line(draw_lines_cube[2], draw_lines_cube[3]);
-    // draw_line(draw_lines_cube[3], draw_lines_cube[0]);
-    // draw_line(draw_lines_cube[4], draw_lines_cube[5]);
-    // draw_line(draw_lines_cube[5], draw_lines_cube[6]);
-    // draw_line(draw_lines_cube[6], draw_lines_cube[7]);
-    // draw_line(draw_lines_cube[7], draw_lines_cube[4]);
-    // draw_line(draw_lines_cube[0], draw_lines_cube[4]);
-    // draw_line(draw_lines_cube[1], draw_lines_cube[5]);
-    // draw_line(draw_lines_cube[2], draw_lines_cube[6]);
-    // draw_line(draw_lines_cube[3], draw_lines_cube[7]);
+    deferred_render_small_cascaded_shadows_to_screen();
 
     perf_tracker_print(1000);
 }
@@ -158,9 +140,10 @@ deferred_render_shadows :: () {
     shadow_dimensions := Point2.{shadow_pass.width, shadow_pass.height};
     shadow_view, shadow_projection = calculate_directional_shadow_matrices(
         light_direction,
-        10.0,
-        fixed_view_direction = false,
-        fixed_shadow_direction = false,
+        20.0,
+        min_depth = 0.0,
+        fixed_view_direction = true,
+        fixed_shadow_direction = true,
         shadow_texture_dimensions = shadow_dimensions,
         fixed_depth = false);
 
@@ -209,7 +192,6 @@ deferred_render_shadows_to_screen :: () {
     glBlitFramebuffer(0, 0, xx shadow_pass_out.width, xx shadow_pass_out.height, 0, 0, xx koda.width, xx koda.height, GL_COLOR_BUFFER_BIT, GL_LINEAR);
 }
 
-
 deferred_render_small_shadows_to_screen :: () {
     framebuffer_bind_write(shadow_pass_out);
     
@@ -226,6 +208,84 @@ deferred_render_small_shadows_to_screen :: () {
 
     glReadBuffer(GL_COLOR_ATTACHMENT0);
     glBlitFramebuffer(0, 0, xx shadow_pass_out.width, xx shadow_pass_out.height, 0, xx (koda.height * 3 / 4), xx (koda.width * 1 / 4), xx koda.height, GL_COLOR_BUFFER_BIT, GL_LINEAR);
+}
+
+deferred_render_cascaded_shadows :: () {
+    perf_track("render_cascaded_shadows");
+    
+    framebuffer_bind_write(cascaded_shadow_pass);
+
+    shadow_dimensions := Point2.{cascaded_shadow_pass.width, cascaded_shadow_pass.height};
+    casc_shadow_view, casc_shadow_projection = calculate_directional_shadow_matrices(
+        light_direction,
+        80.0,
+        min_depth = 20.0,
+        fixed_view_direction = true,
+        fixed_shadow_direction = true,
+        shadow_texture_dimensions = shadow_dimensions,
+        fixed_depth = false);
+
+    view := koda.view;
+    defer koda.view = view;
+    koda.view = casc_shadow_view;
+
+    depth_write := get_depth_write();
+    defer set_depth_write(depth_write);
+    set_depth_write(true);
+
+    depth_test := get_depth_test();
+    defer set_depth_test(depth_test);
+    set_depth_test(true);
+
+    blend := get_blend();
+    defer set_blend(blend);
+    set_blend(false);
+
+    for model: models {
+        draw(model, projection = casc_shadow_projection, shader = *shadow_projection_shader);
+    }
+
+    cull_face_mode := get_cull_face_mode();
+    defer set_cull_face_mode(cull_face_mode);
+    set_cull_face_mode(.Front);
+
+    draw(cube_model, projection = casc_shadow_projection, shader = *shadow_projection_shader);
+}
+
+deferred_render_cascaded_shadows_to_screen :: () {
+    framebuffer_bind_write(cascaded_shadow_pass_out);
+    
+    blend := get_blend();
+    defer set_blend(blend);
+    set_blend(false);
+
+    shadow_pass_out.uniforms[xx "uDepth"] = create_uniform("uDepth", cascaded_shadow_pass.depth_texture);
+
+    draw(shadow_pass_out);
+
+    framebuffer_bind_read(shadow_pass_out);
+    framebuffer_bind_write_screen();
+
+    glReadBuffer(GL_COLOR_ATTACHMENT0);
+    glBlitFramebuffer(0, 0, xx shadow_pass_out.width, xx shadow_pass_out.height, 0, 0, xx koda.width, xx koda.height, GL_COLOR_BUFFER_BIT, GL_LINEAR);
+}
+
+deferred_render_small_cascaded_shadows_to_screen :: () {
+    framebuffer_bind_write(cascaded_shadow_pass_out);
+    
+    blend := get_blend();
+    defer set_blend(blend);
+    set_blend(false);
+
+    cascaded_shadow_pass_out.uniforms[xx "uDepth"] = create_uniform("uDepth", cascaded_shadow_pass.depth_texture);
+
+    draw(cascaded_shadow_pass_out);
+
+    framebuffer_bind_read(cascaded_shadow_pass_out);
+    framebuffer_bind_write_screen(.None);
+
+    glReadBuffer(GL_COLOR_ATTACHMENT0);
+    glBlitFramebuffer(0, 0, xx cascaded_shadow_pass_out.width, xx cascaded_shadow_pass_out.height, 0, xx (koda.height * 2 / 4), xx (koda.width * 1 / 4), xx (koda.height * 3 / 4), GL_COLOR_BUFFER_BIT, GL_LINEAR);
 }
 
 deferred_render_geometry :: () {
@@ -340,6 +400,9 @@ deferred_render_lighting :: () {
     lighting_pass.uniforms[xx "uShadow"] = create_uniform("uShadow", shadow_pass.depth_texture);
     lighting_pass.uniforms[xx "uShadowView"] = create_uniform("uShadowView", shadow_view);
     lighting_pass.uniforms[xx "uShadowProjection"] = create_uniform("uShadowProjection", shadow_projection);
+    lighting_pass.uniforms[xx "uCascShadow"] = create_uniform("uCascShadow", cascaded_shadow_pass.depth_texture);
+    lighting_pass.uniforms[xx "uCascShadowView"] = create_uniform("uCascShadowView", casc_shadow_view);
+    lighting_pass.uniforms[xx "uCascShadowProjection"] = create_uniform("uCascShadowProjection", casc_shadow_projection);
 
     draw(lighting_pass);
 

@@ -21,46 +21,48 @@ calculate_directional_shadow_matrices :: (
     shadow_forward := normalize(forward);
 
     view := koda.view;
-    view_inv := inverse(view);
+    
+    view_ident := view;
+    view_ident._14 = 0;
+    view_ident._24 = 0;
+    view_ident._34 = 0;
+    view_ident_inv := inverse(view_ident);
+
     projection := get_perspective_matrix();
     projection_inv := inverse(projection);
 
-    camera_position := transform_point(view_inv, .{0, 0, 0});
-    camera_forward := normalize(transform_vector(view_inv, .{0, 0, -1}));
+    camera_position := transform_point(inverse(view), .{0, 0, 0});
+    camera_forward := transform_vector(view_ident_inv, .{0, 0, -1});
+    camera_forward = normalize(camera_forward);
 
     // max_depth_plane := create_plane3(camera_position + camera_forward * max_depth, camera_forward);
 
     // TODO should the 4th value here really be 1.0? we're trying to get a direction are we not? idk....
     top_left_dir := transform_point(projection_inv, .{-1.0, 1.0, -1.0});
-    top_left_dir = transform_vector(view_inv, top_left_dir);
+    top_left_dir = transform_vector(view_ident_inv, top_left_dir);
     top_left_dir = normalize(top_left_dir);
-    top_left_ray := Ray3.{camera_position, top_left_dir};
 
     top_right_dir := transform_point(projection_inv, .{1.0, 1.0, -1.0});
-    top_right_dir = transform_vector(view_inv, top_right_dir);
+    top_right_dir = transform_vector(view_ident_inv, top_right_dir);
     top_right_dir = normalize(top_right_dir);
-    top_right_ray := Ray3.{camera_position, top_right_dir};
 
     bottom_left_dir := transform_point(projection_inv, .{-1.0, -1.0, -1.0});
-    bottom_left_dir = transform_vector(view_inv, bottom_left_dir);
+    bottom_left_dir = transform_vector(view_ident_inv, bottom_left_dir);
     bottom_left_dir = normalize(bottom_left_dir);
-    bottom_left_ray := Ray3.{camera_position, bottom_left_dir};
 
     bottom_right_dir := transform_point(projection_inv, .{1.0, -1.0, -1.0});
-    bottom_right_dir = transform_vector(view_inv, bottom_right_dir);
+    bottom_right_dir = transform_vector(view_ident_inv, bottom_right_dir);
     bottom_right_dir = normalize(bottom_right_dir);
-    bottom_right_ray := Ray3.{camera_position, bottom_right_dir};
 
-    forward_point := camera_position + camera_forward * max_depth;
-    top_left_point := top_left_ray.p + top_left_ray.dir * max_depth;
-    top_right_point := top_right_ray.p + top_right_ray.dir * max_depth;
-    bottom_left_point := bottom_left_ray.p + bottom_left_ray.dir * max_depth;
-    bottom_right_point := bottom_right_ray.p + bottom_right_ray.dir * max_depth;
-    near_top_left_point := camera_position;
-    near_top_right_point := camera_position;
-    near_bottom_left_point := camera_position;
-    near_bottom_right_point := camera_position;
-    // TODO min_depth for near points if applicable
+    forward_point := camera_forward * max_depth;
+    top_left_point := top_left_dir * max_depth;
+    top_right_point := top_right_dir * max_depth;
+    bottom_left_point := bottom_left_dir * max_depth;
+    bottom_right_point := bottom_right_dir * max_depth;
+    near_top_left_point := top_left_dir * min_depth;
+    near_top_right_point := top_right_dir * min_depth;
+    near_bottom_left_point := bottom_left_dir * min_depth;
+    near_bottom_right_point := bottom_right_dir * min_depth;
 
     frustum_points := Vector3.[
         forward_point,
@@ -83,6 +85,7 @@ calculate_directional_shadow_matrices :: (
     shadow_right: Vector3;
     if abs(1.0 - abs(dot(.{0, 1, 0}, shadow_forward))) < 0.00001 {
         // if the shadow is facing directly down we calculate right differently
+        // we could have the user supply a "last up" from the previous iteration? seems like a lot of work to prevent stupidity
         shadow_right = normalize(cross(shadow_forward, .{0, 0, -1}));
     } else {
         shadow_right = normalize(cross(shadow_forward, .{0, 1, 0}));
@@ -93,23 +96,16 @@ calculate_directional_shadow_matrices :: (
     plane_right := create_plane3(incorrect_center, shadow_right);
     plane_forward := create_plane3(incorrect_center, shadow_forward);
 
-    plane_up_distance := distance(plane_up, frustum_points[0]);
-    plane_right_distance := distance(plane_right, frustum_points[0]);
-    plane_forward_distance := distance(plane_forward, frustum_points[0]);
-
-    up_distance := plane_up_distance;
-    down_distance := -plane_up_distance;
-    right_distance := plane_right_distance;
-    left_distance := -plane_right_distance;
-    forward_distance := plane_forward_distance;
-    backward_distance := -plane_forward_distance;
-
-    for i: 1..frustum_points.count - 1 {
-        frustum_point := frustum_points[i];
-
-        plane_up_distance = distance(plane_up, frustum_point);
-        plane_right_distance = distance(plane_right, frustum_point);
-        plane_forward_distance = distance(plane_forward, frustum_point);
+    up_distance := 0.0;
+    down_distance := 0.0;
+    right_distance := 0.0;
+    left_distance := 0.0;
+    forward_distance := 0.0;
+    backward_distance := 0.0;
+    for frustum_point: frustum_points {
+        plane_up_distance := distance(plane_up, frustum_point);
+        plane_right_distance := distance(plane_right, frustum_point);
+        plane_forward_distance := distance(plane_forward, frustum_point);
 
         up_distance = max(up_distance, plane_up_distance);
         down_distance = max(down_distance, -plane_up_distance);
@@ -132,110 +128,14 @@ calculate_directional_shadow_matrices :: (
     ortho_height := up_distance + down_distance;
 
     // if there needs to be padding add it to start
-    ortho_center := incorrect_center + center_up_distance * shadow_up + center_right_distance * shadow_right + center_forward_distance * shadow_forward;
+    ortho_center := camera_position + incorrect_center + center_up_distance * shadow_up + center_right_distance * shadow_right + center_forward_distance * shadow_forward;
     ortho_start := ortho_center - shadow_forward * ortho_depth / 2.0;
-
-    pixel_snapping := shadow_texture_dimensions != .{};
 
     origin_backwards_depth := dot(ortho_start, -shadow_forward);
     
+    pixel_snapping := shadow_texture_dimensions != .{0, 0};
     if pixel_snapping && fixed_shadow_direction && fixed_view_direction {
-        // I need to redo the calculations here with a position-fixed view matrix, but with the correct direction
-        fixed_view_forward := normalize(transform_vector(view_inv, .{0, 0, -1}));
-        view_ident := create_view_matrix(.{0, 0, 0}, fixed_view_forward);
-        view_ident_inv := inverse(view_ident);
-
-        top_left_dir_ident := transform_point(projection_inv, .{-1, 1, -1});
-        top_left_dir_ident = transform_vector(view_ident_inv, top_left_dir_ident);
-        top_left_dir_ident = normalize(top_left_dir_ident);
-        top_right_dir_ident := transform_point(projection_inv, .{1, 1, -1});
-        top_right_dir_ident = transform_vector(view_ident_inv, top_right_dir_ident);
-        top_right_dir_ident = normalize(top_right_dir_ident);
-        bottom_left_dir_ident := transform_point(projection_inv, .{-1, -1, -1});
-        bottom_left_dir_ident = transform_vector(view_ident_inv, bottom_left_dir_ident);
-        bottom_left_dir_ident = normalize(bottom_left_dir_ident);
-        bottom_right_dir_ident := transform_point(projection_inv, .{1, -1, -1});
-        bottom_right_dir_ident = transform_vector(view_ident_inv, bottom_right_dir_ident);
-        bottom_right_dir_ident = normalize(bottom_right_dir_ident);
-
-        top_left_ray_ident := Ray3.{.{0, 0, 0}, top_left_dir_ident};
-        top_right_ray_ident := Ray3.{.{0, 0, 0}, top_right_dir_ident};
-        bottom_left_ray_ident := Ray3.{.{0, 0, 0}, bottom_left_dir_ident};
-        bottom_right_ray_ident := Ray3.{.{0, 0, 0}, bottom_right_dir_ident};
-
-        // max_depth_plane_ident := create_plane3(.{0, 0, 0} + fixed_view_forward * max_depth, fixed_view_forward);
-
-        forward_ident := Vector3.{0, 0, 0} + normalize(transform_vector(view_ident_inv, .{0, 0, -1})) * max_depth;
-        top_left_ident := top_left_ray_ident.p + top_left_ray_ident.dir * max_depth;
-        top_right_ident := top_right_ray_ident.p + top_right_ray_ident.dir * max_depth;
-        bottom_left_ident := bottom_left_ray_ident.p + bottom_left_ray_ident.dir * max_depth;
-        bottom_right_ident := bottom_right_ray_ident.p + bottom_right_ray_ident.dir * max_depth;
-        near_top_left_ident := Vector3.{0, 0, 0};
-        near_top_right_ident := Vector3.{0, 0, 0};
-        near_bottom_left_ident := Vector3.{0, 0, 0};
-        near_bottom_right_ident := Vector3.{0, 0, 0};
-
-        frustum_idents := Vector3.[
-            forward_ident,
-            top_left_ident,
-            top_right_ident,
-            bottom_left_ident,
-            bottom_right_ident,
-            near_top_left_ident,
-            near_top_right_ident,
-            near_bottom_left_ident,
-            near_bottom_right_ident,
-        ];
-
-        incorrect_center: Vector3;
-        for frustum_ident: frustum_idents {
-            incorrect_center += frustum_ident;
-        }
-        incorrect_center /= frustum_idents.count;
-
-        plane_up := create_plane3(incorrect_center, shadow_up);
-        plane_right := create_plane3(incorrect_center, shadow_right);
-        plane_forward := create_plane3(incorrect_center, shadow_forward);
-
-        // TODO this could og back into the loop because with incorrect_center everything is guaranteed to be at least a little positive        
-        plane_up_distance := distance(plane_up, frustum_idents[0]);
-        plane_right_distance := distance(plane_right, frustum_idents[0]);
-        plane_forward_distance := distance(plane_forward, frustum_idents[0]);
-
-        up_distance := plane_up_distance;
-        down_distance := -plane_up_distance;
-        right_distance := plane_right_distance;
-        left_distance := -plane_right_distance;
-        forward_distance := plane_forward_distance;
-        backward_distance := -plane_forward_distance;
-
-        for i: 1..frustum_idents.count - 1 {
-            frustum_ident := frustum_idents[i];
-
-            plane_up_distance = distance(plane_up, frustum_ident);
-            plane_right_distance = distance(plane_right, frustum_ident);
-            plane_forward_distance = distance(plane_forward, frustum_ident);
-
-            up_distance = max(up_distance, plane_up_distance);
-            down_distance = max(down_distance, -plane_up_distance);
-            right_distance = max(right_distance, plane_right_distance);
-            left_distance = max(left_distance, -plane_right_distance);
-            forward_distance = max(forward_distance, plane_forward_distance);
-            backward_distance = max(backward_distance, -plane_forward_distance);
-        }
-        
-        center_up_distance = (up_distance - down_distance) / 2.0;
-        center_right_distance = (right_distance - left_distance) / 2.0;
-        center_forward_distance = (forward_distance - backward_distance) / 2.0;
-
-        ortho_depth = forward_distance + backward_distance;
-        ortho_width = right_distance + left_distance;
-        ortho_height = up_distance + down_distance;
-
-        ortho_center = camera_position + incorrect_center + center_up_distance * shadow_up + center_right_distance * shadow_right + center_forward_distance * shadow_forward;
-        ortho_start = ortho_center - shadow_forward * ortho_depth / 2.0;
-
-        origin_backwards_depth = dot(ortho_start, -shadow_forward);
+        // actually we do nothing because in this situation we'll perfectly clamp to the frustum and the above calculations are highly accurate now
     } else if pixel_snapping {
         // we can't clamp the shadow projection accurately since things can rotate so we'll assume worst case scenario
         // we'll adjust the shadow dimensions based on this
@@ -248,22 +148,15 @@ calculate_directional_shadow_matrices :: (
         bottom_right_dir_ident := transform_point(projection_inv, .{1, -1, -1});
         bottom_right_dir_ident = normalize(bottom_right_dir_ident);
 
-        top_left_ray_ident := Ray3.{.{0, 0, 0}, top_left_dir_ident};
-        top_right_ray_ident := Ray3.{.{0, 0, 0}, top_right_dir_ident};
-        bottom_left_ray_ident := Ray3.{.{0, 0, 0}, bottom_left_dir_ident};
-        bottom_right_ray_ident := Ray3.{.{0, 0, 0}, bottom_right_dir_ident};
-
-        max_depth_plane_ident := create_plane3(.{0, 0, -max_depth}, .{0, 0, -1});
-
-        forward_ident := Vector3.{0, 0, 0} + .{0, 0, -1} * max_depth;
-        top_left_ident := top_left_ray_ident.p + top_left_ray_ident.dir * max_depth; // intersection_simple(max_depth_plane_ident, top_left_ray_ident);
-        top_right_ident := top_right_ray_ident.p + top_right_ray_ident.dir * max_depth; // intersection_simple(max_depth_plane_ident, top_right_ray_ident);
-        bottom_left_ident := bottom_left_ray_ident.p + bottom_left_ray_ident.dir * max_depth; // intersection_simple(max_depth_plane_ident, bottom_left_ray_ident);
-        bottom_right_ident := bottom_right_ray_ident.p + bottom_right_ray_ident.dir * max_depth; // intersection_simple(max_depth_plane_ident, bottom_right_ray_ident);
-        near_top_left_ident := Vector3.{0, 0, 0};
-        near_top_right_ident := Vector3.{0, 0, 0};
-        near_bottom_left_ident := Vector3.{0, 0, 0};
-        near_bottom_right_ident := Vector3.{0, 0, 0};
+        forward_ident := Vector3.{0, 0, -1} * max_depth;
+        top_left_ident := top_left_dir_ident * max_depth;
+        top_right_ident := top_right_dir_ident * max_depth;
+        bottom_left_ident := bottom_left_dir_ident * max_depth;
+        bottom_right_ident := bottom_right_dir_ident * max_depth;
+        near_top_left_ident := top_left_dir_ident * min_depth;
+        near_top_right_ident := top_right_dir_ident * min_depth;
+        near_bottom_left_ident := bottom_left_dir_ident * min_depth;
+        near_bottom_right_ident := bottom_right_dir_ident * min_depth;
 
         // TODO remove this
         assert(abs(distance(top_left_ident, bottom_right_ident) - distance(top_right_ident, bottom_left_ident)) < 0.001, "Sanity check that your camera frustum is non-skewed.\n");
@@ -271,11 +164,13 @@ calculate_directional_shadow_matrices :: (
         assert(distance(near_top_left_ident, bottom_right_ident) > distance(near_top_left_ident, top_right_ident) - 0.001, "Sanity check that I understand the limitations of what's possible with a rectangular frustum.\n");
 
         // along one of the edges
-        required_ortho_size := max_depth;
+        required_ortho_size := max_depth - min_depth;
         // along the front rectangle diagonal
         required_ortho_size = max(required_ortho_size, distance(top_left_ident, bottom_right_ident));
         // along the back rectangle diagonal
         required_ortho_size = max(required_ortho_size, distance(near_top_left_ident, near_bottom_right_ident));
+        // along the left rectangle diagonal
+        required_ortho_size = max(required_ortho_size, distance(near_top_left_ident, bottom_left_ident));
         // along the inner diagonal
         required_ortho_size = max(required_ortho_size, distance(near_top_left_ident, bottom_right_ident));
 
