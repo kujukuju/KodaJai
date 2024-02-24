@@ -24,7 +24,7 @@ void main() {
     vCoord = aPos * vec2(0.5, 0.5) + 0.5;
     vCamera = vec3(inverse(view) * vec4(0.0, 0.0, 0.0, 1.0));
     // don't think I need to normalize
-    vShadowDir = normalize(vec3(inverse(view) * vec4(0.0, 0.0, -1.0, 0.0)));
+    vShadowDir = normalize(vec3(inverse(uShadowView) * vec4(0.0, 0.0, -1.0, 0.0)));
 
     gl_Position = vec4(aPos, 0.0, 1.0);
 }
@@ -39,8 +39,8 @@ uniform sampler2D uPosition;
 uniform sampler2D uDiffuse;
 uniform sampler2D uNormal;
 uniform sampler2D uSSAO;
-uniform sampler2D uShadow;
-// uniform sampler2DShadow uShadow;
+// uniform sampler2D uShadow;
+uniform sampler2DShadow uShadow;
 
 uniform vec2 uScreenSize;
 
@@ -108,186 +108,186 @@ float calcShadowFactor(vec3 position, vec3 normal) {
     vec3 shadowCoord = shadowSpace.xyz / shadowSpace.w;
     shadowCoord = shadowCoord * 0.5 + 0.5;
 
-    if (shadowCoord.x < 0.0 || shadowCoord.y < 0.0 || shadowCoord.x > 1.0 || shadowCoord.y > 1.0) {
+    if (shadowCoord.x < 0 || shadowCoord.y < 0 || shadowCoord.z < 0 || shadowCoord.x > 1 || shadowCoord.y > 1 || shadowCoord.z > 1) {
         return 1.0;
     }
 
-    const float minBias = 0.0002;
-    const float maxBias = 0.01;
-    const float halfPI = 1.5707963267948966;
-
-    float biasStrength = 1.0 - abs(dot(vShadowDir, normal));
-    biasStrength = 1.0 / cos(biasStrength * halfPI * 1.0 / 3.0) - 1.0;
-    // biasStrength = pow(biasStrength, 2.0);
-
-    float bias = (maxBias - minBias) * biasStrength + minBias;
-
-    // return texture(uShadow, vec3(shadowCoord.xy, shadowCoord.z - bias));
-
-    float shadowDepth = texture(uShadow, shadowCoord.xy).r;
-
-    return smoothstep(shadowCoord.z - bias * 2.0, shadowCoord.z - bias, shadowDepth);
-    // if (shadowDepth < shadowCoord.z - bias) {
-    //     return 0.2;
-    // }
-
-    // return 1.0;
-}
-
-float gaussian(float x, float range) {
-    return exp(-x / range);
-}
-
-// can't really use textureGather because the shadow map doesn't correspond 1:1 with the actual scene fragmetns
-float calcShadowFactorExpand(vec3 position, vec3 normal) {
-    vec2 shadowMapSize = textureSize(uShadow, 0);
-    vec2 positionSize = textureSize(uPosition, 0);
-
-    vec4 shadowViewSpace = uShadowView * vec4(position, 1.0);
-    vec4 shadowSpace = uShadowProjection * shadowViewSpace;
-
-    vec3 shadowCoord = shadowSpace.xyz / shadowSpace.w;
-    shadowCoord = shadowCoord * 0.5 + 0.5;
-
-    if (shadowCoord.x < 0.0 || shadowCoord.y < 0.0 || shadowCoord.x > 1.0 || shadowCoord.y > 1.0) {
-        return 1.0;
-    }
+    vec2 shadowSize = textureSize(uShadow, 0);
+    float biasScale = shadowSize.x / 2.0 + shadowSize.y / 2.0;
+    biasScale = 4096.0 / biasScale;
 
     const float minBias = 0.0004;
-    const float maxBias = 0.01;
+    const float maxBias = 0.02;
+    const float PI = 3.141592653589793;
     const float halfPI = 1.5707963267948966;
 
     float biasStrength = 1.0 - abs(dot(vShadowDir, normal));
-    biasStrength = 1.0 / cos(biasStrength * halfPI * 1.0 / 3.0) - 1.0;
+    biasStrength = 1.0 / cos(biasStrength * PI * 1.0 / 3.0) - 1.0;
+    biasStrength = pow(biasStrength, 2.0);
 
     float bias = (maxBias - minBias) * biasStrength + minBias;
+    bias *= biasScale;
 
-    float positionDepth = shadowCoord.z;
-    // vec2 depthDelta = vec2(dFdx(positionDepth), -dFdy(positionDepth));
-
-    vec3 positionDeltaX = dFdx(position);
-    vec3 positionDeltaY = dFdy(position);
-    float positionDeltaLength = sqrt(dot(positionDeltaX, positionDeltaX) + dot(positionDeltaY, positionDeltaY));
-
-    float offsetScale = 8.0 / (positionDeltaLength * 100.0 + 1.0);
-    
-    // const float maxBlurDepth = 0.002;
-    // const float minBlurDepth = 0.0002;
-    // const float maxBlur = 2.0;
-    // const float minBlur = 0.0;
+    return texture(uShadow, vec3(shadowCoord.xy, shadowCoord.z - bias));
 
     // float shadowDepth = texture(uShadow, shadowCoord.xy).r;
-    // float depthDifference = shadowCoord.z - shadowDepth;
-    // float blur = smoothstep(minBlurDepth, maxBlurDepth, depthDifference);
-    // blur = blur * (maxBlur - minBlur) + minBlur;
-
-    const float maxBlurDepth = 0.04;
-    const float minBlurDepth = 0.0002;
-    const float maxBlurGaussian = 8.0;
-    const float minBlurGaussian = 0.01;
-
-    // float shadowAverage = 0.0;
-    // float maximumDepthDifference = 0.0;
-    // float averageDepthDifference = 0.0;
-    float totalDepthBlurDifference = 0.0;
-    // float countDepthDifference = 0.0;
-    float depthDifferences[25];
-    int depthIndex = 0;
-    for (int y = -2; y <= 2; y++) {
-        for (int x = -2; x <= 2; x++) {
-            vec2 offset = vec2(float(x), float(y)) / positionSize * offsetScale;
-            vec3 depthPosition = texture(uPosition, vCoord + offset).xyz;
-            vec4 depthSpace = uShadowProjection * uShadowView * vec4(depthPosition, 1.0);
-            vec3 depthCoord = depthSpace.xyz / depthSpace.w;
-            depthCoord = depthCoord * 0.5 + 0.5;
-
-            float fragmentShadowDepth = texture(uShadow, depthCoord.xy).r;
-            float depthDifference = depthCoord.z - bias - fragmentShadowDepth;
-
-            // maximumDepthDifference = max(maximumDepthDifference, depthDifference);
-            // averageDepthDifference += max(depthDifference, 0.0) / 25.0;
-            if (depthDifference > 0.0) {
-                totalDepthBlurDifference += smoothstep(minBlurDepth, maxBlurDepth, depthDifference);
-                // totalDepthBlurDifference += clamp((depthDifference - minBlurDepth) / (maxBlurDepth - minBlurDepth), 0, 1);
-                // totalDepthBlurDifference += clamp(depthDifference / maxBlurDepth, 0.0, 1.0);
-            } else {
-                totalDepthBlurDifference += 0.0;
-            }
-            // countDepthDifference += 1.0;
-
-            depthDifferences[depthIndex] = depthDifference;
-            depthIndex++;
-
-            // shadowAverage += step(depthDifference, 0.0) / 25.0;
-        }
-    }
-
-    float averageDepthBlurDifference = totalDepthBlurDifference / 25.0;
-
-    // float blurGaussian = smoothstep(minBlurDepth, maxBlurDepth, maximumDepthDifference);
-    // float blurGaussian = smoothstep(minBlurDepth, maxBlurDepth, averageDepthBlurDifference);
-    float blurGaussian = averageDepthBlurDifference;
-    blurGaussian = (maxBlurGaussian - minBlurGaussian) * blurGaussian + minBlurGaussian;
-
-    // blurGaussian = 
-
-    float shadowAverage = 0.0;
-    float shadowWeight = 0.0;
-    depthIndex = 0;
-    for (int y = -2; y <= 2; y++) {
-        float strengthY = gaussian(abs(float(y)), blurGaussian);
-
-        for (int x = -2; x <= 2; x++) {
-            float strengthX = gaussian(abs(float(x)), blurGaussian);
-            float weight = strengthX * strengthY;
-
-            float depthDifference = depthDifferences[depthIndex];
-            depthIndex++;
-
-            shadowAverage += step(depthDifference, 0.0) * weight;
-            shadowWeight += weight;
-        }
-    }
-
-    // return blurGaussian;
-    return shadowAverage / shadowWeight;
-
-    // float shadowSum = 0.0;
-    // float shadowCount = 0.0;
-    // for (int y = -1; y <= 1; y += 2) {
-    //     for (int x = -1; x <= 1; x += 2) {
-    //         vec2 offset = vec2(float(x), float(y)) * 0.5;
-    //         // vec4 shadowDepths = textureGather(uShadow, shadowCoord.xy + offset / shadowMapSize);
-
-    //         vec4 positionDepths = vec4(
-    //             positionDepth + depthDelta.x * (offset.x - 0.5) + depthDelta.y * (offset.y - 0.5), // top left
-    //             positionDepth + depthDelta.x * (offset.x + 0.5) + depthDelta.y * (offset.y - 0.5), // top right
-    //             positionDepth + depthDelta.x * (offset.x - 0.5) + depthDelta.y * (offset.y + 0.5), // bottom left
-    //             positionDepth + depthDelta.x * (offset.x + 0.5) + depthDelta.y * (offset.y + 0.5) // bottom right
-    //         );
-
-    //         shadowSum += smoothstep(positionDepths.x - bias * 2.0, positionDepths.x - bias, shadowDepths.x);
-    //         shadowSum += smoothstep(positionDepths.y - bias * 2.0, positionDepths.y - bias, shadowDepths.y);
-    //         shadowSum += smoothstep(positionDepths.z - bias * 2.0, positionDepths.z - bias, shadowDepths.z);
-    //         shadowSum += smoothstep(positionDepths.w - bias * 2.0, positionDepths.w - bias, shadowDepths.w);
-    //         shadowCount += 4.0;
-    //     }
-    // }
-
-    // float shadowValue = shadowSum / shadowCount;
-    // return shadowValue;
-    
-    // return texture(uShadow, vec3(shadowCoord.xy, positionDepth - bias));
-
-    // float shadowDepth = texture(uShadow, shadowCoord.xy).r;
-
-    // return smoothstep(positionDepth - bias * 2.0, positionDepth - bias, shadowDepth);
-    // if (shadowDepth < positionDepth - bias) {
-    //     return 0.2;
-    // }
-
-    // return 1.0;
+    // return smoothstep(shadowCoord.z - bias * 2.0, shadowCoord.z - bias, shadowDepth);
 }
+
+// float gaussian(float x, float range) {
+//     return exp(-x / range);
+// }
+
+// can't really use textureGather because the shadow map doesn't correspond 1:1 with the actual scene fragmetns
+// float calcShadowFactorExpand(vec3 position, vec3 normal) {
+//     vec2 shadowMapSize = textureSize(uShadow, 0);
+//     vec2 positionSize = textureSize(uPosition, 0);
+
+//     vec4 shadowViewSpace = uShadowView * vec4(position, 1.0);
+//     vec4 shadowSpace = uShadowProjection * shadowViewSpace;
+
+//     vec3 shadowCoord = shadowSpace.xyz / shadowSpace.w;
+//     shadowCoord = shadowCoord * 0.5 + 0.5;
+
+//     if (shadowCoord.x < 0.0 || shadowCoord.y < 0.0 || shadowCoord.x > 1.0 || shadowCoord.y > 1.0) {
+//         return 1.0;
+//     }
+
+//     const float minBias = 0.0004;
+//     const float maxBias = 0.01;
+//     const float halfPI = 1.5707963267948966;
+
+//     float biasStrength = 1.0 - abs(dot(vShadowDir, normal));
+//     biasStrength = 1.0 / cos(biasStrength * halfPI * 1.0 / 3.0) - 1.0;
+
+//     float bias = (maxBias - minBias) * biasStrength + minBias;
+
+//     float positionDepth = shadowCoord.z;
+//     // vec2 depthDelta = vec2(dFdx(positionDepth), -dFdy(positionDepth));
+
+//     vec3 positionDeltaX = dFdx(position);
+//     vec3 positionDeltaY = dFdy(position);
+//     float positionDeltaLength = sqrt(dot(positionDeltaX, positionDeltaX) + dot(positionDeltaY, positionDeltaY));
+
+//     float offsetScale = 8.0 / (positionDeltaLength * 100.0 + 1.0);
+    
+//     // const float maxBlurDepth = 0.002;
+//     // const float minBlurDepth = 0.0002;
+//     // const float maxBlur = 2.0;
+//     // const float minBlur = 0.0;
+
+//     // float shadowDepth = texture(uShadow, shadowCoord.xy).r;
+//     // float depthDifference = shadowCoord.z - shadowDepth;
+//     // float blur = smoothstep(minBlurDepth, maxBlurDepth, depthDifference);
+//     // blur = blur * (maxBlur - minBlur) + minBlur;
+
+//     const float maxBlurDepth = 0.04;
+//     const float minBlurDepth = 0.0002;
+//     const float maxBlurGaussian = 8.0;
+//     const float minBlurGaussian = 0.01;
+
+//     // float shadowAverage = 0.0;
+//     // float maximumDepthDifference = 0.0;
+//     // float averageDepthDifference = 0.0;
+//     float totalDepthBlurDifference = 0.0;
+//     // float countDepthDifference = 0.0;
+//     float depthDifferences[25];
+//     int depthIndex = 0;
+//     for (int y = -2; y <= 2; y++) {
+//         for (int x = -2; x <= 2; x++) {
+//             vec2 offset = vec2(float(x), float(y)) / positionSize * offsetScale;
+//             vec3 depthPosition = texture(uPosition, vCoord + offset).xyz;
+//             vec4 depthSpace = uShadowProjection * uShadowView * vec4(depthPosition, 1.0);
+//             vec3 depthCoord = depthSpace.xyz / depthSpace.w;
+//             depthCoord = depthCoord * 0.5 + 0.5;
+
+//             float fragmentShadowDepth = texture(uShadow, depthCoord.xy).r;
+//             float depthDifference = depthCoord.z - bias - fragmentShadowDepth;
+
+//             // maximumDepthDifference = max(maximumDepthDifference, depthDifference);
+//             // averageDepthDifference += max(depthDifference, 0.0) / 25.0;
+//             if (depthDifference > 0.0) {
+//                 totalDepthBlurDifference += smoothstep(minBlurDepth, maxBlurDepth, depthDifference);
+//                 // totalDepthBlurDifference += clamp((depthDifference - minBlurDepth) / (maxBlurDepth - minBlurDepth), 0, 1);
+//                 // totalDepthBlurDifference += clamp(depthDifference / maxBlurDepth, 0.0, 1.0);
+//             } else {
+//                 totalDepthBlurDifference += 0.0;
+//             }
+//             // countDepthDifference += 1.0;
+
+//             depthDifferences[depthIndex] = depthDifference;
+//             depthIndex++;
+
+//             // shadowAverage += step(depthDifference, 0.0) / 25.0;
+//         }
+//     }
+
+//     float averageDepthBlurDifference = totalDepthBlurDifference / 25.0;
+
+//     // float blurGaussian = smoothstep(minBlurDepth, maxBlurDepth, maximumDepthDifference);
+//     // float blurGaussian = smoothstep(minBlurDepth, maxBlurDepth, averageDepthBlurDifference);
+//     float blurGaussian = averageDepthBlurDifference;
+//     blurGaussian = (maxBlurGaussian - minBlurGaussian) * blurGaussian + minBlurGaussian;
+
+//     // blurGaussian = 
+
+//     float shadowAverage = 0.0;
+//     float shadowWeight = 0.0;
+//     depthIndex = 0;
+//     for (int y = -2; y <= 2; y++) {
+//         float strengthY = gaussian(abs(float(y)), blurGaussian);
+
+//         for (int x = -2; x <= 2; x++) {
+//             float strengthX = gaussian(abs(float(x)), blurGaussian);
+//             float weight = strengthX * strengthY;
+
+//             float depthDifference = depthDifferences[depthIndex];
+//             depthIndex++;
+
+//             shadowAverage += step(depthDifference, 0.0) * weight;
+//             shadowWeight += weight;
+//         }
+//     }
+
+//     // return blurGaussian;
+//     return shadowAverage / shadowWeight;
+
+//     // float shadowSum = 0.0;
+//     // float shadowCount = 0.0;
+//     // for (int y = -1; y <= 1; y += 2) {
+//     //     for (int x = -1; x <= 1; x += 2) {
+//     //         vec2 offset = vec2(float(x), float(y)) * 0.5;
+//     //         // vec4 shadowDepths = textureGather(uShadow, shadowCoord.xy + offset / shadowMapSize);
+
+//     //         vec4 positionDepths = vec4(
+//     //             positionDepth + depthDelta.x * (offset.x - 0.5) + depthDelta.y * (offset.y - 0.5), // top left
+//     //             positionDepth + depthDelta.x * (offset.x + 0.5) + depthDelta.y * (offset.y - 0.5), // top right
+//     //             positionDepth + depthDelta.x * (offset.x - 0.5) + depthDelta.y * (offset.y + 0.5), // bottom left
+//     //             positionDepth + depthDelta.x * (offset.x + 0.5) + depthDelta.y * (offset.y + 0.5) // bottom right
+//     //         );
+
+//     //         shadowSum += smoothstep(positionDepths.x - bias * 2.0, positionDepths.x - bias, shadowDepths.x);
+//     //         shadowSum += smoothstep(positionDepths.y - bias * 2.0, positionDepths.y - bias, shadowDepths.y);
+//     //         shadowSum += smoothstep(positionDepths.z - bias * 2.0, positionDepths.z - bias, shadowDepths.z);
+//     //         shadowSum += smoothstep(positionDepths.w - bias * 2.0, positionDepths.w - bias, shadowDepths.w);
+//     //         shadowCount += 4.0;
+//     //     }
+//     // }
+
+//     // float shadowValue = shadowSum / shadowCount;
+//     // return shadowValue;
+    
+//     // return texture(uShadow, vec3(shadowCoord.xy, positionDepth - bias));
+
+//     // float shadowDepth = texture(uShadow, shadowCoord.xy).r;
+
+//     // return smoothstep(positionDepth - bias * 2.0, positionDepth - bias, shadowDepth);
+//     // if (shadowDepth < positionDepth - bias) {
+//     //     return 0.2;
+//     // }
+
+//     // return 1.0;
+// }
 
 void main() {
     vec2 coord = vCoord;
@@ -298,15 +298,7 @@ void main() {
 
     float ssao = texture(uSSAO, coord).r;
 
-    float shadowFactor = calcShadowFactorExpand(position, normal);
-
-    // vec3 positionDeltaX = dFdx(position);
-    // vec3 positionDeltaY = dFdy(position);
-    // float positionDeltaLength = sqrt(dot(positionDeltaX, positionDeltaX) + dot(positionDeltaY, positionDeltaY));
-
-    // FragColor = vec4(vec3(shadowFactor), 1.0);
-    // FragColor = vec4(vec3(ssao), 1.0);
-    // FragColor = vec4(diffuse, 1.0) * calculateLight(position, normal) * 1.5 * ssao;
+    float shadowFactor = calcShadowFactor(position, normal) * 0.5 + 0.5;
 
     FragColor = vec4(diffuse, 1.0) * calculateLight(position, normal) * 1.5 * ssao * shadowFactor;
 }

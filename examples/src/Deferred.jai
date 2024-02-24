@@ -73,7 +73,7 @@ shadow_projection: Matrix4;
 
 deferred_initialize :: () {
     // continue using rgba for byte alignment
-    init_framebuffer_pass(*shadow_pass, 2048, 2048, .Depth32F);
+    init_framebuffer_pass(*shadow_pass, 1024, 1024, .Depth32F);
     init_framebuffer_pass(*shadow_pass_out, *shadow_depth_resolve_shader, .RGBA8);
     init_framebuffer_pass(*geometry_pass, .RGBA16F, .RGBA16F, .RGBA8, .Depth32F);
     init_framebuffer_pass(*ssao_pass, *ambient_occlusion_shader, koda.width / 2, koda.height / 2, .R8);
@@ -118,7 +118,34 @@ deferred_render :: () {
     deferred_render_faaa();
     deferred_render_faaa_to_screen();
 
-    // deferred_render_small_shadows_to_screen();
+    deferred_render_small_shadows_to_screen();
+
+    // draw_line(draw_lines[0], draw_lines[1]);
+    // draw_line(draw_lines[0], draw_lines[1]);
+    // draw_line(draw_lines[0], draw_lines[2]);
+    // draw_line(draw_lines[0], draw_lines[3]);
+    // draw_line(draw_lines[0], draw_lines[4]);
+    // draw_line(draw_lines[1], draw_lines[2]);
+    // draw_line(draw_lines[2], draw_lines[3]);
+    // draw_line(draw_lines[3], draw_lines[4]);
+    // draw_line(draw_lines[4], draw_lines[1]);
+    // draw_line(draw_lines[5], draw_lines[1]);
+    // draw_line(draw_lines[5], draw_lines[2]);
+    // draw_line(draw_lines[5], draw_lines[3]);
+    // draw_line(draw_lines[5], draw_lines[4]);
+
+    // draw_line(draw_lines_cube[0], draw_lines_cube[1]);
+    // draw_line(draw_lines_cube[1], draw_lines_cube[2]);
+    // draw_line(draw_lines_cube[2], draw_lines_cube[3]);
+    // draw_line(draw_lines_cube[3], draw_lines_cube[0]);
+    // draw_line(draw_lines_cube[4], draw_lines_cube[5]);
+    // draw_line(draw_lines_cube[5], draw_lines_cube[6]);
+    // draw_line(draw_lines_cube[6], draw_lines_cube[7]);
+    // draw_line(draw_lines_cube[7], draw_lines_cube[4]);
+    // draw_line(draw_lines_cube[0], draw_lines_cube[4]);
+    // draw_line(draw_lines_cube[1], draw_lines_cube[5]);
+    // draw_line(draw_lines_cube[2], draw_lines_cube[6]);
+    // draw_line(draw_lines_cube[3], draw_lines_cube[7]);
 
     perf_tracker_print(1000);
 }
@@ -133,9 +160,9 @@ deferred_render_shadows :: () {
         light_direction,
         10.0,
         fixed_view_direction = false,
-        fixed_shadow_direction = true,
+        fixed_shadow_direction = false,
         shadow_texture_dimensions = shadow_dimensions,
-        fixed_depth = true);
+        fixed_depth = false);
 
     view := koda.view;
     defer koda.view = view;
