@@ -151,6 +151,48 @@ float calcShadowFactor(vec3 position, vec3 normal) {
     return texture(uShadow, vec3(shadowCoord.xy, shadowCoord.z - bias));
 }
 
+float calcInterpShadowFactor(vec3 position, vec3 normal) {
+    vec4 shadowViewSpace = uShadowView * vec4(position, 1.0);
+    vec4 shadowSpace = uShadowProjection * shadowViewSpace;
+
+    vec3 shadowCoord = shadowSpace.xyz / shadowSpace.w;
+    shadowCoord = shadowCoord * 0.5 + 0.5;
+
+    if (shadowCoord.x < 0 || shadowCoord.y < 0 || shadowCoord.z < 0 || shadowCoord.x > 1 || shadowCoord.y > 1 || shadowCoord.z > 1) {
+        return calcCascShadowFactor(position, normal);
+    }
+
+    vec2 shadowSize = textureSize(uShadow, 0);
+    float biasScale = shadowSize.x / 2.0 + shadowSize.y / 2.0;
+    biasScale = 4096.0 / biasScale;
+
+    const float minBias = 0.0004;
+    const float maxBias = 0.02;
+    const float PI = 3.141592653589793;
+
+    float biasStrength = 1.0 - abs(dot(vShadowDir, normal));
+    biasStrength = 1.0 / cos(biasStrength * PI * 1.0 / 3.0) - 1.0;
+    biasStrength = pow(biasStrength, 2.0);
+
+    float bias = (maxBias - minBias) * biasStrength + minBias;
+    bias *= biasScale;
+
+    float shadowStrength = texture(uShadow, vec3(shadowCoord.xy, shadowCoord.z - bias));
+
+    // we won't consider when z is less than 0.1 because we always want to use the good map when it's so close to the camera
+    if (shadowCoord.x < 0.1 || shadowCoord.y < 0.1 || shadowCoord.x > 0.9 || shadowCoord.y > 0.9 || shadowCoord.z > 0.9) {
+        float cascadeStrength = min(1.0 - shadowCoord.x / 0.1, 1.0);
+        cascadeStrength = max(cascadeStrength, min(1.0 - shadowCoord.y / 0.1, 1.0));
+        cascadeStrength = max(cascadeStrength, max(shadowCoord.x / 0.1 - 9.0, 0.0));
+        cascadeStrength = max(cascadeStrength, max(shadowCoord.y / 0.1 - 9.0, 0.0));
+        cascadeStrength = max(cascadeStrength, max(shadowCoord.z / 0.1 - 9.0, 0.0));
+
+        shadowStrength = shadowStrength * (1.0 - cascadeStrength) + calcCascShadowFactor(position, normal) * cascadeStrength;
+    }
+
+    return shadowStrength;
+}
+
 void main() {
     vec2 coord = vCoord;
 

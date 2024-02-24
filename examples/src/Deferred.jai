@@ -77,9 +77,9 @@ casc_shadow_projection: Matrix4;
 
 deferred_initialize :: () {
     // continue using rgba for byte alignment
-    init_framebuffer_pass(*shadow_pass, 2048, 2048, .Depth32F);
+    init_framebuffer_pass(*shadow_pass, 2048, 2048, .Depth16);
     init_framebuffer_pass(*shadow_pass_out, *shadow_depth_resolve_shader, .RGBA8);
-    init_framebuffer_pass(*cascaded_shadow_pass, 1024, 1024, .Depth32F);
+    init_framebuffer_pass(*cascaded_shadow_pass, 512, 512, .Depth16);
     init_framebuffer_pass(*cascaded_shadow_pass_out, *shadow_depth_resolve_shader, .RGBA8);
     init_framebuffer_pass(*geometry_pass, .RGBA16F, .RGBA16F, .RGBA8, .Depth32F);
     init_framebuffer_pass(*ssao_pass, *ambient_occlusion_shader, koda.width / 2, koda.height / 2, .R8);
