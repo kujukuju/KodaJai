@@ -1,13 +1,13 @@
-AmbientOcclusionShader :: struct {
+SSAOShader :: struct {
     using #as shader: Shader;
 
-    shader.vertex = AMBIENT_OCCLUSION_VERTEX_SHADER;
-    shader.fragment = AMBIENT_OCCLUSION_FRAGMENT_SHADER;
+    shader.vertex = SSAO_VERTEX_SHADER;
+    shader.fragment = SSAO_FRAGMENT_SHADER;
 }
 
 #scope_module
 
-AMBIENT_OCCLUSION_VERTEX_SHADER :: #string ___glsl
+SSAO_VERTEX_SHADER :: #string ___glsl
 #version 330 core
 
 layout (location = 0) in vec2 aPos;
@@ -27,7 +27,7 @@ void main() {
 }
 ___glsl
 
-AMBIENT_OCCLUSION_FRAGMENT_SHADER :: #string ___glsl
+SSAO_FRAGMENT_SHADER :: #string ___glsl
 #version 330 core
 
 layout (location = 0) out float FragColor;

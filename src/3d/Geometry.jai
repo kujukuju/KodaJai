@@ -374,8 +374,6 @@ copy_nearby_vertex_data :: (geometry: *Geometry, source: Geometry, copy_attribut
         query_data.radius = 0;
         query_data.position = geometry_position;
 
-        print("starting while loop %\n", cast(float) i / geometry.vertices.count);
-
         while !query_data.best_vertex {
             query_data.radius += OFFSET;
             position_aabb := AABB3.{geometry_position - query_data.radius, geometry_position + query_data.radius};

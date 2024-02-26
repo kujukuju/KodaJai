@@ -55,13 +55,13 @@ create_image :: (bytes: [] u8) -> Image {
     }
     
     if comp == 1 {
-        image.format = .Gray;
+        image.format = .R8;
     } else if comp == 2 {
-        image.format = .RG;
+        image.format = .RG8;
     } else if comp == 3 {
-        image.format = .RGB;
+        image.format = .RGB8;
     } else if comp == 4 {
-        image.format = .RGBA;
+        image.format = .RGBA8;
     }
 
     return image;
@@ -103,11 +103,12 @@ create_image :: (texture: Texture) -> Image {
     new.format = texture.format;
 
     gl_format := get_gl_format(texture.format);
+    gl_type := get_gl_type(texture.format);
     stride := get_stride(texture.format);
     new.pixels = NewArray(new.width * new.height * stride, u8, false);
 
     glBindTexture(GL_TEXTURE_2D, texture.buffer);
-    glGetTextureImage(texture.buffer, 0, gl_format, GL_UNSIGNED_BYTE, xx new.pixels.count, new.pixels.data);
+    glGetTextureImage(texture.buffer, 0, gl_format, gl_type, xx new.pixels.count, new.pixels.data);
 
     return new;
 }

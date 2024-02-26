@@ -195,13 +195,13 @@ load_data :: (data: [] u8) -> Texture3 {
     texture_data.height = texture_data.width;
     
     if comp == 1 {
-        texture_data.format = .Gray;
+        texture_data.format = .R8;
     } else if comp == 2 {
-        texture_data.format = .RG;
+        texture_data.format = .RG8;
     } else if comp == 3 {
-        texture_data.format = .RGB;
+        texture_data.format = .RGB8;
     } else if comp == 4 {
-        texture_data.format = .RGBA;
+        texture_data.format = .RGBA8;
     } else {
         assert(false, "Unknown texture comp format.\n");
     }

@@ -163,10 +163,6 @@ particle_system_update_and_render :: (system: *ParticleSystem($PG, $PC, $update_
 }
 
 particle_system_update_and_render :: (system: *ParticleSystem($PG, $PC, $update_function, $sort), time: float64, projection: Matrix4) {
-    old_parallel := debug_parallel;
-    defer debug_parallel = old_parallel;
-    debug_parallel = true;
-
     dt := cast(float) (time - system.last_render_time);
     system.last_render_time = time;
 
@@ -302,7 +298,6 @@ particle_system_update_and_render :: (system: *ParticleSystem($PG, $PC, $update_
 
 // TODO add particles sorted insert, because then presumably the list is already sorted if its sorted after each update
 particle_system_add_particle :: (system: *ParticleSystem($PG, $PC, $update_function, $sort), particle_gpu: PG, particle_cpu: PC, $limit: int = 0) {
-    assert(!debug_parallel || system.parallel_allowed, "Parallel! You idiot!");
     #if limit {
         if system.particles_gpu.count >= limit {
             system.limit_replace_index = system.limit_replace_index % limit;
@@ -336,7 +331,6 @@ particle_system_add_particles :: (system: *ParticleSystem($PG, $PC, $update_func
 }
 
 particle_system_add_particles :: (system: *ParticleSystem($PG, $PC, $update_function, $sort), particles_gpu: [] PG, particles_cpu: [] PC, $limit: int = 0) {
-    assert(!debug_parallel || system.parallel_allowed, "Parallel! You idiot!");
     assert(particles_gpu.count == particles_cpu.count, "You must have the same amount of gpu and cpu particles.");
     
     // TODO now that I'm passing in arrays of gpu and cpu separately I can do this way more efficiently

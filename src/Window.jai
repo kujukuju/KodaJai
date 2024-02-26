@@ -112,7 +112,7 @@ destroy_window :: () {
 }
 
 set_icon :: (image: Image) {
-    assert(image.format == .RGBA, "Your window icon must be of format RGBA.");
+    assert(image.format == .RGBA8, "Your window icon must be of format RGBA8.");
     glfw_image: GLFWimage;
     glfw_image.width = cast(s32) image.width;
     glfw_image.height = cast(s32) image.height;

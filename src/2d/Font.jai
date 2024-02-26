@@ -52,7 +52,7 @@ create_font :: (bytes: [] u8, pixel_height: int, should_upload: bool = true) -> 
             continue;
         }
 
-        font.characters[c] = create_image(ft_face.glyph.bitmap.width, ft_face.glyph.bitmap.rows, .Gray8);
+        font.characters[c] = create_image(ft_face.glyph.bitmap.width, ft_face.glyph.bitmap.rows, .R8);
         // print("image % % %\n", c, font.characters[c].width, font.characters[c].height);
         memcpy(font.characters[c].pixels.data, ft_face.glyph.bitmap.buffer, font.characters[c].pixels.count);
 
@@ -128,7 +128,7 @@ pad_font :: (font: *Font, padding: float) {
 
         character := font.characters[i];
 
-        padded := create_image(character.width + total_padding, character.height + total_padding, .Gray);
+        padded := create_image(character.width + total_padding, character.height + total_padding, .R8);
 
         for dest_y: 0..padded.height - 1 {
             for dest_x: 0..padded.width - 1 {

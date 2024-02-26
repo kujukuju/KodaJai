@@ -26,6 +26,9 @@ operator == :: (a: Model, b: Model) -> bool {
     return a.geometry.data == b.geometry.data && a.uniforms == b.uniforms;
 }
 
+// this is temporary I guess
+should_bake_material_color_textures := false;
+
 create_model :: (geometry: *Geometry, should_upload: bool = true) -> *Model {
     model := New(Model);
     array_resize(*model.geometry, 1);
@@ -383,7 +386,7 @@ load_model_gltf_data :: (json: GltfJson, binary: [] u8, should_upload: bool) -> 
 
                 assert(!has_uniform(model.uniforms, "uTexture0"), "Cannot already have a diffuse texture.");
                 model.uniforms[xx "uTexture0"] = create_uniform("uTexture0", texture);
-            } else {
+            } else if should_bake_material_color_textures {
                 has_diffuse_color := !!primitive.material;
                 has_diffuse_color = has_diffuse_color && json.materials[primitive.material.*].pbrMetallicRoughness;
                 if has_diffuse_color {
@@ -393,7 +396,7 @@ load_model_gltf_data :: (json: GltfJson, binary: [] u8, should_upload: bool) -> 
                     assert(!!texture_name, "I thought materials always had to have a name...");
 
                     diffuse_color_values := material.pbrMetallicRoughness.baseColorFactor;
-                    print("Could not find texture image for %. Baking a new texture from the diffuse color.\n", texture_name.*);
+                    print("Could not find texture image for %. Baking a new texture from the diffuse color. %\n", texture_name.*, diffuse_color_values);
 
                     diffuse_color := color(diffuse_color_values[0], diffuse_color_values[1], diffuse_color_values[2], diffuse_color_values[3]);
 

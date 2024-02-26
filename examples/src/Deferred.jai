@@ -58,7 +58,7 @@ shadow_projection_shader: ShadowProjectionShader;
 shadow_depth_resolve_shader: ShadowDepthResolveShader;
 float_copy_shader: FloatCopyShader;
 geometry_shader: GeometryShader;
-ambient_occlusion_shader: AmbientOcclusionShader;
+ssao_shader: SSAOShader;
 guided_blur_shader: GuidedBlurShader;
 point_light_shader: PointLightShader;
 directional_light_shader: DirectionalLightShader;
@@ -82,7 +82,7 @@ deferred_initialize :: () {
     init_framebuffer_pass(*cascaded_shadow_pass, 512, 512, .Depth16);
     init_framebuffer_pass(*cascaded_shadow_pass_out, *shadow_depth_resolve_shader, .RGBA8);
     init_framebuffer_pass(*geometry_pass, .RGBA16F, .RGBA16F, .RGBA8, .Depth32F);
-    init_framebuffer_pass(*ssao_pass, *ambient_occlusion_shader, koda.width / 2, koda.height / 2, .R8);
+    init_framebuffer_pass(*ssao_pass, *ssao_shader, koda.width / 2, koda.height / 2, .R8);
     init_framebuffer_pass(*ssao_blur_pass, *guided_blur_shader, .R8);
     init_framebuffer_pass(*lighting_pass, *directional_light_shader, .RGBA8);
     init_framebuffer_pass(*edge_pass, *edge_shader, .RGBA8);

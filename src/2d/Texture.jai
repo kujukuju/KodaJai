@@ -185,13 +185,13 @@ destroy :: (texture: Texture) {
 scale_data :: (data: Texture, width: s32, height: s32, preserve_ratio: bool = true) -> Texture {
     byte_count := 0;
     if data.format == {
-        case .Gray;
+        case .R8;
             byte_count = 1;
-        case .RG;
+        case .RG8;
             byte_count = 2;
-        case .RGB;
+        case .RGB8;
             byte_count = 3;
-        case .RGBA;
+        case .RGBA8;
             byte_count = 4;
     }
 
@@ -304,7 +304,7 @@ load_data :: (data: [] u8) -> Texture {
     }
     
     if comp == 1 {
-        texture.format = .Gray8;
+        texture.format = .R8;
     } else if comp == 2 {
         texture.format = .RG8;
     } else if comp == 3 {

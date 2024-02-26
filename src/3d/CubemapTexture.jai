@@ -97,6 +97,10 @@ upload :: (texture: *CubemapTexture) {
         GL_TEXTURE_CUBE_MAP_NEGATIVE_Y,
     ];
 
+    gl_format := get_gl_format(texture.format);
+    gl_internal_format := get_gl_internal_format(texture.format);
+    gl_type := get_gl_type(texture.format);
+
     stride := get_stride(texture.format);
     face_stride := texture.width * texture.height * stride;
 
@@ -106,14 +110,14 @@ upload :: (texture: *CubemapTexture) {
         face_pixels.count = face_stride;
 
         glPixelStorei(GL_PACK_ALIGNMENT, pixel_store);
-        if texture.format == .Gray {
-            glTexImage2D(face_enum, 0, GL_R8, xx texture.width, xx texture.height, 0, GL_RED, GL_UNSIGNED_BYTE, face_pixels.data);
-        } else if texture.format == .RG {
-            glTexImage2D(face_enum, 0, GL_RG8, xx texture.width, xx texture.height, 0, GL_RG, GL_UNSIGNED_BYTE, face_pixels.data);
-        } else if texture.format == .RGB {
-            glTexImage2D(face_enum, 0, GL_RGB8, xx texture.width, xx texture.height, 0, GL_RGB, GL_UNSIGNED_BYTE, face_pixels.data);
-        } else if texture.format == .RGBA {
-            glTexImage2D(face_enum, 0, GL_RGBA8, xx texture.width, xx texture.height, 0, GL_RGBA, GL_UNSIGNED_BYTE, face_pixels.data);
+        if texture.format == .R8 {
+            glTexImage2D(face_enum, 0, gl_internal_format, xx texture.width, xx texture.height, 0, gl_format, gl_type, face_pixels.data);
+        } else if texture.format == .RG8 {
+            glTexImage2D(face_enum, 0, gl_internal_format, xx texture.width, xx texture.height, 0, gl_format, gl_type, face_pixels.data);
+        } else if texture.format == .RGB8 {
+            glTexImage2D(face_enum, 0, gl_internal_format, xx texture.width, xx texture.height, 0, gl_format, gl_type, face_pixels.data);
+        } else if texture.format == .RGBA8 {
+            glTexImage2D(face_enum, 0, gl_internal_format, xx texture.width, xx texture.height, 0, gl_format, gl_type, face_pixels.data);
         }
     }
 }
@@ -149,13 +153,13 @@ load_data :: (data: [] u8) -> CubemapTexture {
     }
     
     if comp == 1 {
-        texture.format = .Gray;
+        texture.format = .R8;
     } else if comp == 2 {
-        texture.format = .RG;
+        texture.format = .RG8;
     } else if comp == 3 {
-        texture.format = .RGB;
+        texture.format = .RGB8;
     } else if comp == 4 {
-        texture.format = .RGBA;
+        texture.format = .RGBA8;
     }
 
     // if this texture is the cross shape thing we'll fix it

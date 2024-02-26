@@ -81,7 +81,7 @@ create_volumetric_cloud :: (center: Vector3, half_dimensions: Vector3) -> *Model
         cloud.noise = load_texture3("perlin_worley32.png");
     }
 
-    // worley_image := create_image(1024, 1024, .Gray);
+    // worley_image := create_image(1024, 1024, .R8);
     // defer destroy(worley_image);
     // for y: 0..1024 - 1 {
     //     for x: 0..1024 - 1 {
@@ -96,7 +96,7 @@ create_volumetric_cloud :: (center: Vector3, half_dimensions: Vector3) -> *Model
 
     // save_image(worley_image, "perlin_worley.png");
 
-    // image := create_image3(resolution.x, resolution.y, resolution.z, .Gray);
+    // image := create_image3(resolution.x, resolution.y, resolution.z, .R8);
     // defer destroy(image);
     // for z: 0..resolution.z - 1 {
     //     for y: 0..resolution.y - 1 {

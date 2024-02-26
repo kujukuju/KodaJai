@@ -50,6 +50,8 @@ main :: () {
     point_light_shader.uniforms[xx "uDiffuseIntensity"] = create_uniform("uDiffuseIntensity", 0.5);
     point_light_shader.uniforms[xx "uAmbientIntensity"] = create_uniform("uAmbientIntensity", 0.5);
 
+    should_bake_material_color_textures = true;
+    
     // models = load_models("low_poly_medieval_tavern_reexported.glb");
     models = load_models("low_poly_medieval_tavern_reexported_with_goblin.glb");
 
