@@ -1,9 +1,12 @@
+
 DirectionalLightShader :: struct {
     using #as shader: Shader;
 
     shader.vertex = DIRECTIONAL_LIGHT_VERTEX_SHADER;
     shader.fragment = DIRECTIONAL_LIGHT_FRAGMENT_SHADER;
 }
+
+directional_light_shader: DirectionalLightShader;
 
 #scope_module
 

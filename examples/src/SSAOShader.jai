@@ -1,3 +1,4 @@
+
 SSAOShader :: struct {
     using #as shader: Shader;
 
@@ -5,7 +6,58 @@ SSAOShader :: struct {
     shader.fragment = SSAO_FRAGMENT_SHADER;
 }
 
-#scope_module
+ssao_shader: SSAOShader;
+
+// THIS IS ALL TESTING CODE
+
+// SSAOShader :: struct {
+//     using #as shader: Shader(.[], .[VERSION_330, VIEW_FRAG_POS]);
+
+//     shader.vertex = SSAO_VERTEX_SHADER;
+//     shader.fragment = SSAO_FRAGMENT_SHADER;
+// }
+
+// SSAOShader :: struct {
+//     using #as shader: Shader;
+
+//     shader.vertex = SSAO_VERTEX_SHADER;
+//     shader.fragment = SSAO_FRAGMENT_SHADER;
+// }
+
+// ssao_shader := #run create_shader(
+//     .[
+//         VERSION_330_DEP,
+//         VIEW_FRAG_POS_DEP,
+//     ],
+//     SSAO_VERTEX_SHADER,
+//     SSAO_FRAGMENT_SHADER,
+// );
+
+// #scope_module
+
+// VERSION_330_DEP :: FragmentDependency.{
+//     .[],
+//     #string ___glsl
+//     #version 330 core
+//     ___glsl,
+// };
+
+// UNIFORMS_DEP :: FragmentDependency.{
+//     .[],
+//     #string ___glsl
+//     uniform mat4 view;
+//     uniform sampler2D uPosition;
+//     ___glsl,
+// };
+
+// VIEW_FRAG_POS_DEP :: FragmentDependency.{
+//     .[UNIFORMS_DEP],
+//     #string ___glsl
+//     vec3 getViewFragPos(vec2 coords) {
+//         return vec3(view * vec4(texture(uPosition, coords).xyz, 1.0));
+//     }
+//     ___glsl,
+// };
 
 SSAO_VERTEX_SHADER :: #string ___glsl
 #version 330 core

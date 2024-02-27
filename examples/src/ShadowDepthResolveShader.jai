@@ -1,9 +1,12 @@
+
 ShadowDepthResolveShader :: struct {
     using #as shader: Shader;
 
     shader.vertex = SHADOW_DEPTH_RESOLVE_VERTEX_SHADER;
     shader.fragment = SHADOW_DEPTH_RESOLVE_FRAGMENT_SHADER;
 }
+
+shadow_depth_resolve_shader: ShadowDepthResolveShader;
 
 #scope_module
 

@@ -1,9 +1,12 @@
+
 FloatCopyShader :: struct {
     using #as shader: Shader;
 
     shader.vertex = FLOAT_COPY_VERTEX_SHADER;
     shader.fragment = FLOAT_COPY_FRAGMENT_SHADER;
 }
+
+float_copy_shader: FloatCopyShader;
 
 #scope_module
 

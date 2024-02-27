@@ -1,9 +1,12 @@
+
 PointLightShader :: struct {
     using #as shader: Shader;
 
     shader.vertex = POINT_LIGHT_VERTEX_SHADER;
     shader.fragment = POINT_LIGHT_FRAGMENT_SHADER;
 }
+
+point_light_shader: PointLightShader;
 
 #scope_module
 

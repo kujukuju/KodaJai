@@ -1,9 +1,12 @@
+
 GeometryShader :: struct {
     using #as shader: Shader;
 
     shader.vertex = GEOMETRY_VERTEX_SHADER;
     shader.fragment = GEOMETRY_FRAGMENT_SHADER;
 }
+
+geometry_shader: GeometryShader;
 
 #scope_module
 

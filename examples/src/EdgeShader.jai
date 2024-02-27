@@ -6,6 +6,8 @@ EdgeShader :: struct {
     shader.fragment = EDGE_FRAGMENT_SHADER;
 }
 
+edge_shader: EdgeShader;
+
 #scope_module
 
 EDGE_VERTEX_SHADER :: #string ___glsl

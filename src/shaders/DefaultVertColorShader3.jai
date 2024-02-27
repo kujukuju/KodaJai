@@ -44,10 +44,6 @@ in vec3 vNorm;
 in vec2 vTex;
 in vec4 vColor;
 
-float curve(float value) {
-    return value * value;
-}
-
 void main() {
     // vec3 lightPos = vec3(-44.0, -102.0, -180.0);
     vec3 lightColor = vec3(1.0, 1.0, 1.0);
@@ -57,7 +53,8 @@ void main() {
     vec3 norm = normalize(vNorm);
     // vec3 lightDir = normalize(vPos - lightPos);
     vec3 lightDir = normalize(vec3(6.0, 19.5, 50.0));
-    float diff = curve(dot(norm, lightDir) * 0.5 + 0.5);
+    float lightDirDot = dot(norm, lightDir) * 0.5 + 0.5;
+    float diff = lightDirDot * lightDirDot;
     vec3 diffuse = diff * lightColor;
     vec3 result = (ambient + diffuse) * objectColor * (vColor.rgb * 0.5 + 0.5);
 

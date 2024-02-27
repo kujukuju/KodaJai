@@ -53,21 +53,6 @@ edge_pass: FramebufferPass(1, false, true);
 sharpen_pass: FramebufferPass(1, false, true);
 faaa_pass: FramebufferPass(1, false, true);
 
-// in reality you would do your guided blur in your final render instead of another pass
-shadow_projection_shader: ShadowProjectionShader;
-shadow_depth_resolve_shader: ShadowDepthResolveShader;
-float_copy_shader: FloatCopyShader;
-geometry_shader: GeometryShader;
-ssao_shader: SSAOShader;
-guided_blur_shader: GuidedBlurShader;
-point_light_shader: PointLightShader;
-directional_light_shader: DirectionalLightShader;
-edge_shader: EdgeShader;
-sharpen_shader: SharpenShader;
-faaa_shader: FAAAShader;
-
-float_blur_shader: FloatBlurShader;
-
 // TODO side by side screenshot of framebuffer texture with linear vs nearest... I think it needs to be nearest
 
 shadow_view: Matrix4;

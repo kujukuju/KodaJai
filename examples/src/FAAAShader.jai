@@ -7,6 +7,8 @@ FAAAShader :: struct {
     shader.fragment = FAAA_FRAGMENT_SHADER;
 }
 
+faaa_shader: FAAAShader;
+
 #scope_module
 
 FAAA_VERTEX_SHADER :: #string ___glsl

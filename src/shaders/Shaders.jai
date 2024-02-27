@@ -2,38 +2,90 @@
 // TODO for now I'm just calling glGetUniformLocation every time, but I probably shouldnt be
 Shader :: struct {
     program: u32;
+    uniforms: ShaderUniforms;
+    vertex_parts: [] string;
+    fragment_parts: [] string;
     vertex: string;
     fragment: string;
-    uniforms: ShaderUniforms;
-    vertex_extra: [] string;
-    fragment_extra: [] string;
 }
 
-// TODO I need to auto create shaders with all their uniforms and defaults
-// TODO then I can allow textures in passes to have uniform names, and assign them like
-/*
+ShaderPart :: struct {
+    dependencies: [] ShaderPart;
+    section: string;
+}
 
-GLint baseImageLoc = glGetUniformLocation(program, "baseImage");
-GLint normalMapLoc = glGetUniformLocation(program, "normalMap");
-GLint shadowMapLoc = glGetUniformLocation(program, "shadowMap");
+create_shader :: (vertex: string, fragment: string) -> Shader {
+    return create_shader(.{}, vertex, .{}, fragment);
+}
 
-glUseProgram(program);
-glUniform1i(baseImageLoc, 0); // Texture unit 0 is for base images.
-glUniform1i(normalMapLoc, 2); // Texture unit 2 is for normal maps.
-glUniform1i(shadowMapLoc, 4); // Texture unit 4 is for shadow maps.
+create_shader :: (vertex_part: ShaderPart, fragment: string) -> Shader {
+    return create_shader(vertex_part, "", .{}, fragment);
+}
 
-// When rendering an object with this program.
-glActiveTexture(GL_TEXTURE0 + 0);
-glBindTexture(GL_TEXTURE_2D, object1BaseImage);
-glBindSampler(0, linearFiltering);
-glActiveTexture(GL_TEXTURE0 + 2);
-glBindTexture(GL_TEXTURE_2D, object1NormalMap);
-glBindSampler(2, linearFiltering); // Same filtering as before
-glActiveTexture(GL_TEXTURE0 + 4);
-glBindTexture(GL_TEXTURE_2D, shadowMap);
-glBindSampler(4, depthComparison); // Special sampler for depth comparisons.
+create_shader :: (vertex: string, fragment_part: ShaderPart) -> Shader {
+    return create_shader(.{}, vertex, fragment_part, "");
+}
 
-*/
+create_shader :: (vertex_part: ShaderPart, vertex: string, fragment_part: ShaderPart, fragment: string) -> Shader {
+    shader: Shader;
+    shader.vertex_parts = resolve_dependencies(vertex_part);
+    shader.fragment_parts = resolve_dependencies(fragment_part);
+    shader.vertex = vertex;
+    shader.fragment = fragment;
+    return shader;
+}
+
+resolve_dependencies :: (part: ShaderPart) -> [] string {
+    if !part.section && part.dependencies.count == 0 {
+        return .[];
+    }
+
+    resolve_dependencies :: (part: ShaderPart, flat_parts: *[..] string) {
+        for dependency: part.dependencies {
+            resolve_dependencies(dependency, flat_parts);
+        }
+
+        if part.section {
+            array_add(flat_parts, part.section);
+        }
+    }
+         
+    flat_parts: [..] string;
+    resolve_dependencies(part, *flat_parts);
+
+    if flat_parts.count > 128 {
+        print("Warning: Your shader dependency list is larger than I expected. I think the resolve_dependecies method should be optimized now.\n");
+    }
+
+    // remove any duplicate entries
+    // I'm just gonna loop back over the same array since I don't expect there to be a lot of dependencies
+    insert_index := 0;
+    check_index := 0;
+    while check_index < flat_parts.count {
+        should_remove := false;
+        for dupe_index: 0..check_index - 1 {
+            if flat_parts[check_index].data == flat_parts[dupe_index].data {
+                should_remove = true;
+                break;
+            }
+        }
+
+        if should_remove {
+            // remove
+            check_index += 1;
+        } else {
+            if insert_index != check_index {
+                flat_parts[insert_index] = flat_parts[check_index];
+            }
+
+            insert_index += 1;
+            check_index += 1;
+        }
+    }
+    flat_parts.count -= check_index - insert_index;
+
+    return flat_parts;
+}
 
 operator == :: (a: Shader, b: Shader) -> bool {
     return a.vertex.data == b.vertex.data && a.fragment.data == b.fragment.data;
@@ -44,28 +96,83 @@ initialize_shader :: (shader: *Shader) {
         return;
     }
 
-    make_shader_object :: (shader: string, extra: [] string, shader_type: GLenum) -> GLuint, bool #must {
+    print_pretty_error :: (message: string, shader_source: string, type_string: string) {
+        // try to build out the error data, but we're allowed to exit at any point to avoid super deep nesting
+        error_line: string = "Could not find shader error line. This is an internal library error.";
+        defer print("Shader compile error:\n\t%\n\t%\n\t%\n", type_string, error_line, message);
+
+        source_index_string: string;
+        source_index_string.data = message.data;
+        source_index_string.count = message.count;
+        
+        if source_index_string[0] == #char "\0" {
+            return;
+        }
+
+        index := 0;
+        while index < source_index_string.count && source_index_string[index] != #char "(" && source_index_string[index] != #char "\0" {
+            index += 1;
+        }
+        source_index_string.count = index;
+
+        source_index, source_index_found := parse_int(*source_index_string);
+        if !source_index_found {
+            return;
+        }
+
+        if message[index] != #char "(" {
+            return;
+        }
+
+        line_number_string: string;
+        line_number_string.data = message.data + index + 1;
+        line_number_string.count = message.count - index - 1;
+
+        index = 0;
+        while index < line_number_string.count && line_number_string[index] != #char ")" && line_number_string[index] != #char "\0" {
+            index += 1;
+        }
+        line_number_string.count = index;
+
+        line_number, line_number_found := parse_int(*line_number_string);
+        if !line_number_found {
+            return;
+        }
+        line_index := line_number - 1;
+
+        shader_lines := split(shader_source, "\n",, allocator = temp);
+        if line_index < shader_lines.count {
+            error_line = shader_lines[line_index];
+        }
+    }
+
+    make_shader_object :: (shader: string, sections: [] string, shader_type: GLenum) -> GLuint, bool #must {
         shader_object := glCreateShader(shader_type);
 
-        source_strings := NewArray(extra.count + 1, *u8,, allocator = temp);
-        source_lengths := NewArray(extra.count + 1, s32,, allocator = temp);
+        source_strings := NewArray(sections.count + 1, *u8,, allocator = temp);
+        source_lengths := NewArray(sections.count + 1, s32,, allocator = temp);
 
         source_strings[source_strings.count - 1] = shader.data;
         source_lengths[source_strings.count - 1] = cast(s32) shader.count;
-        for i: 0..extra.count - 1 {
-            source_strings[i] = extra[i].data;
-            source_lengths[i] = cast(s32) extra[i].count;
+        for i: 0..sections.count - 1 {
+            source_strings[i] = sections[i].data;
+            source_lengths[i] = cast(s32) sections[i].count;
         }
 
-        glShaderSource(shader_object, 1, source_strings.data, source_lengths.data);
+        glShaderSource(shader_object, cast(u32) source_strings.count, source_strings.data, source_lengths.data);
         glCompileShader(shader_object);
 
         success: s32;
         glGetShaderiv(shader_object, GL_COMPILE_STATUS, *success);
 
         if !success {
-            message: [512] u8;
-            glGetShaderInfoLog(shader_object, 512, null, message.data);
+            shader_source := get_shader_source(shader_object,, allocator = temp);
+
+            message_length: s32;
+            glGetShaderiv(shader_object, GL_INFO_LOG_LENGTH, *message_length);
+
+            message := alloc_string(message_length,, allocator = temp);
+            glGetShaderInfoLog(shader_object, cast(u32) message.count, null, message.data);
 
             type_string: string;
             if shader_type == {
@@ -77,56 +184,12 @@ initialize_shader :: (shader: *Shader) {
                     type_string = "Unknown Shader Type";
             }
 
-            // try to build out the error data, but we're allowed to exit at any point to avoid super deep nesting
-            error_line: string = "Could not find shader error line. This is an internal library error.";
-            defer print("Shader compile error:\n\t%\n\t%\n\t%\n", type_string, error_line, to_string(message.data));
+            message_parts := split(message, "\n",, allocator = temp);
 
-            source_index_string: string;
-            source_index_string.data = message.data;
-            source_index_string.count = message.count;
-            
-            if source_index_string[0] == #char "\0" {
-                return 0, false;
-            }
-
-            index := 0;
-            while index < source_index_string.count && source_index_string[index] != #char "(" && source_index_string[index] != #char "\0" {
-                index += 1;
-            }
-            source_index_string.count = index;
-
-            source_index, source_index_found := parse_int(*source_index_string);
-            if !source_index_found {
-                return 0, false;
-            }
-
-            if message[index] != #char "(" {
-                return 0, false;
-            }
-
-            line_number_string: string;
-            line_number_string.data = message.data + index + 1;
-            line_number_string.count = message.count - index - 1;
-
-            index = 0;
-            while index < line_number_string.count && line_number_string[index] != #char ")" && line_number_string[index] != #char "\0" {
-                index += 1;
-            }
-            line_number_string.count = index;
-
-            line_number, line_number_found := parse_int(*line_number_string);
-            if !line_number_found {
-                return 0, false;
-            }
-            line_index := line_number - 1;
-
-            error_source: string;
-            error_source.data = source_strings[source_index];
-            error_source.count = source_lengths[source_index];
-
-            shader_lines := split(error_source, "\n",, allocator = temp);
-            if line_index < shader_lines.count {
-                error_line = shader_lines[line_index];
+            for message_part: message_parts {
+                if message_part {
+                    print_pretty_error(message_part, shader_source, type_string);
+                }
             }
 
             return 0, false;
@@ -137,23 +200,23 @@ initialize_shader :: (shader: *Shader) {
 
     shader_v: u32;
     success_v := true;
-    if shader.vertex {
-        shader_v, success_v = make_shader_object(shader.vertex, shader.vertex_extra, GL_VERTEX_SHADER);
+    if shader.vertex || shader.vertex_parts {
+        shader_v, success_v = make_shader_object(shader.vertex, shader.vertex_parts, GL_VERTEX_SHADER);
         if !success_v {
             print("Could not initialized vertex shader.\n");
         }
     }
-    defer if shader.vertex glDeleteShader(shader_v);
+    defer if shader.vertex || shader.vertex_parts then glDeleteShader(shader_v);
 
     shader_f: u32;
     success_f := true;
-    if shader.fragment {
-        shader_f, success_f = make_shader_object(shader.fragment, shader.fragment_extra, GL_FRAGMENT_SHADER);
+    if shader.fragment || shader.fragment_parts {
+        shader_f, success_f = make_shader_object(shader.fragment, shader.fragment_parts, GL_FRAGMENT_SHADER);
         if !success_f {
             print("Could not initialized fragment shader.\n");
         }
     }
-    defer if shader.fragment glDeleteShader(shader_f);
+    defer if shader.fragment || shader.fragment_parts then glDeleteShader(shader_f);
 
     shader.program = glCreateProgram();
 
@@ -190,10 +253,42 @@ initialize_shader :: (shader: *Shader) {
 }
 
 destroy_shader :: (shader: Shader) {
+    array_free(shader.vertex_parts);
+    array_free(shader.fragment_parts);
     free(shader.vertex);
     free(shader.fragment);
     array_free(shader.uniforms.uniforms);
     glDeleteProgram(shader.program);
+}
+
+get_shader_source :: (shader_object: u32) -> string {
+    shader_length: s32;
+    glGetShaderiv(shader_object, GL_SHADER_SOURCE_LENGTH, *shader_length);
+    shader_source := alloc_string(shader_length);
+    glGetShaderSource(shader_object, cast(u32) shader_source.count, null, shader_source.data);
+
+    return shader_source;
+}
+
+get_shader_strings :: (shader: Shader) -> string, string {
+    shader_count: s32;
+    glGetProgramiv(shader.program, GL_ATTACHED_SHADERS, *shader_count);
+
+    assert(shader_count <= 2, "Cannot get shader strings, there are currently more than 2 shaders attached which I don't handle.");
+
+    shader_names := NewArray(shader_count, u32);
+
+    glGetAttachedShaders(shader.program, cast(u32) shader_count, null, shader_names.data);
+
+    print("shader names %: % \n", shader_names.count, shader_names);
+
+    if shader_names.count == 2 {
+        return get_shader_source(shader_names[0]), get_shader_source(shader_names[1]);
+    } else if shader_names.count == 1 {
+        return get_shader_source(shader_names[0]), "";
+    }
+
+    return "", "";
 }
 
 // TODO apply_uniform singular as well? maybe impossible bc of textures

@@ -8,6 +8,8 @@ GuidedBlurShader :: struct {
     shader.fragment = GUIDED_BLUR_FRAGMENT_SHADER;
 }
 
+guided_blur_shader: GuidedBlurShader;
+
 #scope_module
 
 GUIDED_BLUR_VERTEX_SHADER :: #string ___glsl

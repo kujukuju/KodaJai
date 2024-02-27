@@ -6,6 +6,8 @@ SharpenShader :: struct {
     shader.fragment = SHARPEN_FRAGMENT_SHADER;
 }
 
+sharpen_shader: SharpenShader;
+
 #scope_module
 
 SHARPEN_VERTEX_SHADER :: #string ___glsl

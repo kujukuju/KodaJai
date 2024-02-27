@@ -1,9 +1,12 @@
+
 ShadowProjectionShader :: struct {
     using #as shader: Shader;
 
     shader.vertex = SHADOW_PROJECTION_VERTEX_SHADER;
     // shader.fragment = SHADOW_PROJECTION_FRAGMENT_SHADER;
 }
+
+shadow_projection_shader: ShadowProjectionShader;
 
 #scope_module
 
