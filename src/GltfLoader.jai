@@ -485,8 +485,6 @@ get_texture :: (json: GltfJson, bufferviews: [..] [] u8, texture_index: int) -> 
         }
     }
 
-    print("Wrap is %\n", wrap);
-
     json_image := json.images[<< source];
 
     texture: Texture;
@@ -499,8 +497,6 @@ get_texture :: (json: GltfJson, bufferviews: [..] [] u8, texture_index: int) -> 
     } else {
         assert(false, "I think you have to have either an image uri or buffer.");
     }
-
-    print("loaded texture % %\n", texture.width, texture.height);
 
     return texture;
 }

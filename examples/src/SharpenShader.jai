@@ -2,6 +2,7 @@
 SharpenShader :: struct {
     using #as shader: Shader;
 
+    shader.name = "SharpenShader";
     shader.vertex = SHARPEN_VERTEX_SHADER;
     shader.fragment = SHARPEN_FRAGMENT_SHADER;
 }

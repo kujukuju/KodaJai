@@ -2,6 +2,7 @@
 SSAOShader :: struct {
     using #as shader: Shader;
 
+    shader.name = "SSAOShader";
     shader.vertex = SSAO_VERTEX_SHADER;
     shader.fragment = SSAO_FRAGMENT_SHADER;
 }

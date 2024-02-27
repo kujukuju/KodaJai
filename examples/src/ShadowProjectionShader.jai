@@ -2,6 +2,7 @@
 ShadowProjectionShader :: struct {
     using #as shader: Shader;
 
+    shader.name = "ShadowProjectionShader";
     shader.vertex = SHADOW_PROJECTION_VERTEX_SHADER;
     // shader.fragment = SHADOW_PROJECTION_FRAGMENT_SHADER;
 }

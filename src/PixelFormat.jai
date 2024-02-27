@@ -1,12 +1,8 @@
 PixelFormat :: enum {
-    Gray8;
-    Gray16;
-    Gray16F;
-    Gray32F;
-    R8 :: Gray8;
-    R16 :: Gray16;
-    R16F :: Gray16F;
-    R32F :: Gray32F;
+    R8;
+    R16;
+    R16F;
+    R32F;
     RG8;
     RG16;
     RG16F;
@@ -28,13 +24,13 @@ PixelFormat :: enum {
 
 get_stride :: (format: PixelFormat) -> int {
     if #complete format == {
-        case .Gray8;
+        case .R8;
             return 1;
-        case .Gray16;
+        case .R16;
             return 2;
-        case .Gray16F;
+        case .R16F;
             return 2;
-        case .Gray32F;
+        case .R32F;
             return 4;
         case .RG8;
             return 2;
@@ -71,15 +67,60 @@ get_stride :: (format: PixelFormat) -> int {
     }
 }
 
+get_component_count :: (format: PixelFormat) -> int {
+    if #complete format == {
+        case .R8;
+            return 1;
+        case .R16;
+            return 1;
+        case .R16F;
+            return 1;
+        case .R32F;
+            return 1;
+        case .RG8;
+            return 2;
+        case .RG16;
+            return 2;
+        case .RG16F;
+            return 2;
+        case .RG32F;
+            return 2;
+        case .RGB8;
+            return 3;
+        case .RGB16;
+            return 3;
+        case .RGB16F;
+            return 3;
+        case .RGB32F;
+            return 3;
+        case .RGBA8;
+            return 4;
+        case .RGBA16;
+            return 4;
+        case .RGBA16F;
+            return 4;
+        case .RGBA32F;
+            return 4;
+        case .Depth16;
+            return 1;
+        case .Depth24;
+            return 1;
+        case .Depth32;
+            return 1;
+        case .Depth32F;
+            return 1;
+    }
+}
+
 get_gl_format :: (format: PixelFormat) -> u32 {
     if #complete format == {
-        case .Gray8;
+        case .R8;
             return GL_RED;
-        case .Gray16;
+        case .R16;
             return GL_RED;
-        case .Gray16F;
+        case .R16F;
             return GL_RED;
-        case .Gray32F;
+        case .R32F;
             return GL_RED;
         case .RG8;
             return GL_RG;
@@ -118,13 +159,13 @@ get_gl_format :: (format: PixelFormat) -> u32 {
 
 get_gl_internal_format :: (format: PixelFormat) -> s32 {
     if #complete format == {
-        case .Gray8;
+        case .R8;
             return GL_R8;
-        case .Gray16;
+        case .R16;
             return GL_R16;
-        case .Gray16F;
+        case .R16F;
             return GL_R16F;
-        case .Gray32F;
+        case .R32F;
             return GL_R32F;
         case .RG8;
             return GL_RG8;
@@ -163,13 +204,13 @@ get_gl_internal_format :: (format: PixelFormat) -> s32 {
 
 get_gl_type :: (format: PixelFormat) -> u32 {
     if #complete format == {
-        case .Gray8;
+        case .R8;
             return GL_UNSIGNED_BYTE;
-        case .Gray16;
+        case .R16;
             return GL_UNSIGNED_SHORT;
-        case .Gray16F;
+        case .R16F;
             return GL_HALF_FLOAT;
-        case .Gray32F;
+        case .R32F;
             return GL_FLOAT;
         case .RG8;
             return GL_UNSIGNED_BYTE;
@@ -209,13 +250,13 @@ get_gl_type :: (format: PixelFormat) -> u32 {
 
 is_float :: (format: PixelFormat) -> bool {
     if #complete format == {
-        case .Gray8;
+        case .R8;
             return false;
-        case .Gray16;
+        case .R16;
             return false;
-        case .Gray16F;
+        case .R16F;
             return true;
-        case .Gray32F;
+        case .R32F;
             return true;
         case .RG8;
             return false;
@@ -254,13 +295,13 @@ is_float :: (format: PixelFormat) -> bool {
 
 is_depth :: (format: PixelFormat) -> bool {
     if #complete format == {
-        case .Gray8;
+        case .R8;
             return false;
-        case .Gray16;
+        case .R16;
             return false;
-        case .Gray16F;
+        case .R16F;
             return false;
-        case .Gray32F;
+        case .R32F;
             return false;
         case .RG8;
             return false;

@@ -3,6 +3,8 @@
 Shader :: struct {
     program: u32;
     uniforms: ShaderUniforms;
+    output_channels: [] int;
+    name: string;
     vertex_parts: [] string;
     fragment_parts: [] string;
     vertex: string;
@@ -14,20 +16,36 @@ ShaderPart :: struct {
     section: string;
 }
 
-create_shader :: (vertex: string, fragment: string) -> Shader {
-    return create_shader(.{}, vertex, .{}, fragment);
+get_location_name :: (location: Source_Code_Location) -> string {
+    name: string;
+    name.data = location.fully_pathed_filename.data;
+    name.count = location.fully_pathed_filename.count;
+
+    start_index := find_index_from_right(name, #char "/");
+    if start_index != -1 {
+        name.data += start_index + 1;
+        name.count -= start_index + 1;
+        name.count -= 4;
+    }
+
+    return name;
 }
 
-create_shader :: (vertex_part: ShaderPart, fragment: string) -> Shader {
-    return create_shader(vertex_part, "", .{}, fragment);
+create_shader :: (vertex: string, fragment: string, name: string = "", location := #caller_location) -> Shader {
+    return create_shader(.{}, vertex, .{}, fragment, ifx name then name else get_location_name(location));
 }
 
-create_shader :: (vertex: string, fragment_part: ShaderPart) -> Shader {
-    return create_shader(.{}, vertex, fragment_part, "");
+create_shader :: (vertex_part: ShaderPart, fragment: string, name: string = "", location := #caller_location) -> Shader {
+    return create_shader(vertex_part, "", .{}, fragment, ifx name then name else get_location_name(location));
 }
 
-create_shader :: (vertex_part: ShaderPart, vertex: string, fragment_part: ShaderPart, fragment: string) -> Shader {
+create_shader :: (vertex: string, fragment_part: ShaderPart, name: string = "", location := #caller_location) -> Shader {
+    return create_shader(.{}, vertex, fragment_part, "", ifx name then name else get_location_name(location));
+}
+
+create_shader :: (vertex_part: ShaderPart, vertex: string, fragment_part: ShaderPart, fragment: string, name: string = "") -> Shader {
     shader: Shader;
+    shader.name = name;
     shader.vertex_parts = resolve_dependencies(vertex_part);
     shader.fragment_parts = resolve_dependencies(fragment_part);
     shader.vertex = vertex;
@@ -96,10 +114,10 @@ initialize_shader :: (shader: *Shader) {
         return;
     }
 
-    print_pretty_error :: (message: string, shader_source: string, type_string: string) {
+    print_pretty_error :: (name: string, message: string, shader_source: string, type_string: string) {
         // try to build out the error data, but we're allowed to exit at any point to avoid super deep nesting
         error_line: string = "Could not find shader error line. This is an internal library error.";
-        defer print("Shader compile error:\n\t%\n\t%\n\t%\n", type_string, error_line, message);
+        defer print("Shader compile error:\n\t%\n\t%\n\t%\n\t%\n", name, type_string, error_line, message);
 
         source_index_string: string;
         source_index_string.data = message.data;
@@ -146,7 +164,7 @@ initialize_shader :: (shader: *Shader) {
         }
     }
 
-    make_shader_object :: (shader: string, sections: [] string, shader_type: GLenum) -> GLuint, bool #must {
+    make_shader_object :: (name: string, shader: string, sections: [] string, shader_type: GLenum) -> GLuint, bool #must {
         shader_object := glCreateShader(shader_type);
 
         source_strings := NewArray(sections.count + 1, *u8,, allocator = temp);
@@ -188,7 +206,7 @@ initialize_shader :: (shader: *Shader) {
 
             for message_part: message_parts {
                 if message_part {
-                    print_pretty_error(message_part, shader_source, type_string);
+                    print_pretty_error(name, message_part, shader_source, type_string);
                 }
             }
 
@@ -198,10 +216,61 @@ initialize_shader :: (shader: *Shader) {
         return shader_object, true;
     }
 
+    get_output_channels :: (program: u32) -> [] int {
+        name_bytes: [256] u8;
+
+        active_output_count: s32;
+        glGetProgramInterfaceiv(program, GL_PROGRAM_OUTPUT, GL_ACTIVE_RESOURCES, *active_output_count);
+
+        output_channels := NewArray(active_output_count, int);
+        output_channels.count = 0;
+
+        for i: 0..active_output_count - 1 {
+            properties :: u32.[GL_NAME_LENGTH, GL_TYPE, GL_LOCATION];
+
+            values: [3] s32;
+            glGetProgramResourceiv(program, GL_PROGRAM_OUTPUT, cast(u32) i, properties.count, properties.data, values.count, null, values.data);
+
+            output_name_length, output_type, output_location := values[0], values[1], values[2];
+
+            // this is something built in
+            if output_location < 0 {
+                continue;
+            }
+
+            glGetProgramResourceName(program, GL_PROGRAM_OUTPUT, cast(u32) i, name_bytes.count, null, name_bytes.data);
+            output_name: string;
+            output_name.data = name_bytes.data;
+            output_name.count = min(name_bytes.count, output_name_length);
+
+            if output_location >= active_output_count {
+                assert(false, tprint("Found shader output % that is at a unique location %. This isn't yet supported.", output_name, output_location));
+                continue;
+            }
+
+            output_channels.count = max(output_channels.count, output_location + 1);
+
+            if output_type == {
+                case GL_FLOAT;
+                    output_channels[output_location] = 1;
+                case GL_FLOAT_VEC2;
+                    output_channels[output_location] = 2;
+                case GL_FLOAT_VEC3;
+                    output_channels[output_location] = 3;
+                case GL_FLOAT_VEC4;
+                    output_channels[output_location] = 4;
+                case;
+                    assert(false, tprint("Unknown shader output component type for %: %.\n", output_name, output_type));
+            }
+        }
+
+        return output_channels;
+    }
+
     shader_v: u32;
     success_v := true;
     if shader.vertex || shader.vertex_parts {
-        shader_v, success_v = make_shader_object(shader.vertex, shader.vertex_parts, GL_VERTEX_SHADER);
+        shader_v, success_v = make_shader_object(shader.name, shader.vertex, shader.vertex_parts, GL_VERTEX_SHADER);
         if !success_v {
             print("Could not initialized vertex shader.\n");
         }
@@ -211,7 +280,7 @@ initialize_shader :: (shader: *Shader) {
     shader_f: u32;
     success_f := true;
     if shader.fragment || shader.fragment_parts {
-        shader_f, success_f = make_shader_object(shader.fragment, shader.fragment_parts, GL_FRAGMENT_SHADER);
+        shader_f, success_f = make_shader_object(shader.name, shader.fragment, shader.fragment_parts, GL_FRAGMENT_SHADER);
         if !success_f {
             print("Could not initialized fragment shader.\n");
         }
@@ -240,6 +309,8 @@ initialize_shader :: (shader: *Shader) {
     success: GLint;
     glGetProgramiv(shader.program, GL_LINK_STATUS, *success);
 
+    shader.output_channels = get_output_channels(shader.program);
+
     if !success {
         message: [512] u8;
         glGetProgramInfoLog(shader.program, 512, null, message.data);
@@ -257,6 +328,7 @@ destroy_shader :: (shader: Shader) {
     array_free(shader.fragment_parts);
     free(shader.vertex);
     free(shader.fragment);
+    array_free(shader.output_channels);
     array_free(shader.uniforms.uniforms);
     glDeleteProgram(shader.program);
 }
@@ -273,14 +345,10 @@ get_shader_source :: (shader_object: u32) -> string {
 get_shader_strings :: (shader: Shader) -> string, string {
     shader_count: s32;
     glGetProgramiv(shader.program, GL_ATTACHED_SHADERS, *shader_count);
-
     assert(shader_count <= 2, "Cannot get shader strings, there are currently more than 2 shaders attached which I don't handle.");
 
     shader_names := NewArray(shader_count, u32);
-
     glGetAttachedShaders(shader.program, cast(u32) shader_count, null, shader_names.data);
-
-    print("shader names %: % \n", shader_names.count, shader_names);
 
     if shader_names.count == 2 {
         return get_shader_source(shader_names[0]), get_shader_source(shader_names[1]);
@@ -456,6 +524,19 @@ use_shader :: (shader: *Shader) {
         if !shader.program {
             print("Cannot use shader. You must initialized it first.\n");
             assert(false, "Cannot use uninitialized shader.");
+            return;
+        }
+    }
+
+    if shader.output_channels.count != koda.active_pass_channels.count {
+        assert(false, tprint("Using shader % with % output channels inside a render pass with % output channels.\n", shader.name, shader.output_channels.count, koda.active_pass_channels.count));
+        return;
+    }
+
+    for i: 0..shader.output_channels.count - 1 {
+        channel_component_count := get_component_count(koda.active_pass_channels[i]);
+        if shader.output_channels[i] != channel_component_count {
+            assert(false, tprint("Using shader % where output channel % has % components inside a render pass where output channel % has % components.\n", shader.name, i, shader.output_channels[i], i, channel_component_count));
             return;
         }
     }

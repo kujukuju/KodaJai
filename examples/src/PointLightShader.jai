@@ -2,6 +2,7 @@
 PointLightShader :: struct {
     using #as shader: Shader;
 
+    shader.name = "PointLightShader";
     shader.vertex = POINT_LIGHT_VERTEX_SHADER;
     shader.fragment = POINT_LIGHT_FRAGMENT_SHADER;
 }

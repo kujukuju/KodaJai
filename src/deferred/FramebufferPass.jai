@@ -6,6 +6,7 @@ FramebufferPass :: struct (count: int, depth: bool, drawable: bool, multisample:
     depth_texture: Texture;
     shader: *Shader;
     uniforms: ShaderUniforms;
+    channels: [] PixelFormat;
     width: int;
     height: int;
     vao: u32;
@@ -13,36 +14,93 @@ FramebufferPass :: struct (count: int, depth: bool, drawable: bool, multisample:
     initializer: #type (pass: *FramebufferPass(count, depth, drawable, multisample));
 }
 
-create_framebuffer_pass :: (shader: *Shader, $channels: ..PixelFormat, $depth: bool, $drawable: bool, $multisample: int = 0) -> FramebufferPass(channels.count, depth, drawable, multisample) {
-    pass: FramebufferPass(channels.count, depth, drawable);
-    init_framebuffer_pass(*pass, shader, ..channels);
-
-    return pass;
+init_framebuffer_pass :: (pass: *FramebufferPass(0, false, true, $multisample), shader: *Shader) {
+    textures: [] Texture;
+    init_framebuffer_pass_internal(pass, shader, koda.width, koda.height, textures);
 }
 
 init_framebuffer_pass :: (pass: *FramebufferPass($count, $depth, true, $multisample), shader: *Shader, channels: ..PixelFormat) {
     assert(!!shader, "If your framebuffer pass is drawable you must provide a shader.\n");
-    init_framebuffer_pass_internal(pass, shader, koda.width, koda.height, ..channels);
+    init_framebuffer_pass_internal(pass, shader, koda.width, koda.height, channels);
+}
+
+init_framebuffer_pass :: (pass: *FramebufferPass($count, $depth, true, $multisample), shader: *Shader, textures: ..Texture) {
+    assert(!!shader, "If your framebuffer pass is drawable you must provide a shader.\n");
+    init_framebuffer_pass_internal(pass, shader, koda.width, koda.height, textures);
+}
+
+init_framebuffer_pass :: (pass: *FramebufferPass(0, false, true, $multisample), shader: *Shader, width: int, height: int) {
+    textures: [] Texture;
+    init_framebuffer_pass_internal(pass, shader, width, height, textures);
 }
 
 init_framebuffer_pass :: (pass: *FramebufferPass($count, $depth, true, $multisample), shader: *Shader, width: int, height: int, channels: ..PixelFormat) {
     assert(!!shader, "If your framebuffer pass is drawable you must provide a shader.\n");
-    init_framebuffer_pass_internal(pass, shader, width, height, ..channels);
+    init_framebuffer_pass_internal(pass, shader, width, height, channels);
+}
+
+init_framebuffer_pass :: (pass: *FramebufferPass($count, $depth, true, $multisample), shader: *Shader, width: int, height: int, textures: ..Texture) {
+    assert(!!shader, "If your framebuffer pass is drawable you must provide a shader.\n");
+    init_framebuffer_pass_internal(pass, shader, width, height, textures);
+}
+
+init_framebuffer_pass :: (pass: *FramebufferPass(0, false, false, $multisample)) {
+    textures: [] Texture;
+    init_framebuffer_pass_internal(pass, null, koda.width, koda.height, textures);
 }
 
 init_framebuffer_pass :: (pass: *FramebufferPass($count, $depth, false, $multisample), channels: ..PixelFormat) {
-    init_framebuffer_pass_internal(pass, null, koda.width, koda.height, ..channels);
+    init_framebuffer_pass_internal(pass, null, koda.width, koda.height, channels);
+}
+
+init_framebuffer_pass :: (pass: *FramebufferPass($count, $depth, false, $multisample), textures: ..Texture) {
+    init_framebuffer_pass_internal(pass, null, koda.width, koda.height, textures);
+}
+
+init_framebuffer_pass :: (pass: *FramebufferPass(0, false, false, $multisample), width: int, height: int) {
+    textures: [] Texture;
+    init_framebuffer_pass_internal(pass, null, width, height, textures);
 }
 
 init_framebuffer_pass :: (pass: *FramebufferPass($count, $depth, false, $multisample), width: int, height: int, channels: ..PixelFormat) {
-    init_framebuffer_pass_internal(pass, null, width, height, ..channels);
+    init_framebuffer_pass_internal(pass, null, width, height, channels);
 }
 
-init_framebuffer_pass_internal :: (pass: *FramebufferPass($count, $depth, $drawable, $multisample), shader: *Shader, width: int, height: int, channels: ..PixelFormat) {
-    required_count := count;
-    if depth then required_count += 1;
+init_framebuffer_pass :: (pass: *FramebufferPass($count, $depth, false, $multisample), width: int, height: int, textures: ..Texture) {
+    init_framebuffer_pass_internal(pass, null, width, height, textures);
+}
+
+init_framebuffer_pass_internal :: (pass: *FramebufferPass($count, $depth, $drawable, $multisample), shader: *Shader, width: int, height: int, channels: [] PixelFormat) {
+    required_count := count + ifx depth then 1 else 0;
     if required_count != channels.count {
-        assert(false, "Passed invalid number of predefined channels to initialize a framebuffer pass.\n");
+        assert(false, "Passed invalid number of channels to initialize a framebuffer pass.\n");
+        return;
+    }
+
+    textures := NewArray(channels.count, Texture);
+    defer array_free(textures);
+
+    for index: 0..count - 1 {
+        // TODO nearest?
+        textures[index] = create_texture(width, height, channels[index], .Clamp, .Linear);
+    }
+
+    #if depth {
+        // TODO nearest?
+        depth_texture := create_texture(width, height, channels[channels.count - 1], .Border, .Linear, shadow = true, should_upload = false);
+        depth_texture.border_color = .{1, 1, 1, 1};
+        upload(*depth_texture);
+
+        textures[textures.count - 1] = depth_texture;
+    }
+
+    init_framebuffer_pass_internal(pass, shader, width, height, textures);
+}
+
+init_framebuffer_pass_internal :: (pass: *FramebufferPass($count, $depth, $drawable, $multisample), shader: *Shader, width: int, height: int, textures: [] Texture) {
+    required_count := count + ifx depth then 1 else 0;
+    if required_count != textures.count {
+        assert(false, "Passed invalid number of textures to initialize a framebuffer pass.\n");
         return;
     }
 
@@ -51,22 +109,29 @@ init_framebuffer_pass_internal :: (pass: *FramebufferPass($count, $depth, $drawa
     pass.height = height;
     
     #if count > 0 || depth {
+        #if count > 0 {
+            pass.channels = NewArray(count, PixelFormat);
+
+            for i: 0..count - 1 {
+                pass.channels[i] = textures[i].format;
+                pass.textures[i] = textures[i];
+            }
+        }
+
+        #if depth {
+            pass.depth_texture = textures[textures.count - 1];
+        }
+
         glGenFramebuffers(1, *pass.framebuffer);
         glBindFramebuffer(GL_DRAW_FRAMEBUFFER, pass.framebuffer);
 
-        assert(multisample == 0, "Multisamlping temporary disabled.\n");
+        assert(multisample == 0, "Multisamlping temporary disabled. Textures aren't set up really well to work with it.\n");
 
-        // TODO nearest?
         for index: 0..count - 1 {
-            channel := channels[index];
-            pass.textures[index] = create_texture(width, height, channel, .Clamp, .Linear);
             glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0 + cast(u32) index, GL_TEXTURE_2D, pass.textures[index].buffer, 0);
         }
 
         #if depth {
-            pass.depth_texture = create_texture(width, height, channels[channels.count - 1], .Border, .Linear, shadow = true, should_upload = false);
-            pass.depth_texture.border_color = .{1, 1, 1, 1};
-            upload(*pass.depth_texture);
             glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D, pass.depth_texture.buffer, 0);
         }
 
@@ -135,6 +200,8 @@ framebuffer_bind_write :: (pass: FramebufferPass($c, $depth, $dr, $m), mask: Cle
     glBindFramebuffer(GL_DRAW_FRAMEBUFFER, pass.framebuffer);
     glViewport(0, 0, xx pass.width, xx pass.height);
 
+    koda.active_pass_channels = pass.channels;
+
     #if depth {
         clear(mask & (.Color | .Depth));
     } else {
@@ -145,6 +212,9 @@ framebuffer_bind_write :: (pass: FramebufferPass($c, $depth, $dr, $m), mask: Cle
 framebuffer_bind_write_screen :: (mask: ClearMask = .Color | .Depth | .Stencil) {
     glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0);
     glViewport(0, 0, xx koda.width, xx koda.height);
+
+    screen_channel :: PixelFormat.[.RGBA8];
+    koda.active_pass_channels = screen_channel;
 
     clear(mask & (.Color | .Depth));
 }

@@ -2,6 +2,7 @@
 EdgeShader :: struct {
     using #as shader: Shader;
 
+    shader.name = "EdgeShader";
     shader.vertex = EDGE_VERTEX_SHADER;
     shader.fragment = EDGE_FRAGMENT_SHADER;
 }

@@ -2,6 +2,7 @@
 DirectionalLightShader :: struct {
     using #as shader: Shader;
 
+    shader.name = "DirectionalLightShader";
     shader.vertex = DIRECTIONAL_LIGHT_VERTEX_SHADER;
     shader.fragment = DIRECTIONAL_LIGHT_FRAGMENT_SHADER;
 }

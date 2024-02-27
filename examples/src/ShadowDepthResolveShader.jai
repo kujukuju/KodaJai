@@ -2,6 +2,7 @@
 ShadowDepthResolveShader :: struct {
     using #as shader: Shader;
 
+    shader.name = "ShadowDepthResolveShader";
     shader.vertex = SHADOW_DEPTH_RESOLVE_VERTEX_SHADER;
     shader.fragment = SHADOW_DEPTH_RESOLVE_FRAGMENT_SHADER;
 }

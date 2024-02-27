@@ -4,6 +4,7 @@
 GuidedBlurShader :: struct {
     using #as shader: Shader;
 
+    shader.name = "GuidedBlurShader";
     shader.vertex = GUIDED_BLUR_VERTEX_SHADER;
     shader.fragment = GUIDED_BLUR_FRAGMENT_SHADER;
 }

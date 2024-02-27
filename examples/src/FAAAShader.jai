@@ -3,6 +3,7 @@
 FAAAShader :: struct {
     using #as shader: Shader;
 
+    shader.name = "FAAAShader";
     shader.vertex = FAAA_VERTEX_SHADER;
     shader.fragment = FAAA_FRAGMENT_SHADER;
 }

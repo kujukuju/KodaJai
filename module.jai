@@ -141,6 +141,7 @@ koda: struct {
     view: Matrix4 = Matrix4Identity;
     fovy: float = 0.5 * PI;
     active_program: GLuint;
+    active_pass_channels: [] PixelFormat = .[.RGBA8];
     cull_face: bool = true;
     cull_face_mode: CullFaceMode = .Back;
 };

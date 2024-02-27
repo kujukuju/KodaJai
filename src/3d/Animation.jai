@@ -119,7 +119,7 @@ load_remap_animations :: (animations: *ModelAnimations, animation_source: string
 }
 
 // the root bone is used to map the animations, because attempting to correct the bind pose when bones aren't in use can be bad, apparently?
-remap_animations :: (animations: *ModelAnimations, source: ModelAnimations, root_bone: string, remap: [] [2] string) -> bool {
+remap_animations :: (animations: *ModelAnimations, source: ModelAnimations, root_bone: string, remap: [] [2] string, warn: bool = false) -> bool {
     assert(!!animations.bone_hierarchy, "You cannot remap animations if you haven't yet established any bones.");
 
     // go backwards for each bone looking at the parents to determine which bones are valid above the root
@@ -218,14 +218,16 @@ remap_animations :: (animations: *ModelAnimations, source: ModelAnimations, root
     // if I really want to be particular I can either ensure that every bone resolves to the same parent
     // or I can use the parent most parent for each bones relative offset correction
 
-    for joint, index: animations.bone_hierarchy {
-        if !joint.name {
-            continue;
-        }
+    if warn {
+        for joint, index: animations.bone_hierarchy {
+            if !joint.name {
+                continue;
+            }
 
-        map_index, has_map_index := table_find(*target_to_source_indices, index);
-        if !has_map_index {
-            print("Warning. The target has a bone that wasn't mapped: % %\n", index, joint.name);
+            map_index, has_map_index := table_find(*target_to_source_indices, index);
+            if !has_map_index {
+                print("Warning. The target has a bone that wasn't mapped: % %\n", index, joint.name);
+            }
         }
     }
 
@@ -537,7 +539,6 @@ delete_animations_starting_with :: (animations: *ModelAnimations, start: string)
     i := 0;
     while i < animations.animations.count {
         if starts_with(animations.animations[i].name, start) {
-            print("Deleting animation: %\n", animations.animations[i].name);
             array_ordered_remove_by_index(*animations.animations, i);
         } else {
             i += 1;

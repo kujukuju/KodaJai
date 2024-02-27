@@ -2,6 +2,7 @@
 GeometryShader :: struct {
     using #as shader: Shader;
 
+    shader.name = "GeometryShader";
     shader.vertex = GEOMETRY_VERTEX_SHADER;
     shader.fragment = GEOMETRY_FRAGMENT_SHADER;
 }
@@ -39,9 +40,9 @@ ___glsl
 GEOMETRY_FRAGMENT_SHADER :: #string ___glsl
 #version 330 core
 
-layout (location = 0) out vec3 PositionOut;
-layout (location = 1) out vec3 NormalOut;
-layout (location = 2) out vec3 DiffuseOut;
+layout (location = 0) out vec4 PositionOut;
+layout (location = 1) out vec4 NormalOut;
+layout (location = 2) out vec4 DiffuseOut;
   
 uniform sampler2D uTexture0;
 
@@ -65,8 +66,8 @@ void main() {
     const vec3 c = vec3(217.0, 250.0, 255.0) / 255.0;
     diffuse = smoothstep(-180.0, -10.0, vPos.y) * (diffuse - c) + c;
 
-    PositionOut = vPos;
-    NormalOut = normal;
-    DiffuseOut = diffuse;
+    PositionOut = vec4(vPos, 0.0);
+    NormalOut = vec4(normal, 0.0);
+    DiffuseOut = vec4(diffuse, 0.0);
 }
 ___glsl;

@@ -2,6 +2,7 @@
 FloatBlurShader :: struct {
     using #as shader: Shader;
 
+    shader.name = "FloatBlurShader";
     shader.vertex = FLOAT_BLUR_VERTEX_SHADER;
     shader.fragment = FLOAT_BLUR_FRAGMENT_SHADER;
 }
