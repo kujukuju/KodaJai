@@ -19,8 +19,7 @@ ParticleSystem :: struct (ParticleGpu: Type, ParticleCpu: Type, update_function:
     limit_replace_index: int;
     last_uploaded_index: int;
     cull_face: bool;
-    // this is debugging stuff
-    parallel_allowed: bool;
+    parallel_limit: int = 128;
 }
 
 ParentParticle :: struct (PG: Type, PC: Type) {
@@ -190,18 +189,26 @@ particle_system_update_and_render :: (system: *ParticleSystem($PG, $PC, $update_
         system.particles_gpu.count -= check_index - insert_index;
     }
 
+    is_parallel := system.particles_gpu.count >= system.parallel_limit;
+
     #if update_function {
         time_float := cast(float) time;
 
-        callback :: (i: int, thread: int, using data: struct {
-            system: *ParticleSystem(PG, PC, update_function, sort);
-            time_float: float;
-            dt: float;}) {
+        if is_parallel {
+            callback :: (i: int, thread: int, using data: struct {
+                system: *ParticleSystem(PG, PC, update_function, sort);
+                time_float: float;
+                dt: float;}) {
 
-            inline update_function(system.particles_gpu.data + i, system.particles_cpu.data + i, time_float, dt);
-        } @thread_unlocked(particle_system)
+                inline update_function(system.particles_gpu.data + i, system.particles_cpu.data + i, time_float, dt);
+            } @thread_unlocked(particle_system)
 
-        parallel_for(0, system.particles_gpu.count, callback, .{system, time_float, dt});
+            parallel_for(0, system.particles_gpu.count, callback, .{system, time_float, dt});
+        } else {
+            for i: 0..system.particles_gpu.count - 1 {
+                inline update_function(system.particles_gpu.data + i, system.particles_cpu.data + i, time_float, dt);
+            }
+        }
     }
 
     view := koda.view;
@@ -223,11 +230,15 @@ particle_system_update_and_render :: (system: *ParticleSystem($PG, $PC, $update_
             system.depth_values[index] = .{z / w, cast(s32) index};
         }
 
-        quick_sort_threaded(system.depth_values);
-
-        // quick_sort(system.depth_values, (a: DepthEntry, b: DepthEntry) -> float {
-        //     return a.depth - b.depth;
-        // });
+        // TODO the potential problem here is the behavior is actually different I think
+        // in the parallel case it doesn't guarantee same depth entries will maintain their order, potentially flickering
+        if is_parallel {
+            quick_sort_threaded(system.depth_values);
+        } else {
+            quick_sort(system.depth_values, (a: DepthEntry, b: DepthEntry) -> float {
+                return a.depth - b.depth;
+            });
+        }
 
         for entry, index: system.depth_values {
             system.particles_gpu_buffer[index] = system.particles_gpu[entry.index];
@@ -416,9 +427,6 @@ particle_system_add_particle_synchronous :: (system: *ParticleSystem($PG, $PC, $
     lock(*system.synchronous_lock);
     defer unlock(*system.synchronous_lock);
 
-    system.parallel_allowed = true;
-    defer system.parallel_allowed = false;
-
     particle_system_add_particle(system, particle_gpu, particle_cpu, limit);
 } @thread
 
@@ -432,9 +440,6 @@ particle_system_add_particles_synchronous :: (system: *ParticleSystem($PG, $PC, 
 particle_system_add_particles_synchronous :: (system: *ParticleSystem($PG, $PC, $update_function, $sort), particles_gpu: [] PG, particles_cpu: [] PC, $limit: int = 0) {
     lock(*system.synchronous_lock);
     defer unlock(*system.synchronous_lock);
-
-    system.parallel_allowed = true;
-    defer system.parallel_allowed = false;
 
     particle_system_add_particles(system, particles_gpu, particles_cpu, limit);
 } @thread

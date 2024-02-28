@@ -1,4 +1,7 @@
 
+keep track of reflective lookup-ed shader uniform types for really good error checking and even validation that all uniforms are set
+right now setting the wrong type is opengl error 1282 invalid operation
+
 maybe you can nearest the PCF and optimize it
 https://github.com/mrdoob/three.js/issues/15577
 

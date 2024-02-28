@@ -137,7 +137,6 @@ should_exit :: () -> bool {
         }
     }
 
-    // end and begin
     width: s32;
     height: s32;
     glfwSwapBuffers(koda.window);
@@ -175,6 +174,80 @@ should_exit :: () -> bool {
     }
 
     return exit;
+}
+
+immediate_mode_initialized: bool;
+immediate_mode_thread: Thread;
+immediate_mode_render_semaphore: Semaphore;
+immediate_mode_swap_semaphore: Semaphore;
+
+should_exit_immediate_mode :: () -> bool {
+    if !immediate_mode_initialized {
+        immediate_mode_initialized = true;
+
+        init(*immediate_mode_swap_semaphore);
+        init(*immediate_mode_render_semaphore);
+        thread_init(*immediate_mode_thread, (thread: *Thread) -> s64 {
+            while true {
+                wait_for(*immediate_mode_swap_semaphore);
+                koda.can_render = false;
+                glfwSwapBuffers(koda.window);
+                signal(*immediate_mode_render_semaphore);
+            }
+            return 0;
+        });
+        thread_start(*immediate_mode_thread);
+    }
+
+    if !koda.can_render {
+        assert(false, "You cannot use should exit immediate mode without calling begin render.\n");
+        return true;
+    }
+
+    width: s32;
+    height: s32;
+    signal(*immediate_mode_swap_semaphore);
+    glfwGetFramebufferSize(koda.window, *width, *height);
+    if koda.width != width || koda.height != height {
+        set_viewport(koda.width, koda.height);
+    }
+
+    exit := glfwWindowShouldClose(koda.window) == GLFW_TRUE;
+
+    time := seconds_since_init();
+    tick_frame_tracker(*koda.frame_tracker, time);
+
+    // TODO sleep_milliseconds is garbage on windows, use something else like locks and threads
+
+    // sleep if desired
+    if !koda.time_tracker.vsync && koda.time_tracker.target_fps > 0 {
+        desired_tick_duration := cast(float64) 1000.0 / cast(float64) koda.time_tracker.target_fps;
+
+        last_loop_time := koda.time_tracker.last_loop_time;
+        if last_loop_time > 0 {
+            last_tick_duration := (time - last_loop_time) * 1000.0;
+            desired_sleep_time := max(desired_tick_duration - last_tick_duration, 0.0);
+
+            if desired_sleep_time > 0 {
+                sleep_milliseconds(cast(s32) desired_sleep_time);
+            }
+        }
+    }
+    koda.time_tracker.last_loop_time = time;
+    
+    // TODO is this the right place for this?
+    if !exit {
+        glfwPollEvents();
+    }
+
+    return exit;
+}
+
+immediate_mode_begin_render :: () {
+    if !koda.can_render {
+        wait_for(*immediate_mode_render_semaphore);
+        koda.can_render = true;
+    }
 }
 
 force_draw :: should_exit;
@@ -632,12 +705,16 @@ convert_clear_mask :: (real_mask: u32) -> ClearMask {
 }
 
 clear :: (color: Color, mask: ClearMask = .Color | .Depth) {
+    assert(koda.can_render, "Cannot currently make any draw calls.\n");
+
     real_mask := convert_clear_mask(mask);
     glClearColor(color.r, color.g, color.b, color.a);
     glClear(real_mask);
 }
 
 clear :: (mask: ClearMask = .Color | .Depth) {
+    assert(koda.can_render, "Cannot currently make any draw calls.\n");
+
     real_mask := convert_clear_mask(mask);
     glClear(real_mask);
 }

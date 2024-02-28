@@ -11,7 +11,7 @@ create_render_texture :: (width: int, height: int, format: PixelFormat) -> *Rend
     rt.texture.format = format;
     rt.depth.width = xx width;
     rt.depth.height = xx height;
-    rt.depth.format = .Depth;
+    rt.depth.format = .Depth32F;
 
     gl_format := get_gl_format(format);
 

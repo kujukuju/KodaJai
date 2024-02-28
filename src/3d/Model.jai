@@ -213,6 +213,8 @@ draw :: (model: Model, transform: Matrix4 = Matrix4Identity, shader: *Shader = n
 }
 
 draw :: (model: Model, transform: Matrix4 = Matrix4Identity, projection: Matrix4, shader: *Shader = null) {
+    assert(koda.can_render, "Cannot currently make any draw calls.\n");
+    
     if !model.visible {
         return;
     }

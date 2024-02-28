@@ -256,6 +256,46 @@ update_texture :: (texture: *Texture, image: Image) {
     // glBufferSubData(GL_TEXTURE_BUFFER, 0, buffer.size, data.data);
 }
 
+convert_format :: (texture: *Texture, desired_format: PixelFormat) {
+    assert(texture.format == .R8 || texture.format == .RG8 || texture.format == .RGB8 || texture.format == .RGBA8, tprint("Cannot convert from format of %.\n", texture.format));
+    assert(desired_format == .R8 || desired_format == .RG8 || desired_format == .RGB8 || desired_format == .RGBA8, tprint("Cannot convert to format of %.\n", desired_format));
+
+    if texture.format == desired_format {
+        return;
+    }
+
+    texture_stride := get_stride(texture.format);
+    desired_stride := get_stride(desired_format);
+
+    texture.format = desired_format;
+
+    total_pixels := texture.width * texture.height;
+
+    if desired_stride < texture_stride {
+        for i: 0..total_pixels - 1 {
+            texture_index := i * texture_stride;
+            desired_index := i * desired_stride;
+
+            memcpy(texture.data + desired_index, texture.data + texture_index, desired_stride);
+        }
+    } else {
+        // untested
+        old_data := texture.data;
+        defer c_free(old_data);
+
+        // honestly I'm not sure if this gives you guaranteed zeroed out memory
+        texture.data = c_alloc(cast(u64) (texture.width * texture.height * desired_stride));
+        memset(texture.data, 0, texture.width * texture.height * desired_stride);
+
+        for i: 0..total_pixels - 1 {
+            texture_index := i * texture_stride;
+            desired_index := i * desired_stride;
+
+            memcpy(texture.data + desired_index, old_data + texture_index, texture_stride);
+        }
+    }
+}
+
 draw :: (texture: Texture, position: Vector2) {
     static_sprite.texture = texture;
     static_sprite.width = xx texture.width;

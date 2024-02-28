@@ -1,3 +1,4 @@
+
 draw_line :: (p1: Vector3, p2: Vector3, width: float = 1.0, color: Color = .{1, 1, 1, 1}) {
     vertices: [2] Vector3;
     vertices[0] = p1;
@@ -45,7 +46,7 @@ draw_square :: (center: Vector3, up: Vector3, half_dimensions: Vector2, color: C
         load_square();
     }
 
-    up_pitch_angle := PI / 2.0 - atan2(up.y, length(.{up.x, up.z}));
+    up_pitch_angle := PI / 2.0 - atan2(up.y, length(Vector2.{up.x, up.z}));
     up_yaw_angle := PI / 2 - atan2(up.z, up.x);
 
     pitch_rotation := make_rotation_quaternion(.{1, 0, 0}, up_pitch_angle);
@@ -97,7 +98,7 @@ draw_torus :: (center: Vector3, up: Vector3, major_radius: float, minor_radius: 
         load_torus();
     }
 
-    up_pitch_angle := PI / 2.0 - atan2(up.y, length(.{up.x, up.z}));
+    up_pitch_angle := PI / 2.0 - atan2(up.y, length(Vector2.{up.x, up.z}));
     up_yaw_angle := PI / 2 - atan2(up.z, up.x);
 
     pitch_rotation := make_rotation_quaternion(.{1, 0, 0}, up_pitch_angle);

@@ -78,30 +78,31 @@
 #load "src/parallel/Parallel.jai";
 #load "src/parallel/ParallelQuickSort.jai";
 
-#load "src/shaders/CubemapShader.jai";
-#load "src/shaders/DefaultEllipseShader.jai";
-#load "src/shaders/DefaultShader.jai";
-#load "src/shaders/DefaultShader3.jai";
-#load "src/shaders/DefaultShaderColors3.jai";
-#load "src/shaders/DefaultShapeShader3.jai";
-#load "src/shaders/DefaultVertColorNormalShader3.jai";
-#load "src/shaders/DefaultVertColorShader3.jai";
-#load "src/shaders/FlatGridShader3.jai";
-#load "src/shaders/FontShader.jai";
-#load "src/shaders/InfiniteGridShader3.jai";
-#load "src/shaders/InstancedShader2.jai";
-#load "src/shaders/InstancedShader3.jai";
-#load "src/shaders/OcclusionShader3.jai";
-#load "src/shaders/ShaderManager.jai";
+#load "src/shaders/forward/CubemapShader.jai";
+#load "src/shaders/forward/DefaultEllipseShader.jai";
+#load "src/shaders/forward/DefaultShader.jai";
+#load "src/shaders/forward/DefaultShader3.jai";
+#load "src/shaders/forward/DefaultShaderColors3.jai";
+#load "src/shaders/forward/DefaultShapeShader3.jai";
+#load "src/shaders/forward/DefaultVertColorNormalShader3.jai";
+#load "src/shaders/forward/DefaultVertColorShader3.jai";
+#load "src/shaders/forward/FlatGridShader3.jai";
+#load "src/shaders/forward/FontShader.jai";
+#load "src/shaders/forward/InfiniteGridShader3.jai";
+#load "src/shaders/forward/InstancedShader2.jai";
+#load "src/shaders/forward/InstancedShader3.jai";
+#load "src/shaders/forward/OcclusionShader3.jai";
+#load "src/shaders/forward/ShaderManager.jai";
+#load "src/shaders/forward/SkinnedAnimationDoubleShader3.jai";
+#load "src/shaders/forward/SkinnedAnimationDoubleTextureShader3.jai";
+#load "src/shaders/forward/SkinnedAnimationNoNormalShader3.jai";
+#load "src/shaders/forward/SkinnedAnimationNoTextureShader3.jai";
+#load "src/shaders/forward/SkinnedAnimationShader3.jai";
+#load "src/shaders/forward/TextureShader3.jai";
+#load "src/shaders/forward/TorusShader3.jai";
+#load "src/shaders/forward/VolumetricCloudShader.jai";
+
 #load "src/shaders/Shaders.jai";
-#load "src/shaders/SkinnedAnimationDoubleShader3.jai";
-#load "src/shaders/SkinnedAnimationDoubleTextureShader3.jai";
-#load "src/shaders/SkinnedAnimationNoNormalShader3.jai";
-#load "src/shaders/SkinnedAnimationNoTextureShader3.jai";
-#load "src/shaders/SkinnedAnimationShader3.jai";
-#load "src/shaders/TextureShader3.jai";
-#load "src/shaders/TorusShader3.jai";
-#load "src/shaders/VolumetricCloudShader.jai";
 
 #load "src/shadows/ShadowUtilities.jai";
 
@@ -144,6 +145,7 @@ koda: struct {
     active_pass_channels: [] PixelFormat = .[.RGBA8];
     cull_face: bool = true;
     cull_face_mode: CullFaceMode = .Back;
+    can_render: bool = true;
 };
 
 // get_koda_asset_path :: () -> string {
@@ -211,3 +213,12 @@ static_sprite: Sprite;
 #import "JaiBoundingTree";
 #import "JaiSerializer";
 #import "JaiParallel"(WASM);
+
+c_alloc  :: (size : u64) -> *void #foreign crt "malloc";
+c_free    :: (memory: *void) #foreign crt "free";
+
+#if OS == .WINDOWS {
+    crt :: #system_library "msvcrt";
+} else #if OS == .LINUX {
+    crt :: #system_library "libc";
+}
