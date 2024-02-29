@@ -114,7 +114,7 @@ deferred_render :: () {
     deferred_render_small_shadows_to_screen();
     deferred_render_small_cascaded_shadows_to_screen();
 
-    perf_tracker_print(1000);
+    perf_tracker_finish(1000);
 }
 
 deferred_render_shadows :: () {

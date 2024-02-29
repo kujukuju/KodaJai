@@ -114,6 +114,7 @@
 #load "src/Operators.jai";
 #load "src/ParticleSystem.jai";
 #load "src/Pass.jai";
+#load "src/PerfTracker.jai";
 #load "src/Pipeline.jai";
 #load "src/PixelFormat.jai";
 #load "src/Point2.jai";

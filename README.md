@@ -6,7 +6,7 @@ To bake the assets you run `jai ./generate_asset_constants.jai`.
 
 ## Notes
 
-The API is constantly changing, and some parts of it are broken. I wouldn't consider this library complete, but for the most part everything works.
+The API is constantly changing, and some parts of it are broken. I wouldn't consider this library complete, but the things I currently use work. Which is most things.
 
 ## Basic Application
 

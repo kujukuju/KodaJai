@@ -137,9 +137,10 @@ should_exit :: () -> bool {
         }
     }
 
+    glfwSwapBuffers(koda.window);
+
     width: s32;
     height: s32;
-    glfwSwapBuffers(koda.window);
     glfwGetFramebufferSize(koda.window, *width, *height);
     if koda.width != width || koda.height != height {
         set_viewport(koda.width, koda.height);
@@ -176,12 +177,23 @@ should_exit :: () -> bool {
     return exit;
 }
 
+/*
+good idea kind of - this is just a way to get the cpu to start spinning while the gpu is waiting on vsync
+but then the beginning of the gpu calls has to wait for vsync anyways
+and then the beginning of the cpu calls has to wait for the gpu calls to finish
+so essentially if your program is actually bottlenecked for resources, this just rewards you back
+the time it took vsync to write to the screen... maybe it's beneficial because otherwise you could
+potentially miss a cycle or maybe the vsync swap takes a long time in some situations even when you're
+bottlenecked... I'm not sure, but I think if you're going this route you might just want to multithread everything?
+or there might be a better solution to swapping the buffers like this? like manually swapping the gl buffers with
+deffered rendering?
+
 immediate_mode_initialized: bool;
 immediate_mode_thread: Thread;
 immediate_mode_render_semaphore: Semaphore;
 immediate_mode_swap_semaphore: Semaphore;
 
-should_exit_immediate_mode :: () -> bool {
+should_exit_immediate_mode :: ($logic_callback: #type ()) -> bool {
     if !immediate_mode_initialized {
         immediate_mode_initialized = true;
 
@@ -191,7 +203,10 @@ should_exit_immediate_mode :: () -> bool {
             while true {
                 wait_for(*immediate_mode_swap_semaphore);
                 koda.can_render = false;
-                glfwSwapBuffers(koda.window);
+
+                logic_callback();
+                
+                koda.can_render = true;
                 signal(*immediate_mode_render_semaphore);
             }
             return 0;
@@ -199,14 +214,17 @@ should_exit_immediate_mode :: () -> bool {
         thread_start(*immediate_mode_thread);
     }
 
-    if !koda.can_render {
-        assert(false, "You cannot use should exit immediate mode without calling begin render.\n");
-        return true;
-    }
+    // this has to be called before the update loop
+    glfwPollEvents();
+
+    signal(*immediate_mode_swap_semaphore);
+
+    glfwSwapBuffers(koda.window);
+
+    wait_for(*immediate_mode_render_semaphore);
 
     width: s32;
     height: s32;
-    signal(*immediate_mode_swap_semaphore);
     glfwGetFramebufferSize(koda.window, *width, *height);
     if koda.width != width || koda.height != height {
         set_viewport(koda.width, koda.height);
@@ -234,21 +252,16 @@ should_exit_immediate_mode :: () -> bool {
         }
     }
     koda.time_tracker.last_loop_time = time;
-    
-    // TODO is this the right place for this?
-    if !exit {
-        glfwPollEvents();
-    }
 
     return exit;
 }
 
-immediate_mode_begin_render :: () {
-    if !koda.can_render {
-        wait_for(*immediate_mode_render_semaphore);
-        koda.can_render = true;
+immediate_mode_finish :: () {
+    if !immediate_mode_finished {
+        immediate_mode_finished = true;
     }
 }
+*/
 
 force_draw :: should_exit;
 
@@ -282,13 +295,31 @@ set_fullscreen :: (fullscreen: bool, borderless: bool) {
     }
 }
 
+get_adaptive_vsync :: () -> bool {
+    return adaptive_vsync_enabled;
+}
+
+set_adaptive_vsync :: (enabled: bool) {
+    adaptive_vsync_enabled = enabled;
+
+    if enabled {
+        print("Adaptive sync allowed? %\n", !!glfwExtensionSupported("WGL_EXT_swap_control_tear"));
+    }
+
+    set_vsync(enabled);
+}
+
 get_vsync :: () -> bool {
     return koda.time_tracker.vsync;
 }
 
 set_vsync :: (vsync: bool) {
     koda.time_tracker.vsync = vsync;
-    glfwSwapInterval(xx (ifx vsync then 1 else 0));
+    if vsync {
+        glfwSwapInterval(xx (ifx adaptive_vsync_enabled then -1 else 1));
+    } else {
+        glfwSwapInterval(0);
+    }
 }
 
 get_target_fps :: () -> float {
@@ -749,6 +780,8 @@ mouse_capture: bool;
 mouse_currently_captured: bool;
 
 #scope_file
+
+adaptive_vsync_enabled: bool;
 
 error_callback :: (error: s32, description: *u8) #c_call {
     // TODO print color
