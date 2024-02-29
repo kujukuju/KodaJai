@@ -45,6 +45,7 @@
 #load "src/2d/Sprite.jai";
 #load "src/2d/Text.jai";
 #load "src/2d/Texture.jai";
+#load "src/2d/TextureArray.jai";
 
 #load "src/3d/AnimatedModel.jai";
 #load "src/3d/Animation.jai";
@@ -87,6 +88,7 @@
 #load "src/shaders/forward/DefaultVertColorNormalShader3.jai";
 #load "src/shaders/forward/DefaultVertColorShader3.jai";
 #load "src/shaders/forward/FlatGridShader3.jai";
+#load "src/shaders/forward/FontParticleShader.jai";
 #load "src/shaders/forward/FontShader.jai";
 #load "src/shaders/forward/InfiniteGridShader3.jai";
 #load "src/shaders/forward/InstancedShader2.jai";

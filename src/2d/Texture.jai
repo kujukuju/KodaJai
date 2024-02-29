@@ -76,35 +76,6 @@ load_texture :: (path: string, wrap: TextureWrap = .Clamp, interp: TextureInterp
     return create_texture(bytes, wrap, interp, should_upload);
 }
 
-// TODO update texture more efficiently from image
-
-// load_thumbnail_texture :: (path: string, width: s32, height: s32, preserve_ratio: bool = true) -> Texture, bool {
-//     file, success := read_entire_file(path, false);
-//     defer free(file);
-
-//     bytes: [] u8;
-//     bytes.data = file.data;
-//     bytes.count = file.count;
-
-//     texture, loaded := load_thumbnail_texture(bytes, width, height, preserve_ratio);
-//     return texture, loaded;
-// }
-
-// load_thumbnail_texture :: (bytes: [] u8, width: s32, height: s32, preserve_ratio: bool = true) -> Texture, bool {
-//     texture_data := load_data(bytes);
-//     defer stbi_image_free(texture_data.data);
-
-//     if texture_data.data == null {
-//         print("Could not load texture.\n");
-//         return .{}, false;
-//     }
-
-//     thumbnail_texture_data := scale_data(texture_data, width, height, preserve_ratio);
-//     defer free(thumbnail_texture_data.data);
-
-//     return gen_texture(thumbnail_texture_data), true;
-// }
-
 upload :: (texture: *Texture) {
     if texture.buffer {
         return;
@@ -138,12 +109,10 @@ upload :: (texture: *Texture) {
 
     stride := get_stride(texture.format);
 
-    eight_divible := (texture.width * stride) % 8 == 0;
     four_divisible := (texture.width * stride) % 4 == 0;
     two_divisible := (texture.width * stride) % 2 == 0;
     pixel_store: s32;
-    if eight_divible then pixel_store = 8;
-    else if four_divisible then pixel_store = 4;
+    if four_divisible then pixel_store = 4;
     else if two_divisible then pixel_store = 2;
     else pixel_store = 1;
 

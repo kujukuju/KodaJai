@@ -473,6 +473,12 @@ apply_uniforms :: (shader: *Shader, uniforms: ShaderUniforms, printing: bool = f
                         glUniform1i(location, texture_index);
 
                         texture_index += 1;
+                    case .TextureArray;
+                        glActiveTexture(GL_TEXTURE0 + cast(u32) texture_index);
+                        glBindTexture(GL_TEXTURE_2D_ARRAY, uniform.texture_array.buffer);
+                        glUniform1i(location, texture_index);
+
+                        texture_index += 1;
                     case .Texture3;
                         glActiveTexture(GL_TEXTURE0 + cast(u32) texture_index);
                         glBindTexture(GL_TEXTURE_3D, uniform.texture3.buffer);

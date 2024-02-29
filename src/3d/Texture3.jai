@@ -110,27 +110,22 @@ upload :: (texture: *Texture3) {
     glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_WRAP_R, wrap_formats[2]);
     glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_MIN_FILTER, interp_min_format);
     glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_MAG_FILTER, interp_mag_format);
-    // glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
-    // glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-    // glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_MIN_FILTER, GL_NEAREST_MIPMAP_LINEAR);
-    // glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
 
     if texture.wrap[0] == .Border || texture.wrap[1] == .Border || texture.wrap[2] == .Border {
         glTexParameterfv(GL_TEXTURE_3D, GL_TEXTURE_BORDER_COLOR, texture.border_color.component.data);
     }
 
-    eight_divible := (texture.width * texture.height * texture.depth) % 8 == 0;
-    four_divisible := (texture.width * texture.height * texture.depth) % 4 == 0;
-    two_divisible := (texture.width * texture.height * texture.depth) % 2 == 0;
+    stride := get_stride(texture.format);
+
+    four_divisible := (texture.width * stride) % 4 == 0;
+    two_divisible := (texture.width * stride) % 2 == 0;
     pixel_store: s32;
-    if eight_divible then pixel_store = 8;
-    else if four_divisible then pixel_store = 4;
+    if four_divisible then pixel_store = 4;
     else if two_divisible then pixel_store = 2;
     else pixel_store = 1;
 
-    // TODO fix pixel store?
-    // glPixelStorei(GL_PACK_ALIGNMENT, pixel_store);
-    glPixelStorei(GL_PACK_ALIGNMENT, 1);
+    glPixelStorei(GL_PACK_ALIGNMENT, pixel_store);
+    glPixelStorei(GL_UNPACK_ALIGNMENT, pixel_store);
 
     gl_format := get_gl_format(texture.format);
     gl_internal_format := get_gl_internal_format(texture.format);

@@ -36,12 +36,7 @@ get_default_font :: () -> *Font {
         file_bytes: [] u8;
         file_bytes.data = TriplexSansBold.data;
         file_bytes.count = TriplexSansBold.count;
-        default_font = create_font(file_bytes, 24, false);
-
-        // file_bytes: [] u8;
-        // file_bytes.data = TriplexSansBoldFont.data;
-        // file_bytes.count = TriplexSansBoldFont.count;
-        // serializer_read(file_bytes, *default_font, 0, false);
+        default_font = create_font(file_bytes, 16, false);
 
         upload(default_font);
     }

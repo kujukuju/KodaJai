@@ -1,9 +1,6 @@
 
 PERF_TRACKER_ENABLED :: true;
 
-// I think it would be possible to allow gpu nested calls if I end the original
-// call, start the new one, and on defer I end the new one and start a cummulative old call
-
 // loop
 // (enter)
 // -start loop cpu

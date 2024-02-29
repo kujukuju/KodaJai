@@ -30,6 +30,7 @@ ShaderUniformType :: enum {
     Mat4;
     Mat4N;
     Texture;
+    TextureArray;
     Texture3;
     CubemapTexture;
 }
@@ -71,6 +72,7 @@ ShaderUniform :: struct {
         mat4: [16] float;
         mat4n: [] [16] float;
         texture: Texture;
+        texture_array: TextureArray;
         texture3: Texture3;
         cubemap_texture: CubemapTexture;
     }
@@ -678,6 +680,14 @@ create_uniform :: ($name: *u8, value: Texture) -> ShaderUniform {
     uniform.name = name;
     uniform.type = .Texture;
     uniform.texture = value;
+    return uniform;
+}
+
+create_uniform :: ($name: *u8, value: TextureArray) -> ShaderUniform {
+    uniform: ShaderUniform;
+    uniform.name = name;
+    uniform.type = .TextureArray;
+    uniform.texture_array = value;
     return uniform;
 }
 

@@ -11,6 +11,7 @@ Geometry :: struct {
 
 // this is also the alignment order that the loader will force the attributes into
 Attribute :: enum {
+    Position2;
     Position;
     Normal;
     Texcoord;
@@ -503,6 +504,8 @@ get_attribute_stride :: (attributes: [] Attribute) -> int {
 
 get_attribute_size :: (attribute: Attribute) -> int {
     if #complete attribute == {
+        case .Position2;
+            return 2;
         case .Position;
             return 3;
         case .Normal;
@@ -1075,6 +1078,9 @@ load_geometry_gltf_data :: (json: GltfJson, binary: [] u8) -> [..] *Geometry, bo
 
                     for accessor: accessors {
                         if #complete attribute_type == {
+                            case .Position2;
+                                accessor_data := cast(*float32) accessor.view.data;
+                                array_add(*geometry.vertices, accessor_data[i * 2], accessor_data[i * 2 + 1]);
                             case .Position;
                                 accessor_data := cast(*float32) accessor.view.data;
                                 array_add(*geometry.vertices, accessor_data[i * 3], accessor_data[i * 3 + 1], accessor_data[i * 3 + 2]);

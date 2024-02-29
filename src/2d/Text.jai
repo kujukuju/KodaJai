@@ -138,7 +138,7 @@ draw_text :: (content: string, position: Vector2, anchor: Vector2 = .{0, 0}, tin
     draw_text(content, font, position, anchor, tint, scale);
 }
 
-draw_text :: (content: string, font: Font, position: Vector2, anchor: Vector2 = .{0, 0}, tint: Color = .{1, 1, 1, 1}, scale: float = 1.0, clipped: bool = false) {
+draw_text :: (content: string, font: *Font, position: Vector2, anchor: Vector2 = .{0, 0}, tint: Color = .{1, 1, 1, 1}, scale: float = 1.0, clipped: bool = false) {
     if !content {
         return;
     }
@@ -162,82 +162,89 @@ draw_text :: (content: string, font: Font, position: Vector2, anchor: Vector2 = 
     x := position.x - dimensions.x * anchor.x - clipped_offset.x;
     y := position.y - dimensions.y * anchor.y - clipped_offset.y;
 
-    glActiveTexture(GL_TEXTURE0);
-    glBindVertexArray(font.vao);
+    particle_system_clear(*font_system);
 
-    for index: 0..content.count - 1 {
-        char: u8 = content[index];
-        if char < 0 || char >= font.characters.count {
+    char: u32;
+    index: int;
+    while index < content.count {
+        char, index = get_unicode_char(content, index);
+        character, found := table_find(*font.characters, char);
+        if !found {
             print("Character out of bounds. %\n", char);
             continue;
         }
 
-        character := font.characters[char];
-        info := font.infos[char];
-        texture := font.textures[char];
+        xpos := x + character.bearing.x * scale;
+        ypos := y - character.bearing.y * scale + font.max_height * scale;
 
-        xpos := x + info.bearing.x * scale;
-        ypos := y - info.bearing.y * scale + font.max_height * scale;
+        w := character.width * scale;
+        h := character.height * scale;
 
-        w := texture.width * scale;
-        h := texture.height * scale;
+        // vertices: [6] Vector4;
+        // vertices[0] = xyzw(xpos, ypos + h, 0, 1);
+        // vertices[1] = xyzw(xpos, ypos, 0, 0);
+        // vertices[2] = xyzw(xpos + w, ypos, 1, 0);
+        // vertices[3] = xyzw(xpos, ypos + h, 0, 1);
+        // vertices[4] = xyzw(xpos + w, ypos, 1, 0);
+        // vertices[5] = xyzw(xpos + w, ypos + h, 1, 1);
 
-        zero := 0.0;
-        one := 1.0;
-        vertices: [6] Vector4;
-        vertices[0] = xyzw(xpos, ypos + h, 0, one);
-        vertices[1] = xyzw(xpos, ypos, 0, zero);
-        vertices[2] = xyzw(xpos + w, ypos, 1, zero);
-        vertices[3] = xyzw(xpos, ypos + h, 0, one);
-        vertices[4] = xyzw(xpos + w, ypos, 1, zero);
-        vertices[5] = xyzw(xpos + w, ypos + h, 1, one);
+        gpu: FontParticleGpu;
+        gpu.position = .{xpos, ypos};
+        gpu.size = .{w, h};
+        gpu.texSize = .{cast(float) character.width / font.max_width, cast(float) character.height / font.max_height};
+        gpu.index = cast(float) character.index;
+
+        particle_system_add_particle(*font_system, gpu, .{});
 
         // print("drawing % at % %, % %, % %\n", index, xpos, ypos, w, h, font.characters[index].width, font.characters[index].height);
 
         // draw(texture, xy(xpos, ypos), xy(w, h));
 
         // render glyph texture over quad
-        glBindTexture(GL_TEXTURE_2D, texture.buffer);
-        // update content of VBO memory
-        glBindBuffer(GL_ARRAY_BUFFER, font.vbo);
-        glBufferSubData(GL_ARRAY_BUFFER, 0, size_of(type_of(vertices)), vertices.data);
-        glBindBuffer(GL_ARRAY_BUFFER, 0);
+        // glBindTexture(GL_TEXTURE_2D, texture.buffer);
+        // // update content of VBO memory
+        // glBindBuffer(GL_ARRAY_BUFFER, font.vbo);
+        // glBufferSubData(GL_ARRAY_BUFFER, 0, size_of(type_of(vertices)), vertices.data);
+        // glBindBuffer(GL_ARRAY_BUFFER, 0);
 
-        // //
-        // // Configure uniforms
-        // //
+        // // //
+        // // // Configure uniforms
+        // // //
 
-        // // set_cull_face(false);
-        // // set_front_face_ccw(false);
+        // // // set_cull_face(false);
+        // // // set_front_face_ccw(false);
 
-        use_shader(*default_font_shader);
+        // use_shader(*default_font_shader);
 
-        projection := orthographic_projection_matrix(0.0, xx koda.width, xx koda.height, 0.0, -1.0, 1.0);
-        model := Matrix4_Identity;
-        view := koda.view;
+        // model := Matrix4_Identity;
+        // view := koda.view;
 
-        uniforms: ShaderUniforms;
-        defer destroy(uniforms);
+        // uniforms: ShaderUniforms;
+        // defer destroy(uniforms);
         
-        uniforms[xx "uTexture"] = create_uniform("uTexture", texture);
-        uniforms[xx "projection"] = create_uniform("projection", projection);
-        uniforms[xx "uTint"] = create_uniform("uTint", tint);
+        // uniforms[xx "uTexture"] = create_uniform("uTexture", texture);
+        // uniforms[xx "projection"] = create_uniform("projection", projection);
+        // uniforms[xx "uTint"] = create_uniform("uTint", tint);
 
-        apply_uniforms(*default_font_shader, uniforms);
+        // apply_uniforms(*default_font_shader, uniforms);
 
-        // render quad
-        glDrawArrays(GL_TRIANGLES, 0, xx vertices.count);
+        // // render quad
+        // glDrawArrays(GL_TRIANGLES, 0, xx vertices.count);
 
         // now advance cursors for next glyph (note that advance is number of 1/64 pixels)
         // bitshift by 6 to get value in pixels (2^6 = 64)
-        x += (info.advance >> 6) * scale;
+        x += (character.advance.x >> 6) * scale;
     }
 
-    glBindVertexArray(0);
-    glBindTexture(GL_TEXTURE_2D, 0);
+    // glBindVertexArray(0);
+    // glBindTexture(GL_TEXTURE_2D, 0);
+
+    projection := orthographic_projection_matrix(0.0, xx koda.width, xx koda.height, 0.0, -1.0, 1.0);
+    font_system.uniforms[xx "uTexture"] = create_uniform("uTexture", font.textures);
+    particle_system_update_and_render(*font_system, 0, projection);
 }
 
-get_aabb :: (content: string, font: Font, position: Vector2 = .{0, 0}, anchor: Vector2 = .{0, 0}, scale: float = 1.0, clipped: bool = false) -> AABB2 {
+get_aabb :: (content: string, font: *Font, position: Vector2 = .{0, 0}, anchor: Vector2 = .{0, 0}, scale: float = 1.0, clipped: bool = false) -> AABB2 {
     aabb := get_aabb(content, font, scale);
 
     clipped_offset := ifx clipped then aabb.lower else Vector2.{};
@@ -252,7 +259,7 @@ get_aabb :: (content: string, font: Font, position: Vector2 = .{0, 0}, anchor: V
     return aabb;
 }
 
-get_aabb :: (content: string, font: Font, scale: float = 1.0) -> AABB2 {
+get_aabb :: (content: string, font: *Font, scale: float = 1.0) -> AABB2 {
     if !content {
         return .{};
     }
@@ -263,22 +270,21 @@ get_aabb :: (content: string, font: Font, scale: float = 1.0) -> AABB2 {
     aabb: AABB2;
     set_aabb := false;
 
-    for index: 0..content.count - 1 {
-        char: u8 = content[index];
-        if char < 0 || char >= font.characters.count {
+    char: u32;
+    index: int;
+    while index < content.count {
+        char, index = get_unicode_char(content, index);
+        character, found := table_find(*font.characters, char);
+        if !found {
             print("Character out of bounds. %\n", char);
             continue;
         }
 
-        character := font.characters[char];
-        info := font.infos[char];
-        texture := font.textures[char];
+        xpos := x + character.bearing.x * scale;
+        ypos := y - character.bearing.y * scale + font.max_height * scale;
 
-        xpos := x + info.bearing.x * scale;
-        ypos := y - info.bearing.y * scale + font.max_height * scale;
-
-        w := texture.width * scale;
-        h := texture.height * scale;
+        w := character.width * scale;
+        h := character.height * scale;
 
         if !set_aabb {
             set_aabb = true;
@@ -292,10 +298,48 @@ get_aabb :: (content: string, font: Font, scale: float = 1.0) -> AABB2 {
 
         // now advance cursors for next glyph (note that advance is number of 1/64 pixels)
         // bitshift by 6 to get value in pixels (2^6 = 64)
-        x += (info.advance >> 6) * scale;
+        x += (character.advance.x >> 6) * scale;
     }
 
     return aabb;
 }
 
-#scope_file
+get_unicode_char :: (content: string, index: int) -> character: u32, index: int {
+    if content[index] & 0b11111000 == 0b11110000 {
+        if index + 3 >= content.count {
+            return 0, index + 3;
+        }
+
+        char: u32 = (content[index] & 0b00000111) << 18;
+        char |= (content[index + 1] & 0b00111111) << 12;
+        char |= (content[index + 2] & 0b00111111) << 6;
+        char |= content[index + 3] & 0b00111111;
+        return char, index + 4;
+    } else if content[index] & 0b11110000 == 0b11100000 {
+        if index + 2 >= content.count {
+            return 0, index + 2;
+        }
+        
+        char: u32 = (content[index] & 0b00001111) << 12;
+        char |= (content[index + 1] & 0b00111111) << 6;
+        char |= content[index + 2] & 0b00111111;
+        return char, index + 3;
+    } else if content[index] & 0b11100000 == 0b11000000 {
+        if index + 1 >= content.count {
+            return 0, index + 1;
+        }
+        
+        char: u32 = (content[index] & 0b00011111) << 6;
+        char |= content[index + 1] & 0b00111111;
+        return char, index + 2;
+    } else if content[index] & 0b11000000 == 0b10000000 {
+        // you're in the middle of a unicode string
+        return 0, index + 1;
+    } else {
+        if index >= content.count {
+            return 0, index;
+        }
+
+        return content[index], index + 1;
+    }
+}
