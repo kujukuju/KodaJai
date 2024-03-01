@@ -190,8 +190,6 @@ default_font_shader: FontShader;
 
 #scope_module
 
-#run print("WASM? %\n", WASM);
-
 static_sprite: Sprite;
 #if WASM {
     core_count :: 8;

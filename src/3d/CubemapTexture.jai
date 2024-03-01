@@ -64,6 +64,7 @@ load_cubemap_texture :: (path: string, wrap: TextureWrap = .Clamp, should_upload
 
 upload :: (texture: *CubemapTexture) {
     if texture.buffer {
+        print("Warning: Trying to upload a cubemap texture that's already uploaded.\n", true);
         return;
     }
     

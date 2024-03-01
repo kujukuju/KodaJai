@@ -1,4 +1,6 @@
 
+// TODO ensure the shader being used here matches the attributes of the particle system geometry... but liberally
+
 ParticleSystem :: struct (ParticleGpu: Type, ParticleCpu: Type, update_function: #type (particle_gpu: *ParticleGpu, particle_cpu: *ParticleCpu, time: float, dt: float) = null, sort: bool = true) {
     last_render_time: float64;
     particles_gpu: [..] ParticleGpu;

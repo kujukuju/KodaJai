@@ -400,8 +400,8 @@ deferred_render_lighting :: () {
         defer set_blend_equation(blend_equation);
         set_blend_equation(.Add);
 
-        blend_src, blend_dst := get_blend_func();
-        defer set_blend_func(blend_src, blend_dst);
+        blend_src, blend_dst, blend_srca, blend_dsta := get_blend_func_separate();
+        defer set_blend_func_separate(blend_src, blend_dst, blend_srca, blend_dsta);
         set_blend_func(.One, .One);
 
         // draw point light

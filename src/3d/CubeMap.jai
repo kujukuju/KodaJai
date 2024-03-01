@@ -4,7 +4,7 @@ CubeMap :: struct {
     transform: Matrix4 = Matrix4Identity;
 }
 
-create_cube_map :: (texture: CubemapTexture, half_width: float = 1.0, should_upload: bool = true) -> *CubeMap {
+create_cube_map :: (texture: CubemapTexture, half_width: float = 1.0, should_upload: bool = false) -> *CubeMap {
     cube := New(CubeMap);
     cube.geometry = create_cube(.{half_width, half_width, half_width});
     cube.uniforms[xx "uTexture0"] = create_uniform("uTexture0", texture);

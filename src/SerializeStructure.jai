@@ -50,6 +50,27 @@ read_serialized :: (serialized_path: string, hash_files: [$N] string, data: *$T,
     return false;
 }
 
+load_serialized :: (serialized_path: string, hash_files: [$N] string, fallback: () -> $T, $reuse_memory: bool = false) -> T, bool {
+    data: T;
+    success := read_serialized(serialized_path, hash_files, *data, reuse_memory);
+
+    if success {
+        return data, true;
+    }
+
+    data = fallback();
+    if !data {
+        // this block might need to go away since not everything is bool checkable, but that's fine, this is the fallback anyways
+        // the implication would be this method always succeeds
+        empty: T;
+        return empty, false;
+    }
+
+    write_serialized(serialized_path, hash_files, data, reuse_memory);
+
+    return data, true;
+}
+
 write_serialized :: (serialized_path: string, hash_files: [$N] string, data: $T, $reuse_memory: bool = false) {
     cache_hash, cache_size, cache_success := get_hash_from_files(hash_files);
     assert(cache_success, "Could not read hash files for writing serialized data.");

@@ -90,6 +90,7 @@ load_texture3 :: (path: string, wrap: [3] TextureWrap, interp: TextureInterp, sh
 // TODO clear data here and in texture unless explicitly requested otherwise
 upload :: (texture: *Texture3) {
     if texture.buffer {
+        print("Warning: Trying to upload a texture3 that's already uploaded.\n", true);
         return;
     }
     

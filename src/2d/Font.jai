@@ -2,12 +2,10 @@
 Font :: struct {
     // TODO instead of a table I could use a binary searchable array
     characters: Table(u32, CharacterInfo);
-    textures: TextureArray;
-    images: Image3;
+    texture: TextureArray;
+    image: Image3;
     max_width: int;
     max_height: int;
-    vao: GLuint;
-    vbo: GLuint;
 }
 
 FontParticleGpu :: struct {
@@ -59,13 +57,16 @@ create_font :: (bytes: [] u8, pixel_height: int, should_upload: bool = true) -> 
         return null, false;
     }
 
+    // TODO this isn't right at all... load_renderer loads the bitmap
     image_width: int;
     image_height: int;
     face_count: int;
     gindex: u32;
     charcode := FT_Get_First_Char(ft_face, *gindex);
     while gindex {
-        FT_Load_Char(ft_face, charcode, FT_LOAD_RENDER);
+        FT_Load_Char(ft_face, charcode, FT_LOAD_DEFAULT);
+        FT_Render_Glyph(ft_face.glyph, .FT_RENDER_MODE_SDF);
+
         image_width = max(image_width, ft_face.glyph.bitmap.width);
         image_height = max(image_height, ft_face.glyph.bitmap.rows);
         face_count += 1;
@@ -76,39 +77,34 @@ create_font :: (bytes: [] u8, pixel_height: int, should_upload: bool = true) -> 
     font.max_width = image_width;
     font.max_height = image_height;
 
-    // for i: 0..ft_face.num_fixed_sizes - 1 {
-    //     size := ft_face.available_sizes + i;
-    //     image_width = max(image_width, size.width);
-    //     image_height = max(image_height, size.height);
-    // }
-    // image_layer_stride := image_width * image_height;
-    // font.max_width = image_width;
-    // font.max_height = image_height;
-
     layer_index: int;
-    font.images = create_image3(image_width, image_height, face_count, .R8);
+    font.image = create_image3(image_width, image_height, face_count, .R8);
 
     gindex = 0;
     charcode = FT_Get_First_Char(ft_face, *gindex);
     while gindex {
         // load character glyph 
-        error := FT_Load_Char(ft_face, charcode, FT_LOAD_RENDER);
+        error := FT_Load_Char(ft_face, charcode, FT_LOAD_DEFAULT);
         if error {
             print_stack_trace();
             print("FreeType failed to load glyph. % %\n", charcode, error);
             return null, false;
         }
 
-        print("% % %\n", ft_face, ft_face.glyph, ft_face.glyph.bitmap);
+        error = FT_Render_Glyph(ft_face.glyph, .FT_RENDER_MODE_SDF);
+        if error {
+            print("FreeType failed to render the glyph. % %\n", charcode, error);
+            return null, false;
+        }
 
-        glyph_width := ft_face.glyph.bitmap.width;
-        glyph_height := ft_face.glyph.bitmap.rows;
+        glyph_width := cast(int) ft_face.glyph.bitmap.width;
+        glyph_height := cast(int) ft_face.glyph.bitmap.rows;
         assert(glyph_width <= image_width, "Your glyph cannot be larger than the max width.\n");
         assert(glyph_height <= image_height, "Your glyph cannot be larger than the max height.\n");
         assert(layer_index < face_count, "You cannot have more characters than num faces.\n");
 
         for y: 0..glyph_height - 1 {
-            dest := font.images.pixels.data + image_layer_stride * layer_index + y * image_width;
+            dest := font.image.pixels.data + image_layer_stride * layer_index + y * image_width;
             src := ft_face.glyph.bitmap.buffer + y * glyph_width;
             memcpy(dest, src, glyph_width);
         }
@@ -126,7 +122,7 @@ create_font :: (bytes: [] u8, pixel_height: int, should_upload: bool = true) -> 
         charcode = FT_Get_Next_Char(ft_face, charcode, *gindex);
     }
 
-    // save_image(font.images, "font.png");
+    save_image(font.image, "sdf_font.png");
 
     if should_upload {
         upload(font);
@@ -150,106 +146,93 @@ load_font :: (path: string, pixel_height: int, should_upload: bool = true) -> *F
     return font, created;
 }
 
-load_serialized_font :: (serialized_path: string, hash_files: [$N] string, fallback: () -> *Font, should_upload: bool = true, $reuse_memory: bool = false) -> *Font, bool {
-    font: *Font;
-    success := read_serialized(serialized_path, hash_files, *font, reuse_memory);
+// takes the font image, adds padding and offsets data values
+pad_font :: (font: *Font, padding: float) {
+    assert(!font.texture.buffer, "You cannot have a texture at the time of generating font padding.\n");
+    assert(!!font.image.pixels, "You must have image data at the time of generating font padding.\n");
+    assert(font.image.format == .R8, "You can only currently pad fonts that are R8 format because you shouldn't really need anything else.\n");
 
-    if success {
-        empty: TextureArray;
-        font.textures = empty;
+    half_padding := cast(int) ceil(padding);
+    total_padding := half_padding * 2;
 
-        if should_upload {
-            upload(font);
+    padded := create_image3(font.image.width + total_padding, font.image.height + total_padding, font.image.depth, .R8);
+
+    index := 0;
+    for *character: font.characters {
+        defer index += 1;
+
+        print("Generating % / %.\n", index, font.characters.count);
+
+        layer := character.index;
+
+        image_offset := font.image.width * font.image.height * layer;
+        padded_offset := padded.width * padded.height * layer;
+
+        for dest_y: 0..padded.height - 1 {
+            for dest_x: 0..padded.width - 1 {
+
+                distance_to_pixel := padding + 1.0;
+                for offset_y: -half_padding..half_padding {
+                    for offset_x: -half_padding..half_padding {
+                        source_y := dest_y - half_padding + offset_y;
+                        source_x := dest_x - half_padding + offset_x;
+
+                        source_color := 0.0;
+                        if source_x >= 0 && source_x < font.image.width && source_y >= 0 && source_y < font.image.height {
+                            source_color = font.image.pixels[image_offset + source_y * font.image.width + source_x] / 255.0;
+                        }
+
+                        if source_color > 0.5 {
+                            distance := sqrt(cast(float) offset_y * offset_y + cast(float) offset_x * offset_x) + 1.0 - (source_color - 0.5) * 2.0;
+                            if distance < distance_to_pixel {
+                                distance_to_pixel = distance;
+                            }
+                        }
+                    }
+                }
+
+                if distance_to_pixel < padding + 1.0 {
+                    alpha := clamp(padding + 1.0 - distance_to_pixel, 0, 1);
+
+                    padded.pixels[padded_offset + dest_y * padded.width + dest_x] = cast(u8) round(alpha * 255);
+                }
+            }
         }
 
-        return font, true;
-    }
-    
-    font = fallback();
-    if should_upload {
-        upload(font);
+        character.width += total_padding;
+        character.height += total_padding;
+        character.bearing += point2(-half_padding, half_padding);
     }
 
-    write_serialized(serialized_path, hash_files, font, reuse_memory);
-    return font, true;
+    destroy(font.image);
+    font.image = padded;
+    font.max_width = padded.width;
+    font.max_height = padded.height;
 }
 
-// takes the font images, adds padding and offsets data values
-pad_font :: (font: *Font, padding: float) {
-    print("WARNING NEED TO DO THIS.\n");
-    return;
-    assert(!font.textures.buffer, "You cannot have textures at the time of generating font padding.");
-    assert(!!font.images.pixels.data, "You must have image data at the time of generating font padding.");
-
-    // half_padding := cast(int) ceil(padding);
-    // total_padding := half_padding * 2;
-
-    // for i: 0..font.characters.count - 1 {
-    // // for i: (#char "a")..(#char "a") {
-    //     if !font.characters[i].pixels {
-    //         continue;
-    //     }
-
-    //     print("Generating %\n", i);
-
-    //     character := font.characters[i];
-
-    //     padded := create_image(character.width + total_padding, character.height + total_padding, .R8);
-
-    //     for dest_y: 0..padded.height - 1 {
-    //         for dest_x: 0..padded.width - 1 {
-
-    //             distance_to_pixel := padding + 1.0;
-    //             for offset_y: -half_padding..half_padding {
-    //                 for offset_x: -half_padding..half_padding {
-    //                     source_y := dest_y - half_padding + offset_y;
-    //                     source_x := dest_x - half_padding + offset_x;
-    //                     source_color := get_pixel(character, point2(source_x, source_y));
-
-    //                     if source_color.r > 0 {
-    //                         distance := sqrt(cast(float) offset_y * offset_y + offset_x * offset_x) + 1.0 - source_color.r;
-    //                         if distance < distance_to_pixel {
-    //                             distance_to_pixel = distance;
-    //                         }
-    //                     }
-    //                 }
-    //             }
-
-    //             if distance_to_pixel < padding + 1.0 {
-    //                 alpha := clamp(padding + 1.0 - distance_to_pixel, 0, 1);
-
-    //                 padded.pixels[dest_y * padded.width + dest_x] = cast(u8) round(alpha * 255);
-    //             }
-    //         }
-    //     }
-
-    //     destroy(font.characters[i]);
-    //     font.characters[i] = padded;
-    //     font.infos[i].bearing += point2(-half_padding, half_padding);
-    // }
-}
-
-upload :: (font: *Font, clear_images: bool = true) {
-    if font.vao {
+upload :: (font: *Font, clear_image: bool = true) {
+    if font.texture.buffer {
+        print("Warning: Trying to upload a font that's already uploaded.\n", true);
         return;
     }
 
-    font.textures = create_texture_array(font.images);
+    font.texture = create_texture_array(font.image);
 
-    if clear_images {
-        destroy(font.images);
+    if clear_image {
+        destroy(font.image);
+        font.image = .{};
     }
 
     if !font_system_geometry {
         font_system_geometry = create_geometry(.[
-            0.0, 1.0,
-            0.0, 0.0,
-            1.0, 0.0,
-            1.0, 1.0,
+            0.0, 0.0, 0.0,
+            0.0, 1.0, 0.0,
+            1.0, 1.0, 0.0,
+            1.0, 0.0, 0.0,
         ], .[
             0, 1, 2,
             0, 2, 3,
-        ], .[.Position2]);
+        ], .[.Position]);
 
         particle_system_init(*font_system, *font_particle_shader, font_system_geometry);
     }

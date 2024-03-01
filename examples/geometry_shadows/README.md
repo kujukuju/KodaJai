@@ -33,8 +33,12 @@
 
 ### Stencil application (normal stencil extruding)
 
+#### This option would work well if you have other dynamic objects in your scene that you need to extrude and render along with your pre-baked edges
+
 8. in your engine extrude these edges as you would a normal shadow meshes in a geometry shader, and render twice (back/front) with depth testing to increment/decrement the pass/fail values
 
 ### Stencil applcation (baked extrusion)
+
+#### This option would work well if you have no dynamic shadow casting objects in your scene
 
 8. manually extrude your 3d concave lines to create actual 3d shadow volumes, and skip the geometry shader step

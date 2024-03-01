@@ -8,7 +8,7 @@ TextureArray :: struct {
     wrap: [2] TextureWrap;
     interp: TextureInterp;
     border_color: Color;
-    data: *u8;
+    data: *u8; @serializer(skip)
 }
 
 create_texture_array :: (bytes: [] u8, wrap: TextureWrap = .Clamp, interp: TextureInterp = .Linear, should_upload: bool = true) -> TextureArray {
@@ -88,6 +88,7 @@ load_texture_array :: (path: string, wrap: [2] TextureWrap, interp: TextureInter
 // TODO clear data here and in texture unless explicitly requested otherwise
 upload :: (texture: *TextureArray) {
     if texture.buffer {
+        print("Warning: Trying to upload a texture array that's already uploaded.\n", true);
         return;
     }
     

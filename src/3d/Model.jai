@@ -29,7 +29,7 @@ operator == :: (a: Model, b: Model) -> bool {
 // this is temporary I guess
 should_bake_material_color_textures := false;
 
-create_model :: (geometry: *Geometry, should_upload: bool = true) -> *Model {
+create_model :: (geometry: *Geometry, should_upload: bool = false) -> *Model {
     model := New(Model);
     array_resize(*model.geometry, 1);
     model.geometry[0] = geometry;
@@ -41,7 +41,7 @@ create_model :: (geometry: *Geometry, should_upload: bool = true) -> *Model {
     return model;
 }
 
-create_model :: (geometry: [] *Geometry, should_upload: bool = true) -> *Model {
+create_model :: (geometry: [] *Geometry, should_upload: bool = false) -> *Model {
     model := New(Model);
     array_copy(*model.geometry, geometry);
 
@@ -52,7 +52,7 @@ create_model :: (geometry: [] *Geometry, should_upload: bool = true) -> *Model {
     return model;
 }
 
-create_model :: (geometry: *Geometry, texture: Texture, should_upload: bool = true) -> *Model {
+create_model :: (geometry: *Geometry, texture: Texture, should_upload: bool = false) -> *Model {
     model := New(Model);
     array_resize(*model.geometry, 1);
     model.geometry[0] = geometry;
@@ -65,7 +65,7 @@ create_model :: (geometry: *Geometry, texture: Texture, should_upload: bool = tr
     return model;
 }
 
-create_model :: (geometry: [] *Geometry, texture: Texture, should_upload: bool = true) -> *Model {
+create_model :: (geometry: [] *Geometry, texture: Texture, should_upload: bool = false) -> *Model {
     model := New(Model);
     array_copy(*model.geometry, geometry);
     model.uniforms[xx "uTexture0"] = create_uniform("uTexture0", texture);
@@ -98,7 +98,7 @@ load_models :: (path: string, should_upload: bool = true) -> [..] *Model, bool {
     }
 
     if ends_with(path, ".obj") {
-        models, success := load_model_obj(file, should_upload);
+        models, success := load_model_obj(file);
         if !success {
             empty: [..] *Model;
             return empty, false;
@@ -112,7 +112,7 @@ load_models :: (path: string, should_upload: bool = true) -> [..] *Model, bool {
 
         return models, true;
     } else if ends_with(path, ".glb") {
-        models, success := load_model_glb(file, should_upload);
+        models, success := load_model_glb(file);
         if !success {
             empty: [..] *Model;
             return empty, false;
@@ -126,7 +126,7 @@ load_models :: (path: string, should_upload: bool = true) -> [..] *Model, bool {
 
         return models, true;
     } else if ends_with(path, ".gltf") {
-        models, success := load_model_gltf(file, path, should_upload);
+        models, success := load_model_gltf(file, path);
         if !success {
             empty: [..] *Model;
             return empty, false;
@@ -246,8 +246,8 @@ draw :: (model: Model, transform: Matrix4 = Matrix4Identity, projection: Matrix4
 
     if !shader {
         print("Could not find appropriate shader for model attributes. %\n", model.geometry[0].attributes);
+        assert(false, tprint("Could not find appropriate shader for model attributes. %\n", model.name));
     }
-    assert(!!shader, "Could not find appropriate shader for model attributes.");
 
     // TODO shouldn't I leave it as it is?
     cull_face := koda.cull_face;
@@ -286,7 +286,7 @@ draw :: (model: Model, transform: Matrix4 = Matrix4Identity, projection: Matrix4
 
 #scope_module
 
-load_model_obj :: (file: string, should_upload: bool) -> [..] *Model, bool {
+load_model_obj :: (file: string) -> [..] *Model, bool {
     geometries, success := load_geometry_obj(file);
     defer array_free(geometries);
     if !success {
@@ -297,14 +297,14 @@ load_model_obj :: (file: string, should_upload: bool) -> [..] *Model, bool {
     models: [..] *Model;
     array_reserve(*models, geometries.count);
     for geometry: geometries {
-        model := create_model(geometry, get_white_texture(), should_upload);
+        model := create_model(geometry, get_white_texture(), false);
         array_add(*models, model);
     }
 
     return models, true;
 }
 
-load_model_glb :: (file: string, should_upload: bool) -> [..] *Model, bool {
+load_model_glb :: (file: string) -> [..] *Model, bool {
     json, binary, json_memory, valid := load_glb(file);
     defer free(json_memory);
     if !valid {
@@ -312,11 +312,11 @@ load_model_glb :: (file: string, should_upload: bool) -> [..] *Model, bool {
         return empty, false;
     }
 
-    models, data_success := load_model_gltf_data(json, binary, should_upload);
+    models, data_success := load_model_gltf_data(json, binary);
     return models, data_success;
 }
 
-load_model_gltf :: (file: string, path: string, should_upload: bool) -> [..] *Model, bool {
+load_model_gltf :: (file: string, path: string) -> [..] *Model, bool {
     json, binary, json_memory, valid := load_gltf(file, path);
     defer free(json_memory);
     if !valid {
@@ -324,11 +324,11 @@ load_model_gltf :: (file: string, path: string, should_upload: bool) -> [..] *Mo
         return empty, false;
     }
 
-    models, data_success := load_model_gltf_data(json, binary, should_upload);
+    models, data_success := load_model_gltf_data(json, binary);
     return models, data_success;
 }
 
-load_model_gltf_data :: (json: GltfJson, binary: [] u8, should_upload: bool) -> [..] *Model, bool {
+load_model_gltf_data :: (json: GltfJson, binary: [] u8) -> [..] *Model, bool {
     models: [..] *Model;
 
     geometries, geometry_success := load_geometry_gltf_data(json, binary);
@@ -340,7 +340,7 @@ load_model_gltf_data :: (json: GltfJson, binary: [] u8, should_upload: bool) -> 
 
     array_reserve(*models, geometries.count);
     for geometry: geometries {
-        model := create_model(geometry, should_upload);
+        model := create_model(geometry, false);
         array_add(*models, model);
     }
 

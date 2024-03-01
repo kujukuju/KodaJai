@@ -11,7 +11,7 @@ Geometry :: struct {
 
 // this is also the alignment order that the loader will force the attributes into
 Attribute :: enum {
-    Position2;
+    // Position2; I think to have uniformity you just want position3 with a 0 z value
     Position;
     Normal;
     Texcoord;
@@ -217,6 +217,8 @@ upload :: (geometry: *Geometry) {
     assert(koda.initialized, "Attempting to gen geometry without the window being initialized.");
 
     if geometry.vao_ {
+        print("Warning: Trying to upload a geometry that's already uploaded.\n", true);
+        print_stack_trace();
         return;
     }
 
@@ -231,10 +233,10 @@ upload :: (geometry: *Geometry) {
     }
 
     glBindBuffer(GL_ARRAY_BUFFER, geometry.vbo_);
-    glBufferData(GL_ARRAY_BUFFER, geometry.vertices.allocated * size_of(float32), geometry.vertices.data, GL_DYNAMIC_DRAW);  
+    glBufferData(GL_ARRAY_BUFFER, geometry.vertices.allocated * size_of(float32), geometry.vertices.data, GL_STATIC_DRAW);  
 
     glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, geometry.ebo_);
-    glBufferData(GL_ELEMENT_ARRAY_BUFFER, geometry.indices.allocated * size_of(u32), geometry.indices.data, GL_DYNAMIC_DRAW);
+    glBufferData(GL_ELEMENT_ARRAY_BUFFER, geometry.indices.allocated * size_of(u32), geometry.indices.data, GL_STATIC_DRAW);
 
     total_float_size := cast(u32) get_attribute_stride(geometry.attributes);
 
@@ -504,8 +506,6 @@ get_attribute_stride :: (attributes: [] Attribute) -> int {
 
 get_attribute_size :: (attribute: Attribute) -> int {
     if #complete attribute == {
-        case .Position2;
-            return 2;
         case .Position;
             return 3;
         case .Normal;
@@ -1078,9 +1078,6 @@ load_geometry_gltf_data :: (json: GltfJson, binary: [] u8) -> [..] *Geometry, bo
 
                     for accessor: accessors {
                         if #complete attribute_type == {
-                            case .Position2;
-                                accessor_data := cast(*float32) accessor.view.data;
-                                array_add(*geometry.vertices, accessor_data[i * 2], accessor_data[i * 2 + 1]);
                             case .Position;
                                 accessor_data := cast(*float32) accessor.view.data;
                                 array_add(*geometry.vertices, accessor_data[i * 3], accessor_data[i * 3 + 1], accessor_data[i * 3 + 2]);

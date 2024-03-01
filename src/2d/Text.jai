@@ -132,27 +132,28 @@
 //     return text, true;
 // }
 
-draw_text :: (content: string, position: Vector2, anchor: Vector2 = .{0, 0}, tint: Color = .{1, 1, 1, 1}, scale: float = 1.0) {
+draw_text :: (content: string, position: Vector2, anchor: Vector2 = .{0, 0}, tint: Color = .{1, 1, 1, 1}, scale: float = 1.0, padding: float = 0.0) {
     font := get_default_font();
 
-    draw_text(content, font, position, anchor, tint, scale);
+    draw_text(content, font, position, anchor, tint, scale, padding);
 }
 
-draw_text :: (content: string, font: *Font, position: Vector2, anchor: Vector2 = .{0, 0}, tint: Color = .{1, 1, 1, 1}, scale: float = 1.0, clipped: bool = false) {
+draw_text :: (content: string, font: *Font, position: Vector2, anchor: Vector2 = .{0, 0}, tint: Color = .{1, 1, 1, 1}, scale: float = 1.0, padding: float = 0.0, clipped: bool = false) {
     if !content {
         return;
     }
 
     depth_test := get_depth_test();
-    cull_face := get_cull_face();
-    transform := koda.view;
-
-    set_depth_test(false);
     defer set_depth_test(depth_test);
-    set_cull_face(false);
+    set_depth_test(false);
+
+    cull_face := get_cull_face();
     defer set_cull_face(cull_face);
-    koda.view = Matrix4_Identity;
-    defer koda.view = transform;
+    set_cull_face(false);
+
+    view := koda.view;
+    defer koda.view = view;
+    koda.view = Matrix4Identity;
 
     aabb := get_aabb(content, font, scale);
     dimensions := aabb.upper - aabb.lower;
@@ -180,14 +181,6 @@ draw_text :: (content: string, font: *Font, position: Vector2, anchor: Vector2 =
         w := character.width * scale;
         h := character.height * scale;
 
-        // vertices: [6] Vector4;
-        // vertices[0] = xyzw(xpos, ypos + h, 0, 1);
-        // vertices[1] = xyzw(xpos, ypos, 0, 0);
-        // vertices[2] = xyzw(xpos + w, ypos, 1, 0);
-        // vertices[3] = xyzw(xpos, ypos + h, 0, 1);
-        // vertices[4] = xyzw(xpos + w, ypos, 1, 0);
-        // vertices[5] = xyzw(xpos + w, ypos + h, 1, 1);
-
         gpu: FontParticleGpu;
         gpu.position = .{xpos, ypos};
         gpu.size = .{w, h};
@@ -196,51 +189,24 @@ draw_text :: (content: string, font: *Font, position: Vector2, anchor: Vector2 =
 
         particle_system_add_particle(*font_system, gpu, .{});
 
-        // print("drawing % at % %, % %, % %\n", index, xpos, ypos, w, h, font.characters[index].width, font.characters[index].height);
-
-        // draw(texture, xy(xpos, ypos), xy(w, h));
-
-        // render glyph texture over quad
-        // glBindTexture(GL_TEXTURE_2D, texture.buffer);
-        // // update content of VBO memory
-        // glBindBuffer(GL_ARRAY_BUFFER, font.vbo);
-        // glBufferSubData(GL_ARRAY_BUFFER, 0, size_of(type_of(vertices)), vertices.data);
-        // glBindBuffer(GL_ARRAY_BUFFER, 0);
-
-        // // //
-        // // // Configure uniforms
-        // // //
-
-        // // // set_cull_face(false);
-        // // // set_front_face_ccw(false);
-
-        // use_shader(*default_font_shader);
-
-        // model := Matrix4_Identity;
-        // view := koda.view;
-
-        // uniforms: ShaderUniforms;
-        // defer destroy(uniforms);
-        
-        // uniforms[xx "uTexture"] = create_uniform("uTexture", texture);
-        // uniforms[xx "projection"] = create_uniform("projection", projection);
-        // uniforms[xx "uTint"] = create_uniform("uTint", tint);
-
-        // apply_uniforms(*default_font_shader, uniforms);
-
-        // // render quad
-        // glDrawArrays(GL_TRIANGLES, 0, xx vertices.count);
-
         // now advance cursors for next glyph (note that advance is number of 1/64 pixels)
         // bitshift by 6 to get value in pixels (2^6 = 64)
         x += (character.advance.x >> 6) * scale;
     }
 
-    // glBindVertexArray(0);
-    // glBindTexture(GL_TEXTURE_2D, 0);
-
     projection := orthographic_projection_matrix(0.0, xx koda.width, xx koda.height, 0.0, -1.0, 1.0);
-    font_system.uniforms[xx "uTexture"] = create_uniform("uTexture", font.textures);
+
+    real_padding := padding / scale;
+    if real_padding > 16 {
+        print("Warning: Your font padding can't be larger than your 16 * your scale.\n");
+        real_padding = 16;
+    }
+
+    font_system.uniforms[xx "uTexture"] = create_uniform("uTexture", font.texture);
+    font_system.uniforms[xx "uTint"] = create_uniform("uTint", tint);
+    font_system.uniforms[xx "uPadding"] = create_uniform("uPadding", real_padding);
+    font_system.uniforms[xx "uScale"] = create_uniform("uScale", scale);
+    
     particle_system_update_and_render(*font_system, 0, projection);
 }
 

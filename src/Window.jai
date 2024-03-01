@@ -89,7 +89,7 @@ create_window :: (title: *u8, width: s32, height: s32, multisample: int = 0) {
     set_viewport(width, height);
 
     set_blend(true);
-    set_blend_func(.SrcAlpha, .OneMinusSrcAlpha);
+    set_blend_func_separate(.SrcAlpha, .OneMinusSrcAlpha, .One, .Zero);
 
     glFrontFace(GL_CCW);
     glEnable(GL_DEPTH_TEST);
@@ -137,13 +137,9 @@ should_exit :: () -> bool {
         }
     }
 
-    glfwSwapBuffers(koda.window);
-
-    width: s32;
-    height: s32;
-    glfwGetFramebufferSize(koda.window, *width, *height);
-    if koda.width != width || koda.height != height {
-        set_viewport(koda.width, koda.height);
+    // don't swap buffers when entering the loop since you might have drawn to it already
+    if koda.time_tracker.last_loop_time > 0 {
+        swap_buffers();
     }
 
     exit := glfwWindowShouldClose(koda.window) == GLFW_TRUE;
@@ -175,6 +171,17 @@ should_exit :: () -> bool {
     }
 
     return exit;
+}
+
+swap_buffers :: () {
+    glfwSwapBuffers(koda.window);
+
+    width: s32;
+    height: s32;
+    glfwGetFramebufferSize(koda.window, *width, *height);
+    if koda.width != width || koda.height != height {
+        set_viewport(koda.width, koda.height);
+    }
 }
 
 /*
@@ -262,8 +269,6 @@ immediate_mode_finish :: () {
     }
 }
 */
-
-force_draw :: should_exit;
 
 get_fullscreen :: () -> bool {
     return glfwGetWindowAttrib(koda.window, GLFW_DECORATED) == GLFW_FALSE || !!glfwGetWindowMonitor(koda.window);
