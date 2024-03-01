@@ -50,7 +50,18 @@ uniform float uPadding;
 uniform float uScale;
 
 void main() {
-    float sdf = texture(uTexture, vec3(vTexCoord, vIndex)).r;
+    float sdf;
+    if (uScale < 1.5) {
+        sdf = texture(uTexture, vec3(vTexCoord, vIndex)).r;
+    } else {
+        vec2 pixelSize = 1.0 / vec2(textureSize(uTexture, 0).xy) * uScale;
+        sdf = texture(uTexture, vec3(vTexCoord, vIndex)).r / 5.0 +
+            texture(uTexture, vec3(vTexCoord + vec2(-0.25, -0.25) * pixelSize, vIndex)).r / 5.0 +
+            texture(uTexture, vec3(vTexCoord + vec2(0.25, -0.25) * pixelSize, vIndex)).r / 5.0 + 
+            texture(uTexture, vec3(vTexCoord + vec2(-0.25, 0.25) * pixelSize, vIndex)).r / 5.0 + 
+            texture(uTexture, vec3(vTexCoord + vec2(0.25, 0.25) * pixelSize, vIndex)).r / 5.0;
+    }
+        
     // sdf = sdf - 128.0 / 255.0;
     // it seems to change 16 / 255 per pixel
 
