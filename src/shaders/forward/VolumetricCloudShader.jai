@@ -2,6 +2,7 @@
 VolumetricCloudShader :: struct {
     using #as shader: Shader;
 
+    shader.name = "VolumetricCloudShader";
     shader.vertex = VOLUMETRIC_CLOUD_VERTEX_SHADER3;
     shader.fragment = VOLUMETRIC_CLOUD_FRAGMENT_SHADER3;
 }

@@ -1,6 +1,7 @@
 SkinnedAnimationShader3 :: struct {
     using #as shader: Shader;
 
+    shader.name = "SkinnedAnimationShader3";
     shader.vertex = SKINNED_ANIMATION_VERTEX_SHADER3;
     shader.fragment = SKINNED_ANIMATION_FRAGMENT_SHADER3;
 }

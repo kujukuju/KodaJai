@@ -1,6 +1,7 @@
 SkinnedAnimationDoubleTextureShader3 :: struct {
     using #as shader: Shader;
 
+    shader.name = "SkinnedAnimationDoubleTextureShader3";
     shader.vertex = SKINNED_ANIMATION_DOUBLE_TEXTURE_VERTEX_SHADER3;
     shader.fragment = SKINNED_ANIMATION_DOUBLE_TEXTURE_FRAGMENT_SHADER3;
 }

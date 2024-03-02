@@ -1,6 +1,7 @@
 DefaultEllipseShader :: struct {
     using #as shader: Shader;
 
+    shader.name = "DefaultEllipseShader";
     shader.vertex = DEFAULT_ELLIPSE_VERTEX_SHADER;
     shader.fragment = DEFAULT_ELLIPSE_FRAGMENT_SHADER;
 }

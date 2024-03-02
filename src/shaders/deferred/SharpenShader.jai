@@ -34,7 +34,7 @@ SHARPEN_FRAGMENT_SHADER :: #string ___glsl
 
 layout (location = 0) out vec4 FragColor;
 
-const float amount = 0.1;
+const float amount = 0.2;
 
 uniform sampler2D uColor;
 
@@ -55,5 +55,6 @@ void main() {
         texture(uColor, vCoord + vec2(0, -1) / textureSize).rgb * neighbor;
 
     FragColor = vec4(color, 1.0);
+    FragColor = vec4(texture(uColor, vCoord).rgb, 1.0);
 }
 ___glsl

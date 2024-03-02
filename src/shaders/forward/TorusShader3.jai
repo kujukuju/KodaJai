@@ -1,6 +1,7 @@
 TorusShader3 :: struct {
     using #as shader: Shader;
 
+    shader.name = "TorusShader3";
     shader.vertex = TORUS_VERTEX_SHADER3;
     shader.fragment = TORUS_FRAGMENT_SHADER3;
 }

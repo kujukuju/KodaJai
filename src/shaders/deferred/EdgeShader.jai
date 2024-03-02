@@ -36,12 +36,12 @@ layout (location = 0) out vec4 FragColor;
 
 const float minDepth = 0.0;
 const float maxDepth = 10.0;
-const float minSeparation = 0.2 * 1.0;
-const float maxSeparation = 1.0 * 1.0;
-const float minDistance = 0.1;
+const float minSeparation = 0.1;
+const float maxSeparation = 1.0;
+const float minDistance = 0.05;
 const float maxDistance = 0.5;
 const vec2[8] offsets = vec2[8](vec2(-1, -1), vec2(0, -1), vec2(1, -1), vec2(1, 0), vec2(-1, 0), vec2(-1, 1), vec2(0, 1), vec2(1, 1));
-const vec3 colorModifier = vec3(0.224, 0.063, 0.099);
+const vec3 colorModifier = vec3(20.0 / 255.0, 2.0 / 255.0, 4.0 / 255.0);
 
 uniform sampler2D uColor;
 uniform sampler2D uPosition;
@@ -85,9 +85,11 @@ void main() {
     float scaledMaxDistance = sqrt(depth * 0.1) * maxDistance;
 
     float diff = smoothstep(scaledMinDistance, scaledMaxDistance, sqrt(maxDepthDifference));
+    diff = step(0.0001, diff) * (diff * 0.5 + 0.5);
 
     vec3 finalColor = color * (1.0 - diff) + lineColor * diff;
 
     FragColor = vec4(finalColor, 1.0);
+    // FragColor = vec4(color, 1.0);
 }
 ___glsl

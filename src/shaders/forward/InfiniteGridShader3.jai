@@ -2,6 +2,7 @@
 InfiniteGridShader3 :: struct {
     using #as shader: Shader;
 
+    shader.name = "InfiniteGridShader3";
     shader.vertex = INFINITE_GRID_VERTEX_SHADER3;
     shader.fragment = INFINITE_GRID_FRAGMENT_SHADER3;
 }

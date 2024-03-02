@@ -1,6 +1,7 @@
 TextureShader3 :: struct {
     using #as shader: Shader;
 
+    shader.name = "TextureShader3";
     shader.vertex = TEXTURE_VERTEX_SHADER3;
     shader.fragment = TEXTURE_FRAGMENT_SHADER3;
 }

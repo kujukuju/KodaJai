@@ -7,6 +7,7 @@ DynamicShader :: struct {
 DynamicDefaultShader3 :: struct {
     using #as shader: DynamicShader;
 
+    shader.name = "DynamicDefaultShader3";
     shader.vertex = DYNAMIC_DEFAULT_VERTEX_SHADER3;
     shader.fragment = DYNAMIC_DEFAULT_FRAGMENT_SHADER3;
 }

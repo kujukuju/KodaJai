@@ -65,6 +65,8 @@ float depthWeight(float depthDifference, float depthThreshold) {
 void main() {
     float fragDepth = dot(vCamera - texture(uPosition, vCoord).rgb, vCameraForward);
 
+    // FragColor = texture(uSSAO, vCoord).r;
+
     vec2 positionDimensions = textureSize(uPosition, 0);
     vec2 ssaoDimensions = textureSize(uSSAO, 0);
 

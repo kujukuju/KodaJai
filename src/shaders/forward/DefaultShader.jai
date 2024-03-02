@@ -1,6 +1,7 @@
 DefaultShader :: struct {
     using #as shader: Shader;
 
+    shader.name = "DefaultShader";
     shader.vertex = DEFAULT_VERTEX_SHADER;
     shader.fragment = DEFAULT_FRAGMENT_SHADER;
 }

@@ -1,6 +1,7 @@
 InstancedShader2 :: struct {
     using #as shader: Shader;
 
+    shader.name = "InstancedShader2";
     shader.vertex = INSTANCED_VERTEX_SHADER2;
     shader.fragment = INSTANCED_FRAGMENT_SHADER2;
 }

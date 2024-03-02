@@ -9,57 +9,6 @@ SSAOShader :: struct {
 
 ssao_shader: SSAOShader;
 
-// THIS IS ALL TESTING CODE
-
-// SSAOShader :: struct {
-//     using #as shader: Shader(.[], .[VERSION_330, VIEW_FRAG_POS]);
-
-//     shader.vertex = SSAO_VERTEX_SHADER;
-//     shader.fragment = SSAO_FRAGMENT_SHADER;
-// }
-
-// SSAOShader :: struct {
-//     using #as shader: Shader;
-
-//     shader.vertex = SSAO_VERTEX_SHADER;
-//     shader.fragment = SSAO_FRAGMENT_SHADER;
-// }
-
-// ssao_shader := #run create_shader(
-//     .[
-//         VERSION_330_DEP,
-//         VIEW_FRAG_POS_DEP,
-//     ],
-//     SSAO_VERTEX_SHADER,
-//     SSAO_FRAGMENT_SHADER,
-// );
-
-// #scope_module
-
-// VERSION_330_DEP :: FragmentDependency.{
-//     .[],
-//     #string ___glsl
-//     #version 330 core
-//     ___glsl,
-// };
-
-// UNIFORMS_DEP :: FragmentDependency.{
-//     .[],
-//     #string ___glsl
-//     uniform mat4 view;
-//     uniform sampler2D uPosition;
-//     ___glsl,
-// };
-
-// VIEW_FRAG_POS_DEP :: FragmentDependency.{
-//     .[UNIFORMS_DEP],
-//     #string ___glsl
-//     vec3 getViewFragPos(vec2 coords) {
-//         return vec3(view * vec4(texture(uPosition, coords).xyz, 1.0));
-//     }
-//     ___glsl,
-// };
-
 SSAO_VERTEX_SHADER :: #string ___glsl
 #version 330 core
 
@@ -111,6 +60,7 @@ void main() {
     vec3 viewFragPos = vec3(view * vec4(texture(uPosition, coords).xyz, 1.0));
     vec3 viewNormal = vec3(view * vec4(normalize(texture(uNormal, coords).rgb), 0.0));
     vec3 randomVec = normalize(texture(uNoise, coords * uNoiseScale).xyz);
+    // randomVec = vec3(0.0, 0.0, 1.0);
     // create TBN change-of-basis matrix: from tangent-space to view-space
     vec3 tangent = normalize(randomVec - viewNormal * dot(randomVec, viewNormal));
     vec3 bitangent = cross(viewNormal, tangent);
@@ -119,7 +69,7 @@ void main() {
     float occlusion = 0.0;
     for (int i = 0; i < MAX_KERNEL_SIZE; i++) {
         // get sample position
-        vec3 samplePos = TBN * uKernel[i]; // from tangent to view-space
+        vec3 samplePos = TBN * uKernel[i] * 0.5; // from tangent to view-space
         samplePos = viewFragPos + samplePos * SAMPLE_RADIUS; 
         
         // project sample position (to sample texture) (to get position on screen/texture)
@@ -130,6 +80,7 @@ void main() {
         
         // get sample depth
         float sampleDepth = dot(vCamera - texture(uPosition, offset.xy).rgb, vCameraForward);
+        // float sampleDepth = (view * vec4(texture(uPosition, offset.xy).xyz, 1.0)).z;
         
         // range check & accumulate
         float rangeCheck = smoothstep(0.0, 1.0, SAMPLE_RADIUS / abs(viewFragPos.z - sampleDepth));
@@ -140,6 +91,6 @@ void main() {
     }
     occlusion = 1.0 - occlusion / float(MAX_KERNEL_SIZE);
 
-    FragColor = pow(occlusion, 2.0);
+    FragColor = occlusion;
 }
 ___glsl

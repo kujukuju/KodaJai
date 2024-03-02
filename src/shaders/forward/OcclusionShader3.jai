@@ -1,6 +1,7 @@
 OcclusionShader3 :: struct {
     using #as shader: Shader;
 
+    shader.name = "OcclusionShader3";
     shader.vertex = OCCLUSION_VERTEX_SHADER3;
     shader.fragment = OCCLUSION_FRAGMENT_SHADER3;
 }

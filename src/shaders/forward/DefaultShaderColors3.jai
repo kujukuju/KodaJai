@@ -1,6 +1,7 @@
 DefaultShaderColors3 :: struct {
     using #as shader: Shader;
 
+    shader.name = "DefaultShaderColors3";
     shader.vertex = DEFAULT_VERTEX_SHADER_COLORS3;
     shader.fragment = DEFAULT_FRAGMENT_SHADER_COLORS3;
 }

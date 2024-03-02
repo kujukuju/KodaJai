@@ -1,6 +1,7 @@
 DefaultVertColorNormalShader3 :: struct {
     using #as shader: Shader;
 
+    shader.name = "DefaultVertColorNormalShader3";
     shader.vertex = DEFAULT_VERT_COLOR_NORMAL_VERTEX_SHADER3;
     shader.fragment = DEFAULT_VERT_COLOR_NORMAL_FRAGMENT_SHADER3;
 }

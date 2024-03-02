@@ -69,6 +69,7 @@
 #load "src/3d/VolumetricCloud.jai";
 
 #load "src/deferred/FramebufferPass.jai";
+#load "src/deferred/SSAOPass.jai";
 
 #load "src/noise/Noise.jai";
 #load "src/noise/Perlin.jai";
@@ -78,6 +79,12 @@
 
 #load "src/parallel/Parallel.jai";
 #load "src/parallel/ParallelQuickSort.jai";
+
+#load "src/shaders/deferred/EdgeShader.jai";
+#load "src/shaders/deferred/FAAAShader.jai";
+#load "src/shaders/deferred/GuidedBlurShader.jai";
+#load "src/shaders/deferred/SharpenShader.jai";
+#load "src/shaders/deferred/SSAOShader.jai";
 
 #load "src/shaders/forward/CubemapShader.jai";
 #load "src/shaders/forward/DefaultEllipseShader.jai";
@@ -94,7 +101,6 @@
 #load "src/shaders/forward/InstancedShader2.jai";
 #load "src/shaders/forward/InstancedShader3.jai";
 #load "src/shaders/forward/OcclusionShader3.jai";
-#load "src/shaders/forward/ShaderManager.jai";
 #load "src/shaders/forward/SkinnedAnimationDoubleShader3.jai";
 #load "src/shaders/forward/SkinnedAnimationDoubleTextureShader3.jai";
 #load "src/shaders/forward/SkinnedAnimationNoNormalShader3.jai";
@@ -104,6 +110,7 @@
 #load "src/shaders/forward/TorusShader3.jai";
 #load "src/shaders/forward/VolumetricCloudShader.jai";
 
+#load "src/shaders/ShaderManager.jai";
 #load "src/shaders/Shaders.jai";
 
 #load "src/shadows/ShadowUtilities.jai";
@@ -208,6 +215,7 @@ static_sprite: Sprite;
 #import "File_Utilities";
 #import "Hash";
 #import "System";
+#import "Random";
 
 #import "ContiguousJsonJai"(ASSERT = false, ASM = !WASM);
 #import "FixedStringJai";

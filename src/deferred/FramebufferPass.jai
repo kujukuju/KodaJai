@@ -82,12 +82,13 @@ init_framebuffer_pass_internal :: (pass: *FramebufferPass($count, $depth, $drawa
 
     for index: 0..count - 1 {
         // TODO nearest?
-        textures[index] = create_texture(width, height, channels[index], .Clamp, .Linear);
+        textures[index] = create_texture(width, height, channels[index], .Clamp, .Nearest);
     }
 
     #if depth {
         // TODO nearest?
-        depth_texture := create_texture(width, height, channels[channels.count - 1], .Border, .Linear, shadow = true, should_upload = false);
+        // TODO I'm not sure if border helps at all honestly
+        depth_texture := create_texture(width, height, channels[channels.count - 1], .Border, .Nearest, shadow = true, should_upload = false);
         depth_texture.border_color = .{1, 1, 1, 1};
         upload(*depth_texture);
 

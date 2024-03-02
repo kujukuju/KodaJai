@@ -525,7 +525,11 @@ apply_uniforms :: (shader: *Shader, uniforms: ShaderUniforms, printing: bool = f
 
 use_shader :: (shader: *Shader) {
     if !shader.program {
-        initialize_shader(shader);
+        assert(false, tprint("You have to manually initialize shaders. %\n", shader.name));
+        if !shader.name {
+            print_stack_trace();
+        }
+        // initialize_shader(shader);
 
         if !shader.program {
             print("Cannot use shader. You must initialized it first.\n");
