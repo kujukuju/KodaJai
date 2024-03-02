@@ -15,8 +15,8 @@ FramebufferPass :: struct (count: int, depth: bool, drawable: bool, multisample:
 }
 
 init_framebuffer_pass :: (pass: *FramebufferPass(0, false, true, $multisample), shader: *Shader) {
-    textures: [] Texture;
-    init_framebuffer_pass_internal(pass, shader, koda.width, koda.height, textures);
+    formats: [] PixelFormat;
+    init_framebuffer_pass_internal(pass, shader, koda.width, koda.height, formats);
 }
 
 init_framebuffer_pass :: (pass: *FramebufferPass($count, $depth, true, $multisample), shader: *Shader, channels: ..PixelFormat) {
@@ -25,8 +25,9 @@ init_framebuffer_pass :: (pass: *FramebufferPass($count, $depth, true, $multisam
 }
 
 init_framebuffer_pass :: (pass: *FramebufferPass($count, $depth, true, $multisample), shader: *Shader, textures: ..Texture) {
+    assert(textures.count > 0, "If you pass in textures you must provide at least 1.\n");
     assert(!!shader, "If your framebuffer pass is drawable you must provide a shader.\n");
-    init_framebuffer_pass_internal(pass, shader, koda.width, koda.height, textures);
+    init_framebuffer_pass_internal(pass, shader, textures[0].width, textures[0].height, textures);
 }
 
 init_framebuffer_pass :: (pass: *FramebufferPass(0, false, true, $multisample), shader: *Shader, width: int, height: int) {
@@ -39,14 +40,9 @@ init_framebuffer_pass :: (pass: *FramebufferPass($count, $depth, true, $multisam
     init_framebuffer_pass_internal(pass, shader, width, height, channels);
 }
 
-init_framebuffer_pass :: (pass: *FramebufferPass($count, $depth, true, $multisample), shader: *Shader, width: int, height: int, textures: ..Texture) {
-    assert(!!shader, "If your framebuffer pass is drawable you must provide a shader.\n");
-    init_framebuffer_pass_internal(pass, shader, width, height, textures);
-}
-
 init_framebuffer_pass :: (pass: *FramebufferPass(0, false, false, $multisample)) {
-    textures: [] Texture;
-    init_framebuffer_pass_internal(pass, null, koda.width, koda.height, textures);
+    formats: [] PixelFormat;
+    init_framebuffer_pass_internal(pass, null, koda.width, koda.height, formats);
 }
 
 init_framebuffer_pass :: (pass: *FramebufferPass($count, $depth, false, $multisample), channels: ..PixelFormat) {
@@ -54,7 +50,8 @@ init_framebuffer_pass :: (pass: *FramebufferPass($count, $depth, false, $multisa
 }
 
 init_framebuffer_pass :: (pass: *FramebufferPass($count, $depth, false, $multisample), textures: ..Texture) {
-    init_framebuffer_pass_internal(pass, null, koda.width, koda.height, textures);
+    assert(textures.count > 0, "If you pass in textures you must provide at least 1.\n");
+    init_framebuffer_pass_internal(pass, null, textures[0].width, textures[0].height, textures);
 }
 
 init_framebuffer_pass :: (pass: *FramebufferPass(0, false, false, $multisample), width: int, height: int) {
@@ -64,10 +61,6 @@ init_framebuffer_pass :: (pass: *FramebufferPass(0, false, false, $multisample),
 
 init_framebuffer_pass :: (pass: *FramebufferPass($count, $depth, false, $multisample), width: int, height: int, channels: ..PixelFormat) {
     init_framebuffer_pass_internal(pass, null, width, height, channels);
-}
-
-init_framebuffer_pass :: (pass: *FramebufferPass($count, $depth, false, $multisample), width: int, height: int, textures: ..Texture) {
-    init_framebuffer_pass_internal(pass, null, width, height, textures);
 }
 
 init_framebuffer_pass_internal :: (pass: *FramebufferPass($count, $depth, $drawable, $multisample), shader: *Shader, width: int, height: int, channels: [] PixelFormat) {
@@ -103,6 +96,10 @@ init_framebuffer_pass_internal :: (pass: *FramebufferPass($count, $depth, $drawa
     if required_count != textures.count {
         assert(false, "Passed invalid number of textures to initialize a framebuffer pass.\n");
         return;
+    }
+    
+    for i: 0..textures.count - 1 {
+        assert(textures[i].width == width && textures[i].height == height, "Your framebuffer textures must be matching dimensions per pass.\n");
     }
 
     pass.shader = shader;

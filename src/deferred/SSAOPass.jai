@@ -12,6 +12,7 @@ SsaoPass :: struct {
             sample.y = 2.0 * random_get_zero_to_one() - 1.0;
             sample.z = random_get_zero_to_one();
             sample = normalize(sample);
+
             sample *= random_get_zero_to_one();
 
             // acceleration function so more points are located closer to the origin

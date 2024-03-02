@@ -63,11 +63,24 @@ float depthWeight(float depthDifference, float depthThreshold) {
 // 1.245679
 
 void main() {
+    // vec2 pixelSize = 1.0 / textureSize(uSSAO, 0);
+
+    // float sum = 0.0;
+    // for (int y = -2; y <= 2; y++) {
+    //     for (int x = -2; x <= 2; x++) {
+    //         vec2 offset = vec2(float(x), float(y)) * pixelSize * 0.5;
+
+    //         sum += texture(uSSAO, vCoord + offset).r;
+    //     }
+    // }
+    // sum /= 25.0;
+
+    // FragColor = sum;
+
     float fragDepth = dot(vCamera - texture(uPosition, vCoord).rgb, vCameraForward);
 
     // FragColor = texture(uSSAO, vCoord).r;
 
-    vec2 positionDimensions = textureSize(uPosition, 0);
     vec2 ssaoDimensions = textureSize(uSSAO, 0);
 
     float accSSAO = 0.0;
@@ -76,12 +89,11 @@ void main() {
     for (int y = -2; y <= 2; y++) {
         for (int x = -2; x <= 2; x++) {
             vec2 spatialDelta = vec2(float(x), float(y));
-            // float spatialDistance = length(spatialDelta);
 
-            vec2 positionCoord = vCoord + spatialDelta / positionDimensions;
+            // TODO using both dimensions you would end up with different texcoords with different sizes...
             vec2 ssaoCoord = vCoord + spatialDelta / ssaoDimensions;
 
-            float neighborDepth = dot(vCamera - texture(uPosition, positionCoord).rgb, vCameraForward);
+            float neighborDepth = dot(vCamera - texture(uPosition, ssaoCoord).rgb, vCameraForward);
             float depthDifference = abs(fragDepth - neighborDepth);
 
             float wSpatial = gaussianWeights[index++];
@@ -99,7 +111,6 @@ void main() {
     }
 
     FragColor = accSSAO / accWeight;
-
-    // FragColor = vec4(vec3(texture(uSSAO, vCoord).r), 1.0);
+    // FragColor = texture(uSSAO, vCoord).r;
 }
 ___glsl

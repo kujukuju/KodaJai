@@ -101,7 +101,7 @@ void main() {
 
 	vec3 position = texture(uPosition, coord).xyz;
 	vec3 diffuse = texture(uDiffuse, coord).xyz;
-	vec3 normal = texture(uNormal, coord).xyz;
+	vec3 normal = texture(uNormal, coord).xyz * 2.0 - 1.0;
 	normal = normalize(normal);
 
     FragColor = vec4(diffuse, 1.0) * calculateLight(position, normal);

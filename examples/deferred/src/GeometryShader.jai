@@ -67,7 +67,7 @@ void main() {
     diffuse = smoothstep(-180.0, -10.0, vPos.y) * (diffuse - c) + c;
 
     PositionOut = vec4(vPos, 0.0);
-    NormalOut = vec4(normal, 0.0);
+    NormalOut = vec4(normal * 0.5 + 0.5, 0.0);
     DiffuseOut = vec4(diffuse, 0.0);
 }
 ___glsl;
