@@ -13,6 +13,12 @@ FontParticleGpu :: struct {
     size: Vector2;
     texSize: Vector2;
     index: float;
+    transform1: Vector3;
+    transform2: Vector3;
+    transform3: Vector3;
+    
+#place transform1;
+    transform: Matrix3 = ---;
 }
 
 FontParticleCpu :: struct {

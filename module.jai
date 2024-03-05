@@ -108,6 +108,7 @@
 #load "src/shaders/forward/SkinnedAnimationShader3.jai";
 #load "src/shaders/forward/TextureShader3.jai";
 #load "src/shaders/forward/TorusShader3.jai";
+#load "src/shaders/forward/TransformShader.jai";
 #load "src/shaders/forward/VolumetricCloudShader.jai";
 
 #load "src/shaders/ShaderManager.jai";

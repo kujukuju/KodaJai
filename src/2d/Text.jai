@@ -132,16 +132,24 @@
 //     return text, true;
 // }
 
-draw_text :: (content: string, position: Vector2, anchor: Vector2 = .{0, 0}, tint: Color = .{1, 1, 1, 1}, scale: float = 1.0, padding: float = 0.0) {
+draw_text :: (content: string, position: Vector2, anchor: Vector2 = .{0, 0}, scale: float = 1.0, tint: Color = .{1, 1, 1, 1}, padding: float = 0.0, blur: float = 0.0, clipped: bool = true) {
     font := get_default_font();
 
-    draw_text(content, font, position, anchor, tint, scale, padding);
+    draw_text(content, font, position, anchor, scale, tint, padding, blur, clipped);
 }
 
-draw_text :: (content: string, font: *Font, position: Vector2, anchor: Vector2 = .{0, 0}, tint: Color = .{1, 1, 1, 1}, scale: float = 1.0, padding: float = 0.0, clipped: bool = false) {
+draw_text :: (content: string, font: *Font, position: Vector2, anchor: Vector2 = .{0, 0}, scale: float = 1.0, tint: Color = .{1, 1, 1, 1}, padding: float = 0.0, blur: float = 0.0, clipped: bool = true) {
+    translation := make_translation_matrix3(position);
+
+    draw_text(content, font, translation, anchor, scale, tint, padding, blur, clipped);
+}
+
+draw_text :: (content: string, font: *Font, transform: Matrix3, anchor: Vector2, scale: float, tint: Color, padding: float, blur: float, clipped: bool) {
     if !content {
         return;
     }
+
+    assert(clipped || anchor == .{0, 0}, "Unclipped with an anchor not yet supported because the AABB calculation is weird.\n");
 
     depth_test := get_depth_test();
     defer set_depth_test(depth_test);
@@ -151,19 +159,17 @@ draw_text :: (content: string, font: *Font, position: Vector2, anchor: Vector2 =
     defer set_cull_face(cull_face);
     set_cull_face(false);
 
-    view := koda.view;
-    defer koda.view = view;
-    koda.view = Matrix4Identity;
-
     aabb := get_aabb(content, font, scale);
     dimensions := aabb.upper - aabb.lower;
 
     clipped_offset := ifx clipped then aabb.lower else Vector2.{};
 
-    x := position.x - dimensions.x * anchor.x - clipped_offset.x;
-    y := position.y - dimensions.y * anchor.y - clipped_offset.y;
+    x := -dimensions.x * anchor.x - clipped_offset.x;
+    y := -dimensions.y * anchor.y - clipped_offset.y;
 
     particle_system_clear(*font_system);
+
+    tranposed := transpose(transform);
 
     char: u32;
     index: int;
@@ -186,6 +192,7 @@ draw_text :: (content: string, font: *Font, position: Vector2, anchor: Vector2 =
         gpu.size = .{w, h};
         gpu.texSize = .{cast(float) character.width / font.max_width, cast(float) character.height / font.max_height};
         gpu.index = cast(float) character.index;
+        gpu.transform = tranposed;
 
         particle_system_add_particle(*font_system, gpu, .{});
 
@@ -194,23 +201,30 @@ draw_text :: (content: string, font: *Font, position: Vector2, anchor: Vector2 =
         x += (character.advance.x >> 6) * scale;
     }
 
-    projection := orthographic_projection_matrix(0.0, xx koda.width, xx koda.height, 0.0, -1.0, 1.0);
+    projection := orthographic_projection_matrix(0, xx koda.width, xx koda.height, 0, -1.0, 1.0);
 
     real_padding := padding / scale;
     if real_padding > 16 {
-        print("Warning: Your font padding can't be larger than your 16 * your scale.\n");
+        print("Warning: Your font padding can't be larger than 16 * your scale.\n");
         real_padding = 16;
+    }
+
+    real_blur := blur / scale;
+    if real_blur + real_padding > 16 {
+        print("Warning: Your font blur + padding can't be larger than 16 * your scale.\n");
+        real_blur = 16 - real_padding;
     }
 
     font_system.uniforms[xx "uTexture"] = create_uniform("uTexture", font.texture);
     font_system.uniforms[xx "uTint"] = create_uniform("uTint", tint);
     font_system.uniforms[xx "uPadding"] = create_uniform("uPadding", real_padding);
     font_system.uniforms[xx "uScale"] = create_uniform("uScale", scale);
+    font_system.uniforms[xx "uBlur"] = create_uniform("uBlur", real_blur);
     
     particle_system_update_and_render(*font_system, 0, projection);
 }
 
-get_aabb :: (content: string, font: *Font, position: Vector2 = .{0, 0}, anchor: Vector2 = .{0, 0}, scale: float = 1.0, clipped: bool = false) -> AABB2 {
+get_aabb :: (content: string, font: *Font, position: Vector2 = .{0, 0}, anchor: Vector2 = .{0, 0}, scale: float = 1.0, clipped: bool = true) -> AABB2 {
     aabb := get_aabb(content, font, scale);
 
     clipped_offset := ifx clipped then aabb.lower else Vector2.{};
@@ -219,8 +233,8 @@ get_aabb :: (content: string, font: *Font, position: Vector2 = .{0, 0}, anchor: 
     aabb.upper += position;
 
     dimensions := aabb.upper - aabb.lower;
-    aabb.lower -= dimensions * anchor + clipped_offset;
-    aabb.upper -= dimensions * anchor + clipped_offset;
+    aabb.lower += -dimensions * anchor - clipped_offset;
+    aabb.upper += -dimensions * anchor - clipped_offset;
 
     return aabb;
 }
@@ -252,14 +266,17 @@ get_aabb :: (content: string, font: *Font, scale: float = 1.0) -> AABB2 {
         w := character.width * scale;
         h := character.height * scale;
 
+        p1 := Vector2.{xpos, ypos};
+        p2 := Vector2.{xpos + w, ypos + h};
+
         if !set_aabb {
             set_aabb = true;
 
-            aabb.lower = Vector2.{xpos, ypos};
-            aabb.upper = Vector2.{xpos + w, ypos + h};
+            aabb.lower = min(p1, p2);
+            aabb.upper = max(p1, p2);
         } else {
-            aabb.lower = min(Vector2.{xpos, ypos}, aabb.lower);
-            aabb.upper = max(Vector2.{xpos + w, ypos + h}, aabb.upper);
+            aabb.lower = min(aabb.lower, min(p1, p2));
+            aabb.upper = max(aabb.upper, max(p1, p2));
         }
 
         // now advance cursors for next glyph (note that advance is number of 1/64 pixels)
