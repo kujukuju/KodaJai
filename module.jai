@@ -82,6 +82,7 @@
 
 #load "src/shaders/deferred/EdgeShader.jai";
 #load "src/shaders/deferred/FAAAShader.jai";
+#load "src/shaders/deferred/GaussianDirectionalBlurShader.jai";
 #load "src/shaders/deferred/GuidedBlurShader.jai";
 #load "src/shaders/deferred/SharpenShader.jai";
 #load "src/shaders/deferred/SSAOShader.jai";

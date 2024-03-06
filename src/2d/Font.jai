@@ -128,7 +128,7 @@ create_font :: (bytes: [] u8, pixel_height: int, should_upload: bool = true) -> 
         charcode = FT_Get_Next_Char(ft_face, charcode, *gindex);
     }
 
-    save_image(font.image, "sdf_font.png");
+    // save_image(font.image, "sdf_font.png");
 
     if should_upload {
         upload(font);
