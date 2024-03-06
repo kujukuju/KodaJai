@@ -173,6 +173,10 @@ should_exit :: () -> bool {
     return exit;
 }
 
+request_exit :: () {
+    glfwSetWindowShouldClose(koda.window, GLFW_TRUE);
+}
+
 swap_buffers :: () {
     glfwSwapBuffers(koda.window);
 

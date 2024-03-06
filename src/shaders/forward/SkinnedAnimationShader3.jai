@@ -6,6 +6,8 @@ SkinnedAnimationShader3 :: struct {
     shader.fragment = SKINNED_ANIMATION_FRAGMENT_SHADER3;
 }
 
+skinned_animation_shader3: SkinnedAnimationShader3;
+
 #scope_module
 
 SKINNED_ANIMATION_VERTEX_SHADER3 :: #string DONE

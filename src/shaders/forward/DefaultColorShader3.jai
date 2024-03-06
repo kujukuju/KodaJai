@@ -1,14 +1,16 @@
-DefaultVertColorShader3 :: struct {
+DefaultColorShader3 :: struct {
     using #as shader: Shader;
 
-    shader.name = "DefaultVertColorShader3";
-    shader.vertex = DEFAULT_VERT_COLOR_VERTEX_SHADER3;
-    shader.fragment = DEFAULT_VERT_COLOR_FRAGMENT_SHADER3;
+    shader.name = "DefaultColorShader3";
+    shader.vertex = DEFAULT_COLOR_VERTEX_SHADER3;
+    shader.fragment = DEFAULT_COLOR_FRAGMENT_SHADER3;
 }
+
+default_color_shader3: DefaultColorShader3;
 
 #scope_module
 
-DEFAULT_VERT_COLOR_VERTEX_SHADER3 :: #string DONE
+DEFAULT_COLOR_VERTEX_SHADER3 :: #string DONE
 #version 330 core
 layout (location = 0) in vec3 aPos;
 layout (location = 1) in vec3 aNorm;
@@ -34,7 +36,7 @@ void main() {
 }
 DONE
 
-DEFAULT_VERT_COLOR_FRAGMENT_SHADER3 :: #string DONE
+DEFAULT_COLOR_FRAGMENT_SHADER3 :: #string DONE
 #version 330 core
 out vec4 FragColor;
   

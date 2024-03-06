@@ -11,7 +11,7 @@ Texture :: struct {
     data: *u8;
 }
 
-create_texture :: (bytes: [] u8, wrap: TextureWrap = .Clamp, interp: TextureInterp = .LinearMipmap, should_upload: bool = true) -> Texture {
+create_texture :: (bytes: [] u8, wrap: TextureWrap = .Clamp, interp: TextureInterp = .Linear, should_upload: bool = true) -> Texture {
     texture := load_data(bytes);
     texture.wrap = wrap;
     texture.interp = interp;
@@ -28,7 +28,7 @@ create_texture :: (bytes: [] u8, wrap: TextureWrap = .Clamp, interp: TextureInte
     return texture;
 }
 
-create_texture :: (image: Image, wrap: TextureWrap = .Clamp, interp: TextureInterp = .LinearMipmap, should_upload: bool = true) -> Texture {
+create_texture :: (image: Image, wrap: TextureWrap = .Clamp, interp: TextureInterp = .Linear, should_upload: bool = true) -> Texture {
     if !image.pixels.data {
         print("Could not create texture.\n");
         return .{};
@@ -49,7 +49,7 @@ create_texture :: (image: Image, wrap: TextureWrap = .Clamp, interp: TextureInte
     return texture;
 }
 
-create_texture :: (width: int, height: int, format: PixelFormat = .RGBA8, wrap: TextureWrap = .Clamp, interp: TextureInterp = .LinearMipmap, shadow: bool = false, should_upload: bool = true) -> Texture {
+create_texture :: (width: int, height: int, format: PixelFormat = .RGBA8, wrap: TextureWrap = .Clamp, interp: TextureInterp = .Linear, shadow: bool = false, should_upload: bool = true) -> Texture {
     texture: Texture;
     texture.width = xx width;
     texture.height = xx height;
@@ -65,7 +65,7 @@ create_texture :: (width: int, height: int, format: PixelFormat = .RGBA8, wrap: 
     return texture;
 }
 
-load_texture :: (path: string, wrap: TextureWrap = .Clamp, interp: TextureInterp = .LinearMipmap, should_upload: bool = true) -> Texture {
+load_texture :: (path: string, wrap: TextureWrap = .Clamp, interp: TextureInterp = .Linear, should_upload: bool = true) -> Texture {
     file, success := read_entire_file(path, false);
     defer free(file);
 

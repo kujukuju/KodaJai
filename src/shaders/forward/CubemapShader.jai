@@ -6,6 +6,8 @@ CubemapShader :: struct {
     shader.fragment = CUBEMAP_FRAGMENT_SHADER;
 }
 
+cubemap_shader: CubemapShader;
+
 #scope_module
 
 CUBEMAP_VERTEX_SHADER :: #string DONE

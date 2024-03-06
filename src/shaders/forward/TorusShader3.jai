@@ -6,6 +6,8 @@ TorusShader3 :: struct {
     shader.fragment = TORUS_FRAGMENT_SHADER3;
 }
 
+torus_shader3: TorusShader3;
+
 #scope_module
 
 TORUS_VERTEX_SHADER3 :: #string DONE

@@ -6,6 +6,8 @@ SkinnedAnimationNoNormalShader3 :: struct {
     shader.fragment = SKINNED_ANIMATION_NO_NORMAL_FRAGMENT_SHADER3;
 }
 
+skinned_animation_no_normal_shader3: SkinnedAnimationNoNormalShader3;
+
 #scope_module
 
 SKINNED_ANIMATION_NO_NORMAL_VERTEX_SHADER3 :: #string DONE

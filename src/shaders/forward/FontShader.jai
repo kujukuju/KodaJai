@@ -6,6 +6,8 @@ FontShader :: struct {
     shader.fragment = FONT_FRAGMENT_SHADER;
 }
 
+font_shader: FontShader;
+
 #scope_module
 
 FONT_VERTEX_SHADER :: #string DONE

@@ -78,7 +78,20 @@ draw_line :: (x1: float, y1: float, x2: float, y2: float, width: float = 1.0, co
     glDrawArrays(GL_TRIANGLES, 0, xx (vertices.count / 2));
 }
 
-draw_rect :: (top_left: Vector2, dimensions: Vector2, color: Color = .{1, 1, 1, 1}, border: Color = .{1, 1, 1, 0}) {
+draw_rect :: (top_left: Vector2, dimensions: Vector2, color: Color = .{1, 1, 1, 1}) {
+    static_sprite.texture = get_white_texture();
+    static_sprite.position = top_left;
+    static_sprite.width = dimensions.x;
+    static_sprite.height = dimensions.y;
+    static_sprite.anchor = .{0, 0};
+    static_sprite.rotation = 0;
+    static_sprite.shader = *default_shader;
+    static_sprite.tint = color;
+
+    draw(static_sprite);
+}
+
+draw_rect :: (top_left: Vector2, dimensions: Vector2, color: Color = .{1, 1, 1, 1}, border: Color) {
     bottom_right := top_left + dimensions;
 
     vertices: [12] Vector2;
@@ -152,6 +165,22 @@ draw_rect :: (top_left: Vector2, dimensions: Vector2, color: Color = .{1, 1, 1, 
         draw_line(bottom_right.x, bottom_right.y, bottom_right.x, top_left.y, 1.0, border);
         draw_line(bottom_right.x, top_left.y, top_left.x, top_left.y, 1.0, border);
     }
+}
+
+draw_rounded_rect :: (top_left: Vector2, dimensions: Vector2, corner_radius: float, color: Color = .{1, 1, 1, 1}) {
+    static_sprite.texture = get_white_texture();
+    static_sprite.width = dimensions.x;
+    static_sprite.height = dimensions.y;
+    static_sprite.position = top_left;
+    static_sprite.anchor = .{0, 0};
+    static_sprite.rotation = 0;
+    static_sprite.shader = *rounded_rect_shader;
+    static_sprite.tint = color;
+
+    rounded_rect_shader.uniforms[xx "uDimensions"] = create_uniform("uDimensions", dimensions);
+    rounded_rect_shader.uniforms[xx "uRadius"] = create_uniform("uRadius", corner_radius);
+
+    draw(static_sprite);
 }
 
 // draws a convex polygon

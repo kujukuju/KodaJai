@@ -6,6 +6,8 @@ TextureShader3 :: struct {
     shader.fragment = TEXTURE_FRAGMENT_SHADER3;
 }
 
+texture_shader3: TextureShader3;
+
 #scope_module
 
 TEXTURE_VERTEX_SHADER3 :: #string DONE

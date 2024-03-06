@@ -6,6 +6,8 @@ InstancedShader3 :: struct {
     shader.fragment = INSTANCED_FRAGMENT_SHADER3;
 }
 
+instanced_shader3: InstancedShader3;
+
 #scope_module
 
 INSTANCED_VERTEX_SHADER3 :: #string DONE

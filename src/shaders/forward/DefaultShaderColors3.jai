@@ -6,6 +6,8 @@ DefaultShaderColors3 :: struct {
     shader.fragment = DEFAULT_FRAGMENT_SHADER_COLORS3;
 }
 
+default_shader_colors3: DefaultShaderColors3;
+
 #scope_module
 
 DEFAULT_VERTEX_SHADER_COLORS3 :: #string DONE

@@ -51,7 +51,7 @@ get_white_texture :: () -> Texture {
         white_texture_bytes: [] u8;
         white_texture_bytes.data = White.data;
         white_texture_bytes.count = White.count;
-        white_texture = create_texture(white_texture_bytes);
+        white_texture = create_texture(white_texture_bytes, .Clamp, .Nearest);
     }
 
     return white_texture;

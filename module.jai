@@ -86,14 +86,15 @@
 #load "src/shaders/deferred/SharpenShader.jai";
 #load "src/shaders/deferred/SSAOShader.jai";
 
+#load "src/shaders/forward/BlurShader.jai";
 #load "src/shaders/forward/CubemapShader.jai";
 #load "src/shaders/forward/DefaultEllipseShader.jai";
+#load "src/shaders/forward/DefaultColorNormalShader3.jai";
+#load "src/shaders/forward/DefaultColorShader3.jai";
 #load "src/shaders/forward/DefaultShader.jai";
 #load "src/shaders/forward/DefaultShader3.jai";
 #load "src/shaders/forward/DefaultShaderColors3.jai";
 #load "src/shaders/forward/DefaultShapeShader3.jai";
-#load "src/shaders/forward/DefaultVertColorNormalShader3.jai";
-#load "src/shaders/forward/DefaultVertColorShader3.jai";
 #load "src/shaders/forward/FlatGridShader3.jai";
 #load "src/shaders/forward/FontParticleShader.jai";
 #load "src/shaders/forward/FontShader.jai";
@@ -101,6 +102,7 @@
 #load "src/shaders/forward/InstancedShader2.jai";
 #load "src/shaders/forward/InstancedShader3.jai";
 #load "src/shaders/forward/OcclusionShader3.jai";
+#load "src/shaders/forward/RoundedRectShader.jai";
 #load "src/shaders/forward/SkinnedAnimationDoubleShader3.jai";
 #load "src/shaders/forward/SkinnedAnimationDoubleTextureShader3.jai";
 #load "src/shaders/forward/SkinnedAnimationNoNormalShader3.jai";
@@ -173,28 +175,6 @@ koda: struct {
 //     }
 // }();
 // #run print("Koda asset path: %\n", KODA_ASSET_PATH);
-
-cubemap_shader: CubemapShader;
-default_shader: DefaultShader;
-default_shader3: DefaultShader3;
-default_color_normal_shader3: DefaultVertColorNormalShader3;
-default_color_shader3: DefaultVertColorShader3;
-// I probably dont want this one and instead want auto generating shaders based on bool values, like a DynamicShader class
-default_shader_colors3: DefaultShaderColors3;
-default_shape_shader3: DefaultShapeShader3;
-skinned_animation_double_shader3: SkinnedAnimationDoubleShader3;
-skinned_animation_double_texture_shader3: SkinnedAnimationDoubleTextureShader3;
-skinned_animation_no_normal_shader3: SkinnedAnimationNoNormalShader3;
-skinned_animation_no_texture_shader3: SkinnedAnimationNoTextureShader3;
-skinned_animation_shader3: SkinnedAnimationShader3;
-volumetric_cloud_shader: VolumetricCloudShader;
-instanced_shader2: InstancedShader2;
-instanced_shader3: InstancedShader3;
-occlusion_shader3: OcclusionShader3;
-texture_shader3: TextureShader3;
-torus_shader: TorusShader3;
-default_ellipse_shader: DefaultEllipseShader;
-default_font_shader: FontShader;
 
 #scope_module
 

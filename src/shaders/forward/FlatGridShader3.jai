@@ -6,6 +6,8 @@ FlatGridShader3 :: struct {
     shader.fragment = FLAT_GRID_FRAGMENT_SHADER3;
 }
 
+flat_grid_shader3: FlatGridShader3;
+
 #scope_module
 
 FLAT_GRID_VERTEX_SHADER3 :: #string DONE

@@ -6,6 +6,8 @@ DefaultShader3 :: struct {
     shader.fragment = DEFAULT_FRAGMENT_SHADER3;
 }
 
+default_shader3: DefaultShader3;
+
 #scope_module
 
 DEFAULT_VERTEX_SHADER3 :: #string DONE

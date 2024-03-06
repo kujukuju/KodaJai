@@ -6,6 +6,8 @@ DefaultEllipseShader :: struct {
     shader.fragment = DEFAULT_ELLIPSE_FRAGMENT_SHADER;
 }
 
+default_ellipse_shader: DefaultEllipseShader;
+
 #scope_module
 
 DEFAULT_ELLIPSE_VERTEX_SHADER :: #string DONE

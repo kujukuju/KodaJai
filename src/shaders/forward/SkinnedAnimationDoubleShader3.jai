@@ -6,6 +6,8 @@ SkinnedAnimationDoubleShader3 :: struct {
     shader.fragment = SKINNED_ANIMATION_DOUBLE_FRAGMENT_SHADER3;
 }
 
+skinned_animation_double_shader3: SkinnedAnimationDoubleShader3;
+
 #scope_module
 
 SKINNED_ANIMATION_DOUBLE_VERTEX_SHADER3 :: #string DONE

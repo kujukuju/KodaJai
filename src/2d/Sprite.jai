@@ -89,6 +89,10 @@ get_scale :: (sprite: Sprite) -> Vector2 {
     return xy(sprite.width / sprite.texture.width, sprite.height / sprite.texture.height);
 }
 
+set_scale :: (sprite: *Sprite, scale: float) {
+    set_scale(sprite, .{scale, scale});
+}
+
 set_scale :: (sprite: *Sprite, scale: Vector2) {
     sprite.width = sprite.texture.width * scale.x;
     sprite.height = sprite.texture.height * scale.y;

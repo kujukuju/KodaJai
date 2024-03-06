@@ -7,6 +7,8 @@ VolumetricCloudShader :: struct {
     shader.fragment = VOLUMETRIC_CLOUD_FRAGMENT_SHADER3;
 }
 
+volumetric_cloud_shader: VolumetricCloudShader;
+
 #scope_module
 
 VOLUMETRIC_CLOUD_VERTEX_SHADER3 :: #string DONE

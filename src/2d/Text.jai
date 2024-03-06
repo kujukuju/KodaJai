@@ -239,7 +239,7 @@ get_aabb :: (content: string, font: *Font, position: Vector2 = .{0, 0}, anchor: 
     return aabb;
 }
 
-get_aabb :: (content: string, font: *Font, scale: float = 1.0) -> AABB2 {
+get_aabb :: (content: string, font: *Font, scale: float) -> AABB2 {
     if !content {
         return .{};
     }

@@ -6,6 +6,8 @@ OcclusionShader3 :: struct {
     shader.fragment = OCCLUSION_FRAGMENT_SHADER3;
 }
 
+occlusion_shader3: OcclusionShader3;
+
 #scope_module
 
 OCCLUSION_VERTEX_SHADER3 :: #string DONE

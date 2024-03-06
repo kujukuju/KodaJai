@@ -7,6 +7,8 @@ InfiniteGridShader3 :: struct {
     shader.fragment = INFINITE_GRID_FRAGMENT_SHADER3;
 }
 
+infinite_grid_shader3: InfiniteGridShader3;
+
 INFINITE_GRID_VERTEX_SHADER3 :: #string DONE
 #version 330 core
 layout (location = 0) in vec2 aPos;
