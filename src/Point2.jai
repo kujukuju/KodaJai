@@ -21,6 +21,14 @@ operator - :: (a: Point2) -> Point2 {
     return point2(-a.x, -a.y);
 }
 
+operator * :: (a: Point2, b: int) -> Point2 #symmetric {
+    return point2(a.x * b, a.y * b);
+}
+
+operator / :: (a: Point2, b: int) -> Point2 {
+    return point2(a.x / b, a.y / b);
+}
+
 point2 :: (x: int, y: int) -> Point2 {
     p: Point2 = ---;
     p.x = x;

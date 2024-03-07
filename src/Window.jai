@@ -128,13 +128,18 @@ set_viewport :: (width: int, height: int) {
     glViewport(0, 0, xx width, xx height);
 }
 
+error_check_gl :: () {
+    err := glGetError();
+    while err != GL_NO_ERROR {
+        print("GL error: %\n", err);
+        print_caller_trace();
+        err = glGetError();
+    }
+}
+
 should_exit :: () -> bool {
     #if !PRODUCTION {
-        err := glGetError();
-        while err != GL_NO_ERROR {
-            print("GL error: %\n", err);
-            err = glGetError();
-        }
+        error_check_gl();
     }
 
     // don't swap buffers when entering the loop since you might have drawn to it already

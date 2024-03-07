@@ -194,6 +194,12 @@ create_orthographic_matrix :: (left: float, right: float, bottom: float, top: fl
 //     0, 0, 0, 1,
 // };
 
+print_caller_trace :: () {
+    node := context.stack_trace;
+    if node then node = node.next;
+    if node && node.info then print("'%' at %:%\n", node.info.name, node.info.location.fully_pathed_filename, node.line_number);
+}
+
 print_stack_trace :: () {
     node := context.stack_trace;
     while node {

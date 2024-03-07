@@ -54,7 +54,7 @@ draw_fps :: (x: float, y: float) {
     koda.view = Matrix4_Identity;
     defer koda.view = transform;
 
-    draw_text(content, default_font, xy(x, y));
+    draw_text(content, default_font, .{x, y}, clipped = false);
 }
 
 tick_frame_tracker :: (tracker: *FrameTracker, time: float64) {
