@@ -64,6 +64,7 @@ uniform sampler2D uTexture;
 uniform vec2 uDirection;
 uniform float uStrength = 1.0;
 uniform float uSaturation = 1.0;
+uniform float uAlpha = 1.0;
 
 in vec2 vCoord;
 
@@ -86,6 +87,6 @@ void main() {
     color.g = color.g * uSaturation + gray * (1.0 - uSaturation);
     color.b = color.b * uSaturation + gray * (1.0 - uSaturation);
 
-    FragColor = color;
+    FragColor = vec4(color.rgb, color.a * uAlpha);
 }
 ___glsl

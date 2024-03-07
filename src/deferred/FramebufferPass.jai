@@ -112,6 +112,38 @@ init_framebuffer_pass_buffers :: (pass: *FramebufferPass($count, $depth, $drawab
     }
 }
 
+framebuffer_destroy :: (pass: *FramebufferPass($count, $depth, $drawable, $multisample), children: bool = true) {
+    if pass.framebuffer {
+        glDeleteFramebuffers(1, *pass.framebuffer);
+        pass.framebuffer = 0;
+    }
+
+    if pass.vbo {
+        glDeleteBuffers(1, *pass.vbo);
+        pass.vbo = 0;
+    }
+
+    if pass.vao {
+        glDeleteVertexArrays(1, *pass.vao);
+        pass.vao = 0;
+    }
+
+    if pass.uniforms.uniforms {
+        destroy(pass.uniforms);
+        pass.uniforms = .{};
+    }
+
+    if children {
+        for texture: pass.textures {
+            destroy(texture);
+        }
+        pass.textures = .[];
+
+        destroy(depth_texture);
+        pass.depth_texture = .{};
+    }
+}
+
 framebuffer_create_textures :: ($count: int, $depth: bool, width: int, height: int, channels: ..PixelFormat) -> [count + cast(int) depth] Texture {
     required_count :: count + #ifx depth then 1 else 0;
     if required_count != channels.count {
