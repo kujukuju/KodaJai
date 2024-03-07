@@ -377,6 +377,13 @@ set_front_face_ccw :: (ccw: bool) {
     }
 }
 
+set_front_face_ccw_scope :: (ccw: bool) #expand {
+    old_ccw := get_front_face_ccw();
+    `defer set_front_face_ccw(old_ccw);
+
+    set_front_face_ccw(ccw);
+}
+
 DepthFunc :: enum s32 {
     Never;
     Less;
@@ -434,6 +441,13 @@ set_depth_func :: (func: DepthFunc) {
     }
 }
 
+set_depth_func_scope :: (func: DepthFunc) #expand {
+    old_func := get_depth_func();
+    `defer set_depth_func(old_func);
+
+    set_depth_func(func);
+}
+
 get_depth_write :: () -> bool {
     enabled: GLboolean;
     glGetBooleanv(GL_DEPTH_WRITEMASK, *enabled);
@@ -442,6 +456,13 @@ get_depth_write :: () -> bool {
 
 set_depth_write :: (enabled: bool) {
     glDepthMask(enabled);
+}
+
+set_depth_write_scope :: (enabled: bool) #expand {
+    old_enabled := get_depth_write();
+    `defer set_depth_write(old_enabled);
+
+    set_depth_write(enabled);
 }
 
 get_depth_test :: () -> bool {
@@ -458,6 +479,13 @@ set_depth_test :: (enabled: bool) {
     }
 }
 
+set_depth_test_scope :: (enabled: bool) #expand {
+    old_enabled := get_depth_test();
+    `defer set_depth_test(old_enabled);
+
+    set_depth_test(enabled);
+}
+
 get_blend :: () -> bool {
     enabled: GLboolean;
     glGetBooleanv(GL_BLEND, *enabled);
@@ -470,6 +498,13 @@ set_blend :: (enabled: bool) {
     } else {
         glDisable(GL_BLEND);
     }
+}
+
+set_blend_scope :: (enabled: bool) #expand {
+    old_enabled := get_blend();
+    `defer set_blend(old_enabled);
+
+    set_blend(enabled);
 }
 
 BlendEquation :: enum {
@@ -525,7 +560,14 @@ set_blend_equation :: (equation: BlendEquation) {
     glBlendEquation(real_equation);
 }
 
-get_blend_equation_seperate :: () -> BlendEquation, BlendEquation {
+set_blend_equation_scope :: (equation: BlendEquation) #expand {
+    old_rgb, old_alpha := get_blend_equation_separate();
+    `defer set_blend_equation_separate(old_rgb, old_alpha);
+
+    set_blend_equation(equation);
+}
+
+get_blend_equation_separate :: () -> BlendEquation, BlendEquation {
     real_rgb: s32;
     glGetIntegerv(GL_BLEND_EQUATION_RGB, *real_rgb);
     rgb := convert_blend_equation(cast(u32) real_rgb);
@@ -537,11 +579,18 @@ get_blend_equation_seperate :: () -> BlendEquation, BlendEquation {
     return rgb, alpha;
 }
 
-set_blend_equation_seperate :: (rgb: BlendEquation, alpha: BlendEquation) {
+set_blend_equation_separate :: (rgb: BlendEquation, alpha: BlendEquation) {
     real_rgb := convert_blend_equation(rgb);
     real_alpha := convert_blend_equation(alpha);
 
     glBlendEquationSeparate(real_rgb, real_alpha);
+}
+
+set_blend_equation_separate_scope :: (rgb: BlendEquation, alpha: BlendEquation) #expand {
+    old_rgb, old_alpha := get_blend_equation_separate();
+    `defer set_blend_equation_separate(old_rgb, old_alpha);
+
+    set_blend_equation_separate(rgb, alpha);
 }
 
 BlendFunc :: enum {
@@ -627,6 +676,13 @@ set_blend_func :: (src: BlendFunc, dst: BlendFunc) {
     glBlendFunc(real_src, real_dst);
 }
 
+set_blend_func_scope :: (src: BlendFunc, dst: BlendFunc) #expand {
+    old_src_color, old_dst_color, old_src_alpha, old_dst_alpha := get_blend_func_separate();
+    `defer set_blend_func_separate(old_src_color, old_dst_color, old_src_alpha, old_dst_alpha);
+
+    set_blend_func(src, dst);
+}
+
 get_blend_func_separate :: () -> BlendFunc, BlendFunc, BlendFunc, BlendFunc {
     real_src_color: s32;
     glGetIntegerv(GL_BLEND_SRC_RGB, *real_src_color);
@@ -656,6 +712,13 @@ set_blend_func_separate :: (src_color: BlendFunc, dst_color: BlendFunc, src_alph
     glBlendFuncSeparate(real_src_color, real_dst_color, real_src_alpha, real_dst_alpha);
 }
 
+set_blend_func_separate_scope :: (src_color: BlendFunc, dst_color: BlendFunc, src_alpha: BlendFunc, dst_alpha: BlendFunc) #expand {
+    old_src_color, old_dst_color, old_src_alpha, old_dst_alpha := get_blend_func_separate();
+    `defer set_blend_func_separate(old_src_color, old_dst_color, old_src_alpha, old_dst_alpha);
+
+    set_blend_func_separate(src_color, dst_color, src_alpha, dst_alpha);
+}
+
 get_cull_face :: () -> bool {
     enabled: GLboolean;
     glGetBooleanv(GL_CULL_FACE, *enabled);
@@ -669,6 +732,13 @@ set_cull_face :: (enabled: bool) {
     } else {
         glDisable(GL_CULL_FACE);
     }
+}
+
+set_cull_face_scope :: (enabled: bool) #expand {
+    old_enabled := get_cull_face();
+    `defer set_cull_Face(old_enabled);
+
+    set_cull_face(enabled);
 }
 
 CullFaceMode :: enum u32 {
@@ -710,6 +780,13 @@ set_cull_face_mode :: (value: CullFaceMode) {
     koda.cull_face_mode = value;
     cull_face_mode := convert_cull_face_mode(value);
     glCullFace(cull_face_mode);
+}
+
+set_cull_face_mode_scope :: (value: CullFaceMode) #expand {
+    old_value := get_cull_face_mode();
+    `defer set_cull_face_mode(old_value);
+
+    set_cull_face_mode(value);
 }
 
 ClearMask :: enum_flags {

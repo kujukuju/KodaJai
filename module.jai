@@ -80,7 +80,6 @@
 #load "src/parallel/Parallel.jai";
 #load "src/parallel/ParallelQuickSort.jai";
 
-#load "src/shaders/deferred/EdgeShader.jai";
 #load "src/shaders/deferred/FAAAShader.jai";
 #load "src/shaders/deferred/GaussianDirectionalBlurShader.jai";
 #load "src/shaders/deferred/GuidedBlurShader.jai";

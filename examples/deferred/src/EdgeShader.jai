@@ -17,13 +17,18 @@ EDGE_VERTEX_SHADER :: #string ___glsl
 layout (location = 0) in vec2 aPos;
 
 uniform mat4 view;
+uniform mat4 projection;
 
 out vec2 vCoord;
-out vec3 vCamera;
+flat out vec3 vCamera;
+flat out mat4 vInverseView;
+flat out mat4 vInverseProjection;
 
 void main() {
     vCoord = aPos * vec2(0.5, 0.5) + 0.5;
     vCamera = vec3(inverse(view) * vec4(0.0, 0.0, 0.0, 1.0));
+    vInverseView = inverse(view);
+    vInverseProjection = inverse(projection);
 
     gl_Position = vec4(aPos, 0.0, 1.0);
 }
@@ -44,17 +49,19 @@ const vec2[8] offsets = vec2[8](vec2(-1, -1), vec2(0, -1), vec2(1, -1), vec2(1, 
 const vec3 colorModifier = vec3(20.0 / 255.0, 2.0 / 255.0, 4.0 / 255.0);
 
 uniform sampler2D uColor;
-uniform sampler2D uPosition;
 uniform sampler2D uDepth;
 
 in vec2 vCoord;
-in vec3 vCamera;
+flat in vec3 vCamera;
+flat in mat4 vInverseView;
+flat in mat4 vInverseProjection;
 
 void main() {
     vec3 color = texture(uColor, vCoord).rgb;
-    vec3 position = texture(uPosition, vCoord).rgb;
+    // TODO view
+    vec3 position = reconstructWorldPosition(vCoord, texture(uDepth, vCoord).r, vInverseView, vInverseProjection);
 
-    vec2 positionSize = textureSize(uPosition, 0);
+    vec2 depthSize = textureSize(uDepth, 0);
 
     vec3 fragDepthDelta = position - vCamera;
 
@@ -69,9 +76,10 @@ void main() {
         vec2 offset = offsets[i];
         float offsetLength = length(offset);
 
-        vec2 sampleCoord = vCoord + offset * separation / positionSize;
+        vec2 sampleCoord = vCoord + offset * separation / depthSize;
 
-        vec3 samplePosition = texture(uPosition, sampleCoord).rgb;
+        // TODO view
+        vec3 samplePosition = reconstructWorldPosition(sampleCoord, texture(uDepth, sampleCoord).r, vInverseView, vInverseProjection);
 
         vec3 depthDelta = samplePosition - position;
         float depthDistanceSquared = dot(depthDelta, depthDelta);
