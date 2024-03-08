@@ -80,12 +80,6 @@
 #load "src/parallel/Parallel.jai";
 #load "src/parallel/ParallelQuickSort.jai";
 
-#load "src/shaders/deferred/FAAAShader.jai";
-#load "src/shaders/deferred/GaussianDirectionalBlurShader.jai";
-#load "src/shaders/deferred/GuidedBlurShader.jai";
-#load "src/shaders/deferred/SharpenShader.jai";
-#load "src/shaders/deferred/SSAOShader.jai";
-
 #load "src/shaders/forward/BlurShader.jai";
 #load "src/shaders/forward/CubemapShader.jai";
 #load "src/shaders/forward/DefaultEllipseShader.jai";
@@ -114,6 +108,7 @@
 #load "src/shaders/forward/VolumetricCloudShader.jai";
 
 #load "src/shaders/ShaderManager.jai";
+#load "src/shaders/ShaderParts.jai";
 #load "src/shaders/Shaders.jai";
 
 #load "src/shadows/ShadowUtilities.jai";
@@ -197,6 +192,7 @@ static_sprite: Sprite;
 #import "Hash";
 #import "System";
 #import "Random";
+#import "Compiler";
 
 #import "ContiguousJsonJai"(ASSERT = false, ASM = !WASM);
 #import "FixedStringJai";

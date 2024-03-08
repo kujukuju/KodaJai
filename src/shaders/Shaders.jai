@@ -5,111 +5,18 @@ Shader :: struct {
     uniforms: ShaderUniforms;
     output_channels: [] int;
     name: string;
-    vertex_parts: [] string;
-    fragment_parts: [] string;
+    vertex_parts: [] ResolvedShaderPart;
+    fragment_parts: [] ResolvedShaderPart;
     vertex: string;
     fragment: string;
-}
-
-ShaderPart :: struct {
-    dependencies: [] ShaderPart;
-    section: string;
-}
-
-get_location_name :: (location: Source_Code_Location) -> string {
-    name: string;
-    name.data = location.fully_pathed_filename.data;
-    name.count = location.fully_pathed_filename.count;
-
-    start_index := find_index_from_right(name, #char "/");
-    if start_index != -1 {
-        name.data += start_index + 1;
-        name.count -= start_index + 1;
-        name.count -= 4;
-    }
-
-    return name;
-}
-
-create_shader :: (vertex: string, fragment: string, name: string = "", location := #caller_location) -> Shader {
-    return create_shader(.{}, vertex, .{}, fragment, ifx name then name else get_location_name(location));
-}
-
-create_shader :: (vertex_part: ShaderPart, fragment: string, name: string = "", location := #caller_location) -> Shader {
-    return create_shader(vertex_part, "", .{}, fragment, ifx name then name else get_location_name(location));
-}
-
-create_shader :: (vertex: string, fragment_part: ShaderPart, name: string = "", location := #caller_location) -> Shader {
-    return create_shader(.{}, vertex, fragment_part, "", ifx name then name else get_location_name(location));
-}
-
-create_shader :: (vertex_part: ShaderPart, vertex: string, fragment_part: ShaderPart, fragment: string, name: string = "") -> Shader {
-    shader: Shader;
-    shader.name = name;
-    shader.vertex_parts = resolve_dependencies(vertex_part);
-    shader.fragment_parts = resolve_dependencies(fragment_part);
-    shader.vertex = vertex;
-    shader.fragment = fragment;
-    return shader;
-}
-
-resolve_dependencies :: (part: ShaderPart) -> [] string {
-    if !part.section && part.dependencies.count == 0 {
-        return .[];
-    }
-
-    resolve_dependencies :: (part: ShaderPart, flat_parts: *[..] string) {
-        for dependency: part.dependencies {
-            resolve_dependencies(dependency, flat_parts);
-        }
-
-        if part.section {
-            array_add(flat_parts, part.section);
-        }
-    }
-         
-    flat_parts: [..] string;
-    resolve_dependencies(part, *flat_parts);
-
-    if flat_parts.count > 128 {
-        print("Warning: Your shader dependency list is larger than I expected. I think the resolve_dependecies method should be optimized now.\n");
-    }
-
-    // remove any duplicate entries
-    // I'm just gonna loop back over the same array since I don't expect there to be a lot of dependencies
-    insert_index := 0;
-    check_index := 0;
-    while check_index < flat_parts.count {
-        should_remove := false;
-        for dupe_index: 0..check_index - 1 {
-            if flat_parts[check_index].data == flat_parts[dupe_index].data {
-                should_remove = true;
-                break;
-            }
-        }
-
-        if should_remove {
-            // remove
-            check_index += 1;
-        } else {
-            if insert_index != check_index {
-                flat_parts[insert_index] = flat_parts[check_index];
-            }
-
-            insert_index += 1;
-            check_index += 1;
-        }
-    }
-    flat_parts.count -= check_index - insert_index;
-
-    return flat_parts;
 }
 
 operator == :: (a: Shader, b: Shader) -> bool {
     return a.vertex.data == b.vertex.data && a.fragment.data == b.fragment.data;
 }
 
-initialize_shader :: (shader: *Shader) {
+// the dependency names must match what the resolved shader dependencies expect
+initialize_shader :: (shader: *Shader, dependencies: ..Any, $caller := #caller_code) {
     if shader.program > 0 {
         return;
     }
@@ -267,25 +174,59 @@ initialize_shader :: (shader: *Shader) {
         return output_channels;
     }
 
+    dependency_count :: #run () -> int {
+        nodes := compiler_get_nodes(caller);
+        proc_call := cast(*Code_Procedure_Call) nodes;
+        proc_args := proc_call.arguments_unsorted;
+        assert(proc_args.count >= 1);
+        
+        return proc_args.count - 1;
+    }();
+    dependency_names :: #run () -> [dependency_count] string {
+        nodes := compiler_get_nodes(caller);
+        proc_call := cast(*Code_Procedure_Call) nodes;
+        proc_args := proc_call.arguments_unsorted;
+        assert(proc_args.count == dependency_count + 1);
+
+        names: [dependency_count] string;
+        for index: 0..dependency_count - 1 {
+            arg_ident := cast(*Code_Ident) proc_args[index + 1].expression;
+            assert(arg_ident.kind == .IDENT);
+
+            names[index] = arg_ident.name;
+        }
+
+        return names;
+    }();
+    assert(dependencies.count == dependency_names.count, "Dependency count doesn't match shader initialization dependencies. Maybe the syntax changed?\n");
+
+    if !validate_dependencies(shader.vertex_parts, shader.fragment_parts, ..dependencies, dependency_names) {
+        return;
+    }
+
+    // resolve dependencies in place
+    resolved_vertex_parts := resolve_dependencies(shader.vertex_parts, ..dependencies, dependency_names,, allocator = temp);
+    resolved_fragment_parts := resolve_dependencies(shader.fragment_parts, ..dependencies, dependency_names,, allocator = temp);
+
     shader_v: u32;
     success_v := true;
-    if shader.vertex || shader.vertex_parts {
-        shader_v, success_v = make_shader_object(shader.name, shader.vertex, shader.vertex_parts, GL_VERTEX_SHADER);
+    if shader.vertex || resolved_vertex_parts {
+        shader_v, success_v = make_shader_object(shader.name, shader.vertex, resolved_vertex_parts, GL_VERTEX_SHADER);
         if !success_v {
             print("Could not initialized vertex shader.\n");
         }
     }
-    defer if shader.vertex || shader.vertex_parts then glDeleteShader(shader_v);
+    defer if shader.vertex || resolved_vertex_parts then glDeleteShader(shader_v);
 
     shader_f: u32;
     success_f := true;
-    if shader.fragment || shader.fragment_parts {
-        shader_f, success_f = make_shader_object(shader.name, shader.fragment, shader.fragment_parts, GL_FRAGMENT_SHADER);
+    if shader.fragment || resolved_fragment_parts {
+        shader_f, success_f = make_shader_object(shader.name, shader.fragment, resolved_fragment_parts, GL_FRAGMENT_SHADER);
         if !success_f {
             print("Could not initialized fragment shader.\n");
         }
     }
-    defer if shader.fragment || shader.fragment_parts then glDeleteShader(shader_f);
+    defer if shader.fragment || resolved_fragment_parts then glDeleteShader(shader_f);
 
     shader.program = glCreateProgram();
 
@@ -321,6 +262,69 @@ initialize_shader :: (shader: *Shader) {
 
         assert(false, "Shader error.");
     }
+}
+
+validate_dependencies :: (vertex_parts: [] ResolvedShaderPart, fragment_parts: [] ResolvedShaderPart, dependencies: ..Any, $dependency_names: [$N] string) -> bool {
+    found_dependencies: [dependency_names.count] bool;
+    
+    // all_parts := ResolvedShaderPart.[vertex_parts, fragment_parts];
+    for parts: [] ResolvedShaderPart.[vertex_parts, fragment_parts] {
+        for part: parts {
+            for injection: part.injections {
+                dependency_found, dependency_index := array_find(dependency_names, injection);
+                if !dependency_found {
+                    assert(false, tprint("Could not find shader injection with name % inside provided dependency names %.\n", injection, dependency_names));
+                    return false;
+                }
+
+                found_dependencies[dependency_index] = true;
+            }
+        }
+    }
+
+    if array_find(found_dependencies, false) {
+        builder: String_Builder;
+        append(*builder, "Did not find an injection for all provided shader dependencies:\n");
+        for found, index: found_dependencies {
+            append(*builder, "\t");
+            append(*builder, dependency_names[index]);
+            append(*builder, ": ");
+            append(*builder, ifx found then "FOUND" else "NOT FOUND");
+            append(*builder, "\n");
+        }
+        assert(false, builder_to_string(*builder,, allocator = temp));
+        return false;
+    }
+
+    return true;
+}
+
+resolve_dependencies :: (parts: [] ResolvedShaderPart, dependencies: ..Any, $dependency_names: [] string) -> [] string {
+    count := 0;
+    for part: parts {
+        count += part.sections.count;
+        count += part.injections.count;
+    }
+
+    resolved: [..] string;
+    array_reserve(*resolved, count);
+
+    for part: parts {
+        assert(part.sections.count == part.injections.count + 1);
+
+        for index: 0..part.sections.count - 1 {
+            array_add(*resolved, part.sections[index]);
+
+            if index < part.injections.count {
+                dependency_found, dependency_index := array_find(dependency_names, part.injections[index]);
+                assert(dependency_found, "Missing shader dependency. This should have been caught earlier.\n");
+
+                array_add(*resolved, tprint("%", dependencies[dependency_index]));
+            }
+        }
+    }
+
+    return resolved;
 }
 
 destroy_shader :: (shader: Shader) {
