@@ -183,7 +183,7 @@ static_sprite: Sprite;
 }
 
 #load "src/assets/TriplexSansBold.jai";
-#load "src/assets/TriplexSansBoldFont.jai";
+// #load "src/assets/TriplexSansBoldSerialized.jai";
 #load "src/assets/White.jai";
 
 #import "String";

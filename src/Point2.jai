@@ -36,6 +36,13 @@ point2 :: (x: int, y: int) -> Point2 {
     return p;
 }
 
+point2 :: (a: Vector2) -> Point2 {
+    p: Point2 = ---;
+    p.x = cast(int) a.x;
+    p.y = cast(int) a.y;
+    return p;
+}
+
 vector2 :: (a: Point2) -> Vector2 {
     v: Vector2 = ---;
     v.x = cast(float) a.x;

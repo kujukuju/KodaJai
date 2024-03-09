@@ -15,28 +15,24 @@ get_string :: (s: *u8) -> string {
 }
 
 get_default_font :: () -> *Font {
-    // #run,stallable {
+    // #run {
     //     file_bytes: [] u8;
     //     file_bytes.data = TriplexSansBold.data;
     //     file_bytes.count = TriplexSansBold.count;
 
-    //     font := create_font(file_bytes, 24, false);
-    //     bytes: [..] u8;
-    //     serializer_write(*bytes, font, false);
-    //     byte_string: string;
-    //     byte_string.data = bytes.data;
-    //     byte_string.count = bytes.count;
+    //     character_set :: #run create_character_set(.[0, 255]);
+    //     font := create_font(file_bytes, 14, character_set, false);
 
-    //     write_entire_file(tprint("%/assets/TriplexSansBoldFont.font", #filepath), byte_string);
+    //     serialized_path := tprint("%/assets/TriplexSansBoldSerialized.font", #filepath);
+    //     write_serialized(serialized_path, .[], font, reuse_memory = false);
     // };
 
     if !default_font_loaded {
         default_font_loaded = true;
 
-        file_bytes: [] u8;
-        file_bytes.data = TriplexSansBold.data;
-        file_bytes.count = TriplexSansBold.count;
-        default_font = create_font(file_bytes, 16, false);
+        serialized_path := tprint("%/assets/TriplexSansBoldSerialized.font", #filepath);
+        success := read_serialized(serialized_path, .[], *default_font, reuse_memory = false);
+        assert(success, "Could not load default font.\n");
 
         upload(default_font);
     }
@@ -194,13 +190,12 @@ create_orthographic_matrix :: (left: float, right: float, bottom: float, top: fl
 //     0, 0, 0, 1,
 // };
 
-print_caller_trace :: () {
+print_caller_trace :: () #expand {
     node := context.stack_trace;
-    if node then node = node.next;
-    if node && node.info then print("'%' at %:%\n", node.info.name, node.info.location.fully_pathed_filename, node.line_number);
+    if node && node.info then print("% at %:%\n", node.info.name, node.info.location.fully_pathed_filename, node.line_number);
 }
 
-print_stack_trace :: () {
+print_stack_trace :: () #expand {
     node := context.stack_trace;
     while node {
         // There are two different line numbers available.
@@ -209,7 +204,7 @@ print_stack_trace :: () {
         // what we really want is the line number of the procedure call, which is
         // stored in node.line_number. That's what we print in this case.
         
-        if node.info print("'%' at %:% ; call depth %, hash 0x%\n", node.info.name, node.info.location.fully_pathed_filename, node.line_number, node.call_depth, formatInt(node.hash, base=16));
+        if node.info print("% at %:%\n", node.info.name, node.info.location.fully_pathed_filename, node.line_number);
         node = node.next;
     }
 }

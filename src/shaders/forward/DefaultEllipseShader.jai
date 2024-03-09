@@ -10,7 +10,7 @@ default_ellipse_shader: DefaultEllipseShader;
 
 #scope_module
 
-DEFAULT_ELLIPSE_VERTEX_SHADER :: #string DONE
+DEFAULT_ELLIPSE_VERTEX_SHADER :: #string ___glsl
 #version 330 core
 layout (location = 0) in vec2 aPos;
 layout (location = 1) in vec2 aTexCoord;
@@ -31,9 +31,9 @@ void main() {
     
     vTexCoord = aTexCoord * uFrame.zw + uFrame.xy;
 }
-DONE
+___glsl
 
-DEFAULT_ELLIPSE_FRAGMENT_SHADER :: #string DONE
+DEFAULT_ELLIPSE_FRAGMENT_SHADER :: #string ___glsl
 #version 330 core
 out vec4 FragColor;
   
@@ -46,8 +46,11 @@ void main() {
     vec2 fromCenter = vTexCoord * 2.0 - 1.0;
     float distance = length(fromCenter);
     // can use that one function to get the pixel density and scale appropriately instead of hard edges
-    float color = distance <= 1.0 ? 1.0 : 0.0;
-    float border = distance > (1.0 - length(fwidth(vTexCoord)) * 1.5) && distance <= 1.0 ? 1.0 : 0.0;
+
+    const float edgeWidth = 2.0;
+
+    float color = smoothstep(1.0, 1.0 - length(fwidth(vTexCoord)) * edgeWidth, distance);
+    float border = smoothstep(1.0 - length(fwidth(vTexCoord)) * edgeWidth, 1.0 - length(fwidth(vTexCoord)) * edgeWidth * 2.0, distance);
 
     // TODO use whatever that pixel density function is
 
@@ -56,4 +59,4 @@ void main() {
     FragColor = averageColor * max(uTint.a * color, uBorderTint.a * border);
     // FragColor = vec4(1.0, 1.0, 1.0, 1.0);
 }
-DONE
+___glsl

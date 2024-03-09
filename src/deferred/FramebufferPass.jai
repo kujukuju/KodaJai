@@ -169,18 +169,18 @@ framebuffer_create_textures :: ($count: int, $depth: bool, width: int, height: i
     return textures;
 }
 
-framebuffer_resize :: (pass: *FramebufferPass($count, $depth, $drawable, $multisample), textures: ..Texture, should_destroy: bool = true) {
+framebuffer_resize :: (pass: *FramebufferPass($count, $depth, $drawable, $multisample), textures: ..Texture, should_destroy: bool = false) {
     assert(textures.count > 0, "If you pass in textures you must provide at least 1.\n");
     framebuffer_resize(pass, textures[0].width, textures[0].height, textures, should_destroy);
 }
 
-framebuffer_resize :: (pass: *FramebufferPass($count, $depth, $drawable, $multisample), width: int, height: int, channels: ..PixelFormat, should_destroy: bool = true) {
+framebuffer_resize :: (pass: *FramebufferPass($count, $depth, $drawable, $multisample), width: int, height: int, channels: ..PixelFormat, should_destroy: bool = false) {
     textures := framebuffer_create_textures(count, depth, width, height, ..channels);
 
     framebuffer_resize(pass, ..textures, should_destroy);
 }
 
-framebuffer_resize :: (pass: *FramebufferPass($count, $depth, $drawable, $multisample), width: int, height: int, textures: [] Texture, should_destroy: bool = true) {
+framebuffer_resize :: (pass: *FramebufferPass($count, $depth, $drawable, $multisample), width: int, height: int, textures: [] Texture, should_destroy: bool = false) {
     required_count :: count + #ifx depth then 1 else 0;
     if required_count != textures.count {
         assert(false, "Passed invalid number of textures to resize a framebuffer pass.\n");
@@ -249,24 +249,6 @@ framebuffer_bind_textures :: (pass: *FramebufferPass($count, $depth, $drawable, 
     }
 }
 
-// TODO I'm not actually sure if there's a use for a read and write bind
-
-// framebuffer_bind :: (pass: FramebufferPass($c, $depth, $dr, $m)) {
-//     glBindFramebuffer(GL_DRAW_FRAMEBUFFER, pass.framebuffer);
-
-//     #if depth {
-//         clear(.Color | .Depth);
-//     } else {
-//         clear(.Color);
-//     }
-// }
-
-// framebuffer_bind_screen :: () {
-//     glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0);
-
-//     clear(.Color | .Depth);
-// }
-
 framebuffer_bind_write :: (pass: FramebufferPass($c, $depth, $dr, $m), mask: ClearMask = .Color | .Depth | .Stencil) {
     glBindFramebuffer(GL_DRAW_FRAMEBUFFER, pass.framebuffer);
     glViewport(0, 0, xx pass.width, xx pass.height);
@@ -274,7 +256,7 @@ framebuffer_bind_write :: (pass: FramebufferPass($c, $depth, $dr, $m), mask: Cle
     koda.active_pass_channels = pass.channels;
 
     #if depth {
-        clear(mask & (.Color | .Depth));
+        clear(mask & .Depth);
     } else {
         clear(mask & .Color);
     }
@@ -312,6 +294,10 @@ framebuffer_resolve_color :: (pass: FramebufferPass($p_c, $p_d, $p_dr, $p_ms), t
 
     glReadBuffer(GL_COLOR_ATTACHMENT0 + cast(u32) texture_index);
     glBlitFramebuffer(0, 0, xx pass.width, xx pass.height, 0, 0, xx resolved.width, xx resolved.height, GL_COLOR_BUFFER_BIT, interp);
+}
+
+framebuffer_resolve_color_screen :: (pass: FramebufferPass(1, $p_d, $p_dr, $p_ms)) {
+    framebuffer_resolve_color_screen(pass, 0);
 }
 
 framebuffer_resolve_color_screen :: (pass: FramebufferPass($p_c, $p_d, $p_dr, $p_ms), texture_index: int) {
@@ -377,13 +363,8 @@ draw :: (pass: FramebufferPass($count, $depth, $drawable)) {
     // apply_uniforms(pass.shader, uniforms);
 
     // we're rendering the screenspace framebuffer so no depth testing or writing
-    depth_write := get_depth_write();
-    defer set_depth_write(depth_write);
-    set_depth_write(false);
-
-    depth_test := get_depth_test();
-    defer set_depth_test(depth_test);
-    set_depth_test(false);
+    set_depth_write_scope(false);
+    set_depth_test_scope(false);
 
     glBindVertexArray(pass.vao);
     glDrawArrays(GL_TRIANGLES, 0, 6);

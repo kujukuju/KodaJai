@@ -132,40 +132,36 @@
 //     return text, true;
 // }
 
-draw_text :: (content: string, position: Vector2, anchor: Vector2 = .{0, 0}, scale: float = 1.0, tint: Color = .{1, 1, 1, 1}, padding: float = 0.0, blur: float = 0.0, clipped: bool = true) {
+draw_text :: (content: string, position: Vector2, anchor: Vector2 = .{0, 0}, scale: float = 1.0, tint: Color = .{1, 1, 1, 1}, padding: float = 0.0, blur: float = 0.0, fixed_height_string: string = "") {
     font := get_default_font();
 
-    draw_text(content, font, position, anchor, scale, tint, padding, blur, clipped);
+    draw_text(content, font, position, anchor, scale, tint, padding, blur, fixed_height_string);
 }
 
-draw_text :: (content: string, font: *Font, position: Vector2, anchor: Vector2 = .{0, 0}, scale: float = 1.0, tint: Color = .{1, 1, 1, 1}, padding: float = 0.0, blur: float = 0.0, clipped: bool = true) {
+draw_text :: (content: string, font: *Font, position: Vector2, anchor: Vector2 = .{0, 0}, scale: float = 1.0, tint: Color = .{1, 1, 1, 1}, padding: float = 0.0, blur: float = 0.0, fixed_height_string: string = "") {
     translation := make_translation_matrix3(position);
 
-    draw_text(content, font, translation, anchor, scale, tint, padding, blur, clipped);
+    draw_text(content, font, translation, anchor, scale, tint, padding, blur, fixed_height_string);
 }
 
-draw_text :: (content: string, font: *Font, transform: Matrix3, anchor: Vector2, scale: float, tint: Color, padding: float, blur: float, clipped: bool) {
+draw_text :: (content: string, font: *Font, transform: Matrix3, anchor: Vector2, scale: float, tint: Color, padding: float, blur: float, fixed_height_string: string = "") {
     if !content {
         return;
     }
 
-    assert(clipped || anchor == .{0, 0}, "Unclipped with an anchor not yet supported because the AABB calculation is weird.\n");
-
-    depth_test := get_depth_test();
-    defer set_depth_test(depth_test);
-    set_depth_test(false);
-
-    cull_face := get_cull_face();
-    defer set_cull_face(cull_face);
-    set_cull_face(false);
+    set_depth_test_scope(false);
+    set_cull_face_scope(false);
 
     aabb := get_aabb(content, font, scale);
+    if fixed_height_string {
+        fixed_aabb := get_aabb(fixed_height_string, font, scale);
+        aabb.lower.y = fixed_aabb.lower.y;
+        aabb.upper.y = fixed_aabb.upper.y;
+    }
     dimensions := aabb.upper - aabb.lower;
 
-    clipped_offset := ifx clipped then aabb.lower else Vector2.{};
-
-    x := -dimensions.x * anchor.x - clipped_offset.x;
-    y := -dimensions.y * anchor.y - clipped_offset.y;
+    x := -dimensions.x * anchor.x - aabb.lower.x;
+    y := -dimensions.y * anchor.y - aabb.lower.y;
 
     particle_system_clear(*font_system);
 
@@ -224,17 +220,22 @@ draw_text :: (content: string, font: *Font, transform: Matrix3, anchor: Vector2,
     particle_system_update_and_render(*font_system, 0, projection);
 }
 
-get_aabb :: (content: string, font: *Font, position: Vector2 = .{0, 0}, anchor: Vector2 = .{0, 0}, scale: float = 1.0, clipped: bool = true) -> AABB2 {
+get_aabb :: (content: string, font: *Font, position: Vector2 = .{0, 0}, anchor: Vector2 = .{0, 0}, scale: float = 1.0, fixed_height_string: string = "") -> AABB2 {
     aabb := get_aabb(content, font, scale);
 
-    clipped_offset := ifx clipped then aabb.lower else Vector2.{};
+    clip_offset := aabb.lower;
+    dimensions := aabb.upper - aabb.lower;
+    if fixed_height_string {
+        fixed_aabb := get_aabb(fixed_height_string, font, scale);
+        clip_offset = fixed_aabb.lower;
+        dimensions = fixed_aabb.upper - fixed_aabb.lower;
+    }
 
     aabb.lower += position;
     aabb.upper += position;
 
-    dimensions := aabb.upper - aabb.lower;
-    aabb.lower += -dimensions * anchor - clipped_offset;
-    aabb.upper += -dimensions * anchor - clipped_offset;
+    aabb.lower += -dimensions * anchor - clip_offset;
+    aabb.upper += -dimensions * anchor - clip_offset;
 
     return aabb;
 }

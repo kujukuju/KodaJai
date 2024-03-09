@@ -29,7 +29,10 @@ create_window :: (title: *u8, width: s32, height: s32, multisample: int = 0) {
         monitor := glfwGetPrimaryMonitor();
         video_mode := glfwGetVideoMode(monitor);
         if video_mode {
-            if video_mode.height <= 1080 || video_mode.width <= 1920 {
+            if video_mode.height <= 900 || video_mode.width <= 1600 {
+                width = 1366;
+                height = 768;
+            } else if video_mode.height <= 1080 || video_mode.width <= 1920 {
                 width = 1600;
                 height = 900;
             }
@@ -84,24 +87,17 @@ create_window :: (title: *u8, width: s32, height: s32, multisample: int = 0) {
         glEnable(GL_MULTISAMPLE);
     }
 
-    koda.width = width;
-    koda.height = height;
     set_viewport(width, height);
 
     set_blend(true);
+    set_blend_equation_separate(.Add, .Add);
     set_blend_func_separate(.SrcAlpha, .OneMinusSrcAlpha, .One, .Zero);
 
-    glFrontFace(GL_CCW);
-    glEnable(GL_DEPTH_TEST);
-    glEnable(GL_CULL_FACE);
+    set_front_face_ccw(true);
+    set_depth_test(true);
+    set_cull_face(true);
 
     glClearColor(0.0, 0.0, 0.0, 1.0);
-
-    // TODO
-    // glEnable(GL_SCISSOR_TEST);
-
-    // koda.shader = get_shader_program(DEFAULT_VERTEX_SHADER, DEFAULT_FRAGMENT_SHADER);
-    // default_ellipse_shader = get_shader_program(DEFAULT_ELLIPSE_VERTEX_SHADER, DEFAULT_ELLIPSE_FRAGMENT_SHADER);
 
     static_sprite = create_sprite(.{}, 0, 0);
 }
@@ -122,19 +118,27 @@ set_icon :: (image: Image) {
 }
 
 set_viewport :: (width: int, height: int) {
+    if !width && !height {
+        return;
+    }
+    
     koda.width = width;
     koda.height = height;
     
     glViewport(0, 0, xx width, xx height);
 }
 
-error_check_gl :: () {
+error_check_gl :: () -> bool #expand {
+    errored := false;
     err := glGetError();
     while err != GL_NO_ERROR {
         print("GL error: %\n", err);
         print_caller_trace();
         err = glGetError();
+        errored = true;
     }
+
+    return errored;
 }
 
 should_exit :: () -> bool {
@@ -279,34 +283,69 @@ immediate_mode_finish :: () {
 }
 */
 
-get_fullscreen :: () -> bool {
-    return glfwGetWindowAttrib(koda.window, GLFW_DECORATED) == GLFW_FALSE || !!glfwGetWindowMonitor(koda.window);
+get_fullscreen :: () -> bool, bool {
+    fullscreen := !!glfwGetWindowMonitor(koda.window);
+    borderless := !glfwGetWindowAttrib(koda.window, GLFW_DECORATED);
+    return fullscreen || borderless, borderless;
 }
 
-set_fullscreen :: (fullscreen: bool, borderless: bool) {
-    if fullscreen {
-        if borderless {
-            monitor := glfwGetPrimaryMonitor();
-            video_mode := glfwGetVideoMode(monitor);
-            if video_mode {
-                glfwSetWindowAttrib(koda.window, GLFW_DECORATED, GLFW_FALSE);
-                glfwSetWindowMonitor(koda.window, null, 0, 0, video_mode.width, video_mode.height, 0);
-            }
-        } else {
-            monitor := glfwGetPrimaryMonitor();
-            video_mode := glfwGetVideoMode(monitor);
-            if video_mode {
-                glfwSetWindowMonitor(koda.window, monitor, 0, 0, video_mode.width, video_mode.height, video_mode.refreshRate);
-            }
-        }
-    } else {
-        monitor := glfwGetPrimaryMonitor();
-        video_mode := glfwGetVideoMode(monitor);
-        if video_mode {
-            glfwSetWindowAttrib(koda.window, GLFW_DECORATED, GLFW_TRUE);
-            glfwSetWindowMonitor(koda.window, null, cast(s32) (video_mode.width - koda.width) / 2, cast(s32) (video_mode.height - koda.height) / 2, cast(s32) koda.width, cast(s32) koda.height, 0);
-        }
+set_fullscreen :: (fullscreen: bool, borderless: bool, width: int = 0, height: int = 0) {
+    monitor := glfwGetPrimaryMonitor();
+    video_mode := glfwGetVideoMode(monitor);
+
+    if !video_mode {
+        return;
     }
+
+    if borderless {
+        glfwWindowHint(GLFW_RED_BITS, video_mode.redBits);
+        glfwWindowHint(GLFW_GREEN_BITS, video_mode.greenBits);
+        glfwWindowHint(GLFW_BLUE_BITS, video_mode.blueBits);
+        glfwWindowHint(GLFW_REFRESH_RATE, video_mode.refreshRate);
+    }
+
+    if fullscreen && borderless {
+        if !width then width = video_mode.width;
+        if !height then height = video_mode.height;
+
+        set_window_size(width, height);
+        glfwSetWindowAttrib(koda.window, GLFW_DECORATED, GLFW_FALSE);
+        glfwSetWindowMonitor(koda.window, null, 0, 0, cast(s32) width, cast(s32) height, 0);
+    } else if fullscreen && !borderless {
+        if !width then width = video_mode.width;
+        if !height then height = video_mode.height;
+
+        glfwSetWindowAttrib(koda.window, GLFW_DECORATED, GLFW_FALSE);
+        glfwSetWindowMonitor(koda.window, monitor, 0, 0, cast(s32) width, cast(s32) height, video_mode.refreshRate);
+        set_window_size(width, height);
+    } else if !fullscreen && borderless {
+        if !width then width = koda.width;
+        if !height then height = koda.height;
+        
+        glfwSetWindowAttrib(koda.window, GLFW_DECORATED, GLFW_FALSE);
+        glfwSetWindowMonitor(koda.window, null, cast(s32) (video_mode.width - width) / 2, cast(s32) (video_mode.height - height) / 2, cast(s32) width, cast(s32) height, 0);
+        set_window_size(width, height);
+    } else if !fullscreen && !borderless {
+        if !width then width = koda.width;
+        if !height then height = koda.height;
+        
+        glfwSetWindowAttrib(koda.window, GLFW_DECORATED, GLFW_TRUE);
+        glfwSetWindowMonitor(koda.window, null, cast(s32) (video_mode.width - width) / 2, cast(s32) (video_mode.height - height) / 2, cast(s32) width, cast(s32) height, 0);
+        glfwSetWindowAttrib(koda.window, GLFW_DECORATED, GLFW_TRUE);
+        set_window_size(width, height);
+    }
+}
+
+get_window_size :: () -> int, int {
+    width: s32;
+    height: s32;
+    glfwGetWindowSize(koda.window, *width, *height);
+    return width, height;
+}
+
+set_window_size :: (width: int, height: int) {
+    glfwSetWindowSize(koda.window, cast(s32) width, cast(s32) height);
+    set_viewport(width, height);
 }
 
 get_adaptive_vsync :: () -> bool {
@@ -314,6 +353,7 @@ get_adaptive_vsync :: () -> bool {
 }
 
 set_adaptive_vsync :: (enabled: bool) {
+    // I can't tell this makes any difference at all tbh... if anything it makes the interpolation worse?
     adaptive_vsync_enabled = enabled;
 
     if enabled {
@@ -736,7 +776,7 @@ set_cull_face :: (enabled: bool) {
 
 set_cull_face_scope :: (enabled: bool) #expand {
     old_enabled := get_cull_face();
-    `defer set_cull_Face(old_enabled);
+    `defer set_cull_face(old_enabled);
 
     set_cull_face(enabled);
 }
@@ -787,6 +827,52 @@ set_cull_face_mode_scope :: (value: CullFaceMode) #expand {
     `defer set_cull_face_mode(old_value);
 
     set_cull_face_mode(value);
+}
+
+get_scissor_test :: () -> bool, Point2, Point2 {
+    enabled := glIsEnabled(GL_SCISSOR_TEST);
+    box: [4] s32;
+    glGetIntegerv(GL_SCISSOR_BOX, box.data);
+
+    return enabled, .{box[0], koda.height - box[1] - box[3]}, .{box[2], box[3]};
+}
+
+set_scissor_test :: (enabled: bool) {
+    if enabled {
+        glEnable(GL_SCISSOR_TEST);
+    } else {
+        glDisable(GL_SCISSOR_TEST);
+    }
+}
+
+set_scissor_test :: (enabled: bool, top_left: Point2, dimensions: Point2) {
+    if enabled {
+        glEnable(GL_SCISSOR_TEST);
+    } else {
+        glDisable(GL_SCISSOR_TEST);
+    }
+
+    glScissor(cast(s32) top_left.x, cast(s32) (koda.height - top_left.y - dimensions.y), cast(u32) dimensions.x, cast(u32) dimensions.y);
+}
+
+set_scissor_test_scope :: (enabled: bool) #expand {
+    old_enabled := get_scissor_test();
+    `defer set_scissor_test(old_enabled);
+    
+    set_scissor_test(enabled);
+}
+
+set_scissor_test_scope :: (enabled: bool, top_left: Point2, dimensions: Point2) #expand {
+    old_enabled, old_top_left, old_dimensions := get_scissor_test();
+    `defer set_scissor_test(old_enabled, old_top_left, old_dimensions);
+    
+    set_scissor_test(enabled, top_left, dimensions);
+}
+
+set_view_scope :: (view: Matrix4) #expand {
+    old_view := koda.view;
+    `defer koda.view = old_view;
+    koda.view = view;
 }
 
 ClearMask :: enum_flags {

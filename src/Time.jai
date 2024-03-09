@@ -33,28 +33,22 @@ get_fps :: () -> float {
     return cast(float) (delta_frames / delta_time);
 }
 
-draw_fps :: (x: float, y: float) {
+draw_fps :: (position: Vector2, anchor: Vector2 = .{}, font: *Font = null) {
+    draw_fps(position.x, position.y, anchor, font);
+}
+
+draw_fps :: (x: float, y: float, anchor: Vector2 = .{}, font: *Font = null) {
+    if !font then font = get_default_font();
+
     fps := get_fps();
     integer := cast(int) fps;
     remainder := cast(int) ((fps - integer) * 100);
 
-    default_font := get_default_font();
     content := tprint("FPS: %.%", integer, remainder);
-    // default_text := get_default_text();
-    // default_text.text = ;
 
-    depth_test := get_depth_test();
-    cull_face := get_cull_face();
-    transform := koda.view;
+    set_depth_test_scope(false);
 
-    set_depth_test(false);
-    defer set_depth_test(depth_test);
-    set_cull_face(false);
-    defer set_cull_face(cull_face);
-    koda.view = Matrix4_Identity;
-    defer koda.view = transform;
-
-    draw_text(content, default_font, .{x, y}, clipped = false);
+    draw_text(content, font, .{x, y}, anchor, fixed_height_string = "FPS");
 }
 
 tick_frame_tracker :: (tracker: *FrameTracker, time: float64) {

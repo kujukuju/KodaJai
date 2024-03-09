@@ -1,5 +1,5 @@
 
-PERF_TRACKER_ENABLED :: true;
+PERF_TRACKER_ENABLED :: false;
 
 // loop
 // (enter)
@@ -149,7 +149,7 @@ PERF_TRACKER_ENABLED :: true;
         }
 
         tracker_print_index += 1;
-        if tracker_print_index % print_interval != 0 {
+        if print_interval > 0 && tracker_print_index % print_interval != 0 {
             return;
         }
 
@@ -209,7 +209,7 @@ PERF_TRACKER_ENABLED :: true;
 } else {
     perf_track :: ($name: string, $gpu: bool = false) #expand {}
 
-    perf_tracker_finish :: (interval: int, gpu_wait: bool = true, clear: bool = true) #expand {}
+    perf_tracker_finish :: (print_interval: int, maximum_history: int = 0, clear: bool = true) #expand {}
 
     perf_tracker_reset :: () #expand {}
 }

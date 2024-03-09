@@ -2,12 +2,12 @@ CubeMap :: struct {
     geometry: *Geometry;
     uniforms: ShaderUniforms;
     transform: Matrix4 = Matrix4Identity;
+    shader: *Shader;
 }
 
-create_cube_map :: (texture: CubemapTexture, half_width: float = 1.0, should_upload: bool = false) -> *CubeMap {
+create_cube_map :: (half_width: float = 1.0, should_upload: bool = false) -> *CubeMap {
     cube := New(CubeMap);
     cube.geometry = create_cube(.{half_width, half_width, half_width});
-    cube.uniforms[xx "uTexture0"] = create_uniform("uTexture0", texture);
 
     if should_upload {
         upload(cube);
@@ -16,14 +16,16 @@ create_cube_map :: (texture: CubemapTexture, half_width: float = 1.0, should_upl
     return cube;
 }
 
-load_cube_map :: (path: string, half_width: float = 1.0, should_upload: bool = true) -> *CubeMap {
-    cube := New(CubeMap);
-    cube.geometry = create_cube(.{half_width, half_width, half_width});
-    cube.uniforms[xx "uTexture0"] = create_uniform("uTexture0", load_cubemap_texture(path));
+create_cube_map :: (texture: CubemapTexture, half_width: float = 1.0, should_upload: bool = false) -> *CubeMap {
+    cube := create_cubemap(half_width, should_upload);
+    cube.uniforms[xx "uTexture0"] = create_uniform("uTexture0", texture);
 
-    if should_upload {
-        upload(cube);
-    }
+    return cube;
+}
+
+load_cube_map :: (path: string, half_width: float = 1.0, should_upload: bool = true) -> *CubeMap {
+    cube := create_cubemap(half_width, should_upload);
+    cube.uniforms[xx "uTexture0"] = create_uniform("uTexture0", load_cubemap_texture(path));
 
     return cube;
 }
@@ -57,11 +59,14 @@ unload :: (cube: *CubeMap) {
 }
 
 draw :: (cube: *CubeMap) {
-    cull_face := get_cull_face();
-    defer set_cull_face(cull_face);
-    set_cull_face(false);
+    set_cull_face_scope(false);
 
-    use_shader(*cubemap_shader);
+    shader := cube.shader;
+    if !shader {
+        shader = *cubemap_shader;
+    }
+
+    use_shader(shader);
 
     rotation := get_rotation(koda.view);
     view := rotation_matrix(Matrix4, rotation);
@@ -72,8 +77,8 @@ draw :: (cube: *CubeMap) {
     uniforms[xx "model"] = create_uniform("model", cube.transform);
     uniforms[xx "view"] = create_uniform("view", view);
     
-    apply_uniforms(*cubemap_shader, uniforms);
-    apply_uniforms(*cubemap_shader, cube.uniforms);
+    apply_uniforms(shader, uniforms);
+    apply_uniforms(shader, cube.uniforms);
 
     glBindVertexArray(cube.geometry.vao_);
     glDrawElements(GL_TRIANGLES, xx cube.geometry.indices.count, GL_UNSIGNED_INT, xx 0);

@@ -33,8 +33,11 @@ CharacterInfo :: struct {
     advance: Point2;
 }
 
-create_font :: (bytes: [] u8, pixel_height: int, should_upload: bool = true) -> *Font, bool {
+create_font :: (bytes: [] u8, pixel_height: int, character_set: [] u32 = .[], should_upload: bool = true) -> *Font, bool {
     #import "freetype-2.12.1";
+
+    print("Warning! Calling create_font! This should never happen during a normal run.\n");
+    print_stack_trace();
 
     font := New(Font);
 
@@ -63,21 +66,38 @@ create_font :: (bytes: [] u8, pixel_height: int, should_upload: bool = true) -> 
         return null, false;
     }
 
+    requested_characters: [] u32;
+    if character_set {
+        requested_characters = character_set;
+    } else {
+        found_characters: [..] u32;
+        found_characters.allocator = temp;
+
+        gindex: u32;
+        charcode := FT_Get_First_Char(ft_face, *gindex);
+        while gindex {
+            array_add(*found_characters, charcode);
+            charcode = FT_Get_Next_Char(ft_face, charcode, *gindex);
+        }
+
+        requested_characters = found_characters;
+    }
+
     // TODO this isn't right at all... load_renderer loads the bitmap
     image_width: int;
     image_height: int;
     face_count: int;
-    gindex: u32;
-    charcode := FT_Get_First_Char(ft_face, *gindex);
-    while gindex {
-        FT_Load_Char(ft_face, charcode, FT_LOAD_DEFAULT);
+    for character: requested_characters {
+        if !FT_Get_Char_Index(ft_face, character) {
+            continue;
+        }
+
+        FT_Load_Char(ft_face, character, FT_LOAD_DEFAULT);
         FT_Render_Glyph(ft_face.glyph, .FT_RENDER_MODE_SDF);
 
         image_width = max(image_width, ft_face.glyph.bitmap.width);
         image_height = max(image_height, ft_face.glyph.bitmap.rows);
         face_count += 1;
-
-        charcode = FT_Get_Next_Char(ft_face, charcode, *gindex);
     }
     image_layer_stride := image_width * image_height;
     font.max_width = image_width;
@@ -86,20 +106,22 @@ create_font :: (bytes: [] u8, pixel_height: int, should_upload: bool = true) -> 
     layer_index: int;
     font.image = create_image3(image_width, image_height, face_count, .R8);
 
-    gindex = 0;
-    charcode = FT_Get_First_Char(ft_face, *gindex);
-    while gindex {
+    for character: requested_characters {
+        if !FT_Get_Char_Index(ft_face, character) {
+            continue;
+        }
+
         // load character glyph 
-        error := FT_Load_Char(ft_face, charcode, FT_LOAD_DEFAULT);
+        error := FT_Load_Char(ft_face, character, FT_LOAD_DEFAULT);
         if error {
             print_stack_trace();
-            print("FreeType failed to load glyph. % %\n", charcode, error);
+            print("FreeType failed to load glyph. % %\n", character, error);
             return null, false;
         }
 
         error = FT_Render_Glyph(ft_face.glyph, .FT_RENDER_MODE_SDF);
         if error {
-            print("FreeType failed to render the glyph. % %\n", charcode, error);
+            print("FreeType failed to render the glyph. % %\n", character, error);
             return null, false;
         }
 
@@ -115,20 +137,16 @@ create_font :: (bytes: [] u8, pixel_height: int, should_upload: bool = true) -> 
             memcpy(dest, src, glyph_width);
         }
 
-        character: CharacterInfo;
-        character.index = layer_index;
-        character.width = glyph_width;
-        character.height = glyph_height;
-        character.bearing = .{ft_face.glyph.bitmap_left, ft_face.glyph.bitmap_top};
-        character.advance = .{ft_face.glyph.advance.x, ft_face.glyph.advance.y};
-        table_set(*font.characters, charcode, character);
+        info: CharacterInfo;
+        info.index = layer_index;
+        info.width = glyph_width;
+        info.height = glyph_height;
+        info.bearing = .{ft_face.glyph.bitmap_left, ft_face.glyph.bitmap_top};
+        info.advance = .{ft_face.glyph.advance.x, ft_face.glyph.advance.y};
+        table_set(*font.characters, character, info);
 
         layer_index += 1;
-        
-        charcode = FT_Get_Next_Char(ft_face, charcode, *gindex);
     }
-
-    // save_image(font.image, "sdf_font.png");
 
     if should_upload {
         upload(font);
@@ -137,7 +155,7 @@ create_font :: (bytes: [] u8, pixel_height: int, should_upload: bool = true) -> 
     return font, true;
 }
 
-load_font :: (path: string, pixel_height: int, should_upload: bool = true) -> *Font, bool {
+load_font :: (path: string, pixel_height: int, character_set: [] u32 = .[], should_upload: bool = true) -> *Font, bool {
     file, success := read_entire_file(path);
     defer free(file);
     if !success {
@@ -148,7 +166,7 @@ load_font :: (path: string, pixel_height: int, should_upload: bool = true) -> *F
     byte_view.data = file.data;
     byte_view.count = file.count;
     
-    font, created := create_font(byte_view, pixel_height, should_upload);
+    font, created := create_font(byte_view, pixel_height, character_set, should_upload);
     return font, created;
 }
 
@@ -242,6 +260,18 @@ upload :: (font: *Font, clear_image: bool = true) {
 
         particle_system_init(*font_system, *font_particle_shader, font_system_geometry);
     }
+}
+
+create_character_set :: (ranges: ..[2] u32) -> [] u32 {
+    character_set: [..] u32;
+
+    for range: ranges {
+        for i: range[0]..range[1] {
+            array_add(*character_set, i);
+        }
+    }
+
+    return character_set;
 }
 
 #scope_module

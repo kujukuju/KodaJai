@@ -284,75 +284,23 @@ draw_ellipse :: (center: Vector2, width: float, height: float, color: Color = .{
 }
 
 draw_ellipse :: (center: Vector2, dimensions: Vector2, color: Color = .{1, 1, 1, 1}, border: Color = .{1, 1, 1, 0}) {
-    top_left := center - dimensions / 2.0;
-    bottom_right := center + dimensions / 2.0;
-
-    vertices: [12] Vector2;
-    vertices[0] = top_left;
-    vertices[1] = .{0, 0};
-    vertices[2] = xy(top_left.x, bottom_right.y);
-    vertices[3] = .{0, 1};
-    vertices[4] = bottom_right;
-    vertices[5] = .{1, 1};
-    vertices[6] = top_left;
-    vertices[7] = .{0, 0};
-    vertices[8] = bottom_right;
-    vertices[9] = .{1, 1};
-    vertices[10] = xy(bottom_right.x, top_left.y);
-    vertices[11] = .{1, 0};
-
-    // vertices[0].x /= koda.width;
-    // vertices[0].y /= koda.height;
-    // vertices[0] = vertices[0] * 2.0 - 1.0;
-    // vertices[2].x /= koda.width;
-    // vertices[2].y /= koda.height;
-    // vertices[2] = vertices[2] * 2.0 - 1.0;
-    // vertices[4].x /= koda.width;
-    // vertices[4].y /= koda.height;
-    // vertices[4] = vertices[4] * 2.0 - 1.0;
-    // vertices[6].x /= koda.width;
-    // vertices[6].y /= koda.height;
-    // vertices[6] = vertices[6] * 2.0 - 1.0;
-    // vertices[8].x /= koda.width;
-    // vertices[8].y /= koda.height;
-    // vertices[8] = vertices[8] * 2.0 - 1.0;
-    // vertices[10].x /= koda.width;
-    // vertices[10].y /= koda.height;
-    // vertices[10] = vertices[10] * 2.0 - 1.0;
-
-    vao: GLuint;
-    glGenVertexArrays(1, *vao);
-    defer glDeleteVertexArrays(1, *vao);
-    glBindVertexArray(vao);
-    defer glBindVertexArray(0);
-
-    buffer_id: GLuint;
-    glGenBuffers(1, *buffer_id);
-    defer glDeleteBuffers(1, *buffer_id);
-
-    glBindBuffer(GL_ARRAY_BUFFER, buffer_id);
-    glBufferData(GL_ARRAY_BUFFER, size_of(type_of(vertices)), *vertices, GL_DYNAMIC_DRAW);
-
-    glEnableVertexAttribArray(0);
-    defer glDisableVertexAttribArray(0);
-    glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 2 * size_of(Vector2), cast(*void) 0);
-
-    glEnableVertexAttribArray(1);
-    defer glDisableVertexAttribArray(1);
-    glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 2 * size_of(Vector2), cast(*void) size_of(Vector2));
+    static_sprite.texture = get_white_texture();
+    static_sprite.width = dimensions.x;
+    static_sprite.height = dimensions.y;
+    static_sprite.position = center;
+    static_sprite.anchor = .{0.5, 0.5};
+    static_sprite.rotation = 0;
+    static_sprite.shader = *default_ellipse_shader;
+    static_sprite.tint = color;
 
     use_shader(*default_ellipse_shader);
 
     projection := get_orthographic_matrix();
-    model := Matrix4_Identity;
+    model := Matrix4Identity;
     view := koda.view;
 
     uniforms: ShaderUniforms;
     defer destroy(uniforms);
-    
-    uniforms[xx "projection"] = create_uniform("projection", projection);
-    uniforms[xx "model"] = create_uniform("model", model);
-    uniforms[xx "view"] = create_uniform("view", view);
     
     uniforms[xx "uTint"] = create_uniform("uTint", color);
     uniforms[xx "uBorderTint"] = create_uniform("uBorderTint", border);
@@ -360,7 +308,7 @@ draw_ellipse :: (center: Vector2, dimensions: Vector2, color: Color = .{1, 1, 1,
 
     apply_uniforms(*default_ellipse_shader, uniforms);
 
-    glDrawArrays(GL_TRIANGLES, 0, xx (vertices.count / 2));
+    draw(static_sprite);
 }
 
 draw_circles :: (positions: [] Vector2, radius: float, color: Color = .{1, 1, 1, 1}) {
