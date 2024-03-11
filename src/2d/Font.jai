@@ -6,6 +6,9 @@ Font :: struct {
     image: Image3;
     max_width: int;
     max_height: int;
+    buffer_required: bool;
+    buffer_view: Matrix4;
+    font_system: ParticleSystem(FontParticleGpu, FontParticleCpu, sort = false); @serializer(skip)
 }
 
 FontParticleGpu :: struct {
@@ -16,6 +19,10 @@ FontParticleGpu :: struct {
     transform1: Vector3;
     transform2: Vector3;
     transform3: Vector3;
+    tint: Vector4;
+    padding: float;
+    scale: float;
+    blur: float;
     
 #place transform1;
     transform: Matrix3 = ---;
@@ -257,9 +264,10 @@ upload :: (font: *Font, clear_image: bool = true) {
             0, 1, 2,
             0, 2, 3,
         ], .[.Position]);
-
-        particle_system_init(*font_system, *font_particle_shader, font_system_geometry);
     }
+
+    particle_system_init(*font.font_system, *font_particle_shader, font_system_geometry);
+    font.font_system.uniforms[xx "uTexture"] = create_uniform("uTexture", font.texture);
 }
 
 create_character_set :: (ranges: ..[2] u32) -> [] u32 {
@@ -276,5 +284,4 @@ create_character_set :: (ranges: ..[2] u32) -> [] u32 {
 
 #scope_module
 
-font_system: ParticleSystem(FontParticleGpu, FontParticleCpu, sort = false);
 font_system_geometry: *Geometry;

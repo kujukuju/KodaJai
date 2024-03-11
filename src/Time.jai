@@ -48,7 +48,10 @@ draw_fps :: (x: float, y: float, anchor: Vector2 = .{}, font: *Font = null) {
 
     set_depth_test_scope(false);
 
-    draw_text(content, font, .{x, y}, anchor, fixed_height_string = "FPS");
+    buffer_text(content, font, .{x, y}, anchor, fixed_height_string = "FPS");
+    if !font.buffer_required {
+        flush_text(font);
+    }
 }
 
 tick_frame_tracker :: (tracker: *FrameTracker, time: float64) {
