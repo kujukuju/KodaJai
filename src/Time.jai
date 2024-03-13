@@ -4,7 +4,6 @@ FrameTracker :: struct {
 }
 
 TimeTracker :: struct {
-    vsync: bool;
     target_fps: float;
     last_loop_time: float64;
 }
@@ -48,9 +47,10 @@ draw_fps :: (x: float, y: float, anchor: Vector2 = .{}, font: *Font = null) {
 
     set_depth_test_scope(false);
 
-    buffer_text(content, font, .{x, y}, anchor, fixed_height_string = "FPS");
-    if !font.buffer_required {
-        flush_text(font);
+    if font.buffer_required {
+        buffer_text(content, font, .{x, y}, anchor, fixed_height_string = "FPS");
+    } else {
+        draw_text(content, font, .{x, y}, anchor, fixed_height_string = "FPS");
     }
 }
 

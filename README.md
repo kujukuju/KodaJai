@@ -1,3 +1,10 @@
+
+## KodaJai
+
+* Correct handling of edge cases such as windows timing functions and exit scenarios.
+
+* Not an opinionated library. You control draw calls directly. There are helpful things included to optimize batching similar draw calls if you choose to use them.
+
 ## Setup
 
 Just `#import "KodaJai";`. 

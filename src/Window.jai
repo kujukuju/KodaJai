@@ -1,3 +1,4 @@
+
 koda_init :: () {
     glfwSetErrorCallback(error_callback);
     if !glfwInit() {
@@ -99,12 +100,69 @@ create_window :: (title: *u8, width: s32, height: s32, multisample: int = 0) {
 
     glClearColor(0.0, 0.0, 0.0, 1.0);
 
+    register_program_exit();
+
     static_sprite = create_sprite(.{}, 0, 0);
 }
 
 destroy_window :: () {
+    set_accurate_sleep(false);
+
     glfwDestroyWindow(koda.window);
     glfwTerminate();
+}
+
+register_program_exit :: () {
+    generic_close_callback :: () #c_call {
+        new_context: Context;
+        push_context new_context {
+            set_accurate_sleep(false);
+            request_exit();
+        }
+    }
+    glfw_close_callback :: (window: *GLFWwindow) #c_call {
+        generic_close_callback();
+    }
+    glfwSetWindowCloseCallback(koda.window, glfw_close_callback);
+
+    #if OS == .WINDOWS {
+        DWORD :: u32;
+        BOOL :: enum s32 { FALSE :: 0; TRUE :: 1; }
+        HandlerRoutine :: #type (dwCtrlType: DWORD) -> BOOL #c_call;
+
+        kernel32 :: #system_library "kernel32";
+        SetConsoleCtrlHandler :: (handler_routine: HandlerRoutine, add: BOOL) -> BOOL #foreign kernel32;
+
+        ctrl_handler :: (dwCtrlType: DWORD) -> BOOL #c_call {
+            generic_close_callback();
+            return .TRUE;
+        }
+        SetConsoleCtrlHandler(ctrl_handler, .TRUE);
+    }
+}
+
+get_accurate_sleep :: () -> bool {
+    return accurate_sleep;
+}
+
+#if OS == .WINDOWS {
+    // it's very important this method undoes itself because it affects the operating system lmao...
+    set_accurate_sleep :: (enabled: bool) {
+        Windows :: #import "Windows";
+
+        if accurate_sleep == enabled {
+            return;
+        }
+        accurate_sleep = enabled;
+
+        if accurate_sleep {
+            Windows.timeBeginPeriod(1);
+        } else {
+            Windows.timeEndPeriod(1);
+        }
+    }
+} else {
+    set_accurate_sleep :: (enabled: bool) #expand {}
 }
 
 set_icon :: (image: Image) {
@@ -142,6 +200,10 @@ error_check_gl :: () -> bool #expand {
 }
 
 should_exit :: () -> bool {
+    if glfwWindowShouldClose(koda.window) == GLFW_TRUE {
+        return true;
+    }
+
     #if !PRODUCTION {
         error_check_gl();
     }
@@ -151,35 +213,46 @@ should_exit :: () -> bool {
         swap_buffers();
     }
 
-    exit := glfwWindowShouldClose(koda.window) == GLFW_TRUE;
-
     time := seconds_since_init();
-    tick_frame_tracker(*koda.frame_tracker, time);
-
-    // TODO sleep_milliseconds is garbage on windows, use something else like locks and threads
 
     // sleep if desired
-    if !koda.time_tracker.vsync && koda.time_tracker.target_fps > 0 {
+    manual_vsync := !get_fullscreen() && can_vsync_wait();
+    if vsync_enabled && manual_vsync {
+        // we'll manually control vsync if it's not full screen mode
+        vsync_wait();
+    } else if !vsync_enabled && koda.time_tracker.target_fps > 0 {
         desired_tick_duration := cast(float64) 1000.0 / cast(float64) koda.time_tracker.target_fps;
 
         last_loop_time := koda.time_tracker.last_loop_time;
         if last_loop_time > 0 {
+            time = seconds_since_init();
             last_tick_duration := (time - last_loop_time) * 1000.0;
-            desired_sleep_time := max(desired_tick_duration - last_tick_duration, 0.0);
+            desired_sleep_time := max(desired_tick_duration - last_tick_duration, 0);
 
-            if desired_sleep_time > 0 {
-                sleep_milliseconds(cast(s32) desired_sleep_time);
+            while desired_sleep_time > 0 {
+                can_reliably_sleep := desired_sleep_time >= cast(float64) time_slice_ms;
+                if can_reliably_sleep {
+                    set_accurate_sleep(true);
+                    defer set_accurate_sleep(false);
+
+                    actual_sleep_time := max(desired_sleep_time - time_slice_ms, 0);
+                    sleep_milliseconds(cast(s32) actual_sleep_time);
+                }
+
+                time = seconds_since_init();
+                last_tick_duration = (time - last_loop_time) * 1000.0;
+                desired_sleep_time = max(desired_tick_duration - last_tick_duration, 0);
             }
         }
     }
+
+    tick_frame_tracker(*koda.frame_tracker, time);
     koda.time_tracker.last_loop_time = time;
     
     // TODO is this the right place for this?
-    if !exit {
-        glfwPollEvents();
-    }
+    glfwPollEvents();
 
-    return exit;
+    return false;
 }
 
 request_exit :: () {
@@ -197,99 +270,33 @@ swap_buffers :: () {
     }
 }
 
-/*
-good idea kind of - this is just a way to get the cpu to start spinning while the gpu is waiting on vsync
-but then the beginning of the gpu calls has to wait for vsync anyways
-and then the beginning of the cpu calls has to wait for the gpu calls to finish
-so essentially if your program is actually bottlenecked for resources, this just rewards you back
-the time it took vsync to write to the screen... maybe it's beneficial because otherwise you could
-potentially miss a cycle or maybe the vsync swap takes a long time in some situations even when you're
-bottlenecked... I'm not sure, but I think if you're going this route you might just want to multithread everything?
-or there might be a better solution to swapping the buffers like this? like manually swapping the gl buffers with
-deffered rendering?
-
-immediate_mode_initialized: bool;
-immediate_mode_thread: Thread;
-immediate_mode_render_semaphore: Semaphore;
-immediate_mode_swap_semaphore: Semaphore;
-
-should_exit_immediate_mode :: ($logic_callback: #type ()) -> bool {
-    if !immediate_mode_initialized {
-        immediate_mode_initialized = true;
-
-        init(*immediate_mode_swap_semaphore);
-        init(*immediate_mode_render_semaphore);
-        thread_init(*immediate_mode_thread, (thread: *Thread) -> s64 {
-            while true {
-                wait_for(*immediate_mode_swap_semaphore);
-                koda.can_render = false;
-
-                logic_callback();
-                
-                koda.can_render = true;
-                signal(*immediate_mode_render_semaphore);
-            }
-            return 0;
-        });
-        thread_start(*immediate_mode_thread);
+can_vsync_wait :: () -> bool {
+    #if OS == .WINDOWS {
+        return true;
+    } else {
+        return false;
     }
+}
 
-    // this has to be called before the update loop
-    glfwPollEvents();
-
-    signal(*immediate_mode_swap_semaphore);
-
-    glfwSwapBuffers(koda.window);
-
-    wait_for(*immediate_mode_render_semaphore);
-
-    width: s32;
-    height: s32;
-    glfwGetFramebufferSize(koda.window, *width, *height);
-    if koda.width != width || koda.height != height {
-        set_viewport(koda.width, koda.height);
-    }
-
-    exit := glfwWindowShouldClose(koda.window) == GLFW_TRUE;
-
-    time := seconds_since_init();
-    tick_frame_tracker(*koda.frame_tracker, time);
-
-    // TODO sleep_milliseconds is garbage on windows, use something else like locks and threads
-
-    // sleep if desired
-    if !koda.time_tracker.vsync && koda.time_tracker.target_fps > 0 {
-        desired_tick_duration := cast(float64) 1000.0 / cast(float64) koda.time_tracker.target_fps;
-
-        last_loop_time := koda.time_tracker.last_loop_time;
-        if last_loop_time > 0 {
-            last_tick_duration := (time - last_loop_time) * 1000.0;
-            desired_sleep_time := max(desired_tick_duration - last_tick_duration, 0.0);
-
-            if desired_sleep_time > 0 {
-                sleep_milliseconds(cast(s32) desired_sleep_time);
-            }
+vsync_wait :: () {
+    #if OS == .WINDOWS {
+        Dwmapi :: #system_library "Dwmapi";
+        DwmFlush :: () -> s32 #foreign Dwmapi;
+        if DwmFlush() {
+            print("Vsync wait error.\n");
         }
     }
-    koda.time_tracker.last_loop_time = time;
-
-    return exit;
 }
-
-immediate_mode_finish :: () {
-    if !immediate_mode_finished {
-        immediate_mode_finished = true;
-    }
-}
-*/
 
 get_fullscreen :: () -> bool, bool {
     fullscreen := !!glfwGetWindowMonitor(koda.window);
     borderless := !glfwGetWindowAttrib(koda.window, GLFW_DECORATED);
-    return fullscreen || borderless, borderless;
+    return fullscreen, borderless;
 }
 
 set_fullscreen :: (fullscreen: bool, borderless: bool, width: int = 0, height: int = 0) {
+    assert(!fullscreen || !borderless, "You cannot have fullscreen and borderless enabled.\n");
+
     monitor := glfwGetPrimaryMonitor();
     video_mode := glfwGetVideoMode(monitor);
 
@@ -304,35 +311,25 @@ set_fullscreen :: (fullscreen: bool, borderless: bool, width: int = 0, height: i
         glfwWindowHint(GLFW_REFRESH_RATE, video_mode.refreshRate);
     }
 
-    if fullscreen && borderless {
-        if !width then width = video_mode.width;
-        if !height then height = video_mode.height;
+    if !width then width = koda.width;
+    if !height then height = koda.height;
 
+    if fullscreen {
         set_window_size(width, height);
         glfwSetWindowAttrib(koda.window, GLFW_DECORATED, GLFW_FALSE);
         glfwSetWindowMonitor(koda.window, null, 0, 0, cast(s32) width, cast(s32) height, 0);
-    } else if fullscreen && !borderless {
-        if !width then width = video_mode.width;
-        if !height then height = video_mode.height;
-
-        glfwSetWindowAttrib(koda.window, GLFW_DECORATED, GLFW_FALSE);
-        glfwSetWindowMonitor(koda.window, monitor, 0, 0, cast(s32) width, cast(s32) height, video_mode.refreshRate);
+        set_vsync(get_vsync());
+    } else if borderless {
         set_window_size(width, height);
-    } else if !fullscreen && borderless {
-        if !width then width = koda.width;
-        if !height then height = koda.height;
-        
         glfwSetWindowAttrib(koda.window, GLFW_DECORATED, GLFW_FALSE);
         glfwSetWindowMonitor(koda.window, null, cast(s32) (video_mode.width - width) / 2, cast(s32) (video_mode.height - height) / 2, cast(s32) width, cast(s32) height, 0);
-        set_window_size(width, height);
-    } else if !fullscreen && !borderless {
-        if !width then width = koda.width;
-        if !height then height = koda.height;
-        
+        set_vsync(get_vsync());
+    } else if !borderless {
         glfwSetWindowAttrib(koda.window, GLFW_DECORATED, GLFW_TRUE);
         glfwSetWindowMonitor(koda.window, null, cast(s32) (video_mode.width - width) / 2, cast(s32) (video_mode.height - height) / 2, cast(s32) width, cast(s32) height, 0);
         glfwSetWindowAttrib(koda.window, GLFW_DECORATED, GLFW_TRUE);
         set_window_size(width, height);
+        set_vsync(get_vsync());
     }
 }
 
@@ -348,28 +345,31 @@ set_window_size :: (width: int, height: int) {
     set_viewport(width, height);
 }
 
-get_adaptive_vsync :: () -> bool {
-    return adaptive_vsync_enabled;
-}
+// I can't tell that this does anything at all so I'm removing it for now
+// get_adaptive_vsync :: () -> bool {
+//     return adaptive_vsync_enabled;
+// }
 
-set_adaptive_vsync :: (enabled: bool) {
-    // I can't tell this makes any difference at all tbh... if anything it makes the interpolation worse?
-    adaptive_vsync_enabled = enabled;
+// set_adaptive_vsync :: (enabled: bool) {
+//     // I can't tell this makes any difference at all tbh... if anything it makes the interpolation worse?
+//     adaptive_vsync_enabled = enabled;
 
-    if enabled {
-        print("Adaptive sync allowed? %\n", !!glfwExtensionSupported("WGL_EXT_swap_control_tear"));
-    }
+//     if enabled {
+//         print("Adaptive sync allowed? %\n", !!glfwExtensionSupported("WGL_EXT_swap_control_tear"));
+//     }
 
-    set_vsync(enabled);
-}
+//     set_vsync(enabled);
+// }
 
 get_vsync :: () -> bool {
-    return koda.time_tracker.vsync;
+    return vsync_enabled;
 }
 
 set_vsync :: (vsync: bool) {
-    koda.time_tracker.vsync = vsync;
-    if vsync {
+    vsync_enabled = vsync;
+    manual_vsync := !get_fullscreen() && can_vsync_wait();
+
+    if vsync_enabled && !manual_vsync {
         glfwSwapInterval(xx (ifx adaptive_vsync_enabled then -1 else 1));
     } else {
         glfwSwapInterval(0);
@@ -956,6 +956,10 @@ end_render_target :: () {
 mouse_capture: bool;
 mouse_currently_captured: bool;
 
+accurate_sleep: bool;
+
+vsync_enabled: bool;
+
 #scope_file
 
 adaptive_vsync_enabled: bool;
@@ -975,9 +979,7 @@ size_callback :: (window: *GLFWwindow, width: s32, height: s32) #c_call {
     }
 }
 
+time_slice_ms :: 2;
+
 MINIMUM_GL_MAJOR_VERSION: s32 : 4;
 MINIMUM_GL_MINOR_VERSION: s32 : 4;
-
-#import "JaiGLFW";
-#import "Math";
-#import "Basic";

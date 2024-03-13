@@ -1,11 +1,14 @@
 
-#module_parameters(PRODUCTION := false, WASM := false);
+// #module_parameters(PRODUCTION := false, WASM := false);
 
-#if WASM {
-    #import "JaiWasmGL";
-} else {
+PRODUCTION :: false;
+WASM :: false;
+
+// #if WASM {
+//     #import "JaiWasmGL";
+// } else {
     #import "GL";
-}
+// }
 
 // #insert #run () -> string {
 //     filepath :: #filepath;
@@ -186,6 +189,7 @@ static_sprite: Sprite;
 // #load "src/assets/TriplexSansBoldSerialized.jai";
 #load "src/assets/White.jai";
 
+#import "Basic";
 #import "String";
 #import "Hash_Table";
 #import "File_Utilities";
@@ -193,15 +197,17 @@ static_sprite: Sprite;
 #import "System";
 #import "Random";
 #import "Compiler";
+#import "Math";
 
+#import "JaiGLFW";
 #import "ContiguousJsonJai"(ASSERT = false, ASM = !WASM);
 #import "FixedStringJai";
 #import "JaiBoundingTree";
 #import "JaiSerializer";
-#import "JaiParallel"(WASM);
+#import "JaiParallel";
 
-c_alloc  :: (size : u64) -> *void #foreign crt "malloc";
-c_free    :: (memory: *void) #foreign crt "free";
+c_alloc :: (size : u64) -> *void #foreign crt "malloc";
+c_free :: (memory: *void) #foreign crt "free";
 
 #if OS == .WINDOWS {
     crt :: #system_library "msvcrt";

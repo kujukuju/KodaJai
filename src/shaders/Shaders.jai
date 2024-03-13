@@ -64,27 +64,27 @@ initialize_shader :: (shader: *Shader, dependencies: ..Any, $caller := #caller_c
     initialize_shader(shader, fixed_dependencies, dependency_names);
 }
 
-// initialize_shader :: (shader: *Shader, named_dependencies: ..ShaderDependency, $caller := #caller_code) {
-//     // maybe you can get the count at compile time from dependencies? I didn't check
-//     dependency_count :: #run () -> int {
-//         nodes := compiler_get_nodes(caller);
-//         proc_call := cast(*Code_Procedure_Call) nodes;
-//         proc_args := proc_call.arguments_unsorted;
-//         assert(proc_args.count >= 1);
+initialize_shader :: (shader: *Shader, named_dependencies: ..ShaderDependency, $caller := #caller_code) {
+    // maybe you can get the count at compile time from dependencies? I didn't check
+    dependency_count :: #run () -> int {
+        nodes := compiler_get_nodes(caller);
+        proc_call := cast(*Code_Procedure_Call) nodes;
+        proc_args := proc_call.arguments_unsorted;
+        assert(proc_args.count >= 1);
         
-//         return proc_args.count - 1;
-//     }();
+        return proc_args.count - 1;
+    }();
 
-//     dependencies: [dependency_count] Any;
-//     dependency_names: [dependency_count] string;
+    dependencies: [dependency_count] Any;
+    dependency_names: [dependency_count] string;
 
-//     for named_dependency, index: named_dependencies {
-//         dependencies[index] = named_dependency.value;
-//         dependency_names[index] = named_dependency.name;
-//     }
+    for named_dependency, index: named_dependencies {
+        dependencies[index] = named_dependency.value;
+        dependency_names[index] = named_dependency.name;
+    }
 
-//     initialize_shader(shader, dependencies, dependecy_names);
-// }
+    initialize_shader(shader, dependencies, dependecy_names);
+}
 
 initialize_shader :: (shader: *Shader, dependencies: [$N] Any, dependency_names: [N] string) {
     if shader.program {

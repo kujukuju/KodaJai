@@ -136,6 +136,7 @@ draw_text :: (content: string, position: Vector2, anchor: Vector2 = .{0, 0}, sca
     font := get_default_font();
     assert(!font.buffer_required, "Cannot draw text when doing a text buffer.\n");
 
+    begin_buffer_text(font);
     buffer_text(content, font, position, anchor, scale, tint, padding, blur, fixed_height_string);
     flush_text(font);
 }
@@ -143,6 +144,7 @@ draw_text :: (content: string, position: Vector2, anchor: Vector2 = .{0, 0}, sca
 draw_text :: (content: string, font: *Font, position: Vector2, anchor: Vector2 = .{0, 0}, scale: float = 1.0, tint: Color = .{1, 1, 1, 1}, padding: float = 0.0, blur: float = 0.0, fixed_height_string: string = "") {
     assert(!font.buffer_required, "Cannot draw text when doing a text buffer.\n");
 
+    begin_buffer_text(font);
     buffer_text(content, font, position, anchor, scale, tint, padding, blur, fixed_height_string);
     flush_text(font);
 }
@@ -150,11 +152,13 @@ draw_text :: (content: string, font: *Font, position: Vector2, anchor: Vector2 =
 draw_text :: (content: string, font: *Font, transform: Matrix3, anchor: Vector2, scale: float, tint: Color, padding: float, blur: float, fixed_height_string: string = "") {
     assert(!font.buffer_required, "Cannot draw text when doing a text buffer.\n");
 
+    begin_buffer_text(font);
     buffer_text(content, font, transform, anchor, scale, tint, padding, blur, fixed_height_string);
     flush_text(font);
 }
 
 begin_buffer_text :: (font: *Font) {
+    assert(!font.buffer_required, "You cannot call begin buffer text twice in a row.\n");
     font.buffer_required = true;
     font.buffer_view = koda.view;
 }
