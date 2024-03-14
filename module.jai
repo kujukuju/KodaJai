@@ -174,6 +174,10 @@ koda: struct {
 // }();
 // #run print("Koda asset path: %\n", KODA_ASSET_PATH);
 
+get_static_sprite :: () -> *Sprite {
+    return *static_sprite;
+}
+
 #scope_module
 
 static_sprite: Sprite;

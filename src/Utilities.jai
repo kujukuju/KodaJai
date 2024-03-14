@@ -225,6 +225,60 @@ print_stack_trace :: () #expand {
     }
 }
 
+EfficientRemove :: struct (T: Type) {
+    arr: *[] T;
+}
+
+efficient_remove :: (arr: *[] $T) -> EfficientRemove(T) {
+    return EfficientRemove(T).{arr};
+}
+
+for_expansion :: (captured: EfficientRemove($T), body: Code, flags: For_Flags) #expand {
+    // you can't efficiently remove in reverse as far as I can tell
+    #assert(!(flags & .REVERSE));
+
+    insert_index := 0;
+    check_index := 0;
+    while check_index < captured.arr.count {
+        #if flags & .POINTER {
+            `it := *captured.arr.*[check_index];
+        } else {
+            `it := captured.arr.*[check_index];
+        }
+
+        `it_index := check_index;
+
+        should_keep := true;
+        #insert (remove={check_index += 1; should_keep = false;}) body;
+
+        if should_keep {
+            if insert_index != check_index {
+                captured.arr.*[insert_index] = captured.arr.*[check_index];
+            }
+
+            insert_index += 1;
+            check_index += 1;
+        }
+    }
+    captured.arr.count -= check_index - insert_index;
+}
+
+// efficient removal exmaple
+// #run {
+//     array: [..] int;
+//     array_add(*array, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20);
+
+//     for value: efficient_remove(*array) {
+//         if value == 1 || value >= 4 && value < 14 || value == 15 || value == 20 {
+//             remove;
+//         } else {
+//             print("Valid %.\n", value);
+//         }
+//     }
+
+//     print("Final array. Should be missing 1, 4 through 13, 15, and 20. %\n", array);
+// }
+
 #scope_file
 
 default_font_loaded: bool = false;
