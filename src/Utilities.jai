@@ -15,17 +15,17 @@ get_string :: (s: *u8) -> string {
 }
 
 get_default_font :: () -> *Font {
-    // #run {
-    //     file_bytes: [] u8;
-    //     file_bytes.data = TriplexSansBold.data;
-    //     file_bytes.count = TriplexSansBold.count;
+    #run {
+        file_bytes: [] u8;
+        file_bytes.data = TriplexSansBold.data;
+        file_bytes.count = TriplexSansBold.count;
 
-    //     character_set :: #run create_character_set(.[0, 255]);
-    //     font := create_font(file_bytes, 14, character_set, false);
+        character_set :: #run create_character_set(.[0, 255]);
+        font := create_font(file_bytes, 14, character_set, false);
 
-    //     serialized_path := tprint("%/assets/TriplexSansBoldSerialized.font", #filepath);
-    //     write_serialized(serialized_path, .[], font, reuse_memory = false);
-    // };
+        serialized_path := tprint("%/assets/TriplexSansBoldSerialized.font", #filepath);
+        write_serialized(serialized_path, .[], font, reuse_memory = false);
+    };
 
     if !default_font_loaded {
         default_font_loaded = true;
@@ -226,45 +226,54 @@ print_stack_trace :: () #expand {
 }
 
 EfficientRemove :: struct (T: Type) {
-    arr: *[] T;
+    captured: *[] T;
 }
 
-efficient_remove :: (arr: *[] $T) -> EfficientRemove(T) {
-    return EfficientRemove(T).{arr};
+efficient_remove :: (captured: *[] $T) -> EfficientRemove(T) {
+    return EfficientRemove(T).{captured};
 }
 
-for_expansion :: (captured: EfficientRemove($T), body: Code, flags: For_Flags) #expand {
-    // you can't efficiently remove in reverse as far as I can tell
+for_expansion :: (wrapper: EfficientRemove($T), body: Code, flags: For_Flags) #expand {
+    // you can't efficiently remove in reverse as far as I can tell unless you manually reverse first
     #assert(!(flags & .REVERSE));
 
     insert_index := 0;
     check_index := 0;
-    while check_index < captured.arr.count {
+    while check_index < wrapper.captured.count {
         #if flags & .POINTER {
-            `it := *captured.arr.*[check_index];
+            `it := *wrapper.captured.*[check_index];
         } else {
-            `it := captured.arr.*[check_index];
+            `it := wrapper.captured.*[check_index];
         }
 
         `it_index := check_index;
 
         should_keep := true;
-        #insert (remove={check_index += 1; should_keep = false;}) body;
-
-        if should_keep {
+        defer if should_keep {
             if insert_index != check_index {
-                captured.arr.*[insert_index] = captured.arr.*[check_index];
+                wrapper.captured.*[insert_index] = wrapper.captured.*[check_index];
             }
 
             insert_index += 1;
             check_index += 1;
         }
+        #insert (remove={check_index += 1; should_keep = false;}) body;
     }
-    captured.arr.count -= check_index - insert_index;
+    
+    // handle breaks
+    while insert_index != check_index && check_index < wrapper.captured.count {
+        wrapper.captured.*[insert_index] = wrapper.captured.*[check_index];
+
+        insert_index += 1;
+        check_index += 1;
+    }
+
+    wrapper.captured.count -= check_index - insert_index;
 }
 
 // efficient removal exmaple
 // #run {
+//     first_valid := 0;
 //     array: [..] int;
 //     array_add(*array, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20);
 
@@ -272,10 +281,85 @@ for_expansion :: (captured: EfficientRemove($T), body: Code, flags: For_Flags) #
 //         if value == 1 || value >= 4 && value < 14 || value == 15 || value == 20 {
 //             remove;
 //         } else {
+//             if !first_valid {
+//                 first_valid = value;
+//             }
 //             print("Valid %.\n", value);
+
+//             if value % 2 {
+//                 continue;
+//             }
+
+//             // if value >= 16 {
+//             //     break;
+//             // }
 //         }
 //     }
 
+//     print("First valid. %\n", first_valid);
+//     print("Final array. Should be missing 1, 4 through 13, 15, and 20. %\n", array);
+// }
+
+efficient_remove :: (captured: *[] $T, code: Code) #expand {
+    insert_index := 0;
+    check_index := 0;
+    while check_index < captured.count {
+        it := captured.*[check_index];
+        it_index := check_index;
+
+        should_remove := false;
+
+        defer if should_remove {
+            check_index += 1;
+        } else {
+            if insert_index != check_index {
+                captured.*[insert_index] = captured.*[check_index];
+            }
+
+            insert_index += 1;
+            check_index += 1;
+        }
+
+        #insert,scope() code;
+    }
+
+    // handle breaks
+    while insert_index != check_index && check_index < captured.count {
+        captured.*[insert_index] = captured.*[check_index];
+
+        insert_index += 1;
+        check_index += 1;
+    }
+
+    captured.count -= check_index - insert_index;
+}
+
+// efficient removal function test
+// #run {
+//     first_valid := 0;
+//     array: [..] int;
+//     array_add(*array, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20);
+
+//     efficient_remove(*array, #code {
+//         if it == 1 || it >= 4 && it < 14 || it == 15 || it == 20 {
+//             should_remove = true;
+//         } else {
+//             if !`first_valid {
+//                 `first_valid = it;
+//             }
+//             print("Valid %.\n", it);
+            
+//             if it % 2 {
+//                 continue;
+//             }
+
+//             // if it >= 16 {
+//             //     break;
+//             // }
+//         }
+//     });
+
+//     print("First valid. %\n", first_valid);
 //     print("Final array. Should be missing 1, 4 through 13, 15, and 20. %\n", array);
 // }
 

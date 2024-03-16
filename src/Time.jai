@@ -32,13 +32,11 @@ get_fps :: () -> float {
     return cast(float) (delta_frames / delta_time);
 }
 
-draw_fps :: (position: Vector2, anchor: Vector2 = .{}, font: *Font = null) {
-    draw_fps(position.x, position.y, anchor, font);
+draw_fps :: (position: Vector2, font: *Font, anchor: Vector2 = .{}, scale: float = 1, padding: float = 0) {
+    draw_fps(position.x, position.y, font, anchor, scale, padding);
 }
 
-draw_fps :: (x: float, y: float, anchor: Vector2 = .{}, font: *Font = null) {
-    if !font then font = get_default_font();
-
+draw_fps :: (x: float, y: float, font: *Font, anchor: Vector2 = .{}, scale: float = 1, padding: float = 0) {
     fps := get_fps();
     integer := cast(int) fps;
     remainder := cast(int) ((fps - integer) * 100);
@@ -48,9 +46,9 @@ draw_fps :: (x: float, y: float, anchor: Vector2 = .{}, font: *Font = null) {
     set_depth_test_scope(false);
 
     if font.buffer_required {
-        buffer_text(content, font, .{x, y}, anchor, fixed_height_string = "FPS");
+        buffer_text(content, font, .{x, y}, anchor, scale, padding = padding, fixed_height_string = "FPS");
     } else {
-        draw_text(content, font, .{x, y}, anchor, fixed_height_string = "FPS");
+        draw_text(content, font, .{x, y}, anchor, scale, padding = padding, fixed_height_string = "FPS");
     }
 }
 

@@ -40,8 +40,8 @@ create_window :: (title: *u8, width: s32, height: s32, multisample: int = 0) {
         }
     }
 
-    monitor_width := width;
-    monitor_height := height;
+    monitor_width = width;
+    monitor_height = height;
     monitor := glfwGetPrimaryMonitor();
     if monitor {
         video_mode := glfwGetVideoMode(monitor);
@@ -68,18 +68,22 @@ create_window :: (title: *u8, width: s32, height: s32, multisample: int = 0) {
         return;
     }
 
-    glfwSetWindowPos(koda.window, (monitor_width - width) / 2, (monitor_height - height) / 2);
+    glfwSetWindowPos(koda.window, cast(s32) (monitor_width - width) / 2, cast(s32) (monitor_height - height) / 2);
 
     glfwMakeContextCurrent(koda.window);
     gl_load(*gl, glfwGetProcAddress);
 
-    // glfwSetInputMode(koda.window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
     glfwSetInputMode(koda.window, GLFW_STICKY_MOUSE_BUTTONS, GLFW_TRUE);
     glfwSetInputMode(koda.window, GLFW_STICKY_KEYS, GLFW_TRUE);
-    // glfwSetCursorPos(koda.window, width / 2.0, height / 2.0);
     glfwSetScrollCallback(koda.window, scroll_callback);
-    // glfwSetCursorPosCallback(koda.window, mouse_callback);
     glfwSetWindowSizeCallback(koda.window, size_callback);
+    glfwSetWindowFocusCallback(koda.window, focus_callback);
+    window_focused = true;
+
+    // cursor := glfwCreateStandardCursor(GLFW_ARROW_CURSOR);
+    // glfwSetCursor(koda.window, null);
+
+    // TODO listen to window position change, and current monitor and monitor size
 
     set_vsync(false);
     set_target_fps(0);
@@ -271,11 +275,13 @@ swap_buffers :: () {
 }
 
 can_vsync_wait :: () -> bool {
-    #if OS == .WINDOWS {
-        return true;
-    } else {
-        return false;
-    }
+    return false;
+
+    // #if OS == .WINDOWS {
+    //     return true;
+    // } else {
+    //     return false;
+    // }
 }
 
 vsync_wait :: () {
@@ -311,26 +317,36 @@ set_fullscreen :: (fullscreen: bool, borderless: bool, width: int = 0, height: i
         glfwWindowHint(GLFW_REFRESH_RATE, video_mode.refreshRate);
     }
 
-    if !width then width = koda.width;
-    if !height then height = koda.height;
-
     if fullscreen {
+        if !width then width = video_mode.width;
+        if !height then height = video_mode.height;
+
+        // TODO why isn't monitor being used???
+        // TODO use GLFW_DONT_CARE for refresh rate
         set_window_size(width, height);
         glfwSetWindowAttrib(koda.window, GLFW_DECORATED, GLFW_FALSE);
         glfwSetWindowMonitor(koda.window, null, 0, 0, cast(s32) width, cast(s32) height, 0);
         set_vsync(get_vsync());
     } else if borderless {
+        if !width then width = video_mode.width;
+        if !height then height = video_mode.height;
+
         set_window_size(width, height);
         glfwSetWindowAttrib(koda.window, GLFW_DECORATED, GLFW_FALSE);
         glfwSetWindowMonitor(koda.window, null, cast(s32) (video_mode.width - width) / 2, cast(s32) (video_mode.height - height) / 2, cast(s32) width, cast(s32) height, 0);
         set_vsync(get_vsync());
     } else if !borderless {
+        if !width then width = koda.width;
+        if !height then height = koda.height;
+
         glfwSetWindowAttrib(koda.window, GLFW_DECORATED, GLFW_TRUE);
         glfwSetWindowMonitor(koda.window, null, cast(s32) (video_mode.width - width) / 2, cast(s32) (video_mode.height - height) / 2, cast(s32) width, cast(s32) height, 0);
         glfwSetWindowAttrib(koda.window, GLFW_DECORATED, GLFW_TRUE);
         set_window_size(width, height);
         set_vsync(get_vsync());
     }
+
+    resolve_mouse_capture();
 }
 
 get_window_size :: () -> int, int {
@@ -401,6 +417,14 @@ set_mouse_capture :: (capture: bool) {
 
 get_mouse_currently_captured :: () -> bool {
     return glfwGetInputMode(koda.window, GLFW_CURSOR) == GLFW_CURSOR_DISABLED;
+}
+
+get_focused :: () -> bool {
+    return window_focused;
+}
+
+request_focus :: () {
+    glfwFocusWindow(koda.window);
 }
 
 get_front_face_ccw :: () -> bool {
@@ -869,10 +893,22 @@ set_scissor_test_scope :: (enabled: bool, top_left: Point2, dimensions: Point2) 
     set_scissor_test(enabled, top_left, dimensions);
 }
 
-set_view_scope :: (view: Matrix4) #expand {
-    old_view := koda.view;
-    `defer koda.view = old_view;
+get_monitor_size :: () -> Point2 {
+    return .{monitor_width, monitor_height};
+}
+
+get_view :: () -> Matrix4 {
+    return koda.view;
+}
+
+set_view :: (view: Matrix4) {
     koda.view = view;
+}
+
+set_view_scope :: (view: Matrix4) #expand {
+    old_view := get_view();
+    `defer set_view(old_view);
+    set_view(view);
 }
 
 ClearMask :: enum_flags {
@@ -953,6 +989,9 @@ end_render_target :: () {
 
 #scope_module
 
+monitor_width: int;
+monitor_height: int;
+
 mouse_capture: bool;
 mouse_currently_captured: bool;
 
@@ -963,6 +1002,8 @@ vsync_enabled: bool;
 #scope_file
 
 adaptive_vsync_enabled: bool;
+
+window_focused: bool;
 
 error_callback :: (error: s32, description: *u8) #c_call {
     // TODO print color
@@ -976,6 +1017,13 @@ size_callback :: (window: *GLFWwindow, width: s32, height: s32) #c_call {
     new_context: Context;
     push_context new_context {
         set_viewport(width, height);
+    }
+}
+
+focus_callback :: (window: *GLFWwindow, focused: s32) #c_call {
+    new_context: Context;
+    push_context new_context {
+        window_focused = !!focused;
     }
 }
 

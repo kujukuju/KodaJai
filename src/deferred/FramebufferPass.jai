@@ -280,40 +280,40 @@ framebuffer_bind_read_screen :: () {
     glBindFramebuffer(GL_READ_FRAMEBUFFER, 0);
 }
 
-framebuffer_resolve_color :: (pass: FramebufferPass($p_c, $p_d, $p_dr, $p_ms), texture_index: int, resolved: FramebufferPass($r_c, $r_d, $r_dr, $r_ms)) {
-    assert(p_c > texture_index, "You cannot resolve a texture index that doesn't exist.");
-    assert(r_c == 1, "You cannot resolve color into a framebuffer with more than 1 texture.");
+// framebuffer_resolve_color :: (pass: FramebufferPass($p_c, $p_d, $p_dr, $p_ms), texture_index: int, resolved: FramebufferPass($r_c, $r_d, $r_dr, $r_ms)) {
+//     assert(p_c > texture_index, "You cannot resolve a texture index that doesn't exist.");
+//     assert(r_c == 1, "You cannot resolve color into a framebuffer with more than 1 texture.");
 
-    framebuffer_bind_read(pass);
-    framebuffer_bind_write(resolved);
+//     framebuffer_bind_read(pass);
+//     framebuffer_bind_write(resolved);
 
-    interp: u32 = GL_NEAREST;
-    if pass.width != resolved.width || pass.height != resolved.height {
-        interp = GL_LINEAR;
-    }
+//     interp: u32 = GL_NEAREST;
+//     if pass.width != resolved.width || pass.height != resolved.height {
+//         interp = GL_LINEAR;
+//     }
 
-    glReadBuffer(GL_COLOR_ATTACHMENT0 + cast(u32) texture_index);
-    glBlitFramebuffer(0, 0, xx pass.width, xx pass.height, 0, 0, xx resolved.width, xx resolved.height, GL_COLOR_BUFFER_BIT, interp);
-}
+//     glReadBuffer(GL_COLOR_ATTACHMENT0 + cast(u32) texture_index);
+//     glBlitFramebuffer(0, 0, xx pass.width, xx pass.height, 0, 0, xx resolved.width, xx resolved.height, GL_COLOR_BUFFER_BIT, interp);
+// }
 
-framebuffer_resolve_color_screen :: (pass: FramebufferPass(1, $p_d, $p_dr, $p_ms)) {
-    framebuffer_resolve_color_screen(pass, 0);
-}
+// framebuffer_resolve_color_screen :: (pass: FramebufferPass(1, $p_d, $p_dr, $p_ms)) {
+//     framebuffer_resolve_color_screen(pass, 0);
+// }
 
-framebuffer_resolve_color_screen :: (pass: FramebufferPass($p_c, $p_d, $p_dr, $p_ms), texture_index: int) {
-    assert(p_c > texture_index, "You cannot resolve a texture index that doesn't exist.");
+// framebuffer_resolve_color_screen :: (pass: FramebufferPass($p_c, $p_d, $p_dr, $p_ms), texture_index: int) {
+//     assert(p_c > texture_index, "You cannot resolve a texture index that doesn't exist.");
 
-    framebuffer_bind_read(pass);
-    framebuffer_bind_write_screen();
+//     framebuffer_bind_read(pass);
+//     framebuffer_bind_write_screen();
 
-    interp: u32 = GL_NEAREST;
-    if pass.width != koda.width || pass.height != koda.height {
-        interp = GL_LINEAR;
-    }
+//     interp: u32 = GL_NEAREST;
+//     if pass.width != koda.width || pass.height != koda.height {
+//         interp = GL_LINEAR;
+//     }
 
-    glReadBuffer(GL_COLOR_ATTACHMENT0 + cast(u32) texture_index);
-    glBlitFramebuffer(0, 0, xx pass.width, xx pass.height, 0, 0, xx koda.width, xx koda.height, GL_COLOR_BUFFER_BIT, interp);
-}
+//     glReadBuffer(GL_COLOR_ATTACHMENT0 + cast(u32) texture_index);
+//     glBlitFramebuffer(0, 0, xx pass.width, xx pass.height, 0, 0, xx koda.width, xx koda.height, GL_COLOR_BUFFER_BIT, interp);
+// }
 
 framebuffer_resolve_depth :: (pass: FramebufferPass($p_c, $p_d, $p_dr, $p_ms), resolved: FramebufferPass($r_c, $r_d, $r_dr, $r_ms)) {
     assert(p_d && r_d, "You cannot resolve depth if both framebuffers don't have a depth texture.");

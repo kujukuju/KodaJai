@@ -368,13 +368,13 @@ update_inputs :: ($update_features: InputFeature = .All) {
         }
     }
 
-    if mouse_currently_captured && input.keys[Key.ESCAPE] {
-        mouse_currently_captured = false;
-        resolve_mouse_capture();
-    } else if !mouse_currently_captured && (input.mouse_left || input.mouse_right) {
-        mouse_currently_captured = true;
-        resolve_mouse_capture();
-    }
+    // if mouse_currently_captured && input.keys[Key.ESCAPE] {
+    //     mouse_currently_captured = false;
+    //     resolve_mouse_capture();
+    // } else if !mouse_currently_captured && (input.mouse_left || input.mouse_right) {
+    //     mouse_currently_captured = true;
+    //     resolve_mouse_capture();
+    // }
 
     if abort_shortcut && input.keys[Key.LEFT_CONTROL] && (input.keys[Key.C] & InputState.START) {
         glfwSetWindowShouldClose(koda.window, GLFW_TRUE);
@@ -410,15 +410,15 @@ set_abort_shortcut :: (enabled: bool) {
 resolve_mouse_capture :: () {
     if mouse_capture && mouse_currently_captured {
         glfwSetInputMode(koda.window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
-        glfwSetInputMode(koda.window, GLFW_STICKY_MOUSE_BUTTONS, GLFW_TRUE);
-        glfwSetInputMode(koda.window, GLFW_STICKY_KEYS, GLFW_TRUE);
+        // glfwSetInputMode(koda.window, GLFW_STICKY_MOUSE_BUTTONS, GLFW_TRUE);
+        // glfwSetInputMode(koda.window, GLFW_STICKY_KEYS, GLFW_TRUE);
         if glfwRawMouseMotionSupported() {
             glfwSetInputMode(koda.window, GLFW_RAW_MOUSE_MOTION, GLFW_TRUE);
         }
     } else {
         glfwSetInputMode(koda.window, GLFW_CURSOR, GLFW_CURSOR_NORMAL);
-        glfwSetInputMode(koda.window, GLFW_STICKY_MOUSE_BUTTONS, GLFW_FALSE);
-        glfwSetInputMode(koda.window, GLFW_STICKY_KEYS, GLFW_FALSE);
+        // glfwSetInputMode(koda.window, GLFW_STICKY_MOUSE_BUTTONS, GLFW_FALSE);
+        // glfwSetInputMode(koda.window, GLFW_STICKY_KEYS, GLFW_FALSE);
         if glfwRawMouseMotionSupported() {
             glfwSetInputMode(koda.window, GLFW_RAW_MOUSE_MOTION, GLFW_FALSE);
         }

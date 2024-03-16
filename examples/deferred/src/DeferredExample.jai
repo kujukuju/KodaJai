@@ -104,7 +104,7 @@ main :: () {
 
         deferred_render();
 
-        draw_fps(10, 10);
+        draw_fps(10, 10, get_default_font());
     }
 }
 

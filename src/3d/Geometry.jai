@@ -367,41 +367,33 @@ copy_nearby_vertex_data :: (geometry: *Geometry, source: Geometry, copy_attribut
         new_index := i / old_stride * new_stride;
         memcpy(new_vertices.data + new_index, geometry.vertices.data + i, old_stride * size_of(float));
 
-        QueryData :: struct {
-            radius: float;
-            position: Vector3;
-            best_vertex: *Vector3;
-        }
+        query_position := geometry_position;
+        query_radius := 0.0;
+        best_vertex: *Vector3;
 
-        query_data: QueryData;
-        query_data.radius = 0;
-        query_data.position = geometry_position;
+        while !best_vertex {
+            query_radius += OFFSET;
+            position_aabb := AABB3.{query_position - query_radius, query_position + query_radius};
 
-        while !query_data.best_vertex {
-            query_data.radius += OFFSET;
-            position_aabb := AABB3.{geometry_position - query_data.radius, geometry_position + query_data.radius};
-
-            query(*source_tree, position_aabb, (value: *float, query_data: *QueryData) -> bool {
+            for value: query(*source_tree, position_aabb) {
                 source_position: Vector3 = (cast(*Vector3) value).*;
 
-                current_distance := distance(query_data.position, source_position);
-                if current_distance <= query_data.radius {
-                    if !query_data.best_vertex {
-                        query_data.best_vertex = cast(*Vector3) value;
-                        return true;
+                current_distance := distance(query_position, source_position);
+                if current_distance <= query_radius {
+                    if !best_vertex {
+                        best_vertex = cast(*Vector3) value;
+                        continue;
                     }
 
-                    if current_distance < distance(query_data.position, query_data.best_vertex.*) {
-                        query_data.best_vertex = cast(*Vector3) value;
-                        return true;
+                    if current_distance < distance(query_position, best_vertex.*) {
+                        best_vertex = cast(*Vector3) value;
+                        continue;
                     }
                 }
-
-                return true;
-            }, *query_data);
+            }
         }
 
-        best_vertex_data := cast(*float) query_data.best_vertex;
+        best_vertex_data := cast(*float) best_vertex;
 
         geoemtry_current_offset := old_stride;
         source_attribute_offset := 0;
