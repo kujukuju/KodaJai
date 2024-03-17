@@ -369,7 +369,7 @@ draw_sphere :: (position: Vector3, dimensions: Vector3 = .{1, 1, 1}, color: Colo
         load_sphere();
     }
 
-    use_shader(*default_shader3);
+    use_shader(*default_shape_shader3);
 
     projection := get_perspective_matrix();
     model := Matrix4Identity;
@@ -387,11 +387,8 @@ draw_sphere :: (position: Vector3, dimensions: Vector3 = .{1, 1, 1}, color: Colo
     uniforms[xx "view"] = create_uniform("view", view);
     
     uniforms[xx "uTint"] = create_uniform("uTint", color);
-    uniforms[xx "uFrame"] = create_uniform("uFrame", Vector4.{0, 0, 1, 1});
-
-    uniforms[xx "uTexture0"] = create_uniform("uTexture0", white_texture.buffer);
     
-    apply_uniforms(*default_shader3, uniforms);
+    apply_uniforms(*default_shape_shader3, uniforms);
 
     glBindVertexArray(sphere.vao_);
     glDrawElements(GL_TRIANGLES, xx sphere.indices.count, GL_UNSIGNED_INT, xx 0);

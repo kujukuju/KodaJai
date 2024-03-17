@@ -960,6 +960,7 @@ clear :: (mask: ClearMask = .Color | .Depth) {
     assert(koda.can_render, "Cannot currently make any draw calls.\n");
 
     real_mask := convert_clear_mask(mask);
+    glClearColor(0, 0, 0, 0);
     glClear(real_mask);
 }
 

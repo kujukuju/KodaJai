@@ -280,6 +280,7 @@ framebuffer_bind_read_screen :: () {
     glBindFramebuffer(GL_READ_FRAMEBUFFER, 0);
 }
 
+// blit seems to behave weirdly with obs
 // framebuffer_resolve_color :: (pass: FramebufferPass($p_c, $p_d, $p_dr, $p_ms), texture_index: int, resolved: FramebufferPass($r_c, $r_d, $r_dr, $r_ms)) {
 //     assert(p_c > texture_index, "You cannot resolve a texture index that doesn't exist.");
 //     assert(r_c == 1, "You cannot resolve color into a framebuffer with more than 1 texture.");

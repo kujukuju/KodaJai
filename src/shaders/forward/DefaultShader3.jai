@@ -10,7 +10,7 @@ default_shader3: DefaultShader3;
 
 #scope_module
 
-DEFAULT_VERTEX_SHADER3 :: #string DONE
+DEFAULT_VERTEX_SHADER3 :: #string ___glsl
 #version 330 core
 layout (location = 0) in vec3 aPos;
 layout (location = 1) in vec3 aNorm;
@@ -31,13 +31,15 @@ void main() {
 
     gl_Position = projection * view * model * vec4(aPos, 1.0);
 }
-DONE
+___glsl
 
-DEFAULT_FRAGMENT_SHADER3 :: #string DONE
+DEFAULT_FRAGMENT_SHADER3 :: #string ___glsl
 #version 330 core
 out vec4 FragColor;
   
 uniform sampler2D uTexture0;
+
+uniform vec4 uTint;
 
 in vec3 vPos;
 in vec3 vNorm;
@@ -58,8 +60,8 @@ void main() {
     vec3 diffuse = diff * lightColor;
     vec4 result = vec4(ambient + diffuse, 1.0) * objectColor;
 
-    FragColor = vec4(result.rgb, 1.0);
+    FragColor = vec4(result.rgb, 1.0) * uTint;
 
     // FragColor = vec4(1.0);
 }
-DONE
+___glsl

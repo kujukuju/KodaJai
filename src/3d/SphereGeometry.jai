@@ -1,5 +1,5 @@
 
-create_icosphere :: (radius: float, subdivision: int, with_normals: bool = false, with_texcoords: bool = false, should_upload: bool = true) -> *Geometry {
+create_icosphere :: (radius: float, subdivision: int, with_normals: bool = false, with_texcoords: bool = false, should_expand: bool = false, should_upload: bool = true) -> *Geometry {
     H_ANGLE: float : PI / 180.0 * 72.0;
     V_ANGLE: float : #run atan(1.0 / 2.0);
     S_STEP: float : 186.0 / 2048.0;
@@ -19,7 +19,7 @@ create_icosphere :: (radius: float, subdivision: int, with_normals: bool = false
         return newV;
     }
 
-    compute_half_tex_coord :: (t1: Vector2, t2: Vector2) -> Vector2 {
+    compute_half_texcoord :: (t1: Vector2, t2: Vector2) -> Vector2 {
         newT: Vector2 = ---;
         newT.x = (t1.x + t2.x) * 0.5;
         newT.y = (t1.y + t2.y) * 0.5;
@@ -63,7 +63,7 @@ create_icosphere :: (radius: float, subdivision: int, with_normals: bool = false
     geometry := New(Geometry);
     vertices: [..] Vector3;
     normals: [..] Vector3;
-    tex_coords: [..] Vector2;
+    texcoords: [..] Vector2;
     indices: [..] u32;
 
     // compute the first 12 vertices that start the icosahedron
@@ -129,26 +129,26 @@ create_icosphere :: (radius: float, subdivision: int, with_normals: bool = false
         n := compute_face_normal(v0, v1, v2);
         array_add(*vertices, v0, v1, v2);
         array_add(*normals, n, n, n);
-        array_add(*tex_coords, t0, t1, t2);
+        array_add(*texcoords, t0, t1, t2);
         array_add(*indices, index, index + 1, index + 2);
 
         n = compute_face_normal(v1, v3, v2);
         array_add(*vertices, v1, v3, v2);
         array_add(*normals, n, n, n);
-        array_add(*tex_coords, t1, t3, t2);
+        array_add(*texcoords, t1, t3, t2);
         array_add(*indices, index + 3, index + 4, index + 5);
 
         n = compute_face_normal(v2, v3, v4);
         array_add(*vertices, v2, v3, v4);
         array_add(*normals, n, n, n);
-        array_add(*tex_coords, t2, t3, t4);
+        array_add(*texcoords, t2, t3, t4);
         array_add(*indices, index + 6, index + 7, index + 8);
 
         // add a triangle in 3rd row
         n = compute_face_normal(v3, v11, v4);
         array_add(*vertices, v3, v11, v4);
         array_add(*normals, n, n, n);
-        array_add(*tex_coords, t3, t11, t4);
+        array_add(*texcoords, t3, t11, t4);
         array_add(*indices, index + 9, index + 10, index + 11);
 
         index += 12;
@@ -156,18 +156,18 @@ create_icosphere :: (radius: float, subdivision: int, with_normals: bool = false
 
     for i: 1..subdivision {
         temp_vertices: [..] Vector3;
-        temp_tex_coords: [..] Vector2;
+        temp_texcoords: [..] Vector2;
         temp_indices: [..] u32;
         defer array_free(temp_vertices);
-        defer array_free(temp_tex_coords);
+        defer array_free(temp_texcoords);
         defer array_free(temp_indices);
         array_copy(*temp_vertices, vertices);
-        array_copy(*temp_tex_coords, tex_coords);
+        array_copy(*temp_texcoords, texcoords);
         array_copy(*temp_indices, indices);
 
         vertices.count = 0;
         normals.count = 0;
-        tex_coords.count = 0;
+        texcoords.count = 0;
         indices.count = 0;
 
         index = 0;
@@ -179,42 +179,93 @@ create_icosphere :: (radius: float, subdivision: int, with_normals: bool = false
             v1 := temp_vertices[temp_indices[j]];
             v2 := temp_vertices[temp_indices[j + 1]];
             v3 := temp_vertices[temp_indices[j + 2]];
-            t1 := temp_tex_coords[temp_indices[j]];
-            t2 := temp_tex_coords[temp_indices[j + 1]];
-            t3 := temp_tex_coords[temp_indices[j + 2]];
+            t1 := temp_texcoords[temp_indices[j]];
+            t2 := temp_texcoords[temp_indices[j + 1]];
+            t3 := temp_texcoords[temp_indices[j + 2]];
 
             newV1 := compute_half_vertex(v1, v2, radius);
             newV2 := compute_half_vertex(v2, v3, radius);
             newV3 := compute_half_vertex(v1, v3, radius);
-            newT1 := compute_half_tex_coord(t1, t2);
-            newT2 := compute_half_tex_coord(t2, t3);
-            newT3 := compute_half_tex_coord(t1, t3);
+            newT1 := compute_half_texcoord(t1, t2);
+            newT2 := compute_half_texcoord(t2, t3);
+            newT3 := compute_half_texcoord(t1, t3);
 
             normal := compute_face_normal(v1, newV1, newV3);
             array_add(*vertices, v1, newV1, newV3);
             array_add(*normals, normal, normal, normal);
-            array_add(*tex_coords, t1, newT1, newT3);
+            array_add(*texcoords, t1, newT1, newT3);
             array_add(*indices, index, index + 1, index + 2);
 
             normal = compute_face_normal(newV1, v2, newV2);
             array_add(*vertices, newV1, v2, newV2);
             array_add(*normals, normal, normal, normal);
-            array_add(*tex_coords, newT1, t2, newT2);
+            array_add(*texcoords, newT1, t2, newT2);
             array_add(*indices, index + 3, index + 4, index + 5);
 
             normal = compute_face_normal(newV1, newV2, newV3);
             array_add(*vertices, newV1, newV2, newV3);
             array_add(*normals, normal, normal, normal);
-            array_add(*tex_coords, newT1, newT2, newT3);
+            array_add(*texcoords, newT1, newT2, newT3);
             array_add(*indices, index + 6, index + 7, index + 8);
 
             normal = compute_face_normal(newV3, newV2, v3);
             array_add(*vertices, newV3, newV2, v3);
             array_add(*normals, normal, normal, normal);
-            array_add(*tex_coords, newT3, newT2, t3);
+            array_add(*texcoords, newT3, newT2, t3);
             array_add(*indices, index + 9, index + 10, index + 11);
 
             index += 12;
+        }
+    }
+
+    if !with_normals {
+        if subdivision > 1 {
+            print("Warning! You're generating an icosphere without normals with a larger subdivision. The vertex deduplication code is very poorly optimized. You should serialize this or optimize the code.\n");
+        }
+
+        temp_vertices: [..] Vector3;
+        defer array_free(temp_vertices);
+        array_copy(*temp_vertices, vertices);
+        vertices.count = 0;
+
+        temp_texcoords: [..] Vector2;
+        defer array_free(temp_texcoords);
+        array_copy(*temp_texcoords, texcoords);
+        texcoords.count = 0;
+
+        temp_indices: [..] u32;
+        defer array_free(temp_indices);
+        array_copy(*temp_indices, indices);
+        indices.count = 0;
+
+        for index: temp_indices {
+            vertex := temp_vertices[index];
+            texcoord := temp_texcoords[index];
+
+            for existing_vertex, existing_index: vertices {
+                if distance_squared(existing_vertex, vertex) < 0.00001 {
+                    array_add(*indices, cast(u32) existing_index);
+                    continue index;
+                }
+            }
+
+            array_add(*indices, cast(u32) vertices.count);
+            array_add(*texcoords, texcoord);
+            array_add(*vertices, vertex);
+        }
+
+        normals.count = vertices.count;
+    }
+
+    if should_expand {
+        face_vertex1 := vertices[indices[0]];
+        face_vertex2 := vertices[indices[1]];
+        face_vertex3 := vertices[indices[2]];
+        face_center := face_vertex1 / 3.0 + face_vertex2 / 3.0 + face_vertex3 / 3.0;
+        expand_scale := radius / length(face_center);
+
+        for i: 0..vertices.count - 1 {
+            vertices[i] *= expand_scale;
         }
     }
 
@@ -228,13 +279,13 @@ create_icosphere :: (radius: float, subdivision: int, with_normals: bool = false
 
     offset := 0;
 
-    assert(vertices.count == normals.count && vertices.count == tex_coords.count, "Must have the same amount of all things.");
+    assert(vertices.count == normals.count && vertices.count == texcoords.count, "Must have the same amount of all things.");
     array_copy(*geometry.indices, indices);
     array_resize(*geometry.vertices, vertices.count * stride);
     for i: 0..vertices.count - 1 {
         vertex := vertices[i];
         normal := normals[i];
-        tex_coord := tex_coords[i];
+        texcoord := texcoords[i];
 
         geometry.vertices[offset] = vertex.x;
         geometry.vertices[offset + 1] = vertex.y;
@@ -249,8 +300,8 @@ create_icosphere :: (radius: float, subdivision: int, with_normals: bool = false
         }
         
         if with_texcoords {
-            geometry.vertices[offset] = tex_coord.x;
-            geometry.vertices[offset + 1] = tex_coord.y;
+            geometry.vertices[offset] = texcoord.x;
+            geometry.vertices[offset + 1] = texcoord.y;
             offset += 2;
         }
     }
