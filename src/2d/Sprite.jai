@@ -146,6 +146,10 @@ draw :: (sprite: Sprite) {
 
     uniforms[xx "uTexture"] = create_uniform("uTexture", sprite.texture);
     
+    model_view := view * model;
+    model_view_projection := projection * model_view;
+    uniforms[xx "modelViewProjection"] = create_uniform("modelViewProjection", model_view_projection);
+    uniforms[xx "modelView"] = create_uniform("modelView", model_view);
     uniforms[xx "projection"] = create_uniform("projection", projection);
     uniforms[xx "model"] = create_uniform("model", model);
     uniforms[xx "view"] = create_uniform("view", view);

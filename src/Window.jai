@@ -519,7 +519,11 @@ get_depth_write :: () -> bool {
 }
 
 set_depth_write :: (enabled: bool) {
-    glDepthMask(enabled);
+    if enabled {
+        glDepthMask(GL_TRUE);
+    } else {
+        glDepthMask(GL_FALSE);
+    }
 }
 
 set_depth_write_scope :: (enabled: bool) #expand {
@@ -912,10 +916,11 @@ set_view_scope :: (view: Matrix4) #expand {
 }
 
 ClearMask :: enum_flags {
-    None;
-    Color;
+    None :: 0;
+    Color :: 1;
     Depth;
     Stencil;
+    All :: Color | Depth | Stencil;
 }
 
 convert_clear_mask :: (mask: ClearMask) -> u32 {
@@ -948,20 +953,23 @@ convert_clear_mask :: (real_mask: u32) -> ClearMask {
     return mask;
 }
 
-clear :: (color: Color, mask: ClearMask = .Color | .Depth) {
+clear :: (mask: ClearMask = .All) {
+    clear(.{0, 0, 0, 0}, mask);
+}
+
+clear :: (color: Color, mask: ClearMask = .All) {
+    clear(color, 1.0, mask);
+}
+
+clear :: (color: Color, depth: float, mask: ClearMask = .All) {
     assert(koda.can_render, "Cannot currently make any draw calls.\n");
 
     real_mask := convert_clear_mask(mask);
     glClearColor(color.r, color.g, color.b, color.a);
-    glClear(real_mask);
-}
-
-clear :: (mask: ClearMask = .Color | .Depth) {
-    assert(koda.can_render, "Cannot currently make any draw calls.\n");
-
-    real_mask := convert_clear_mask(mask);
-    glClearColor(0, 0, 0, 0);
-    glClear(real_mask);
+    glClearDepth(depth);
+    if mask {
+        glClear(real_mask);
+    }
 }
 
 begin_render_target :: (render_texture: *RenderTexture) {

@@ -12,38 +12,47 @@ FramebufferPass :: struct (count: int, depth: bool, drawable: bool, multisample:
     height: int;
     vao: u32;
     vbo: u32;
+    name: string;
     initializer: #type (pass: *FramebufferPass(count, depth, drawable, multisample));
 }
 
-init_framebuffer_pass :: (pass: *FramebufferPass($count, $depth, false, $multisample)) {
+init_framebuffer_pass :: (pass: *FramebufferPass($count, $depth, false, $multisample), $caller := #caller_code) {
+    pass.name = #run get_framebuffer_name(caller);
     init_framebuffer_pass_internal(pass, null);
 }
 
-init_framebuffer_pass :: (pass: *FramebufferPass($count, $depth, false, $multisample), channels: ..PixelFormat) {
+init_framebuffer_pass :: (pass: *FramebufferPass($count, $depth, false, $multisample), channels: ..PixelFormat, $caller := #caller_code) {
+    pass.name = #run get_framebuffer_name(caller);
     init_framebuffer_pass_internal(pass, null, koda.width, koda.height, channels);
 }
 
-init_framebuffer_pass :: (pass: *FramebufferPass($count, $depth, false, $multisample), width: int, height: int, channels: ..PixelFormat) {
+init_framebuffer_pass :: (pass: *FramebufferPass($count, $depth, false, $multisample), width: int, height: int, channels: ..PixelFormat, $caller := #caller_code) {
+    pass.name = #run get_framebuffer_name(caller);
     init_framebuffer_pass_internal(pass, null, width, height, channels);
 }
 
-init_framebuffer_pass :: (pass: *FramebufferPass($count, $depth, false, $multisample), textures: ..Texture) {
+init_framebuffer_pass :: (pass: *FramebufferPass($count, $depth, false, $multisample), textures: ..Texture, $caller := #caller_code) {
+    pass.name = #run get_framebuffer_name(caller);
     init_framebuffer_pass_internal(pass, null, textures[0].width, textures[0].height, textures);
 }
 
-init_framebuffer_pass :: (pass: *FramebufferPass($count, $depth, true, $multisample), shader: *Shader) {
+init_framebuffer_pass :: (pass: *FramebufferPass($count, $depth, true, $multisample), shader: *Shader, $caller := #caller_code) {
+    pass.name = #run get_framebuffer_name(caller);
     init_framebuffer_pass_internal(pass, shader);
 }
 
-init_framebuffer_pass :: (pass: *FramebufferPass($count, $depth, true, $multisample), shader: *Shader, channels: ..PixelFormat) {
+init_framebuffer_pass :: (pass: *FramebufferPass($count, $depth, true, $multisample), shader: *Shader, channels: ..PixelFormat, $caller := #caller_code) {
+    pass.name = #run get_framebuffer_name(caller);
     init_framebuffer_pass_internal(pass, shader, koda.width, koda.height, channels);
 }
 
-init_framebuffer_pass :: (pass: *FramebufferPass($count, $depth, true, $multisample), shader: *Shader, textures: ..Texture) {
+init_framebuffer_pass :: (pass: *FramebufferPass($count, $depth, true, $multisample), shader: *Shader, textures: ..Texture, $caller := #caller_code) {
+    pass.name = #run get_framebuffer_name(caller);
     init_framebuffer_pass_internal(pass, shader, textures[0].width, textures[0].height, textures);
 }
 
-init_framebuffer_pass :: (pass: *FramebufferPass($count, $depth, true, $multisample), shader: *Shader, width: int, height: int, channels: ..PixelFormat) {
+init_framebuffer_pass :: (pass: *FramebufferPass($count, $depth, true, $multisample), shader: *Shader, width: int, height: int, channels: ..PixelFormat, $caller := #caller_code) {
+    pass.name = #run get_framebuffer_name(caller);
     init_framebuffer_pass_internal(pass, shader, width, height, channels);
 }
 
@@ -101,6 +110,9 @@ init_framebuffer_pass_buffers :: (pass: *FramebufferPass($count, $depth, $drawab
         glGenBuffers(1, *pass.vbo);
         glBindBuffer(GL_ARRAY_BUFFER, pass.vbo);
         glBufferData(GL_ARRAY_BUFFER, size_of(type_of(vertices)), vertices.data, GL_STATIC_DRAW);
+        if pass.name {
+            glObjectLabel(GL_ARRAY_BUFFER, pass.vbo, cast(u32) pass.name.count, pass.name.data);
+        }
 
         glGenVertexArrays(1, *pass.vao);
         glBindVertexArray(pass.vao);
@@ -223,6 +235,9 @@ framebuffer_resize :: (pass: *FramebufferPass($count, $depth, $drawable, $multis
 
 framebuffer_bind_textures :: (pass: *FramebufferPass($count, $depth, $drawable, $multisample)) {
     glBindFramebuffer(GL_DRAW_FRAMEBUFFER, pass.framebuffer);
+    if pass.name {
+        glObjectLabel(GL_FRAMEBUFFER, pass.framebuffer, cast(u32) pass.name.count, pass.name.data);
+    }
 
     for index: 0..count - 1 {
         glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0 + cast(u32) index, GL_TEXTURE_2D, pass.textures[index].buffer, 0);
@@ -249,27 +264,23 @@ framebuffer_bind_textures :: (pass: *FramebufferPass($count, $depth, $drawable, 
     }
 }
 
-framebuffer_bind_write :: (pass: FramebufferPass($c, $depth, $dr, $m), mask: ClearMask = .Color | .Depth | .Stencil) {
+framebuffer_bind_write :: (pass: FramebufferPass($c, $depth, $dr, $m), mask: ClearMask = .All) {
     glBindFramebuffer(GL_DRAW_FRAMEBUFFER, pass.framebuffer);
     glViewport(0, 0, xx pass.width, xx pass.height);
 
     koda.active_pass_channels = pass.channels;
 
-    #if depth {
-        clear(mask & .Depth);
-    } else {
-        clear(mask & .Color);
-    }
+    clear(mask);
 }
 
-framebuffer_bind_write_screen :: (mask: ClearMask = .Color | .Depth | .Stencil) {
+framebuffer_bind_write_screen :: (mask: ClearMask = .All) {
     glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0);
     glViewport(0, 0, xx koda.width, xx koda.height);
 
     screen_channel :: PixelFormat.[.RGBA8];
     koda.active_pass_channels = screen_channel;
 
-    clear(mask & (.Color | .Depth));
+    clear(mask);
 }
 
 framebuffer_bind_read :: (pass: FramebufferPass) {
@@ -352,22 +363,33 @@ draw :: (pass: FramebufferPass($count, $depth, $drawable)) {
         return;
     }
 
+    glPushDebugGroup(GL_DEBUG_SOURCE_APPLICATION, 0, cast(u32) pass.name.count, pass.name.data);
+    defer glPopDebugGroup();
+
     // draw quad
     use_shader(pass.shader);
     
     apply_uniforms(pass.shader, pass.uniforms);
 
-    // uniforms: ShaderUniforms;
-    // defer destroy(uniforms);
-    
-    // // TODO im not actually sure if this should be
-    // apply_uniforms(pass.shader, uniforms);
-
-    // we're rendering the screenspace framebuffer so no depth testing or writing
-    set_depth_write_scope(false);
-    set_depth_test_scope(false);
-
     glBindVertexArray(pass.vao);
     glDrawArrays(GL_TRIANGLES, 0, 6);
     glBindVertexArray(0);
+}
+
+#scope_file
+
+get_framebuffer_name :: (caller: Code) -> string {
+    nodes := compiler_get_nodes(caller);
+    proc_call := cast(*Code_Procedure_Call) nodes;
+    proc_args := proc_call.arguments_unsorted;
+    proc_expr := proc_args[0].expression;
+    if proc_expr.kind == .UNARY_OPERATOR {
+        unary := cast(*Code_Unary_Operator) proc_expr;
+        sub := unary.subexpression;
+        if sub.kind == .IDENT {
+            ident := cast(*Code_Ident) sub;
+            return ident.name;
+        }
+    }
+    return "";
 }

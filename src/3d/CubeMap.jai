@@ -1,3 +1,5 @@
+
+// TODO should just be using #as model: Model;
 CubeMap :: struct {
     geometry: *Geometry;
     uniforms: ShaderUniforms;
@@ -69,12 +71,17 @@ draw :: (cube: *CubeMap) {
     use_shader(shader);
 
     rotation := get_rotation(koda.view);
+    model := cube.transform;
     view := rotation_matrix(Matrix4, rotation);
+    projection := get_perspective_matrix();
 
     uniforms: ShaderUniforms;
     defer destroy(uniforms);
-    uniforms[xx "projection"] = create_uniform("projection", get_perspective_matrix());
-    uniforms[xx "model"] = create_uniform("model", cube.transform);
+
+    model_view_projection := projection * view * model;
+    uniforms[xx "modelViewProjection"] = create_uniform("modelViewProjection", model_view_projection);
+    uniforms[xx "projection"] = create_uniform("projection", projection);
+    uniforms[xx "model"] = create_uniform("model", model);
     uniforms[xx "view"] = create_uniform("view", view);
     
     apply_uniforms(shader, uniforms);

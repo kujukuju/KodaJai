@@ -264,7 +264,11 @@ draw :: (model: Model, transform: Matrix4 = Matrix4Identity, projection: Matrix4
 
     uniforms: ShaderUniforms;
     defer destroy(uniforms);
-    
+
+    model_view := view * model_mat;
+    model_view_projection := projection * model_view;
+    uniforms[xx "modelViewProjection"] = create_uniform("modelViewProjection", model_view_projection);
+    uniforms[xx "modelView"] = create_uniform("modelView", model_view);
     uniforms[xx "projection"] = create_uniform("projection", projection);
     uniforms[xx "model"] = create_uniform("model", model_mat);
     uniforms[xx "view"] = create_uniform("view", view);
