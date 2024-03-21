@@ -91,70 +91,7 @@ particle_system_init :: (system: *ParticleSystem($PG, $PC, $update_function, $so
     system.particle_vbo_allocated = default_particle_count;
 
     // insert particle type vertex attribute data
-    starting_attribute := current_attribute;
-
-    #insert #run () -> string {
-        struct_type := cast(*Type_Info_Struct) PG;
-        assert(struct_type.type == .STRUCT, "Your graphics particle must be a struct.");
-
-        builder: String_Builder;
-
-        real_member_count := 0;
-
-        skip_indices: [..] int;
-        visited_offsets: [..] int;
-        for member, index: struct_type.members {
-            if array_find(visited_offsets, member.offset_in_bytes) {
-                array_add(*skip_indices, index);
-                continue;
-            }
-
-            array_add(*visited_offsets, member.offset_in_bytes);
-            real_member_count += 1;
-        }
-
-        total_stride := 0;
-        for member, index: struct_type.members {
-            if array_find(skip_indices, index) {
-                continue;
-            }
-
-            assert(member.type.runtime_size != -1, "Particle gpu member sizes cannot be -1, this indicates it's not yet been compiled.");
-
-            total_stride += member.type.runtime_size;
-        }
-
-        stride_offset := 0;
-        for member, index: struct_type.members {
-            if array_find(skip_indices, index) {
-                continue;
-            }
-
-            is_integer := member.type.type == .INTEGER;
-            if is_integer {
-                assert(member.type.runtime_size == 4, "Cannot have a group of integers yet.");
-            }
-            
-            member_stride := member.type.runtime_size;
-
-            append(*builder, tprint("glEnableVertexAttribArray(current_attribute);\n"));
-            if is_integer {
-                append(*builder, tprint("glVertexAttribIPointer(current_attribute, %, GL_INT, %, cast(*void) %);\n", member_stride / size_of(float32), total_stride, stride_offset));
-            } else {
-                append(*builder, tprint("glVertexAttribPointer(current_attribute, %, GL_FLOAT, GL_FALSE, %, cast(*void) %);\n", member_stride / size_of(float32), total_stride, stride_offset));
-            }
-
-            append(*builder, "current_attribute += 1;\n");
-
-            stride_offset += member_stride;
-        }
-
-        for i: 0..real_member_count - 1 {
-            append(*builder, tprint("glVertexAttribDivisor(starting_attribute + %, 1);\n", i));
-        }
-
-        return builder_to_string(*builder);
-    }();
+    #insert #run get_instanced_opengl_initialization("current_attribute", PG);
 
     glBindVertexArray(0);
 }

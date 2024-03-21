@@ -53,17 +53,59 @@ create_geometry :: (vertices: [] float32, indices: [] u32, attributes: [] Attrib
     return geometry;
 }
 
-create_geometries :: (vertices: [] float32, indices: [] u32, attributes: [] Attribute, should_upload: bool = true) -> [..] *Geometry {
-    for i: 1..attributes.count - 1 {
-        assert(attributes[i] >= attributes[i - 1], "Cannot create geometry with misordered attributes.");
+// create_geometries :: (vertices: [] float32, indices: [] u32, attributes: [] Attribute, should_upload: bool = true) -> [..] *Geometry {
+//     for i: 1..attributes.count - 1 {
+//         assert(attributes[i] >= attributes[i - 1], "Cannot create geometry with misordered attributes.");
+//     }
+
+//     geometries: [..] *Geometry;
+//     array_reserve(*geometries, 1);
+
+//     array_add(*geometries, create_geometry(vertices, indices, attributes, should_upload));
+
+//     return geometries;
+// }
+
+create_geometry :: (geometries: [] *Geometry, should_upload: bool = true) -> *Geometry {
+    if geometries.count > 0 {
+        for i: 1..geometries.count - 1 {
+            assert(matches_attributes(geometries[i].attributes, geometries[0].attributes), "You cannot merge geometries with different attributes.\n");
+        }
     }
 
-    geometries: [..] *Geometry;
-    array_reserve(*geometries, 1);
+    total_vertices: int;
+    total_indices: int;
+    for geometry: geometries {
+        total_vertices += geometry.vertices.count;
+        total_indices += geometry.indices.count;
+    }
 
-    array_add(*geometries, create_geometry(vertices, indices, attributes, should_upload));
+    result := New(Geometry);
+    array_reserve(*result.vertices, total_vertices);
+    array_reserve(*result.indices, total_indices);
+    if geometries.count > 0 {
+        array_copy(*result.attributes, geometries[0].attributes);
 
-    return geometries;
+        result.aabb = geometries[0].aabb;
+        for i: 1..geometries.count - 1 {
+            result.aabb = merge(result.aabb, geometries[i].aabb);
+        }
+    }
+
+    result.vertices.count = 0;
+    result.indices.count = 0;
+    for geometry: geometries {
+        memcpy(result.vertices.data + result.vertices.count, geometry.vertices.data, geometry.vertices.count * size_of(float32));
+        result.vertices.count += geometry.vertices.count;
+        memcpy(result.indices.data + result.indices.count, geometry.indices.data, geometry.indices.count * size_of(u32));
+        result.indices.count += geometry.indices.count;
+    }
+
+    if should_upload {
+        upload(result);
+    }
+
+    return result;
 }
 
 load_serialized_geometry :: (serialized_path: string, hash_files: [$N] string, fallback: () -> *Geometry, should_upload: bool = true, $reuse_memory: bool = false) -> *Geometry, bool {
@@ -95,49 +137,28 @@ load_serialized_geometry :: (serialized_path: string, hash_files: [$N] string, f
     return geometry, true;
 }
 
-load_serialized_geometries :: (serialized_path: string, hash_files: [$N] string, fallback: () -> [..] *Geometry, should_upload: bool = true, $reuse_memory: bool = false) -> [..] *Geometry, bool {
-    for hash_file: hash_files {
-        assert(serialized_path != hash_file, "You cannot have a serialized path that matches a hash file path.\n");
-    }
-
-    geometries: [..] *Geometry;
-    success := read_serialized(serialized_path, hash_files, *geometries, reuse_memory);
-
-    if success {
-        for geometry: geometries {
-            geometry.vao_ = 0;
-            geometry.vbo_ = 0;
-            geometry.ebo_ = 0;
-        }
-
-        if should_upload {
-            for geometry: geometries {
-                upload(geometry);
-            }
-        }
-
-        return geometries, true;
-    }
-
-    geometries = fallback();
-    if should_upload {
-        for geometry: geometries {
-            upload(geometry);
-        }
-    }
-
-    write_serialized(serialized_path, hash_files, geometries, reuse_memory);
-    return geometries, true;
-}
-
 load_geometry :: (path: string, should_upload: bool = true) -> *Geometry, bool {
-    geometries, success := load_geometries(path, should_upload);
+    geometries, success := load_geometries(path, false);
     defer array_free(geometries);
     if !success {
         return null, false;
     }
 
-    assert(geometries.count == 1, "You cannot load more than 1 geometry with the load_geometry function. Memory leak!");
+    if geometries.count > 1 {
+        print("Warning: You're loading more than 1 geometry from a single file. The result of this should be serialized.\n");
+        merged := create_geometry(geometries, should_upload);
+
+        for geometry: geometries {
+            destroy(geometry);
+        }
+
+        return merged, true;
+    }
+
+    if should_upload {
+        upload(geometries[0]);
+    }
+
     return geometries[0], true;
 }
 

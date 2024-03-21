@@ -1,7 +1,7 @@
 Model :: struct {
     using #as renderable: Renderable;
     renderable.type = .Model;
-    geometry: [..] *Geometry;
+    geometry: *Geometry;
     uniforms: ShaderUniforms;
     position: Vector3;
     rotation: Quaternion;
@@ -31,19 +31,7 @@ should_bake_material_color_textures := false;
 
 create_model :: (geometry: *Geometry, should_upload: bool = false) -> *Model {
     model := New(Model);
-    array_resize(*model.geometry, 1);
-    model.geometry[0] = geometry;
-
-    if should_upload {
-        upload(model);
-    }
-
-    return model;
-}
-
-create_model :: (geometry: [] *Geometry, should_upload: bool = false) -> *Model {
-    model := New(Model);
-    array_copy(*model.geometry, geometry);
+    model.geometry = geometry;
 
     if should_upload {
         upload(model);
@@ -54,26 +42,13 @@ create_model :: (geometry: [] *Geometry, should_upload: bool = false) -> *Model 
 
 create_model :: (geometry: *Geometry, texture: Texture, should_upload: bool = false) -> *Model {
     model := New(Model);
-    array_resize(*model.geometry, 1);
-    model.geometry[0] = geometry;
+    model.geometry = geometry;
     model.uniforms[xx "uTexture0"] = create_uniform("uTexture0", texture);
 
     if should_upload {
         upload(model);
     }
     
-    return model;
-}
-
-create_model :: (geometry: [] *Geometry, texture: Texture, should_upload: bool = false) -> *Model {
-    model := New(Model);
-    array_copy(*model.geometry, geometry);
-    model.uniforms[xx "uTexture0"] = create_uniform("uTexture0", texture);
-
-    if should_upload {
-        upload(model);
-    }
-
     return model;
 }
 
@@ -147,9 +122,7 @@ load_models :: (path: string, should_upload: bool = true) -> [..] *Model, bool {
 }
 
 upload :: (model: *Model) {
-    for geometry: model.geometry {
-        upload(geometry);
-    }
+    upload(model.geometry);
 
     for *uniform: model.uniforms.uniforms {
         if uniform.type == .Texture {
@@ -161,9 +134,7 @@ upload :: (model: *Model) {
 }
 
 unload :: (model: *Model) {
-    for geometry: model.geometry {
-        unload(geometry);
-    }
+    unload(model.geometry);
 
     // TODO This is bad bc it doesnt force me to expand the list per uniform
     for *uniform: model.uniforms.uniforms {
@@ -177,12 +148,9 @@ unload :: (model: *Model) {
 
 destroy :: (model: *Model, children: bool = true) {
     if children {
-        for geometry: model.geometry {
-            destroy(geometry);
-        }
+        destroy(model.geometry);
     }
     // TODO should destroy textures here unless I move ownership later
-    array_free(model.geometry);
     free(model.name);
     free(model);
 }
@@ -196,14 +164,7 @@ get_transform :: (model: Model) -> Matrix4 {
 }
 
 get_aabb :: (model: Model) -> AABB3 {
-    if model.geometry.count == 0 {
-        return .{};
-    }
-
-    aabb: AABB3 = model.geometry[0].aabb;
-    for i: 1..model.geometry.count - 1 {
-        aabb = merge(aabb, model.geometry[i].aabb);
-    }
+    aabb := model.geometry.aabb;
 
     return transform_aabb(get_transform(model), aabb);
 }
@@ -219,33 +180,16 @@ draw :: (model: Model, transform: Matrix4 = Matrix4Identity, projection: Matrix4
         return;
     }
 
-    // // TODO this is temporary to get vert colors working
-    // if model.geometry.count > 0 && matches_attributes(model.geometry[0], .Position, .Normal, .Texcoord, .Color) {
-    //     shader = *default_color_shader3;
-    // } else if model.geometry.count > 0 && matches_attributes(model.geometry[0], .Position, .Normal, .Texcoord, .Texcoord) {
-    //     shader = *occlusion_shader3;
-    // } else if model.geometry.count > 0 && matches_attributes(model.geometry[0], .Position, .Normal, .Texcoord, .JointIndices, .JointWeights) {
-    //     // TODO skinned joint shader
-    //     assert(false, "Skinned joints not yet supported.");
-    // } else if model.geometry.count > 0 && !matches_attributes(model.geometry[0], .Position, .Normal, .Texcoord) {
-    //     print("Found invalid attribute combination. %\n", model.geometry[0].attributes);
-    //     assert(false, "Found invalid attribute combination.");
-    // }
-
-    if model.geometry.count == 0 {
-        return;
-    }
-
     if shader == null {
         if model.shader {
             shader = model.shader;
         } else {
-            shader = get_default_shader(model.geometry[0].attributes);
+            shader = get_default_shader(model.geometry.attributes);
         }
     }
 
     if !shader {
-        print("Could not find appropriate shader for model attributes. %\n", model.geometry[0].attributes);
+        print("Could not find appropriate shader for model attributes. %\n", model.geometry.attributes);
         assert(false, tprint("Could not find appropriate shader for model attributes. %\n", model.name));
     }
 
@@ -275,11 +219,9 @@ draw :: (model: Model, transform: Matrix4 = Matrix4Identity, projection: Matrix4
     
     apply_uniforms(shader, uniforms);
 
-    for geometry: model.geometry {
-        glBindVertexArray(geometry.vao_);
-        glDrawElements(GL_TRIANGLES, xx geometry.indices.count, GL_UNSIGNED_INT, xx 0);
-        glBindVertexArray(0);
-    }
+    glBindVertexArray(model.geometry.vao_);
+    glDrawElements(GL_TRIANGLES, xx model.geometry.indices.count, GL_UNSIGNED_INT, xx 0);
+    glBindVertexArray(0);
 
     // TODO if we could avoid calling this gain that would be best
     // TODO but theres no guarantee right now throught all of the koda code that this will be checked

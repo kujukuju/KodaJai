@@ -39,10 +39,6 @@ draw :: (animated: AnimatedModel, mix: [] AnimationMix, transform: Matrix4 = Mat
 }
 
 draw :: (animated: AnimatedModel, mix: [] AnimationMix, transform: Matrix4 = Matrix4Identity, projection: Matrix4, shader: *Shader = null) {
-    if animated.model.geometry.count == 0 {
-        return;
-    }
-
     joints := NewArray(animated.animations.joint_indices.count, Matrix4,, allocator = temp);
     get_joints(animated.animations, mix, *joints);
 
@@ -54,10 +50,6 @@ draw :: (animated: AnimatedModel, joints: [] Matrix4, transform: Matrix4 = Matri
 }
 
 draw :: (animated: AnimatedModel, joints: [] Matrix4, transform: Matrix4 = Matrix4Identity, projection: Matrix4, shader: *Shader = null) {
-    if animated.model.geometry.count == 0 {
-        return;
-    }
-
     if shader == null {
         if animated.model.shader {
             shader = animated.model.shader;
@@ -94,11 +86,9 @@ draw :: (animated: AnimatedModel, joints: [] Matrix4, transform: Matrix4 = Matri
     
     apply_uniforms(shader, uniforms);
 
-    for geometry: animated.model.geometry {
-        glBindVertexArray(geometry.vao_);
-        glDrawElements(GL_TRIANGLES, xx geometry.indices.count, GL_UNSIGNED_INT, xx 0);
-        glBindVertexArray(0);
-    }
+    glBindVertexArray(animated.model.geometry.vao_);
+    glDrawElements(GL_TRIANGLES, xx animated.model.geometry.indices.count, GL_UNSIGNED_INT, xx 0);
+    glBindVertexArray(0);
 
     // TODO if we could avoid calling this gain that would be best
     // TODO but theres no guarantee right now throught all of the koda code that this will be checked
