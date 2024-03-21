@@ -67,6 +67,10 @@ create_geometries :: (vertices: [] float32, indices: [] u32, attributes: [] Attr
 }
 
 load_serialized_geometry :: (serialized_path: string, hash_files: [$N] string, fallback: () -> *Geometry, should_upload: bool = true, $reuse_memory: bool = false) -> *Geometry, bool {
+    for hash_file: hash_files {
+        assert(serialized_path != hash_file, "You cannot have a serialized path that matches a hash file path.\n");
+    }
+
     geometry: *Geometry;
     success := read_serialized(serialized_path, hash_files, *geometry, reuse_memory);
 
@@ -92,6 +96,10 @@ load_serialized_geometry :: (serialized_path: string, hash_files: [$N] string, f
 }
 
 load_serialized_geometries :: (serialized_path: string, hash_files: [$N] string, fallback: () -> [..] *Geometry, should_upload: bool = true, $reuse_memory: bool = false) -> [..] *Geometry, bool {
+    for hash_file: hash_files {
+        assert(serialized_path != hash_file, "You cannot have a serialized path that matches a hash file path.\n");
+    }
+
     geometries: [..] *Geometry;
     success := read_serialized(serialized_path, hash_files, *geometries, reuse_memory);
 

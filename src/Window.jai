@@ -96,7 +96,7 @@ create_window :: (title: *u8, width: s32, height: s32, multisample: int = 0) {
 
     set_blend(true);
     set_blend_equation_separate(.Add, .Add);
-    set_blend_func_separate(.SrcAlpha, .OneMinusSrcAlpha, .One, .Zero);
+    set_blend_func_separate(.SrcAlpha, .OneMinusSrcAlpha, .One, .One);
 
     set_front_face_ccw(true);
     set_depth_test(true);
