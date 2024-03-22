@@ -12,7 +12,6 @@ Geometry :: struct {
 
 // this is also the alignment order that the loader will force the attributes into
 Attribute :: enum {
-    // Position2; I think to have uniformity you just want position3 with a 0 z value
     Position;
     Normal;
     Texcoord;
@@ -21,6 +20,10 @@ Attribute :: enum {
     JointIndices;
     JointWeights;
     Float;
+    Vector2;
+    Vector3;
+    Vector4;
+    Integer;
 }
 
 SerializedGeometryHash :: struct {
@@ -526,6 +529,10 @@ get_attribute_stride :: (attributes: [] Attribute) -> int {
     return stride;
 }
 
+get_attribute_stride :: (attribute: Attribute) -> int {
+    return get_attribute_size(attribute);
+}
+
 get_attribute_size :: (attribute: Attribute) -> int {
     if #complete attribute == {
         case .Position;
@@ -543,6 +550,14 @@ get_attribute_size :: (attribute: Attribute) -> int {
         case .JointWeights;
             return 4;
         case .Float;
+            return 1;
+        case .Vector2;
+            return 2;
+        case .Vector3;
+            return 3;
+        case .Vector4;
+            return 4;
+        case .Integer;
             return 1;
     }
 }
@@ -1146,6 +1161,17 @@ load_geometry_gltf_data :: (json: GltfJson, binary: [] u8) -> [..] *Geometry, bo
                             case .Float;
                                 accessor_data := cast(*float32) accessor.view.data;
                                 array_add(*geometry.vertices, accessor_data[i]);
+                            case .Vector2;
+                                accessor_data := cast(*float32) accessor.view.data;
+                                array_add(*geometry.vertices, accessor_data[i * 2], accessor_data[i * 2 + 1]);
+                            case .Vector3;
+                                accessor_data := cast(*float32) accessor.view.data;
+                                array_add(*geometry.vertices, accessor_data[i * 3], accessor_data[i * 3 + 1], accessor_data[i * 3 + 2]);
+                            case .Vector4;
+                                accessor_data := cast(*float32) accessor.view.data;
+                                array_add(*geometry.vertices, accessor_data[i * 4], accessor_data[i * 4 + 1], accessor_data[i * 4 + 2], accessor_data[i * 4 + 3]);
+                            case .Integer;
+                                assert(false, "You cannot load an integer as gltf data.\n");
                         }
                     }
                 }

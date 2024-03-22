@@ -91,7 +91,8 @@ particle_system_init :: (system: *ParticleSystem($PG, $PC, $update_function, $so
     system.particle_vbo_allocated = default_particle_count;
 
     // insert particle type vertex attribute data
-    #insert #run get_instanced_opengl_initialization("current_attribute", PG);
+    gpu_attributes :: #run get_attributes_from_struct(PG);
+    #insert #run get_instanced_opengl_initialization("current_attribute", gpu_attributes);
 
     glBindVertexArray(0);
 }
