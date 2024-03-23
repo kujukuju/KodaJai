@@ -87,6 +87,8 @@ initialize_shader :: (shader: *Shader, named_dependencies: ..ShaderDependency, $
 }
 
 initialize_shader :: (shader: *Shader, dependencies: [$N] Any, dependency_names: [N] string) {
+    assert(koda.initialized && koda.window, "You can only initialize shaders after koda has been initialized and a window has been created.\n");
+
     if shader.program {
         glDeleteProgram(shader.program);
         shader.program = 0;
