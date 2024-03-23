@@ -183,13 +183,6 @@ create_orthographic_matrix :: (left: float, right: float, bottom: float, top: fl
     return ortho;
 }
 
-// Matrix4Identity :: Matrix4.{
-//     1, 0, 0, 0,
-//     0, 1, 0, 0,
-//     0, 0, 1, 0,
-//     0, 0, 0, 1,
-// };
-
 open_url :: (path: string) {
     HWND :: *void;
     LPCWSTR :: *u16;

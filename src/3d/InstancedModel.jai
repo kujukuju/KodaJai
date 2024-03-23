@@ -11,8 +11,19 @@ InstancedModelGpu :: struct {
 InstancedModel :: GenericInstancedModel(InstancedModelGpu);
 
 create_instanced_model :: (geometry: *Geometry) -> *InstancedModel {
+    model := create_instanced_model(geometry, dynamic = true);
+    return model;
+}
+
+create_instanced_model :: (geometry: *Geometry, instances: [] InstancedModelGpu) -> *InstancedModel {
+    model := create_instanced_model(geometry, dynamic = false);
+    set_instances(model, instances);
+    return model;
+}
+
+create_instanced_model :: (geometry: *Geometry, dynamic: bool) -> *InstancedModel {
     model := New(InstancedModel);
-    init_instanced_model(model, geometry);
+    init_instanced_model(model, geometry, dynamic);
     return model;
 }
 

@@ -13,14 +13,23 @@ GenericInstancedModel :: struct (T: Type) {
 }
 
 create_generic_instanced_model :: ($T: Type, geometry: *Geometry) -> *GenericInstancedModel(T) {
+    model := create_generic_instanced_model(T, geometry, dynamic = true);
+    return model;
+}
+
+create_generic_instanced_model :: ($T: Type, geometry: *Geometry, instances: [] T) -> *GenericInstancedModel(T) {
+    model := create_generic_instanced_model(T, geometry, dynamic = false);
+    set_instances(model, instances);
+    return model;
+}
+
+create_generic_instanced_model :: ($T: Type, geometry: *Geometry, dynamic: bool) -> *GenericInstancedModel(T) {
     model := New(GenericInstancedModel(T));
     init_instanced_model(model, geometry);
     return model;
 }
 
-init_generic_instanced_model :: init_instanced_model;
-
-init_instanced_model :: (model: *GenericInstancedModel($T), geometry: *Geometry) {
+init_instanced_model :: (model: *GenericInstancedModel($T), geometry: *Geometry, dynamic: bool) {
     gpu_attributes :: #run get_attributes_from_struct(T);
     model.attributes = NewArray(geometry.attributes.count + gpu_attributes.count, Attribute);
     for attribute, index: geometry.attributes {
@@ -32,6 +41,8 @@ init_instanced_model :: (model: *GenericInstancedModel($T), geometry: *Geometry)
 
     model.indices_count = geometry.indices.count;
 
+    draw_mode := ifx dynamic then cast(u32) GL_DYNAMIC_DRAW else GL_STATIC_DRAW;
+
     glGenVertexArrays(1, *model.vao);
     glGenBuffers(1, *model.vbo);
     glGenBuffers(1, *model.ebo);
@@ -40,10 +51,10 @@ init_instanced_model :: (model: *GenericInstancedModel($T), geometry: *Geometry)
     glBindVertexArray(model.vao);
 
     glBindBuffer(GL_ARRAY_BUFFER, model.vbo);
-    glBufferData(GL_ARRAY_BUFFER, geometry.vertices.count * size_of(float32), geometry.vertices.data, GL_STATIC_DRAW);  
+    glBufferData(GL_ARRAY_BUFFER, geometry.vertices.count * size_of(float32), geometry.vertices.data, draw_mode);  
 
     glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, model.ebo);
-    glBufferData(GL_ELEMENT_ARRAY_BUFFER, geometry.indices.count * size_of(u32), geometry.indices.data, GL_STATIC_DRAW);
+    glBufferData(GL_ELEMENT_ARRAY_BUFFER, geometry.indices.count * size_of(u32), geometry.indices.data, draw_mode);
 
     total_float_size := cast(u32) get_attribute_stride(geometry.attributes);
     current_attribute: u32;
