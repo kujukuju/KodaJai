@@ -374,7 +374,7 @@ draw_sphere :: (position: Vector3, dimensions: Vector3 = .{1, 1, 1}, color: Colo
     projection := get_perspective_matrix();
     model := Matrix4Identity;
     model = translate(model, position);
-    model = scale(model, dimensions);
+    model = scale(model, dimensions * 0.5);
     view := koda.view;
 
     white_texture := get_white_texture();
@@ -459,7 +459,7 @@ load_sphere :: () {
     }
 
     sphere_loaded = true;
-    sphere = create_icosphere(0.1, 1);
+    sphere = create_icosphere(1.0, 1);
 }
 
 load_torus :: () {
