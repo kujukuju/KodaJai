@@ -22,6 +22,18 @@ PixelFormat :: enum {
     // DepthStencil;
 };
 
+get_component_info :: (format: PixelFormat) -> stride: int, component_count: int {
+    return get_stride(format), get_component_count(format);
+}
+
+get_gl_info :: (format: PixelFormat) -> gl_format: u32, gl_internal_format: s32, gl_type: u32 {
+    return get_gl_format(format), get_gl_internal_format(format), get_gl_type(format);
+}
+
+get_type_info :: (format: PixelFormat) -> is_float: bool, is_depth: bool {
+    return is_float(format), is_depth(format);
+}
+
 get_stride :: (format: PixelFormat) -> int {
     if #complete format == {
         case .R8;

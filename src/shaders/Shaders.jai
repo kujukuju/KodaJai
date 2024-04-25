@@ -9,6 +9,8 @@ Shader :: struct {
     name: string;
     vertex: string;
     fragment: string;
+    has_vertex_shader: bool;
+    has_fragment_shader: bool;
 }
 
 ShaderDependency :: struct {
@@ -258,22 +260,24 @@ initialize_shader :: (shader: *Shader, dependencies: [$N] Any, dependency_names:
     shader_v: u32;
     success_v := true;
     if shader.vertex || resolved_vertex_parts {
+        shader.has_vertex_shader = true;
         shader_v, success_v = make_shader_object(shader.name, shader.vertex, resolved_vertex_parts, GL_VERTEX_SHADER);
         if !success_v {
             print("Could not initialized vertex shader.\n");
         }
     }
-    defer if shader.vertex || resolved_vertex_parts then glDeleteShader(shader_v);
+    defer if shader.has_vertex_shader then glDeleteShader(shader_v);
 
     shader_f: u32;
     success_f := true;
     if shader.fragment || resolved_fragment_parts {
+        shader.has_fragment_shader = true;
         shader_f, success_f = make_shader_object(shader.name, shader.fragment, resolved_fragment_parts, GL_FRAGMENT_SHADER);
         if !success_f {
             print("Could not initialized fragment shader.\n");
         }
     }
-    defer if shader.fragment || resolved_fragment_parts then glDeleteShader(shader_f);
+    defer if shader.has_fragment_shader then glDeleteShader(shader_f);
 
     shader.program = glCreateProgram();
 
@@ -368,7 +372,7 @@ resolve_dependencies :: (parts: [] ResolvedShaderPart, dependencies: ..Any, depe
                 assert(dependency_found, "Missing shader dependency. This should have been caught earlier.\n");
 
                 shader_value := resolve_dependency_value(dependencies[dependency_index]);
-                array_add(*resolved, tprint("%", shader_value));
+                array_add(*resolved, shader_value);
             }
         }
     }
@@ -376,17 +380,62 @@ resolve_dependencies :: (parts: [] ResolvedShaderPart, dependencies: ..Any, depe
     return resolved;
 }
 
-resolve_dependency_value :: (value: Any) -> Any {
+resolve_dependency_value :: (value: Any) -> string {
     type := value.type.type;
 
     if type == {
         case .INTEGER;
-            return value;
+            return tprint("%", value);
         case .FLOAT;
-            return value;
+            return tprint("%", value);
+        case .STRUCT;
+            struct_type := (cast(*Type) *value.type).*;
+            if struct_type == Vector2 {
+                vec := cast(*Vector2) value.value_pointer;
+                return tprint("vec2(%, %)", vec.x, vec.y);
+            } else if struct_type == Vector3 {
+                vec := cast(*Vector3) value.value_pointer;
+                return tprint("vec3(%, %, %)", vec.x, vec.y, vec.z);
+            } else if struct_type == Vector4 {
+                vec := cast(*Vector4) value.value_pointer;
+                return tprint("vec4(%, %, %, %)", vec.x, vec.y, vec.z, vec.w);
+            } else {
+                assert(false, tprint("Unknown struct type for shader dependency. %\n", struct_type));
+                return "";
+            }
+        case .ARRAY;
+            array_info := cast(*Type_Info_Array) value.type;
+            element_size := array_info.element_type.runtime_size;
+
+            array_data: *u8;
+            array_count: int;
+            if array_info.array_type == .FIXED {
+                // for non-fixed size arrays, you can't just look up into the variable memory
+                array_data = cast(*u8) value.value_pointer;
+                array_count = array_info.array_count;
+            } else {
+                assert(false, "Non-fixed arrays not currently supported although it would be easy.\n");
+            }
+
+            builder: String_Builder;
+            builder.allocator = temp;
+
+            for i: 0..array_count - 1 {
+                element: Any;
+                element.type = array_info.element_type;
+                element.value_pointer = cast(*void) (array_data + element_size * i);
+
+                append(*builder, resolve_dependency_value(element));
+
+                if i < array_count - 1 {
+                    append(*builder, ", ");
+                }
+            }
+
+            return builder_to_string(*builder);
         case;
             assert(false, tprint("Invalid dependency type of % %.\n", type, value));
-            return value;
+            return tprint("%", value);
     }
 }
 
@@ -609,7 +658,6 @@ use_shader :: (shader: *Shader) {
         if !shader.name {
             print_stack_trace();
         }
-        // initialize_shader(shader);
 
         if !shader.program {
             print("Cannot use shader. You must initialized it first.\n");
@@ -618,22 +666,29 @@ use_shader :: (shader: *Shader) {
         }
     }
 
-    if shader.output_channels.count != koda.active_pass_channels.count {
-        assert(false, tprint("Using shader % with % output channels inside a render pass with % output channels.\n", shader.name, shader.output_channels.count, koda.active_pass_channels.count));
-        return;
-    }
-
-    for i: 0..shader.output_channels.count - 1 {
-        channel_component_count := get_component_count(koda.active_pass_channels[i]);
-        if shader.output_channels[i] != channel_component_count {
-            assert(false, tprint("Using shader % where output channel % has % components inside a render pass where output channel % has % components.\n", shader.name, i, shader.output_channels[i], i, channel_component_count));
+    // we only validate information about the fragment output channels if there is a fragment shader
+    if shader.has_fragment_shader {
+        if shader.output_channels.count != koda.active_pass_channels.count {
+            assert(false, tprint("Using shader % with % output channels inside a render pass with % output channels.\n", shader.name, shader.output_channels.count, koda.active_pass_channels.count));
             return;
+        }
+
+        for i: 0..shader.output_channels.count - 1 {
+            channel_component_count := get_component_count(koda.active_pass_channels[i]);
+            if shader.output_channels[i] != channel_component_count {
+                assert(false, tprint("Using shader % where output channel % has % components inside a render pass where output channel % has % components.\n", shader.name, i, shader.output_channels[i], i, channel_component_count));
+                return;
+            }
         }
     }
 
-    if koda.active_program == shader.program {
+    if koda.shader == shader {
         return;
     }
+
+    // if koda.active_program == shader.program {
+    //     return;
+    // }
 
     glUseProgram(shader.program);
     koda.active_program = shader.program;

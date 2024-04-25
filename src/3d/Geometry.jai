@@ -98,9 +98,15 @@ create_geometry :: (geometries: [] *Geometry, should_upload: bool = true) -> *Ge
     result.vertices.count = 0;
     result.indices.count = 0;
     for geometry: geometries {
+        index_offset := cast(u32) (result.vertices.count / get_attribute_stride(geometry));
+
         memcpy(result.vertices.data + result.vertices.count, geometry.vertices.data, geometry.vertices.count * size_of(float32));
         result.vertices.count += geometry.vertices.count;
-        memcpy(result.indices.data + result.indices.count, geometry.indices.data, geometry.indices.count * size_of(u32));
+
+        // untested because it was wrong before, idk how it ever worked if it ever did
+        for i: 0..geometry.indices.count - 1 {
+            (result.indices.data + result.indices.count + i).* = geometry.indices[i] + index_offset;
+        }
         result.indices.count += geometry.indices.count;
     }
 
@@ -941,7 +947,12 @@ load_geometry_gltf :: (file: string, path: string) -> [..] *Geometry, bool {
     return geometries, data_success;
 }
 
-load_geometry_gltf_data :: (json: GltfJson, binary: [] u8) -> [..] *Geometry, bool {
+load_geometry_gltf_data :: (
+        json: GltfJson,
+        binary: [] u8,
+        geometry_to_primitive: *[..] *GltfJson.GltfJsonMesh.GltfJsonMeshPrimitive = null,
+        geometry_to_mesh: *[..] int = null,
+        primitive_to_geometry: *Table(*GltfJson.GltfJsonMesh.GltfJsonMeshPrimitive, int) = null) -> [..] *Geometry, bool {
     // im going to choose to load all this data as a single geometry but I feel like that's wrong
     geometries: [..] *Geometry;
 
@@ -960,8 +971,8 @@ load_geometry_gltf_data :: (json: GltfJson, binary: [] u8) -> [..] *Geometry, bo
         accessors.allocator = temp;
     }
 
-    for mesh: json.meshes {
-        for primitive: mesh.primitives {
+    for *mesh, mesh_index: json.meshes {
+        for *primitive: mesh.primitives {
             if !is_valid_primitive(primitive) {
                 continue;
             }
@@ -970,6 +981,10 @@ load_geometry_gltf_data :: (json: GltfJson, binary: [] u8) -> [..] *Geometry, bo
 
             geometry := New(Geometry);
             array_add(*geometries, geometry);
+
+            if geometry_to_primitive then array_add(geometry_to_primitive, primitive);
+            if geometry_to_mesh then array_add(geometry_to_mesh, mesh_index);
+            if primitive_to_geometry then table_set(primitive_to_geometry, primitive, geometries.count - 1);
 
             for *accessors: attribute_accessors {
                 accessors.count = 0;

@@ -975,6 +975,17 @@ create_bone_weights :: (animations: ModelAnimations, bone_weights: [] AnimationP
     // return final_weights;
 }
 
+remap_for_joints :: (animations: ModelAnimations, joints: *[] $T) {
+    assert(joints.count >= animations.joint_indices.count);
+    
+    original := array_copy(joints.*,, allocator = temp);
+
+    for i: 0..animations.joint_indices.count - 1 {
+        real_index := animations.joint_indices[i];
+        joints.*[i] = original[real_index];
+    }
+}
+
 #scope_file
 
 load_animation_glb :: (animations: *ModelAnimations, file: string, name_override: string, base_only: bool, stationary_bone: string, stationary_axis: Vector3) -> bool {

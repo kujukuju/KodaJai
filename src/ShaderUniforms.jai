@@ -82,6 +82,33 @@ ShaderUniforms :: struct {
     uniforms: [..] ShaderUniform;
 }
 
+equals :: (a: ShaderUniforms, b: ShaderUniforms) -> bool {
+    if a.uniforms.count != b.uniforms.count {
+        return false;
+    }
+
+    for i: 0..a.uniforms.count - 1 {
+        if to_string(a.uniforms[i].name) != to_string(b.uniforms[i].name) {
+            return false;
+        }
+        
+        a_data: ShaderUniform;
+        b_data: ShaderUniform;
+        memcpy(*a_data, *a.uniforms[i], size_of(ShaderUniform));
+        memcpy(*b_data, *b.uniforms[i], size_of(ShaderUniform));
+        a_data.name = null;
+        b_data.name = null;
+        a_data.location = 0;
+        b_data.location = 0;
+
+        if memcmp(*a_data, *b_data, size_of(ShaderUniform)) != 0 {
+            return false;
+        }
+    }
+
+    return true;
+}
+
 operator == :: (a: ShaderUniforms, b: ShaderUniforms) -> bool {
     return a.uniforms.data == b.uniforms.data;
 }

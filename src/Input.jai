@@ -209,7 +209,7 @@ input: struct {
     mouse_delta_y: float64;
     scroll_delta_x: float64;
     scroll_delta_y: float64;
-}
+};
 
 update_inputs :: ($update_features: InputFeature = .All) {
     // TODO should this be called here?

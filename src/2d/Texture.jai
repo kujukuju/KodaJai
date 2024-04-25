@@ -1,4 +1,5 @@
 Texture :: struct {
+    name: string;
     buffer: u32;
     width: s32;
     height: s32;
@@ -148,6 +149,10 @@ destroy :: (texture: Texture) {
 
     if texture.buffer {
         glDeleteTextures(1, *texture.buffer);
+    }
+
+    if texture.name {
+        free(texture.name);
     }
 }
 

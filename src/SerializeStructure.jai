@@ -59,12 +59,6 @@ load_serialized :: (serialized_path: string, hash_files: [$N] string, fallback: 
     }
 
     data = fallback();
-    if !data {
-        // this block might need to go away since not everything is bool checkable, but that's fine, this is the fallback anyways
-        // the implication would be this method always succeeds
-        empty: T;
-        return empty, false;
-    }
 
     write_serialized(serialized_path, hash_files, data, reuse_memory);
 

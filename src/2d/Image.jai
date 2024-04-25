@@ -143,12 +143,18 @@ get_png_bytes :: (image: Image) -> [] u8 {
 }
 
 save_image :: (image: Image, path: string) {
-    assert(ends_with(path, ".png"), "Your image file must be a png for now.");
+    // assert(ends_with(path, ".png"), "Your image file must be a png for now.");
 
     cpath := create_fixed_string(path, 1024);
     comp := get_stride(image.format);
 
-    stbi_write_png(cpath.buffer.data, xx image.width, xx image.height, xx comp, image.pixels.data, xx (image.width * comp));
+    if ends_with(path, ".png") {
+        stbi_write_png(cpath.buffer.data, xx image.width, xx image.height, xx comp, image.pixels.data, xx (image.width * comp));
+    } else if ends_with(path, ".tga") {
+        stbi_write_tga(cpath.buffer.data, xx image.width, xx image.height, xx comp, image.pixels.data);
+    } else {
+        assert(false, "Your image file format is not supported.");
+    }
 }
 
 resize_image :: (image: *Image, size: Point2) {

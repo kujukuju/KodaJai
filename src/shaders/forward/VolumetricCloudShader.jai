@@ -53,7 +53,7 @@ DONE
 // TODO I need to start the camera position at the cube intersection if I'm outside the cube
 // TODO and if you start inside the cube you need to do math to project your position back to the starting point and round to the nearest point of where you are
 
-VOLUMETRIC_CLOUD_FRAGMENT_SHADER3 :: #string DONE
+VOLUMETRIC_CLOUD_FRAGMENT_SHADER3 :: #string ___glsl
 #version 330 core
 out vec4 FragColor;
 
@@ -413,4 +413,4 @@ void main() {
 
     FragColor = vec4(color / alpha, alpha);
 }
-DONE
+___glsl

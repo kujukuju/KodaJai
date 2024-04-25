@@ -9,6 +9,22 @@ GltfJson :: struct {
         minVersion: *string;
     }
 
+    GltfJsonExtensions :: struct {
+        GltfJsonLights :: struct {
+            GltfJsonLight :: struct {
+                color: [3] float;
+                intensity: float;
+                type: string;
+                name: string;
+                extras: *JsonGeneric;
+            }
+
+            lights: [..] GltfJsonLight;
+        }
+
+        KHR_lights_punctual: *GltfJsonLights;
+    }
+
     GltfJsonBuffer :: struct {
         uri: *string;
         byteLength: int;
@@ -70,8 +86,8 @@ GltfJson :: struct {
     }
 
     GltfJsonSampler :: struct {
-        magFilter: *int;
-        minFilter: *int;
+        magFilter: int = 9729;
+        minFilter: int = 9729;
         wrapS: int = 0x2901;
         wrapT: int = 0x2901;
         name: *string;
@@ -85,6 +101,8 @@ GltfJson :: struct {
 
     GltfJsonMaterial :: struct {
         name: *string;
+        extensions: *JsonGeneric;
+        extras: *JsonGeneric;
         pbrMetallicRoughness: *struct {
             baseColorFactor: [4] float = .[1, 1, 1, 1];
             baseColorTexture: *struct {
@@ -129,9 +147,19 @@ GltfJson :: struct {
         primitives: [..] GltfJsonMeshPrimitive;
         weights: [..] float;
         name: string;
+        extensions: *JsonGeneric;
+        extras: *JsonGeneric;
     }
 
     GltfJsonNode :: struct {
+        GltfJsonExtensions :: struct {
+            GltfJsonLight :: struct {
+                light: int;
+            }
+
+            KHR_lights_punctual: *GltfJsonLight;
+        }
+
         camera: *int;
         children: *[..] int;
         skin: *int;
@@ -142,6 +170,8 @@ GltfJson :: struct {
         translation: [3] float = .[0, 0, 0];
         weights: *[..] float;
         name: *string;
+        extensions: *GltfJsonExtensions;
+        extras: *JsonGeneric;
     }
 
     GltfJsonSkin :: struct {
@@ -175,6 +205,7 @@ GltfJson :: struct {
 
     asset: GltfJsonAsset;
     scene: int;
+    extensions: *GltfJsonExtensions;
     buffers: [..] GltfJsonBuffer;
     bufferViews: [..] GltfJsonBufferView;
     scenes: [..] GltfJsonScene;
@@ -469,10 +500,11 @@ get_texture :: (json: GltfJson, bufferviews: [..] [] u8, texture_index: int) -> 
     sampler := json_texture.sampler;
     source := json_texture.source;
 
-    wrap: TextureWrap;
+    wrap: TextureWrap = .Clamp;
+    interp: TextureInterp = .Linear;
     if sampler {
         texture_sampler := json.samplers[<< sampler];
-        assert(texture_sampler.wrapS == texture_sampler.wrapT, "Different horizontal and vertical wrap functions are not currently supported.");
+        assert(texture_sampler.wrapS == texture_sampler.wrapT, "Different horizontal and vertical wrap functions are not currently supported.\n");
         if texture_sampler.wrapS == {
             case 0x812f;
                 wrap = .Clamp;
@@ -481,7 +513,37 @@ get_texture :: (json: GltfJson, bufferviews: [..] [] u8, texture_index: int) -> 
             case 0x2901;
                 wrap = .Repeat;
             case;
-                assert(false, "Unknown wrap function.");
+                assert(false, "Unknown texture wrap function.\n");
+        }
+
+        if texture_sampler.magFilter == 9728 {
+            // if nearest
+            if texture_sampler.minFilter != 9728 && texture_sampler.minFilter != 9984 && texture_sampler.minFilter != 9986 {
+                assert(false, tprint("Different mag and min filters are not currently supported. % %\n", texture_sampler.magFilter, texture_sampler.minFilter));
+            }
+        }
+        if texture_sampler.magFilter == 9729 {
+            // if linear
+            if texture_sampler.minFilter != 9729 && texture_sampler.minFilter != 9985 && texture_sampler.minFilter != 9987 {
+                assert(false, tprint("Different mag and min filters are not currently supported. % %\n", texture_sampler.magFilter, texture_sampler.minFilter));
+            }
+        }
+
+        if texture_sampler.minFilter == {
+            case 9728;
+                interp = .Nearest;
+            case 9729;
+                interp = .Linear;
+            case 9984;
+                interp = .Nearest;
+            case 9985;
+                interp = .Linear;
+            case 9986;
+                interp = .NearestMipmap;
+            case 9987 ;
+                interp = .LinearMipmap;
+            case;
+                assert(false, tprint("Unhandled texture interp function. %\n", texture_sampler.minFilter));
         }
     }
 
@@ -489,11 +551,11 @@ get_texture :: (json: GltfJson, bufferviews: [..] [] u8, texture_index: int) -> 
 
     texture: Texture;
     if json_image.uri {
-        texture = load_texture(<< json_image.uri, wrap);
+        texture = load_texture(json_image.uri.*, wrap, interp);
     } else if json_image.bufferView {
-        view_index := << json_image.bufferView;
+        view_index := json_image.bufferView.*;
         buffer_view := bufferviews[view_index];
-        texture = create_texture(buffer_view, wrap);
+        texture = create_texture(buffer_view, wrap, interp);
     } else {
         assert(false, "I think you have to have either an image uri or buffer.");
     }

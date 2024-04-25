@@ -94,3 +94,80 @@ convert_format :: (image: *Image3, desired_format: PixelFormat) {
         }
     }
 }
+
+blur :: (image: *Image3, radius: float) {
+    assert(image.format == .R8);
+
+    copied := array_copy(image.pixels);
+    defer array_free(copied);
+
+    radius_ceil := cast(int) ceil(radius);
+
+    parallel_for(0, image.depth, (z: int, thread: int, using data: struct {
+            image: *Image3;
+            copied: [] u8;
+            radius_ceil: int;
+            radius: float;}) {
+
+        for y: 0..image.height - 1 {
+            for x: 0..image.width - 1 {
+                image_index := x + y * image.width + z * image.width * image.height;
+
+                accumulated_value := 0.0;
+                accumulated_weight := 0.0;
+
+                for z_off: -radius_ceil..radius_ceil {
+                    for y_off: -radius_ceil..radius_ceil {
+                        for x_off: -radius_ceil..radius_ceil {
+                            sample_index := ((x + x_off + image.width) % image.width) + ((y + y_off + image.height) % image.height) * image.width + ((z + z_off + image.depth) % image.depth) * image.width * image.height;
+
+                            distance := sqrt(cast(float) x_off * x_off + cast(float) y_off * y_off + cast(float) z_off * z_off);
+                            distance_progress := min(distance / radius, 1);
+
+                            weight := (exp(-distance_progress * 2.0) - exp(-2.0)) / (1.0 - exp(-2.0));
+
+                            sampled_value := copied[sample_index];
+                            accumulated_value += sampled_value * weight;
+                            accumulated_weight += weight;
+                        }
+                    }
+                }
+
+                image.pixels[image_index] = cast(u8) clamp(round(accumulated_value / accumulated_weight), 0, 255);
+            }
+        }
+    }, .{image, copied, radius_ceil, radius});
+}
+
+normalize :: (image: *Image3) {
+    assert(image.format == .R8);
+
+    min_value := 255.0;
+    max_value := 0.0;
+
+    for z: 0..image.depth - 1 {
+        for y: 0..image.height - 1 {
+            for x: 0..image.width - 1 {
+                index := x + y * image.width + z * image.width * image.height;
+
+                value := image.pixels[index];
+                min_value = min(min_value, cast(float) value);
+                max_value = max(max_value, cast(float) value);
+            }
+        }
+    }
+
+    for z: 0..image.depth - 1 {
+        for y: 0..image.height - 1 {
+            for x: 0..image.width - 1 {
+                index := x + y * image.width + z * image.width * image.height;
+
+                value := cast(float) image.pixels[index];
+                value = (value - min_value) / (max_value - min_value);
+                value = min(clamp(value, 0, 1) * 256, 255);
+
+                image.pixels[index] = cast(u8) value;
+            }
+        }
+    }
+}

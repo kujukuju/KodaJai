@@ -512,6 +512,27 @@ set_depth_func_scope :: (func: DepthFunc) #expand {
     set_depth_func(func);
 }
 
+get_color_write :: () -> bool {
+    enabled: [4] GLboolean;
+    glGetBooleanv(GL_COLOR_WRITEMASK, enabled.data);
+    return enabled[0];
+}
+
+set_color_write :: (enabled: bool) {
+    if enabled {
+        glColorMask(GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE);
+    } else {
+        glColorMask(GL_FALSE, GL_FALSE, GL_FALSE, GL_FALSE);
+    }
+}
+
+set_color_write_scope :: (enabled: bool) #expand {
+    old_enabled := get_color_write();
+    `defer set_color_write(old_enabled);
+
+    set_color_write(enabled);
+}
+
 get_depth_write :: () -> bool {
     enabled: GLboolean;
     glGetBooleanv(GL_DEPTH_WRITEMASK, *enabled);

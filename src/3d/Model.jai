@@ -10,6 +10,11 @@ Model :: struct {
     shader: *Shader;
     name: string;
     visible: bool = true;
+    // this basically does nothing right now but tracks the material
+    material_id: int;
+    properties: [..] [2] string;
+    // temporary until materials exist
+    material_properties: [..] [2] string;
 }
 
 SerializedModelHash :: struct {
@@ -23,7 +28,7 @@ SerializedModel :: struct {
 }
 
 operator == :: (a: Model, b: Model) -> bool {
-    return a.geometry.data == b.geometry.data && a.uniforms == b.uniforms;
+    return a.geometry == b.geometry && a.uniforms == b.uniforms;
 }
 
 // this is temporary I guess
@@ -53,30 +58,34 @@ create_model :: (geometry: *Geometry, texture: Texture, should_upload: bool = fa
 }
 
 load_model :: (path: string, should_upload: bool = true) -> *Model, bool {
-    models, success := load_models(path, should_upload);
+    models, instances, success := load_models(path, should_upload);
     defer array_free(models);
+    defer array_free(instances);
     if !success {
         return null, false;
     }
 
     assert(models.count == 1, "You cannot load more than 1 model with the load_model function. Memory leak!");
+    assert(instances.count == 0, "You cannot load instanced models with the load_model function.");
 
     return models[0], true;
 }
 
-load_models :: (path: string, should_upload: bool = true) -> [..] *Model, bool {
+load_models :: (path: string, should_upload: bool = true) -> [..] *Model, [..] *InstancedModel(ModelMatrixGpu), bool #must /* temporary #must since I added a return */ {
     file, success := read_entire_file(path);
     defer free(file);
     if !success {
-        empty: [..] *Model;
-        return empty, false;
+        empty_models: [..] *Model;
+        empty_instances: [..] *InstancedModel;
+        return empty_models, empty_instances, false;
     }
 
     if ends_with(path, ".obj") {
         models, success := load_model_obj(file);
         if !success {
-            empty: [..] *Model;
-            return empty, false;
+            empty_models: [..] *Model;
+            empty_instances: [..] *InstancedModel;
+            return empty_models, empty_instances, false;
         }
 
         if should_upload {
@@ -85,39 +94,50 @@ load_models :: (path: string, should_upload: bool = true) -> [..] *Model, bool {
             }
         }
 
-        return models, true;
+        instances: [..] *InstancedModel;
+
+        return models, instances, true;
     } else if ends_with(path, ".glb") {
-        models, success := load_model_glb(file);
+        models, instances, success := load_model_glb(file);
         if !success {
-            empty: [..] *Model;
-            return empty, false;
+            empty_models: [..] *Model;
+            empty_instances: [..] *InstancedModel;
+            return empty_models, empty_instances, false;
         }
 
         if should_upload {
             for model: models {
                 upload(model);
             }
+            for instance: instances {
+                upload(instance);
+            }
         }
 
-        return models, true;
+        return models, instances, true;
     } else if ends_with(path, ".gltf") {
-        models, success := load_model_gltf(file, path);
+        models, instances, success := load_model_gltf(file, path);
         if !success {
-            empty: [..] *Model;
-            return empty, false;
+            empty_models: [..] *Model;
+            empty_instances: [..] *InstancedModel;
+            return empty_models, empty_instances, false;
         }
 
         if should_upload {
             for model: models {
                 upload(model);
             }
+            for instance: instances {
+                upload(instance);
+            }
         }
 
-        return models, true;
+        return models, instances, true;
     } else {
         print("Unknown file type. %\n", path);
-        empty: [..] *Model;
-        return empty, false;
+        empty_models: [..] *Model;
+        empty_instances: [..] *InstancedModel;
+        return empty_models, empty_instances, false;
     }
 }
 
@@ -150,6 +170,17 @@ destroy :: (model: *Model, children: bool = true) {
     if children {
         destroy(model.geometry);
     }
+    for property: model.properties {
+        free(property[0]);
+        free(property[1]);
+    }
+    array_free(model.properties);
+    for property: model.material_properties {
+        free(property[0]);
+        free(property[1]);
+    }
+    array_free(model.material_properties);
+    destroy(model.uniforms);
     // TODO should destroy textures here unless I move ownership later
     free(model.name);
     free(model);
@@ -167,6 +198,221 @@ get_aabb :: (model: Model) -> AABB3 {
     aabb := model.geometry.aabb;
 
     return transform_aabb(get_transform(model), aabb);
+}
+
+ModelVertices :: struct {
+    model: *Model;
+}
+
+get_vertices :: (model: *Model) -> ModelVertices {
+    assert(model.geometry.attributes.count > 0);
+    assert(model.geometry.attributes[0] == .Position);
+
+    return ModelVertices.{model};
+}
+
+for_expansion :: (wrapper: ModelVertices, body: Code, flags: For_Flags) #expand {
+    #assert(!(flags & .REVERSE));
+    #assert(!(flags & .POINTER));
+
+    stride := get_attribute_stride(wrapper.model.geometry);
+
+    transform := get_transform(wrapper.model);
+    geometry := wrapper.model.geometry;
+
+    vertex_count := geometry.vertices.count / stride;
+    for i: 0..vertex_count - 1 {
+        position := Vector3.{geometry.vertices[i * stride], geometry.vertices[i * stride + 1], geometry.vertices[i * stride + 2]};
+        `it := transform_point(transform, position);
+        `it_index := i;
+
+        #insert body;
+    }
+}
+
+ModelTriangles :: struct {
+    model: *Model;
+}
+
+get_triangles :: (model: *Model) -> ModelTriangles {
+    assert(model.geometry.attributes.count > 0);
+    assert(model.geometry.attributes[0] == .Position);
+
+    return ModelTriangles.{model};
+}
+
+for_expansion :: (wrapper: ModelTriangles, body: Code, flags: For_Flags) #expand {
+    #assert(!(flags & .REVERSE));
+    #assert(!(flags & .POINTER));
+
+    stride := get_attribute_stride(wrapper.model.geometry);
+
+    transform := get_transform(wrapper.model);
+    geometry := wrapper.model.geometry;
+
+    triangle_count := geometry.indices.count / 3;
+    for i: 0..triangle_count - 1 {
+        index1 := geometry.indices[i * 3];
+        index2 := geometry.indices[i * 3 + 1];
+        index3 := geometry.indices[i * 3 + 2];
+
+        position1 := Vector3.{geometry.vertices[index1 * stride], geometry.vertices[index1 * stride + 1], geometry.vertices[index1 * stride + 2]};
+        position2 := Vector3.{geometry.vertices[index2 * stride], geometry.vertices[index2 * stride + 1], geometry.vertices[index2 * stride + 2]};
+        position3 := Vector3.{geometry.vertices[index3 * stride], geometry.vertices[index3 * stride + 1], geometry.vertices[index3 * stride + 2]};
+
+        triangle := Triangle3.{
+            transform_point(transform, position1),
+            transform_point(transform, position2),
+            transform_point(transform, position3),
+        };
+        `it := triangle;
+        `it_index := i;
+        
+        #insert body;
+    }
+}
+
+merge_by_material_id :: (models: [] *Model, should_upload: bool = true) -> [..] *Model {
+    material_models: Table(int, [..] *Model);
+    material_models.allocator = temp;
+
+    material_ids: [..] int;
+    material_ids.allocator = temp;
+
+    for model: models {
+        material_array, created := find_or_add(*material_models, model.material_id);
+
+        if created {
+            material_array.allocator = temp;
+            array_add(*material_ids, model.material_id);
+        }
+
+        array_add(material_array, model);
+    }
+
+    merged: [..] *Model;
+
+    for material_id: material_ids {
+        models, found := table_find(*material_models, material_id);
+        if !found {
+            continue;
+        }
+
+        if models.count == 1 {
+            geometry := New(Geometry);
+            array_copy(*geometry.vertices, models[0].geometry.vertices);
+            array_copy(*geometry.indices, models[0].geometry.indices);
+            array_copy(*geometry.attributes, models[0].geometry.attributes);
+            geometry.aabb = calculate_aabb(geometry);
+            created := create_model(geometry, should_upload = false);
+            created.position = models[0].position;
+            created.rotation = models[0].rotation;
+            created.scale = models[0].scale;
+            if models[0].name {
+                created.name = copy_string(models[0].name);
+            }
+            array_copy(*created.uniforms.uniforms, models[0].uniforms.uniforms);
+            for property: models[0].properties {
+                array_add(*created.properties, .[copy_string(property[0]), copy_string(property[1])]);
+            }
+            for property: models[0].material_properties {
+                array_add(*created.material_properties, .[copy_string(property[0]), copy_string(property[1])]);
+            }
+            array_add(*merged, created);
+
+            continue;
+        }
+
+        for i: 0..models.count - 2 {
+            current := models[i];
+            next := models[i + 1];
+
+            if !matches_attributes(current.geometry.attributes, next.geometry.attributes) {
+                assert(false, tprint("You cannot merge models with mismatched attributes. %: % != %: %\n", current.name, current.geometry.attributes, next.name, next.geometry.attributes));
+            }
+            if !equals(current.uniforms, next.uniforms) {
+                print("Warning: Merging models with different uniforms. % %\n", current.name, next.name);
+            }
+        }
+
+        total_vertices: int;
+        total_indices: int;
+        for model: models {
+            total_vertices += model.geometry.vertices.count;
+            total_indices += model.geometry.indices.count;
+        }
+
+        geometry := New(Geometry);
+        array_reserve(*geometry.vertices, total_vertices);
+        array_reserve(*geometry.indices, total_indices);
+        array_copy(*geometry.attributes, models[0].geometry.attributes);
+
+        stride := get_attribute_stride(geometry);
+
+        for model: models {
+            transform := get_transform(model);
+            normal_transform := transpose(inverse(transform));
+
+            index_offset := cast(u32) (geometry.vertices.count / stride);
+            vertex_count := model.geometry.vertices.count / stride;
+            
+            offset := 0;
+            for i: 0..vertex_count - 1 {
+                for attribute: model.geometry.attributes {
+                    if attribute == .Position {
+                        position := (cast(*Vector3) (model.geometry.vertices.data + offset)).*;
+                        position = transform_point(transform, position);
+                        array_add(*geometry.vertices, position.x, position.y, position.z);
+
+                        offset += 3;
+                    } else if attribute == .Normal {
+                        normal := (cast(*Vector3) (model.geometry.vertices.data + offset)).*;
+                        normal = transform_vector(normal_transform, normal);
+                        array_add(*geometry.vertices, normal.x, normal.y, normal.z);
+
+                        offset += 3;
+                    } else {
+                        floats: [] float;
+                        floats.data = model.geometry.vertices.data + offset;
+                        floats.count = get_attribute_size(attribute);
+                        array_add(*geometry.vertices, ..floats);
+
+                        offset += floats.count;
+                    }
+                }
+            }
+            assert(offset == model.geometry.vertices.count, "Unexpected vertex count.\n");
+
+            for i: 0..model.geometry.indices.count - 1 {
+                (geometry.indices.data + geometry.indices.count + i).* = model.geometry.indices[i] + index_offset;
+            }
+            geometry.indices.count += model.geometry.indices.count;
+        }
+
+        geometry.aabb = calculate_aabb(geometry);
+
+        created := create_model(geometry, should_upload = false);
+        if models[0].name {
+            created.name = copy_string(models[0].name);
+        }
+        array_copy(*created.uniforms.uniforms, models[0].uniforms.uniforms);
+        for property: models[0].properties {
+            array_add(*created.properties, .[copy_string(property[0]), copy_string(property[1])]);
+        }
+        for property: models[0].material_properties {
+            array_add(*created.material_properties, .[copy_string(property[0]), copy_string(property[1])]);
+        }
+
+        array_add(*merged, created);
+    }
+
+    if should_upload {
+        for model: merged {
+            upload(model);
+        }
+    }
+
+    return merged;
 }
 
 draw :: (model: Model, transform: Matrix4 = Matrix4Identity, shader: *Shader = null) {
@@ -189,8 +435,7 @@ draw :: (model: Model, transform: Matrix4 = Matrix4Identity, projection: Matrix4
     }
 
     if !shader {
-        print("Could not find appropriate shader for model attributes. %\n", model.geometry.attributes);
-        assert(false, tprint("Could not find appropriate shader for model attributes. %\n", model.name));
+        assert(false, tprint("Could not find appropriate shader for model attributes. % %\n", model.name, model.geometry.attributes));
     }
 
     // TODO shouldn't I leave it as it is?
@@ -250,44 +495,209 @@ load_model_obj :: (file: string) -> [..] *Model, bool {
     return models, true;
 }
 
-load_model_glb :: (file: string) -> [..] *Model, bool {
+load_model_glb :: (file: string) -> [..] *Model, [..] *InstancedModel(ModelMatrixGpu), bool {
     json, binary, json_memory, valid := load_glb(file);
     defer free(json_memory);
     if !valid {
-        empty: [..] *Model;
-        return empty, false;
+        empty_models: [..] *Model;
+        empty_instances: [..] *InstancedModel;
+        return empty_models, empty_instances, false;
     }
 
-    models, data_success := load_model_gltf_data(json, binary);
-    return models, data_success;
+    models, instanced, data_success := load_model_gltf_data(json, binary);
+    return models, instanced, data_success;
 }
 
-load_model_gltf :: (file: string, path: string) -> [..] *Model, bool {
+load_model_gltf :: (file: string, path: string) -> [..] *Model, [..] *InstancedModel(ModelMatrixGpu), bool {
     json, binary, json_memory, valid := load_gltf(file, path);
     defer free(json_memory);
     if !valid {
-        empty: [..] *Model;
-        return empty, false;
+        empty_models: [..] *Model;
+        empty_instances: [..] *InstancedModel;
+        return empty_models, empty_instances, false;
     }
 
-    models, data_success := load_model_gltf_data(json, binary);
-    return models, data_success;
+    models, instanced, data_success := load_model_gltf_data(json, binary);
+    return models, instanced, data_success;
 }
 
-load_model_gltf_data :: (json: GltfJson, binary: [] u8) -> [..] *Model, bool {
+load_model_gltf_data :: (json: GltfJson, binary: [] u8) -> [..] *Model, [..] *InstancedModel(ModelMatrixGpu), bool {
     models: [..] *Model;
+    instances: [..] *InstancedModel;
 
-    geometries, geometry_success := load_geometry_gltf_data(json, binary);
+    geometry_to_primitive: [..] *GltfJson.GltfJsonMesh.GltfJsonMeshPrimitive;
+    geometry_to_primitive.allocator = temp;
+
+    geometry_to_mesh: [..] int;
+    geometry_to_mesh.allocator = temp;
+
+    primitive_to_geometry: Table(*GltfJson.GltfJsonMesh.GltfJsonMeshPrimitive, int);
+    primitive_to_geometry.allocator = temp;
+
+    geometries, geometry_success := load_geometry_gltf_data(json, binary, *geometry_to_primitive, *geometry_to_mesh, *primitive_to_geometry);
     defer array_free(geometries);
     if !geometry_success {
-        empty: [..] *Model;
-        return empty, false;
+        empty_models: [..] *Model;
+        empty_instances: [..] *InstancedModel;
+        return empty_models, empty_instances, false;
     }
 
-    array_reserve(*models, geometries.count);
-    for geometry: geometries {
-        model := create_model(geometry, false);
-        array_add(*models, model);
+    // get the model count and instance count here
+    geometry_instance_counts := NewArray(geometries.count, int,, allocator = temp);
+    for *node: json.nodes {
+        if !node.mesh {
+            continue;
+        }
+
+        mesh := json.meshes[node.mesh.*];
+        for *primitive: mesh.primitives {
+            if !is_valid_primitive(primitive) {
+                continue;
+            }
+
+            geometry_index, geometry_index_found := table_find(*primitive_to_geometry, primitive);
+            assert(geometry_index_found);
+
+            geometry_instance_counts[geometry_index] += 1;
+        }
+    }
+
+    model_count: int;
+    model_lookup := NewArray(geometries.count, int,, allocator = temp);
+
+    instance_count: int;
+    instance_lookup := NewArray(geometries.count, int,, allocator = temp);
+
+    for count, index: geometry_instance_counts {
+        if count > 1 {
+            instance_lookup[index] = instance_count;
+            instance_count += 1;
+        } else if count == 1 {
+            model_lookup[index] = model_count;
+            model_count += 1;
+        } else {
+            print("Found an unused geometry mesh. %\n", index);
+        }
+    }
+
+    ModelInfo :: struct {
+        name_reference: string;
+        position: Vector3;
+        rotation: Quaternion;
+        scale: Vector3;
+    }
+
+    model_infos := NewArray(model_count, ModelInfo,, allocator = temp);
+    for node: json.nodes {
+        if !node.mesh {
+            continue;
+        }
+
+        info: ModelInfo;
+        if node.name {
+            info.name_reference = node.name.*;
+        }
+        info.position.component = node.translation;
+        info.rotation.component = node.rotation;
+        info.scale.component = node.scale;
+
+        mesh := json.meshes[node.mesh.*];
+        for *primitive: mesh.primitives {
+            if !is_valid_primitive(primitive) {
+                continue;
+            }
+
+            geometry_index, geometry_index_found := table_find(*primitive_to_geometry, primitive);
+            assert(geometry_index_found);
+
+            if geometry_instance_counts[geometry_index] != 1 {
+                continue;
+            }
+
+            model_index := model_lookup[geometry_index];
+            model_infos[model_index] = info;
+        }
+    }
+
+    instance_names := NewArray(instance_count, string,, allocator = temp);
+    instance_transforms := NewArray(instance_count, [..] Matrix4,, allocator = temp);
+    for *transforms: instance_transforms {
+        transforms.allocator = temp;
+    }
+
+    for node: json.nodes {
+        if !node.mesh {
+            continue;
+        }
+
+        translation: Vector3;
+        translation.component = node.translation;
+        rotation: Quaternion;
+        rotation.component = node.rotation;
+        scaled: Vector3;
+        scaled.component = node.scale;
+
+        transform := make_translation_matrix4(translation);
+        transform = rotate(transform, rotation);
+        transform = scale(transform, scaled);
+
+        mesh := json.meshes[node.mesh.*];
+        for *primitive: mesh.primitives {
+            if !is_valid_primitive(primitive) {
+                continue;
+            }
+
+            geometry_index, geometry_index_found := table_find(*primitive_to_geometry, primitive);
+            assert(geometry_index_found);
+
+            if geometry_instance_counts[geometry_index] <= 1 {
+                continue;   
+            }
+
+            desired_instance_count := geometry_instance_counts[geometry_index];
+            instance_index := instance_lookup[geometry_index];
+
+            if instance_transforms[instance_index].allocated < desired_instance_count {
+                array_reserve(*instance_transforms[instance_index], desired_instance_count);
+            }
+
+            if node.name && !instance_names[instance_index] {
+                instance_names[instance_index] = node.name.*;
+            }
+
+            array_add(*instance_transforms[instance_index], transform);
+        }
+    }
+
+    array_reserve(*models, model_count);
+    array_reserve(*instances, instance_count);
+    
+    for geometry, index: geometries {
+        if geometry_instance_counts[index] > 1 {
+            instance_index := instance_lookup[index];
+            transforms := instance_transforms[instance_index];
+
+            instance := create_instanced_model(geometry, transforms, should_upload = false);
+            if instance_names[instance_index] {
+                instance.name = copy_string(instance_names[instance_index]);
+            }
+
+            array_add(*instances, instance);
+        } else if geometry_instance_counts[index] == 1 {
+            model_index := model_lookup[index];
+            info := model_infos[model_index];
+
+            model := create_model(geometry, false);
+            model.position = info.position;
+            model.rotation = info.rotation;
+            model.scale = info.scale;
+
+            if info.name_reference {
+                model.name = copy_string(info.name_reference);
+            }
+
+            array_add(*models, model);
+        }
     }
 
     buffers := get_buffers(json, binary);
@@ -296,26 +706,79 @@ load_model_gltf_data :: (json: GltfJson, binary: [] u8) -> [..] *Model, bool {
     bufferviews := get_bufferviews(json, buffers);
     defer array_free(bufferviews);
 
-    model_index := 0;
-    for node: json.nodes {
-        if !node.mesh {
-            continue;
-        }
+    textures: Table(int, Texture);
+    defer table_reset(*textures);
 
-        mesh := json.meshes[<< node.mesh];
-        
-        for primitive: mesh.primitives {
+    for mesh, mesh_index: json.meshes {
+        for *primitive: mesh.primitives {
             if !is_valid_primitive(primitive) {
                 continue;
             }
 
-            model := models[model_index];
-            model_index += 1;
+            geometry_index, geometry_index_found := table_find(*primitive_to_geometry, primitive);
+            assert(geometry_index_found);
+
+            instance_count := geometry_instance_counts[geometry_index];
+            assert(instance_count > 0, "Found a mesh geometry with no instances.\n");
+
+            cull_face: *bool;
+            uniforms: *ShaderUniforms;
+            material_id: *int;
+            properties: *[..] [2] string;
+            material_properties: *[..] [2] string;
+            if instance_count > 1 {
+                instance_index := instance_lookup[geometry_index];
+                instanced := instances[instance_index];
+
+                cull_face = *instanced.cull_face;
+                uniforms = *instanced.uniforms;
+                material_id = *instanced.material_id;
+                properties = *instanced.properties;
+                material_properties = *instanced.material_properties;
+            } else if instance_count == 1 {
+                model_index := model_lookup[geometry_index];
+                model := models[model_index];
+
+                cull_face = *model.cull_face;
+                uniforms = *model.uniforms;
+                material_id = *model.material_id;
+                properties = *model.properties;
+                material_properties = *model.material_properties;
+            }
+
+            if mesh.extras {
+                assert(mesh.extras.type == .Object);
+                
+                for entry: mesh.extras.object {
+                    assert(entry.value.type == .String);
+
+                    property: [2] string;
+                    property[0] = copy_string(entry.name);
+                    property[1] = copy_string(entry.value.str);
+                    array_add(properties, property);
+                }
+            }
 
             if primitive.material {
-                material := json.materials[<< primitive.material];
+                material := json.materials[primitive.material.*];
 
-                model.cull_face = !material.doubleSided;
+                cull_face.* = !material.doubleSided;
+                material_id.* = primitive.material.*;
+
+                if material.extras {
+                    assert(material.extras.type == .Object);
+                    
+                    for entry: material.extras.object {
+                        if entry.value.type != .String {
+                            continue;
+                        }
+
+                        property: [2] string;
+                        property[0] = copy_string(entry.name);
+                        property[1] = copy_string(entry.value.str);
+                        array_add(material_properties, property);
+                    }
+                }
             }
 
             has_diffuse_texture := true;
@@ -330,10 +793,18 @@ load_model_gltf_data :: (json: GltfJson, binary: [] u8) -> [..] *Model, bool {
                 assert(!!texture_name, "I thought materials always had to have a name...");
                 
                 texture_index := material.pbrMetallicRoughness.baseColorTexture.index;
-                texture := get_texture(json, bufferviews, texture_index);
 
-                assert(!has_uniform(model.uniforms, "uTexture0"), "Cannot already have a diffuse texture.");
-                model.uniforms[xx "uTexture0"] = create_uniform("uTexture0", texture);
+                texture, found := table_find(*textures, texture_index);
+                if !found {
+                    texture = get_texture(json, bufferviews, texture_index);
+                    if material.name {
+                        texture.name = copy_string(material.name.*);
+                    }
+                    table_set(*textures, texture_index, texture);
+                }
+
+                assert(!has_uniform(uniforms.*, "uTexture0"), "Cannot already have a diffuse texture.");
+                uniforms.*[xx "uTexture0"] = create_uniform("uTexture0", texture);
             } else if should_bake_material_color_textures {
                 has_diffuse_color := !!primitive.material;
                 has_diffuse_color = has_diffuse_color && json.materials[primitive.material.*].pbrMetallicRoughness;
@@ -352,8 +823,8 @@ load_model_gltf_data :: (json: GltfJson, binary: [] u8) -> [..] *Model, bool {
                     draw_pixel(*texture_image, .{0, 0}, diffuse_color);
 
                     texture := create_texture(texture_image, interp = .Nearest);
-                    assert(!has_uniform(model.uniforms, "uTexture0"), "Cannot already have a diffuse texture.");
-                    model.uniforms[xx "uTexture0"] = create_uniform("uTexture0", texture);
+                    assert(!has_uniform(uniforms.*, "uTexture0"), "Cannot already have a diffuse texture.");
+                    uniforms.*[xx "uTexture0"] = create_uniform("uTexture0", texture);
                 }
             }
 
@@ -363,92 +834,55 @@ load_model_gltf_data :: (json: GltfJson, binary: [] u8) -> [..] *Model, bool {
             has_normal_texture = has_normal_texture && json.textures[json.materials[primitive.material.*].normalTexture.index].source;
             if has_normal_texture {
                 material := json.materials[primitive.material.*];
-                model.cull_face = !material.doubleSided;
+                cull_face.* = !material.doubleSided;
 
                 texture_name := material.name;
                 assert(!!texture_name, "I thought materials always had to have a name...");
                 
                 texture_index := material.normalTexture.index;
-                texture := get_texture(json, bufferviews, texture_index);
 
-                assert(!has_uniform(model.uniforms, "uNormal0"), "Cannot already have a normal texture.");
-                model.uniforms[xx "uNormal0"] = create_uniform("uNormal0", texture);
-            }
-        }
-    }
-
-    node_parents: Table(int, int);
-    node_parents.allocator = temp;
-
-    for node, node_index: json.nodes {
-        if node.children {
-            for i: 0..node.children.count - 1 {
-                child_index := node.children.data[i];
-
-                assert(!table_find_pointer(*node_parents, child_index), "Attempting to double set a node parent.");
-                table_set(*node_parents, child_index, node_index);
-            }
-        }
-    }
-
-    // node_path: [..] int;
-    // node_path.allocator = temp;
-
-    for node, node_index: json.nodes {
-        if node.mesh {
-            mesh_index := << node.mesh;
-            model: *Model;
-            
-            current_mesh_index := 0;
-            current_model_index := 0;
-            for mesh: json.meshes {
-                for primitive: mesh.primitives {
-                    if !is_valid_primitive(primitive) {
-                        continue;
+                texture, found := table_find(*textures, texture_index);
+                if !found {
+                    texture = get_texture(json, bufferviews, texture_index);
+                    if material.name {
+                        texture.name = copy_string(material.name.*);
                     }
-
-                    if current_mesh_index == mesh_index {
-                        model = models[current_model_index];
-                        break mesh;
-                    }
-
-                    current_model_index += 1;
+                    table_set(*textures, texture_index, texture);
                 }
-
-                current_mesh_index += 1;
+                
+                assert(!has_uniform(uniforms.*, "uNormal0"), "Cannot already have a normal texture.");
+                uniforms.*[xx "uNormal0"] = create_uniform("uNormal0", texture);
             }
 
-            assert(!!model, "The loop must have found the model by this point.");
+            has_emissive_texture := true;
+            has_emissive_texture = has_emissive_texture && primitive.material;
+            has_emissive_texture = has_emissive_texture && json.materials[primitive.material.*].emissiveTexture;
+            has_emissive_texture = has_emissive_texture && json.textures[json.materials[primitive.material.*].emissiveTexture.index].source;
+            if has_emissive_texture {
+                material := json.materials[primitive.material.*];
+                cull_face.* = !material.doubleSided;
 
-            // node_path.count = 0;
+                texture_name := material.name;
+                assert(!!texture_name, "I thought materials always had to have a name...");
+                
+                texture_index := material.emissiveTexture.index;
 
-            // array_add(*node_path, node_index);
-            // parent_node_pointer := table_find_pointer(*node_parents, node_index);
-            // while !!parent_node_pointer {
-            //     array_add(*node_path, << parent_node_pointer);
-            //     parent_node_pointer = table_find_pointer(*node_parents, << parent_node_pointer);
-            // }
-
-            // world_transform := Matrix4Identity;
-            // for < current_index: node_path {
-            //     node := json.nodes[current_index];
-
-            //     node_matrix := get_transform(node);
-            //     world_transform = world_transform * node_matrix;
-            // }
-
-            // translation, rotation, scale := decompose_matrix4(world_transform);
-
-            model.position.component = node.translation;
-            model.rotation.component = node.rotation;
-            model.scale.component = node.scale;
-            if node.name {
-                model.name = copy_string(<< node.name);
+                texture, found := table_find(*textures, texture_index);
+                if !found {
+                    texture = get_texture(json, bufferviews, texture_index);
+                    if material.name {
+                        texture.name = copy_string(material.name.*);
+                    }
+                    table_set(*textures, texture_index, texture);
+                }
+                
+                assert(!has_uniform(uniforms.*, "uEmissive0"), "Cannot already have an emissive texture.");
+                uniforms.*[xx "uEmissive0"] = create_uniform("uEmissive0", texture);
             }
         }
     }
 
-    return models, true;
+    return models, instances, true;
 }
 
 #scope_file

@@ -9,6 +9,7 @@ ModelMatrixGpu :: struct {
 }
 
 InstancedModel :: struct (T: Type = ModelMatrixGpu) {
+    geometry: *Geometry;
     shader: *Shader;
     uniforms: ShaderUniforms;
     cull_face: bool = true;
@@ -20,54 +21,123 @@ InstancedModel :: struct (T: Type = ModelMatrixGpu) {
     particle_vbo_count: int;
     particle_vbo_allocated: int;
     attributes: [] Attribute;
+    instances: [..] T;
+    name: string;
+    dynamic: bool;
+    static_aabb: AABB3;
+    material_id: int;
+    properties: [..] [2] string;
+    // temporary until materials exist
+    material_properties: [..] [2] string;
 }
 
-create_instanced_model :: (geometry: *Geometry) -> *InstancedModel(ModelMatrixGpu) {
-    model := create_instanced_model(geometry, dynamic = true);
+operator == :: (a: InstancedModel, b: InstancedModel) -> bool {
+    return a.geometry == b.geometry && a.uniforms == b.uniforms;
+}
+
+create_instanced_model :: (geometry: *Geometry, should_upload: bool = true) -> *InstancedModel(ModelMatrixGpu) {
+    model := New(InstancedModel(ModelMatrixGpu));
+    model.geometry = geometry;
+    model.dynamic = true;
+
+    if should_upload {
+        upload(model);
+    }
+
     return model;
 }
 
-create_instanced_model :: (geometry: *Geometry, instances: [] Matrix4) -> *InstancedModel(ModelMatrixGpu) {
-    model := create_instanced_model(geometry, dynamic = false);
-    set_instances(model, instances);
+create_instanced_model :: (geometry: *Geometry, instances: [] Matrix4, should_upload: bool = true) -> *InstancedModel(ModelMatrixGpu) {
+    model := New(InstancedModel(ModelMatrixGpu));
+    model.geometry = geometry;
+    model.dynamic = false;
+
+    instanced_gpu: [] ModelMatrixGpu;
+    instanced_gpu.data = cast(*ModelMatrixGpu) instances.data;
+    instanced_gpu.count = instances.count;
+    array_copy(*model.instances, instanced_gpu);
+
+    model.static_aabb = calculate_aabb(model);
+
+    if should_upload {
+        upload(model);
+    }
+
     return model;
 }
 
-create_instanced_model :: (geometry: *Geometry, dynamic: bool) -> *InstancedModel(ModelMatrixGpu) {
-    model := create_instanced_model(ModelMatrixGpu, geometry, dynamic);
-    return model;
-}
+// create_instanced_model :: (geometry: *Geometry, dynamic: bool, should_upload: bool) -> *InstancedModel(ModelMatrixGpu) {
+//     model := create_instanced_model(ModelMatrixGpu, geometry, dynamic, should_upload = should_upload);
+//     return model;
+// }
 
-create_instanced_model :: ($T: Type, geometry: *Geometry) -> *InstancedModel(T) {
-    model := create_instanced_model(T, geometry, dynamic = true);
-    return model;
-}
-
-create_instanced_model :: ($T: Type, geometry: *Geometry, instances: [] T) -> *InstancedModel(T) {
-    model := create_instanced_model(T, geometry, dynamic = false);
-    set_instances(model, instances);
-    return model;
-}
-
-create_instanced_model :: ($T: Type, geometry: *Geometry, dynamic: bool) -> *InstancedModel(T) {
+create_instanced_model :: ($T: Type, geometry: *Geometry, should_upload: bool = true) -> *InstancedModel(T) {
     model := New(InstancedModel(T));
-    init_instanced_model(model, geometry, dynamic);
+    model.geometry = geometry;
+    model.dynamic = true;
+
+    if should_upload {
+        upload(model);
+    }
+
     return model;
 }
 
-init_instanced_model :: (model: *InstancedModel($T), geometry: *Geometry, dynamic: bool) {
+create_instanced_model :: ($T: Type, geometry: *Geometry, instances: [] T, should_upload: bool = true) -> *InstancedModel(T) {
+    model := New(InstancedModel(T));
+    model.geometry = geometry;
+    model.dynamic = false;
+    array_copy(*model.instances, instances);
+
+    if should_upload {
+        upload(model);
+    }
+
+    return model;
+}
+
+destroy :: (model: *InstancedModel($T), children: bool = true) {
+    if children {
+        destroy(model.geometry);
+    }
+    if model.vao {
+        glDeleteBuffers(1, *model.particle_vbo);
+        glDeleteBuffers(1, *model.ebo);
+        glDeleteBuffers(1, *model.vbo);
+        glDeleteVertexArrays(1, *model.vao);
+    }
+    for property: model.properties {
+        free(property[0]);
+        free(property[1]);
+    }
+    array_free(model.properties);
+    for property: model.material_properties {
+        free(property[0]);
+        free(property[1]);
+    }
+    array_free(model.material_properties);
+    array_free(model.attributes);
+    array_free(model.instances);
+    destroy(model.uniforms);
+    free(model.name);
+    free(model);
+}
+
+upload :: (model: *InstancedModel($T)) {
+    if model.vao {
+        return;
+    }
+
     gpu_attributes :: #run get_attributes_from_struct(T);
-    model.attributes = NewArray(geometry.attributes.count + gpu_attributes.count, Attribute);
-    for attribute, index: geometry.attributes {
+    model.attributes = NewArray(model.geometry.attributes.count + gpu_attributes.count, Attribute);
+    for attribute, index: model.geometry.attributes {
         model.attributes[index] = attribute;
     }
     for attribute, index: gpu_attributes {
-        model.attributes[index + geometry.attributes.count] = attribute;
+        model.attributes[index + model.geometry.attributes.count] = attribute;
     }
 
-    model.indices_count = geometry.indices.count;
-
-    draw_mode := ifx dynamic then cast(u32) GL_DYNAMIC_DRAW else GL_STATIC_DRAW;
+    model.indices_count = model.geometry.indices.count;
 
     glGenVertexArrays(1, *model.vao);
     glGenBuffers(1, *model.vbo);
@@ -75,17 +145,16 @@ init_instanced_model :: (model: *InstancedModel($T), geometry: *Geometry, dynami
     glGenBuffers(1, *model.particle_vbo);
 
     glBindVertexArray(model.vao);
-
     glBindBuffer(GL_ARRAY_BUFFER, model.vbo);
-    glBufferData(GL_ARRAY_BUFFER, geometry.vertices.count * size_of(float32), geometry.vertices.data, draw_mode);  
+    glBufferData(GL_ARRAY_BUFFER, model.geometry.vertices.count * size_of(float32), model.geometry.vertices.data, GL_STATIC_DRAW);
 
     glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, model.ebo);
-    glBufferData(GL_ELEMENT_ARRAY_BUFFER, geometry.indices.count * size_of(u32), geometry.indices.data, draw_mode);
+    glBufferData(GL_ELEMENT_ARRAY_BUFFER, model.geometry.indices.count * size_of(u32), model.geometry.indices.data, GL_STATIC_DRAW);
 
-    total_float_size := cast(u32) get_attribute_stride(geometry.attributes);
+    total_float_size := cast(u32) get_attribute_stride(model.geometry.attributes);
     current_attribute: u32;
     float_offset: s32;
-    for attribute: geometry.attributes {
+    for attribute: model.geometry.attributes {
         attribute_size := cast(s32) get_attribute_size(attribute);
         glEnableVertexAttribArray(current_attribute);
         glVertexAttribPointer(current_attribute, attribute_size, GL_FLOAT, GL_FALSE, size_of(float32) * total_float_size, cast(*void) (size_of(float32) * float_offset));
@@ -94,12 +163,19 @@ init_instanced_model :: (model: *InstancedModel($T), geometry: *Geometry, dynami
         float_offset += attribute_size;
     }
 
-    default_particle_count :: 4;
-
     // generate the particle vbo, but currently we have no data
-    glBindBuffer(GL_ARRAY_BUFFER, model.particle_vbo);
-    glBufferData(GL_ARRAY_BUFFER, default_particle_count * size_of(T), null, GL_DYNAMIC_DRAW);
-    model.particle_vbo_allocated = default_particle_count;
+    // pad some data since we know it'll get used
+    if model.dynamic {
+        default_particle_count :: 4;
+        glBindBuffer(GL_ARRAY_BUFFER, model.particle_vbo);
+        glBufferData(GL_ARRAY_BUFFER, default_particle_count * size_of(T), null, GL_DYNAMIC_DRAW);
+        model.particle_vbo_allocated = default_particle_count;
+    } else {
+        glBindBuffer(GL_ARRAY_BUFFER, model.particle_vbo);
+        glBufferData(GL_ARRAY_BUFFER, model.instances.count * size_of(T), model.instances.data, GL_STATIC_DRAW);
+        model.particle_vbo_allocated = model.instances.count;
+        model.particle_vbo_count = model.instances.count;
+    }
 
     // insert particle type vertex attribute data
     #insert #run get_instanced_opengl_initialization("current_attribute", gpu_attributes);
@@ -108,6 +184,8 @@ init_instanced_model :: (model: *InstancedModel($T), geometry: *Geometry, dynami
 }
 
 set_instances :: (model: *InstancedModel($T), instances: [] T) {
+    assert(model.dynamic, "You cannot set instances of a non-dynamically created instanced model.\n");
+    
     model.particle_vbo_count = instances.count;
     if model.particle_vbo_allocated >= instances.count {
         glBindBuffer(GL_ARRAY_BUFFER, model.particle_vbo);
@@ -121,11 +199,76 @@ set_instances :: (model: *InstancedModel($T), instances: [] T) {
 
 set_instances :: (model: *InstancedModel(ModelMatrixGpu), instances: [] Matrix4) {
     #assert(size_of(ModelMatrixGpu) == size_of(Matrix4));
+
     instanced_gpu: [] ModelMatrixGpu;
     instanced_gpu.data = cast(*ModelMatrixGpu) instances.data;
     instanced_gpu.count = instances.count;
 
     set_instances(model, instanced_gpu);
+}
+
+get_aabb :: (model: InstancedModel(ModelMatrixGpu)) -> AABB3 {
+    if !model.instances {
+        return .{};
+    }
+
+    if !model.dynamic {
+        return model.static_aabb;
+    }
+
+    return calculate_aabb(model);
+}
+
+calculate_aabb :: (model: InstancedModel(ModelMatrixGpu)) -> AABB3 {
+    if model.dynamic {
+        print("Warning: You shouldn't be calling this method I think if it's a dynamic instanced model.\n");
+    }
+
+    if !model.instances {
+        return .{};
+    }
+
+    geometry_aabb := model.geometry.aabb;
+
+    aabb := transform_aabb(model.instances[0].model, geometry_aabb);
+    for i: 1..model.instances.count - 1 {
+        aabb = merge(aabb, transform_aabb(model.instances[i].model, geometry_aabb));
+    }
+
+    return aabb;
+}
+
+InstancedModelVertices :: struct {
+    model: *InstancedModel(ModelMatrixGpu);
+}
+
+get_vertices :: (model: *InstancedModel(ModelMatrixGpu)) -> InstancedModelVertices {
+    assert(model.geometry.attributes.count > 0);
+    assert(model.geometry.attributes[0] == .Position);
+
+    return InstancedModelVertices.{model};
+}
+
+for_expansion :: (wrapper: InstancedModelVertices, body: Code, flags: For_Flags) #expand {
+    #assert(!(flags & .REVERSE));
+    #assert(!(flags & .POINTER));
+
+    stride := get_attribute_stride(wrapper.model.geometry);
+
+    geometry := wrapper.model.geometry;
+    geometry_vertex_count := geometry.vertices.count / stride;
+
+    for instance, instance_index: wrapper.model.instances {
+        transform := instance.model;
+
+        for i: 0..geometry_vertex_count - 1 {
+            position := Vector3.{geometry.vertices[i * stride], geometry.vertices[i * stride + 1], geometry.vertices[i * stride + 2]};
+            `it := transform_point(transform, position);
+            `it_index := geometry_vertex_count * instance_index + i;
+        
+            #insert body;
+        }
+    }
 }
 
 draw :: (model: *InstancedModel, shader: *Shader = null) {
@@ -146,8 +289,7 @@ draw :: (model: *InstancedModel, projection: Matrix4, shader: *Shader = null) {
     }
 
     if !shader {
-        print("Could not find appropriate shader for model attributes. %\n", model.attributes);
-        assert(false, tprint("Could not find appropriate shader for model attributes.\n"));
+        assert(false, tprint("Could not find appropriate shader for model attributes. % %\n", model.name, model.attributes));
     }
 
     set_cull_face_scope(model.cull_face);

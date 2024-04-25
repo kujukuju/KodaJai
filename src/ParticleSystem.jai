@@ -214,6 +214,14 @@ particle_system_update_and_render :: (system: *ParticleSystem($PG, $PC, $update_
         glBufferData(GL_ARRAY_BUFFER, system.particles_gpu.allocated * size_of(PG), system.particles_gpu.data, GL_DYNAMIC_DRAW);  
     }
 
+    particle_system_render(system, time, projection);
+}
+
+particle_system_render :: (system: *ParticleSystem($PG, $PC, $update_function, $sort), time: float64) {
+    inline particle_system_render(system, time, get_perspective_matrix());
+}
+
+particle_system_render :: (system: *ParticleSystem($PG, $PC, $update_function, $sort), time: float64, projection: Matrix4) {
     cull_face := koda.cull_face;
     if system.cull_face != cull_face {
         set_cull_face(system.cull_face);
@@ -225,6 +233,8 @@ particle_system_update_and_render :: (system: *ParticleSystem($PG, $PC, $update_
 
     uniforms: ShaderUniforms;
     defer destroy(uniforms);
+    
+    view := koda.view;
     
     uniforms[xx "projection"] = create_uniform("projection", projection);
     uniforms[xx "view"] = create_uniform("view", view);

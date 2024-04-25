@@ -111,7 +111,7 @@ init_framebuffer_pass_buffers :: (pass: *FramebufferPass($count, $depth, $drawab
         glBindBuffer(GL_ARRAY_BUFFER, pass.vbo);
         glBufferData(GL_ARRAY_BUFFER, size_of(type_of(vertices)), vertices.data, GL_STATIC_DRAW);
         if pass.name {
-            glObjectLabel(GL_ARRAY_BUFFER, pass.vbo, cast(u32) pass.name.count, pass.name.data);
+            glObjectLabel(GL_BUFFER, pass.vbo, cast(u32) pass.name.count, pass.name.data);
         }
 
         glGenVertexArrays(1, *pass.vao);

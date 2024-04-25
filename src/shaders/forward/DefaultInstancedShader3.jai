@@ -1,22 +1,25 @@
-DefaultShader3 :: struct {
+DefaultInstancedShader3 :: struct {
     using #as shader: Shader;
 
-    shader.name = "DefaultShader3";
-    shader.vertex = DEFAULT_VERTEX_SHADER3;
-    shader.fragment = DEFAULT_FRAGMENT_SHADER3;
+    shader.name = "DefaultInstancedShader3";
+    shader.vertex = DEFAULT_INSTANCED_VERTEX_SHADER3;
+    shader.fragment = DEFAULT_INSTANCED_FRAGMENT_SHADER3;
 }
 
-default_shader3: DefaultShader3;
+default_instanced_shader3: DefaultInstancedShader3;
 
 #scope_module
 
-DEFAULT_VERTEX_SHADER3 :: #string ___glsl
+DEFAULT_INSTANCED_VERTEX_SHADER3 :: #string ___glsl
 #version 330 core
 layout (location = 0) in vec3 aPos;
 layout (location = 1) in vec3 aNorm;
 layout (location = 2) in vec2 aTex;
+layout (location = 3) in vec4 aModel1;
+layout (location = 4) in vec4 aModel2;
+layout (location = 5) in vec4 aModel3;
+layout (location = 6) in vec4 aModel4;
 
-uniform mat4 model;
 uniform mat4 view;
 uniform mat4 projection;
 
@@ -25,6 +28,12 @@ out vec3 vNorm;
 out vec2 vTex;
 
 void main() {
+    mat4 model = mat4(
+        aModel1.x, aModel2.x, aModel3.x, aModel4.x,
+        aModel1.y, aModel2.y, aModel3.y, aModel4.y,
+        aModel1.z, aModel2.z, aModel3.z, aModel4.z,
+        aModel1.w, aModel2.w, aModel3.w, aModel4.w);
+
     vPos = vec3(model * vec4(aPos, 1.0));
     vNorm = vec3(model * vec4(aNorm, 0.0));
     vTex = aTex;
@@ -33,7 +42,7 @@ void main() {
 }
 ___glsl
 
-DEFAULT_FRAGMENT_SHADER3 :: #string ___glsl
+DEFAULT_INSTANCED_FRAGMENT_SHADER3 :: #string ___glsl
 #version 330 core
 out vec4 FragColor;
   

@@ -45,7 +45,7 @@ create_texture3 :: (image: Image3, wrap: TextureWrap = .Clamp, interp: TextureIn
     return create_texture3(image, wrap_array, interp, should_upload);
 }
 
-create_texture3 :: (image: Image3, wrap: [3] TextureWrap, interp: TextureWrap, should_upload: bool = true) -> Texture3 {
+create_texture3 :: (image: Image3, wrap: [3] TextureWrap, interp: TextureInterp, should_upload: bool = true) -> Texture3 {
     if !image.pixels.data {
         print("Could not create texture.\n");
         return .{};

@@ -106,7 +106,7 @@ draw_torus :: (center: Vector3, up: Vector3, major_radius: float, minor_radius: 
 
     rotation := yaw_rotation * pitch_rotation;
 
-    use_shader(*torus_shader);
+    use_shader(*torus_shader3);
 
     model := Matrix4Identity;
     model = translate(model, center);
@@ -125,7 +125,7 @@ draw_torus :: (center: Vector3, up: Vector3, major_radius: float, minor_radius: 
     uniforms[xx "uMinorRadius"] = create_uniform("uMinorRadius", minor_radius);
     uniforms[xx "uTint"] = create_uniform("uTint", color);
     
-    apply_uniforms(*torus_shader, uniforms);
+    apply_uniforms(*torus_shader3, uniforms);
 
     glBindVertexArray(torus.vao_);
     glDrawElements(GL_TRIANGLES, xx torus.indices.count, GL_UNSIGNED_INT, xx 0);
@@ -137,7 +137,7 @@ draw_flat_grid :: (center: Vector3 = .{0, 0, 0}, fade_center: Vector3 = .{0, 0, 
         load_grid();
     }
 
-    use_shader(*flat_grid_shader);
+    use_shader(*flat_grid_shader3);
 
     model := Matrix4Identity;
     model = translate(model, center);
@@ -155,7 +155,7 @@ draw_flat_grid :: (center: Vector3 = .{0, 0, 0}, fade_center: Vector3 = .{0, 0, 
     uniforms[xx "uRadius"] = create_uniform("uRadius", radius);
     uniforms[xx "uFadeCenter"] = create_uniform("uFadeCenter", fade_center);
     
-    apply_uniforms(*flat_grid_shader, uniforms);
+    apply_uniforms(*flat_grid_shader3, uniforms);
 
     glBindVertexArray(grid.vao_);
     glLineWidth(1.0);
@@ -513,5 +513,3 @@ center_grid: *Geometry;
 grid_loaded: bool;
 cube: *Geometry;
 cube_loaded: bool;
-
-flat_grid_shader: FlatGridShader3;

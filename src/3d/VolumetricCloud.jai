@@ -68,8 +68,6 @@ create_volumetric_cloud :: (center: Vector3, half_dimensions: Vector3) -> *Model
 
                     perlin_worley_image.pixels[(x + y * perlin_worley_image.width + z * perlin_worley_image.width * perlin_worley_image.height) * 2 + 0] = cast(u8) (value.x * 255);
                     perlin_worley_image.pixels[(x + y * perlin_worley_image.width + z * perlin_worley_image.width * perlin_worley_image.height) * 2 + 1] = cast(u8) (value.y * 255);
-                    // TODO for now I'm adding this layer because I'm worried theres some pma stuff going on
-                    // perlin_worley_image.pixels[(x + y * perlin_worley_image.width + z * perlin_worley_image.width * perlin_worley_image.height) * 3 + 2] = cast(u8) 255;
                 }
             }
         }

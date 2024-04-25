@@ -15,6 +15,7 @@ clear_default_shaders :: () {
 init_default_shaders :: () {
     set_default_shader(.[.Position, .Texcoord], *default_shader);
     set_default_shader(.[.Position, .Normal, .Texcoord], *default_shader3);
+    set_default_shader(.[.Position, .Normal, .Texcoord, .Vector4, .Vector4, .Vector4, .Vector4], *default_instanced_shader3);
     set_default_shader(.[.Position, .Normal, .Texcoord, .Texcoord], *occlusion_shader3);
     set_default_shader(.[.Position, .Normal, .Texcoord, .Texcoord, .Color], *default_color_normal_shader3);
     set_default_shader(.[.Position, .Normal, .Texcoord, .Color], *default_color_shader3);
