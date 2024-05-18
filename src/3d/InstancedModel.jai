@@ -361,6 +361,11 @@ get_attributes_from_struct :: (gpu: Type) -> [] Attribute {
         }
         array_add(*visited_offsets, member.offset_in_bytes);
 
+        if member.flags & .USING {
+            array_add(*attributes, ..get_attributes_from_struct((cast(*Type) *member.type).*));
+            continue;
+        }
+        
         assert(is_integer_or_float(member.type), "Only allowed to have a gpu struct of integers and floats.\n");
         
         member_stride := member.type.runtime_size;
@@ -382,7 +387,7 @@ get_attributes_from_struct :: (gpu: Type) -> [] Attribute {
             } else if member_stride == 16 {
                 array_add(*attributes, .Vector4);
             } else {
-                assert(false, "Invalid member stride for float attribute.\n");
+                assert(false, "Invalid member stride for float attribute. % %\n", member.name, member_stride);
             }
         }
     }

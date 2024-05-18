@@ -1,22 +1,24 @@
 
-// #module_parameters(PRODUCTION := false, WASM := false);
+#module_parameters(PRODUCTION := false, WASM := false);
 
-PRODUCTION :: false;
-WASM :: false;
+#if WASM {
+    core_count :: 8;
 
-// #if WASM {
-//     #import "JaiWasmGL";
-// } else {
+    #import "JaiWasmGL";
+} else {
+    core_count :: #run get_number_of_processors();
+
     #import "GL";
-// }
+    #import "stb_image";
+    #import "stb_image_write";
+}
 
 // #insert #run () -> string {
 //     filepath :: #filepath;
 
-//     files := file_list(tprint("%src", #filepath));
-
 //     builder: String_Builder;
 
+//     files := file_list(tprint("%src", #filepath), recursive = true);
 //     for file: files {
 //         if !ends_with(file, ".jai") {
 //             continue;
@@ -26,6 +28,10 @@ WASM :: false;
 //         relative_file.data = file.data + filepath.count;
 //         relative_file.count = file.count - filepath.count;
 
+//         print("relative_file %\n", relative_file);
+
+//         // im not actually sure if #scope_export is necessary
+//         append(*builder, "#scope_export\n");
 //         append(*builder, "#load \"");
 //         append(*builder, relative_file);
 //         append(*builder, "\";\n");
@@ -134,6 +140,7 @@ WASM :: false;
 #load "src/Point2.jai";
 #load "src/Point3.jai";
 #load "src/Point4.jai";
+#load "src/QuadParticleSystem.jai";
 #load "src/Renderable.jai";
 #load "src/SerializeStructure.jai";
 #load "src/ShaderUniforms.jai";
@@ -144,6 +151,9 @@ WASM :: false;
 #load "src/Time.jai";
 #load "src/Utilities.jai";
 #load "src/Window.jai";
+
+#load "src/assets/TriplexSansBold.jai";
+#load "src/assets/White.jai";
 
 koda: struct {
     initialized: bool;
@@ -164,21 +174,6 @@ koda: struct {
     can_render: bool = true;
 };
 
-// get_koda_asset_path :: () -> string {
-//     library_path := tprint("%/assets/", get_working_directory());
-//     print("asset path is %\n", library_path);
-//     return library_path;
-// }
-
-// KODA_ASSET_PATH := #run () -> string {
-//     if file_exists(library_path) {
-//         return library_path;
-//     } else {
-//         return library_path; // this is probably the right way to do it but idk what to put here
-//     }
-// }();
-// #run print("Koda asset path: %\n", KODA_ASSET_PATH);
-
 get_static_sprite :: () -> *Sprite {
     return *static_sprite;
 }
@@ -186,17 +181,6 @@ get_static_sprite :: () -> *Sprite {
 #scope_module
 
 static_sprite: Sprite;
-#if WASM {
-    core_count :: 8;
-} else {
-    core_count :: #run get_number_of_processors();
-    #import "stb_image";
-    #import "stb_image_write";
-}
-
-#load "src/assets/TriplexSansBold.jai";
-// #load "src/assets/TriplexSansBoldSerialized.jai";
-#load "src/assets/White.jai";
 
 #import "Basic";
 #import "String";
@@ -209,7 +193,7 @@ static_sprite: Sprite;
 #import "Math";
 
 #import "JaiGLFW";
-#import "ContiguousJsonJai"(ASSERT = false, ASM = !WASM);
+#import "ContiguousJsonJai"(ASM = !WASM);
 #import "FixedStringJai";
 #import "JaiBoundingTree";
 #import "JaiSerializer";

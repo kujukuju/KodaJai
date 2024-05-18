@@ -184,7 +184,7 @@ InputFeature :: enum u32 {
     All :: 0xffffffff;
 }
 
-input: struct {
+Input :: struct {
     keys: [KEY_COUNT] InputState;
     released_keys: [KEY_COUNT] bool;
     controller_active: bool;
@@ -192,6 +192,8 @@ input: struct {
     controller_right: Vector2;
     buttons: [BUTTON_COUNT] InputState;
     released_buttons: [BUTTON_COUNT] bool;
+    controller_left_trigger: float;
+    controller_right_trigger: float;
     mouse_left: InputState;
     released_mouse_left: bool;
     mouse_left_start: Vector2;
@@ -209,7 +211,9 @@ input: struct {
     mouse_delta_y: float64;
     scroll_delta_x: float64;
     scroll_delta_y: float64;
-};
+}
+
+input: Input;
 
 update_inputs :: ($update_features: InputFeature = .All) {
     // TODO should this be called here?

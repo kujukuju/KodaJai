@@ -292,6 +292,7 @@ load_glb :: (file: string) -> GltfJson, [] u8, *u8, bool {
     
     if !binary {
         print("No glb buffer found.\n");
+        print_stack_trace();
         return .{}, .[], null, false;
     }
 

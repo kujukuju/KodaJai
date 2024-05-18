@@ -90,71 +90,25 @@ get_perspective_matrix :: () -> Matrix4 {
     return koda.projection;
 }
 
-calculate_perspective_matrix :: () -> Matrix4 {
-    fovy := koda.fovy;
+calculate_perspective_matrix :: (fovy: float = 0, aspect_ratio: float = 0) -> Matrix4 {
+    if fovy == 0 then fovy = koda.fovy;
+    if aspect_ratio == 0 then aspect_ratio = cast(float) koda.width / koda.height;
+
     // fwiw its possible to do infinite perspective matrix
-    BUILTIN :: true;
-    #if BUILTIN {
-        // this seems to be the _only_ matrix that doesn't rotate your camera around the near plane
-        aspect := cast(float) koda.width / koda.height;
+    // this seems to be the _only_ matrix that doesn't rotate your camera around the near plane
 
-        height := tan(fovy / 2.0);
-        width := aspect * height;
+    height := tan(fovy / 2.0);
+    width := aspect_ratio * height;
 
-        matrix := make_frustum_matrix_clipping(-width, width, -height, height, 0.1, -0.1);
+    matrix := make_frustum_matrix_clipping(-width, width, -height, height, 0.1, -0.1);
 
-        if koda.render_flipped {
-            inverted_matrix := Matrix4Identity;
-            inverted_matrix._22 = -1.0;
-            matrix = matrix * inverted_matrix;
-        }
-
-		return matrix;
-    } else {
-        ZERO_ONE :: false;
-        #if ZERO_ONE {
-            // clip plane becomes [0, 1]
-            fovy := 70.0 / 180.0 * PI;
-            // aspect := cast(float) abs(koda.width) / abs(koda.height);
-            z_near := 0.1;
-            z_far := 1000.0;
-
-            h := cos(0.5 * fovy) / sin(0.5 * fovy);
-            w := h * koda.height / koda.width;
-
-            matrix: Matrix4 = Matrix4Identity;
-            matrix.coef[0][0] = w;
-            matrix.coef[1][1] = h;
-            matrix.coef[2][2] = z_far / (z_near - z_far);
-            matrix.coef[3][2] = -1.0;
-            matrix.coef[2][3] = -(z_far * z_near) / (z_far - z_near);
-            return matrix;
-        } else {
-            // clip plane becomes [-1, 1]
-            fovy := 70.0 / 180.0 * PI;
-            aspect := cast(float) koda.width / koda.height;
-            z_near := 0.1;
-            z_far := 1000.0;
-
-            if abs(aspect) < 0.000001 {
-                aspect = 1.0;
-            }
-
-            flip_y := ifx koda.render_flipped < 0 then -1.0 else 1.0;
-
-            tan_half_fovy := tan(fovy / 2.0);
-
-            // TODO jai matrices are different major/minor
-
-            matrix: Matrix4 = Matrix4Identity;
-            matrix.coef[0][0] = flip_y * 1.0 / (aspect * tan_half_fovy);
-            matrix.coef[1][1] = flip_y * 1.0 / tan_half_fovy;
-            matrix.coef[2][2] = -(z_far + z_near) / (z_far - z_near);
-            matrix.coef[2][3] = -(2.0 * z_far * z_near) / (z_far - z_near);
-            matrix.coef[3][2] = -1.0;
-            return matrix;
-        }
+    if koda.render_flipped {
+        inverted_matrix := Matrix4Identity;
+        inverted_matrix._22 = -1.0;
+        matrix = matrix * inverted_matrix;
     }
+
+    return matrix;
 }
 
 get_orthographic_matrix :: () -> Matrix4 {
