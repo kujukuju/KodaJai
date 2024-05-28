@@ -267,7 +267,7 @@ upload :: (font: *Font, clear_image: bool = true) {
     }
 
     particle_system_init(*font.font_system, *font_particle_shader, font_system_geometry);
-    font.font_system.uniforms[xx "uTexture"] = create_uniform("uTexture", font.texture);
+    set(*font.font_system.uniforms, "uTexture", font.texture);
 }
 
 create_character_set :: (ranges: ..[2] u32) -> [] u32 {

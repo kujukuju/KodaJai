@@ -32,23 +32,23 @@ main :: () {
 
     print("Light direction: %\n", light_direction);
 
-    // color_shader.uniforms[xx "uLightDirection"] = create_uniform("uLightDirection", light_direction);
+    // set(*color_shader.uniforms, "uLightDirection", light_direction);
 
-    directional_light_shader.uniforms[xx "uLightDirection"] = create_uniform("uLightDirection", light_direction);
-    directional_light_shader.uniforms[xx "uLightConstant"] = create_uniform("uLightConstant", 0.0);
-    directional_light_shader.uniforms[xx "uLightLinear"] = create_uniform("uLightLinear", 0.04);
-    directional_light_shader.uniforms[xx "uLightExp"] = create_uniform("uLightExp", 0.2);
-    directional_light_shader.uniforms[xx "uSpecularPower"] = create_uniform("uSpecularPower", 0.0);
-    directional_light_shader.uniforms[xx "uDiffuseIntensity"] = create_uniform("uDiffuseIntensity", 1.2);
-    directional_light_shader.uniforms[xx "uAmbientIntensity"] = create_uniform("uAmbientIntensity", 0.5);
+    set(*directional_light_shader.uniforms, "uLightDirection", light_direction);
+    set(*directional_light_shader.uniforms, "uLightConstant", 0.0);
+    set(*directional_light_shader.uniforms, "uLightLinear", 0.04);
+    set(*directional_light_shader.uniforms, "uLightExp", 0.2);
+    set(*directional_light_shader.uniforms, "uSpecularPower", 0.0);
+    set(*directional_light_shader.uniforms, "uDiffuseIntensity", 1.2);
+    set(*directional_light_shader.uniforms, "uAmbientIntensity", 0.5);
 
-    point_light_shader.uniforms[xx "uScreenSize"] = create_uniform("uScreenSize", Vector2.{cast(float) koda.width, cast(float) koda.height});
-    point_light_shader.uniforms[xx "uLightConstant"] = create_uniform("uLightConstant", 0.0);
-    point_light_shader.uniforms[xx "uLightLinear"] = create_uniform("uLightLinear", 0.0);
-    point_light_shader.uniforms[xx "uLightExp"] = create_uniform("uLightExp", 0.3);
-    point_light_shader.uniforms[xx "uSpecularPower"] = create_uniform("uSpecularPower", 0.0);
-    point_light_shader.uniforms[xx "uDiffuseIntensity"] = create_uniform("uDiffuseIntensity", 0.5);
-    point_light_shader.uniforms[xx "uAmbientIntensity"] = create_uniform("uAmbientIntensity", 0.5);
+    set(*point_light_shader.uniforms, "uScreenSize", Vector2.{cast(float) koda.width, cast(float) koda.height});
+    set(*point_light_shader.uniforms, "uLightConstant", 0.0);
+    set(*point_light_shader.uniforms, "uLightLinear", 0.0);
+    set(*point_light_shader.uniforms, "uLightExp", 0.3);
+    set(*point_light_shader.uniforms, "uSpecularPower", 0.0);
+    set(*point_light_shader.uniforms, "uDiffuseIntensity", 0.5);
+    set(*point_light_shader.uniforms, "uAmbientIntensity", 0.5);
 
     should_bake_material_color_textures = true;
     

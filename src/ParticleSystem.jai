@@ -236,8 +236,8 @@ particle_system_render :: (system: *ParticleSystem($PG, $PC, $update_function, $
     
     view := koda.view;
     
-    uniforms[xx "projection"] = create_uniform("projection", projection);
-    uniforms[xx "view"] = create_uniform("view", view);
+    set(*uniforms, "projection", projection);
+    set(*uniforms, "view", view);
     
     apply_uniforms(system.shader, uniforms);
 

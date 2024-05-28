@@ -63,6 +63,7 @@
 #load "src/3d/CubeGeometry.jai";
 #load "src/3d/CubeMap.jai";
 #load "src/3d/CubemapTexture.jai";
+#load "src/3d/CustomDataLoader.jai";
 #load "src/3d/DecalMath.jai";
 #load "src/3d/Geometry.jai";
 #load "src/3d/GridGeometry.jai";

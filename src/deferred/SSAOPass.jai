@@ -21,7 +21,7 @@ SsaoPass :: struct {
             
             kernel[i] = sample;
         }
-        pass.uniforms[xx "uKernel"] = create_uniform("uKernel", kernel);
+        set(*pass.uniforms, "uKernel", kernel);
 
         noise_width :: 4;
         noise_height :: 4;
@@ -38,6 +38,6 @@ SsaoPass :: struct {
             }
         }
         noise_texture := create_texture(noise_image, .Repeat, .Nearest);
-        pass.uniforms[xx "uNoise"] = create_uniform("uNoise", noise_texture);
+        set(*pass.uniforms, "uNoise", noise_texture);
     };
 }

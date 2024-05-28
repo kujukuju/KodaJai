@@ -124,9 +124,9 @@ create_volumetric_cloud :: (center: Vector3, half_dimensions: Vector3) -> *Model
     dimensions.y = half_dimensions.y * 2.0;
     dimensions.z = half_dimensions.z * 2.0;
 
-    cloud.uniforms[xx "uCloudDimensions"] = create_uniform("uCloudDimensions", dimensions);
-    cloud.uniforms[xx "uNoiseTexture"] = create_uniform("uNoiseTexture", cloud.noise);
-    // cloud.uniforms[xx "uNoise"] = create_uniform("uNoise", cloud.noise[0]);
+    set(*cloud.uniforms, "uCloudDimensions", dimensions);
+    set(*cloud.uniforms, "uNoiseTexture", cloud.noise);
+    // set(*cloud.uniforms, "uNoise", cloud.noise[0]);
 
     return cloud;
 }

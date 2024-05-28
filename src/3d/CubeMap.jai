@@ -20,14 +20,14 @@ create_cube_map :: (half_width: float = 1.0, should_upload: bool = false) -> *Cu
 
 create_cube_map :: (texture: CubemapTexture, half_width: float = 1.0, should_upload: bool = false) -> *CubeMap {
     cube := create_cubemap(half_width, should_upload);
-    cube.uniforms[xx "uTexture0"] = create_uniform("uTexture0", texture);
+    set(*cube.uniforms, "uTexture0", texture);
 
     return cube;
 }
 
 load_cube_map :: (path: string, half_width: float = 1.0, should_upload: bool = true) -> *CubeMap {
     cube := create_cubemap(half_width, should_upload);
-    cube.uniforms[xx "uTexture0"] = create_uniform("uTexture0", load_cubemap_texture(path));
+    set(*cube.uniforms, "uTexture0", load_cubemap_texture(path));
 
     return cube;
 }
@@ -79,10 +79,10 @@ draw :: (cube: *CubeMap) {
     defer destroy(uniforms);
 
     model_view_projection := projection * view * model;
-    uniforms[xx "modelViewProjection"] = create_uniform("modelViewProjection", model_view_projection);
-    uniforms[xx "projection"] = create_uniform("projection", projection);
-    uniforms[xx "model"] = create_uniform("model", model);
-    uniforms[xx "view"] = create_uniform("view", view);
+    set(*uniforms, "modelViewProjection", model_view_projection);
+    set(*uniforms, "projection", projection);
+    set(*uniforms, "model", model);
+    set(*uniforms, "view", view);
     
     apply_uniforms(shader, uniforms);
     apply_uniforms(shader, cube.uniforms);

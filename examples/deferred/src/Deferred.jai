@@ -20,7 +20,7 @@ SsaoPass :: struct {
             
             kernel[i] = sample;
         }
-        pass.uniforms[xx "uKernel"] = create_uniform("uKernel", kernel);
+        set(*pass.uniforms, "uKernel", kernel);
 
         noise_width :: 4;
         noise_height :: 4;
@@ -37,7 +37,7 @@ SsaoPass :: struct {
             }
         }
         noise_texture := create_texture(noise_image, .Repeat, .Nearest);
-        pass.uniforms[xx "uNoise"] = create_uniform("uNoise", noise_texture);
+        set(*pass.uniforms, "uNoise", noise_texture);
     };
 }
 
@@ -166,7 +166,7 @@ deferred_render_shadows_to_screen :: () {
     defer set_blend(blend);
     set_blend(false);
 
-    shadow_pass_out.uniforms[xx "uDepth"] = create_uniform("uDepth", shadow_pass.depth_texture);
+    set(*shadow_pass_out.uniforms, "uDepth", shadow_pass.depth_texture);
 
     draw(shadow_pass_out);
 
@@ -184,7 +184,7 @@ deferred_render_small_shadows_to_screen :: () {
     defer set_blend(blend);
     set_blend(false);
 
-    shadow_pass_out.uniforms[xx "uDepth"] = create_uniform("uDepth", shadow_pass.depth_texture);
+    set(*shadow_pass_out.uniforms, "uDepth", shadow_pass.depth_texture);
 
     draw(shadow_pass_out);
 
@@ -244,7 +244,7 @@ deferred_render_cascaded_shadows_to_screen :: () {
     defer set_blend(blend);
     set_blend(false);
 
-    shadow_pass_out.uniforms[xx "uDepth"] = create_uniform("uDepth", cascaded_shadow_pass.depth_texture);
+    set(*shadow_pass_out.uniforms, "uDepth", cascaded_shadow_pass.depth_texture);
 
     draw(shadow_pass_out);
 
@@ -262,7 +262,7 @@ deferred_render_small_cascaded_shadows_to_screen :: () {
     defer set_blend(blend);
     set_blend(false);
 
-    cascaded_shadow_pass_out.uniforms[xx "uDepth"] = create_uniform("uDepth", cascaded_shadow_pass.depth_texture);
+    set(*cascaded_shadow_pass_out.uniforms, "uDepth", cascaded_shadow_pass.depth_texture);
 
     draw(cascaded_shadow_pass_out);
 
@@ -319,16 +319,16 @@ deferred_render_ssao :: () {
     set_blend(false);
 
     projection := get_perspective_matrix();
-    ssao_pass.uniforms[xx "view"] = create_uniform("view", koda.view);
-    ssao_pass.uniforms[xx "projection"] = create_uniform("projection", projection);
+    set(*ssao_pass.uniforms, "view", koda.view);
+    set(*ssao_pass.uniforms, "projection", projection);
 
-    ssao_pass.uniforms[xx "uPosition"] = create_uniform("uPosition", geometry_pass.textures[0]);
-    ssao_pass.uniforms[xx "uNormal"] = create_uniform("uNormal", geometry_pass.textures[1]);
+    set(*ssao_pass.uniforms, "uPosition", geometry_pass.textures[0]);
+    set(*ssao_pass.uniforms, "uNormal", geometry_pass.textures[1]);
 
     assert(ssao_pass.uniforms[xx "uNoise"].type == .Texture);
     noise_texture := ssao_pass.uniforms[xx "uNoise"].texture;
     noise_scale := Vector2.{cast(float) ssao_pass.width / noise_texture.width, cast(float) ssao_pass.height / noise_texture.height};
-    ssao_pass.uniforms[xx "uNoiseScale"] = create_uniform("uNoiseScale", noise_scale);
+    set(*ssao_pass.uniforms, "uNoiseScale", noise_scale);
 
     draw(ssao_pass);
 }
@@ -351,11 +351,11 @@ deferred_render_ssao_blur :: () {
     set_blend(false);
 
     projection := get_perspective_matrix();
-    ssao_blur_pass.uniforms[xx "view"] = create_uniform("view", koda.view);
-    ssao_blur_pass.uniforms[xx "projection"] = create_uniform("projection", projection);
+    set(*ssao_blur_pass.uniforms, "view", koda.view);
+    set(*ssao_blur_pass.uniforms, "projection", projection);
 
-    ssao_blur_pass.uniforms[xx "uPosition"] = create_uniform("uPosition", geometry_pass.textures[0]);
-    ssao_blur_pass.uniforms[xx "uSSAO"] = create_uniform("uSSAO", ssao_pass.textures[0]);
+    set(*ssao_blur_pass.uniforms, "uPosition", geometry_pass.textures[0]);
+    set(*ssao_blur_pass.uniforms, "uSSAO", ssao_pass.textures[0]);
 
     draw(ssao_blur_pass);
 }
@@ -377,17 +377,17 @@ deferred_render_lighting :: () {
     defer set_blend(blend);
     set_blend(false);
 
-    lighting_pass.uniforms[xx "view"] = create_uniform("view", koda.view);
-    lighting_pass.uniforms[xx "uPosition"] = create_uniform("uPosition", geometry_pass.textures[0]);
-    lighting_pass.uniforms[xx "uNormal"] = create_uniform("uNormal", geometry_pass.textures[1]);
-    lighting_pass.uniforms[xx "uDiffuse"] = create_uniform("uDiffuse", geometry_pass.textures[2]);
-    lighting_pass.uniforms[xx "uSSAO"] = create_uniform("uSSAO", ssao_blur_pass.textures[0]);
-    lighting_pass.uniforms[xx "uShadow"] = create_uniform("uShadow", shadow_pass.depth_texture);
-    lighting_pass.uniforms[xx "uShadowView"] = create_uniform("uShadowView", shadow_view);
-    lighting_pass.uniforms[xx "uShadowProjection"] = create_uniform("uShadowProjection", shadow_projection);
-    lighting_pass.uniforms[xx "uCascShadow"] = create_uniform("uCascShadow", cascaded_shadow_pass.depth_texture);
-    lighting_pass.uniforms[xx "uCascShadowView"] = create_uniform("uCascShadowView", casc_shadow_view);
-    lighting_pass.uniforms[xx "uCascShadowProjection"] = create_uniform("uCascShadowProjection", casc_shadow_projection);
+    set(*lighting_pass.uniforms, "view", koda.view);
+    set(*lighting_pass.uniforms, "uPosition", geometry_pass.textures[0]);
+    set(*lighting_pass.uniforms, "uNormal", geometry_pass.textures[1]);
+    set(*lighting_pass.uniforms, "uDiffuse", geometry_pass.textures[2]);
+    set(*lighting_pass.uniforms, "uSSAO", ssao_blur_pass.textures[0]);
+    set(*lighting_pass.uniforms, "uShadow", shadow_pass.depth_texture);
+    set(*lighting_pass.uniforms, "uShadowView", shadow_view);
+    set(*lighting_pass.uniforms, "uShadowProjection", shadow_projection);
+    set(*lighting_pass.uniforms, "uCascShadow", cascaded_shadow_pass.depth_texture);
+    set(*lighting_pass.uniforms, "uCascShadowView", casc_shadow_view);
+    set(*lighting_pass.uniforms, "uCascShadowProjection", casc_shadow_projection);
 
     draw(lighting_pass);
 
@@ -405,10 +405,10 @@ deferred_render_lighting :: () {
         set_blend_func(.One, .One);
 
         // draw point light
-        point_light_shader.uniforms[xx "view"] = create_uniform("view", koda.view);
-        point_light_shader.uniforms[xx "uPosition"] = create_uniform("uPosition", geometry_pass.textures[0]);
-        point_light_shader.uniforms[xx "uNormal"] = create_uniform("uNormal", geometry_pass.textures[1]);
-        point_light_shader.uniforms[xx "uDiffuse"] = create_uniform("uDiffuse", geometry_pass.textures[2]);
+        set(*point_light_shader.uniforms, "view", koda.view);
+        set(*point_light_shader.uniforms, "uPosition", geometry_pass.textures[0]);
+        set(*point_light_shader.uniforms, "uNormal", geometry_pass.textures[1]);
+        set(*point_light_shader.uniforms, "uDiffuse", geometry_pass.textures[2]);
 
         light_position :: Vector3.{2, 2, -2};
         light_radius :: 4.0;
@@ -450,10 +450,10 @@ deferred_render_edge :: () {
     defer set_blend(blend);
     set_blend(false);
 
-    edge_pass.uniforms[xx "view"] = create_uniform("view", koda.view);
-    edge_pass.uniforms[xx "uColor"] = create_uniform("uColor", lighting_pass.textures[0]);
-    edge_pass.uniforms[xx "uPosition"] = create_uniform("uPosition", geometry_pass.textures[0]);
-    edge_pass.uniforms[xx "uDepth"] = create_uniform("uDepth", geometry_pass.depth_texture);
+    set(*edge_pass.uniforms, "view", koda.view);
+    set(*edge_pass.uniforms, "uColor", lighting_pass.textures[0]);
+    set(*edge_pass.uniforms, "uPosition", geometry_pass.textures[0]);
+    set(*edge_pass.uniforms, "uDepth", geometry_pass.depth_texture);
 
     draw(edge_pass);
 }
@@ -475,8 +475,8 @@ deferred_render_sharpen :: () {
     defer set_blend(blend);
     set_blend(false);
 
-    sharpen_pass.uniforms[xx "view"] = create_uniform("view", koda.view);
-    sharpen_pass.uniforms[xx "uColor"] = create_uniform("uColor", edge_pass.textures[0]);
+    set(*sharpen_pass.uniforms, "view", koda.view);
+    set(*sharpen_pass.uniforms, "uColor", edge_pass.textures[0]);
 
     draw(sharpen_pass);
 }
@@ -498,7 +498,7 @@ deferred_render_faaa :: () {
     defer set_blend(blend);
     set_blend(false);
 
-    faaa_pass.uniforms[xx "uColor"] = create_uniform("uColor", sharpen_pass.textures[0]);
+    set(*faaa_pass.uniforms, "uColor", sharpen_pass.textures[0]);
 
     draw(faaa_pass);
 }

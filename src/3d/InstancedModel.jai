@@ -261,11 +261,60 @@ for_expansion :: (wrapper: InstancedModelVertices, body: Code, flags: For_Flags)
     for instance, instance_index: wrapper.model.instances {
         transform := instance.model;
 
+        `it_instance := instance_index;
+
         for i: 0..geometry_vertex_count - 1 {
             position := Vector3.{geometry.vertices[i * stride], geometry.vertices[i * stride + 1], geometry.vertices[i * stride + 2]};
             `it := transform_point(transform, position);
             `it_index := geometry_vertex_count * instance_index + i;
         
+            #insert body;
+        }
+    }
+}
+
+InstancedModelTriangles :: struct {
+    model: *InstancedModel(ModelMatrixGpu);
+}
+
+get_triangles :: (model: *InstancedModel(ModelMatrixGpu)) -> InstancedModelTriangles {
+    assert(model.geometry.attributes.count > 0);
+    assert(model.geometry.attributes[0] == .Position);
+
+    return InstancedModelTriangles.{model};
+}
+
+for_expansion :: (wrapper: InstancedModelTriangles, body: Code, flags: For_Flags) #expand {
+    #assert(!(flags & .REVERSE));
+    #assert(!(flags & .POINTER));
+
+    stride := get_attribute_stride(wrapper.model.geometry);
+
+    geometry := wrapper.model.geometry;
+    triangle_count := geometry.indices.count / 3;
+
+    for instance, instance_index: wrapper.model.instances {
+        transform := instance.model;
+
+        `it_instance := instance_index;
+
+        for i: 0..triangle_count - 1 {
+            index1 := geometry.indices[i * 3];
+            index2 := geometry.indices[i * 3 + 1];
+            index3 := geometry.indices[i * 3 + 2];
+
+            position1 := Vector3.{geometry.vertices[index1 * stride], geometry.vertices[index1 * stride + 1], geometry.vertices[index1 * stride + 2]};
+            position2 := Vector3.{geometry.vertices[index2 * stride], geometry.vertices[index2 * stride + 1], geometry.vertices[index2 * stride + 2]};
+            position3 := Vector3.{geometry.vertices[index3 * stride], geometry.vertices[index3 * stride + 1], geometry.vertices[index3 * stride + 2]};
+
+            triangle := Triangle3.{
+                transform_point(transform, position1),
+                transform_point(transform, position2),
+                transform_point(transform, position3),
+            };
+            `it := triangle;
+            `it_index := triangle_count * instance_index + i;
+            
             #insert body;
         }
     }
@@ -302,8 +351,8 @@ draw :: (model: *InstancedModel, projection: Matrix4, shader: *Shader = null) {
     defer destroy(uniforms);
 
     view := koda.view;
-    uniforms[xx "projection"] = create_uniform("projection", projection);
-    uniforms[xx "view"] = create_uniform("view", view);
+    set(*uniforms, "projection", projection);
+    set(*uniforms, "view", view);
     
     apply_uniforms(shader, uniforms);
 

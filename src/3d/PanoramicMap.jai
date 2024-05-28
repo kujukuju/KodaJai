@@ -6,7 +6,7 @@ PanoramicMap :: struct {
 create_panoramic_map :: (texture: Texture, should_upload: bool = true) -> *PanoramicMap {
     panoramic := New(PanoramicMap);
     panoramic.geometry = create_uv_sphere(100, 32, with_texcoords = true);
-    panoramic.uniforms[xx "uTexture0"] = create_uniform("uTexture0", texture);
+    set(*panoramic.uniforms, "uTexture0", texture);
 
     if should_upload {
         upload(panoramic);
@@ -18,7 +18,7 @@ create_panoramic_map :: (texture: Texture, should_upload: bool = true) -> *Panor
 load_panoramic_map :: (path: string, should_upload: bool = true) -> *PanoramicMap {
     panoramic := New(PanoramicMap);
     panoramic.geometry = create_uv_sphere(100, 32, with_texcoords = true);
-    panoramic.uniforms[xx "uTexture0"] = create_uniform("uTexture0", load_texture(path));
+    set(*panoramic.uniforms, "uTexture0", load_texture(path));
 
     if should_upload {
         upload(panoramic);
@@ -67,9 +67,9 @@ draw :: (panoramic: *PanoramicMap) {
 
     uniforms: ShaderUniforms;
     defer destroy(uniforms);
-    uniforms[xx "projection"] = create_uniform("projection", get_perspective_matrix());
-    uniforms[xx "model"] = create_uniform("model", Matrix4Identity);
-    uniforms[xx "view"] = create_uniform("view", view);
+    set(*uniforms, "projection", get_perspective_matrix());
+    set(*uniforms, "model", Matrix4Identity);
+    set(*uniforms, "view", view);
     
     apply_uniforms(*texture_shader3, uniforms);
     apply_uniforms(*texture_shader3, panoramic.uniforms);

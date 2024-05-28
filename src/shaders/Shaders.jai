@@ -506,12 +506,14 @@ apply_uniforms :: (shader: *Shader, uniforms: ShaderUniforms, printing: bool = f
     // }
 
     for uniform: uniforms.uniforms {
-        existing := shader.uniforms[xx uniform.name];
-        shader.uniforms[xx uniform.name] = uniform;
-        shader.uniforms[xx uniform.name].ownership = false;
+        existing := get(shader.uniforms, uniform.name);
+        existing_location := ifx existing then existing.location else -1;
+
+        set(*shader.uniforms, uniform.name, uniform);
+        get(shader.uniforms, uniform.name).ownership = false;
         
-        if existing && existing.location {
-            shader.uniforms[xx uniform.name].location = existing.location;
+        if existing_location >= 0 {
+            get(shader.uniforms, uniform.name).location = existing_location;
         }
     }
 
@@ -529,7 +531,7 @@ apply_uniforms :: (shader: *Shader, uniforms: ShaderUniforms, printing: bool = f
 
             // if uniform.name == shader_uniform.name {
                 // TODO this could be improved if I force uniform names to be less than a certain size, and use fixed strings
-                location := glGetUniformLocation(shader.program, uniform.name);
+                location := glGetUniformLocation(shader.program, temp_c_string(*uniform.name));
                 uniform.location = location;
                 if location == -1 {
                     continue;

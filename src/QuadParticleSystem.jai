@@ -212,8 +212,8 @@ quad_particle_system_render :: (system: *QuadParticleSystem($PG, $PC, $update_fu
     
     view := koda.view;
     
-    uniforms[xx "projection"] = create_uniform("projection", projection);
-    uniforms[xx "view"] = create_uniform("view", view);
+    set(*uniforms, "projection", projection);
+    set(*uniforms, "view", view);
     
     apply_uniforms(system.shader, uniforms);
 

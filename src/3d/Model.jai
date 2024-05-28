@@ -1,3 +1,4 @@
+
 Model :: struct {
     using #as renderable: Renderable;
     renderable.type = .Model;
@@ -48,7 +49,7 @@ create_model :: (geometry: *Geometry, should_upload: bool = false) -> *Model {
 create_model :: (geometry: *Geometry, texture: Texture, should_upload: bool = false) -> *Model {
     model := New(Model);
     model.geometry = geometry;
-    model.uniforms[xx "uTexture0"] = create_uniform("uTexture0", texture);
+    set(*model.uniforms, "uTexture0", texture);
 
     if should_upload {
         upload(model);
@@ -456,11 +457,11 @@ draw :: (model: Model, transform: Matrix4 = Matrix4Identity, projection: Matrix4
 
     model_view := view * model_mat;
     model_view_projection := projection * model_view;
-    uniforms[xx "modelViewProjection"] = create_uniform("modelViewProjection", model_view_projection);
-    uniforms[xx "modelView"] = create_uniform("modelView", model_view);
-    uniforms[xx "projection"] = create_uniform("projection", projection);
-    uniforms[xx "model"] = create_uniform("model", model_mat);
-    uniforms[xx "view"] = create_uniform("view", view);
+    set(*uniforms, "modelViewProjection", model_view_projection);
+    set(*uniforms, "modelView", model_view);
+    set(*uniforms, "projection", projection);
+    set(*uniforms, "model", model_mat);
+    set(*uniforms, "view", view);
     
     apply_uniforms(shader, uniforms);
 
@@ -804,7 +805,7 @@ load_model_gltf_data :: (json: GltfJson, binary: [] u8) -> [..] *Model, [..] *In
                 }
 
                 assert(!has_uniform(uniforms.*, "uTexture0"), "Cannot already have a diffuse texture.");
-                uniforms.*[xx "uTexture0"] = create_uniform("uTexture0", texture);
+                set(uniforms, "uTexture0", texture);
             } else if should_bake_material_color_textures {
                 has_diffuse_color := !!primitive.material;
                 has_diffuse_color = has_diffuse_color && json.materials[primitive.material.*].pbrMetallicRoughness;
@@ -824,7 +825,7 @@ load_model_gltf_data :: (json: GltfJson, binary: [] u8) -> [..] *Model, [..] *In
 
                     texture := create_texture(texture_image, interp = .Nearest);
                     assert(!has_uniform(uniforms.*, "uTexture0"), "Cannot already have a diffuse texture.");
-                    uniforms.*[xx "uTexture0"] = create_uniform("uTexture0", texture);
+                    set(uniforms, "uTexture0", texture);
                 }
             }
 
@@ -851,7 +852,7 @@ load_model_gltf_data :: (json: GltfJson, binary: [] u8) -> [..] *Model, [..] *In
                 }
                 
                 assert(!has_uniform(uniforms.*, "uNormal0"), "Cannot already have a normal texture.");
-                uniforms.*[xx "uNormal0"] = create_uniform("uNormal0", texture);
+                set(uniforms, "uNormal0", texture);
             }
 
             has_emissive_texture := true;
@@ -877,7 +878,7 @@ load_model_gltf_data :: (json: GltfJson, binary: [] u8) -> [..] *Model, [..] *In
                 }
                 
                 assert(!has_uniform(uniforms.*, "uEmissive0"), "Cannot already have an emissive texture.");
-                uniforms.*[xx "uEmissive0"] = create_uniform("uEmissive0", texture);
+                set(uniforms, "uEmissive0", texture);
             }
         }
     }

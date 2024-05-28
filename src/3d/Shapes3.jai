@@ -30,10 +30,10 @@ draw_line :: (p1: Vector3, p2: Vector3, width: float = 1.0, color: Color = .{1, 
     uniforms: ShaderUniforms;
     defer destroy(uniforms);
 
-    uniforms[xx "model"] = create_uniform("model", model);
-    uniforms[xx "projection"] = create_uniform("projection", projection);
-    uniforms[xx "view"] = create_uniform("view", view);
-    uniforms[xx "uTint"] = create_uniform("uTint", color);
+    set(*uniforms, "model", model);
+    set(*uniforms, "projection", projection);
+    set(*uniforms, "view", view);
+    set(*uniforms, "uTint", color);
 
     apply_uniforms(*default_shape_shader3, uniforms);
 
@@ -67,11 +67,11 @@ draw_square :: (center: Vector3, up: Vector3, half_dimensions: Vector2, color: C
     uniforms: ShaderUniforms;
     defer destroy(uniforms);
     
-    uniforms[xx "projection"] = create_uniform("projection", projection);
-    uniforms[xx "model"] = create_uniform("model", model);
-    uniforms[xx "view"] = create_uniform("view", view);
+    set(*uniforms, "projection", projection);
+    set(*uniforms, "model", model);
+    set(*uniforms, "view", view);
 
-    uniforms[xx "uTint"] = create_uniform("uTint", color);
+    set(*uniforms, "uTint", color);
     
     apply_uniforms(*default_shape_shader3, uniforms);
 
@@ -117,13 +117,13 @@ draw_torus :: (center: Vector3, up: Vector3, major_radius: float, minor_radius: 
     uniforms: ShaderUniforms;
     defer destroy(uniforms);
     
-    uniforms[xx "projection"] = create_uniform("projection", projection);
-    uniforms[xx "model"] = create_uniform("model", model);
-    uniforms[xx "view"] = create_uniform("view", view);
+    set(*uniforms, "projection", projection);
+    set(*uniforms, "model", model);
+    set(*uniforms, "view", view);
 
-    uniforms[xx "uMajorRadius"] = create_uniform("uMajorRadius", major_radius);
-    uniforms[xx "uMinorRadius"] = create_uniform("uMinorRadius", minor_radius);
-    uniforms[xx "uTint"] = create_uniform("uTint", color);
+    set(*uniforms, "uMajorRadius", major_radius);
+    set(*uniforms, "uMinorRadius", minor_radius);
+    set(*uniforms, "uTint", color);
     
     apply_uniforms(*torus_shader3, uniforms);
 
@@ -147,13 +147,13 @@ draw_flat_grid :: (center: Vector3 = .{0, 0, 0}, fade_center: Vector3 = .{0, 0, 
     uniforms: ShaderUniforms;
     defer destroy(uniforms);
     
-    uniforms[xx "projection"] = create_uniform("projection", projection);
-    uniforms[xx "model"] = create_uniform("model", model);
-    uniforms[xx "view"] = create_uniform("view", view);
+    set(*uniforms, "projection", projection);
+    set(*uniforms, "model", model);
+    set(*uniforms, "view", view);
 
-    uniforms[xx "uTint"] = create_uniform("uTint", color);
-    uniforms[xx "uRadius"] = create_uniform("uRadius", radius);
-    uniforms[xx "uFadeCenter"] = create_uniform("uFadeCenter", fade_center);
+    set(*uniforms, "uTint", color);
+    set(*uniforms, "uRadius", radius);
+    set(*uniforms, "uFadeCenter", fade_center);
     
     apply_uniforms(*flat_grid_shader3, uniforms);
 
@@ -203,10 +203,10 @@ draw_triangle :: (p1: Vector3, p2: Vector3, p3: Vector3, color: Color = .{1, 1, 
     uniforms: ShaderUniforms;
     defer destroy(uniforms);
 
-    uniforms[xx "model"] = create_uniform("model", model);
-    uniforms[xx "projection"] = create_uniform("projection", projection);
-    uniforms[xx "view"] = create_uniform("view", view);
-    uniforms[xx "uTint"] = create_uniform("uTint", color);
+    set(*uniforms, "model", model);
+    set(*uniforms, "projection", projection);
+    set(*uniforms, "view", view);
+    set(*uniforms, "uTint", color);
 
     apply_uniforms(*default_shape_shader3, uniforms);
 
@@ -240,10 +240,10 @@ draw_triangles :: (vertices: [] Vector3, color: Color = .{1, 1, 1, 1}) {
     uniforms: ShaderUniforms;
     defer destroy(uniforms);
 
-    uniforms[xx "model"] = create_uniform("model", model);
-    uniforms[xx "projection"] = create_uniform("projection", projection);
-    uniforms[xx "view"] = create_uniform("view", view);
-    uniforms[xx "uTint"] = create_uniform("uTint", color);
+    set(*uniforms, "model", model);
+    set(*uniforms, "projection", projection);
+    set(*uniforms, "view", view);
+    set(*uniforms, "uTint", color);
 
     apply_uniforms(*default_shape_shader3, uniforms);
 
@@ -269,11 +269,11 @@ draw_cube :: (lower: Vector3, upper: Vector3, color: Color = .{1, 1, 1, 1}, bord
     uniforms: ShaderUniforms;
     defer destroy(uniforms);
     
-    uniforms[xx "projection"] = create_uniform("projection", projection);
-    uniforms[xx "model"] = create_uniform("model", model);
-    uniforms[xx "view"] = create_uniform("view", view);
+    set(*uniforms, "projection", projection);
+    set(*uniforms, "model", model);
+    set(*uniforms, "view", view);
     
-    uniforms[xx "uTint"] = create_uniform("uTint", color);
+    set(*uniforms, "uTint", color);
     
     apply_uniforms(*default_shape_shader3, uniforms);
 
@@ -352,10 +352,10 @@ draw_cube_border :: (lower: Vector3, upper: Vector3, transform: Matrix4 = Matrix
     uniforms: ShaderUniforms;
     defer destroy(uniforms);
 
-    uniforms[xx "model"] = create_uniform("model", transform);
-    uniforms[xx "projection"] = create_uniform("projection", projection);
-    uniforms[xx "view"] = create_uniform("view", view);
-    uniforms[xx "uTint"] = create_uniform("uTint", color);
+    set(*uniforms, "model", transform);
+    set(*uniforms, "projection", projection);
+    set(*uniforms, "view", view);
+    set(*uniforms, "uTint", color);
 
     apply_uniforms(*default_shape_shader3, uniforms);
 
@@ -382,11 +382,11 @@ draw_sphere :: (position: Vector3, dimensions: Vector3 = .{1, 1, 1}, color: Colo
     uniforms: ShaderUniforms;
     defer destroy(uniforms);
     
-    uniforms[xx "projection"] = create_uniform("projection", projection);
-    uniforms[xx "model"] = create_uniform("model", model);
-    uniforms[xx "view"] = create_uniform("view", view);
+    set(*uniforms, "projection", projection);
+    set(*uniforms, "model", model);
+    set(*uniforms, "view", view);
     
-    uniforms[xx "uTint"] = create_uniform("uTint", color);
+    set(*uniforms, "uTint", color);
     
     apply_uniforms(*default_shape_shader3, uniforms);
 
@@ -415,14 +415,14 @@ draw_spheres :: (positions: [] Vector3, scalev: Vector3, color: Color = .{1, 1, 
     uniforms: ShaderUniforms;
     defer destroy(uniforms);
     
-    uniforms[xx "projection"] = create_uniform("projection", projection);
-    uniforms[xx "model"] = create_uniform("model", model);
-    uniforms[xx "view"] = create_uniform("view", view);
+    set(*uniforms, "projection", projection);
+    set(*uniforms, "model", model);
+    set(*uniforms, "view", view);
     
-    uniforms[xx "uTint"] = create_uniform("uTint", color);
-    uniforms[xx "uFrame"] = create_uniform("uFrame", Vector4.{0, 0, 1, 1});
+    set(*uniforms, "uTint", color);
+    set(*uniforms, "uFrame", Vector4.{0, 0, 1, 1});
 
-    uniforms[xx "uTexture0"] = create_uniform("uTexture0", white_texture);
+    set(*uniforms, "uTexture0", white_texture);
 
     apply_uniforms(*instanced_shader3, uniforms);
     // TODO use attributes or whatever instead of looping this shader 1000 times

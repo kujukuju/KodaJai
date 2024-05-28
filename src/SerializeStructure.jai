@@ -59,7 +59,6 @@ load_serialized :: (serialized_path: string, hash_files: [$N] string, fallback: 
     }
 
     data = fallback();
-
     write_serialized(serialized_path, hash_files, data, reuse_memory);
 
     return data, true;

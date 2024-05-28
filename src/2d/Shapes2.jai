@@ -64,14 +64,14 @@ draw_line :: (x1: float, y1: float, x2: float, y2: float, width: float = 1.0, co
     uniforms: ShaderUniforms;
     defer destroy(uniforms);
 
-    uniforms[xx "uTexture"] = create_uniform("uTexture", cast(u32) 0);
+    set(*uniforms, "uTexture", cast(u32) 0);
 
-    uniforms[xx "projection"] = create_uniform("projection", projection);
-    uniforms[xx "model"] = create_uniform("model", model);
-    uniforms[xx "view"] = create_uniform("view", view);
+    set(*uniforms, "projection", projection);
+    set(*uniforms, "model", model);
+    set(*uniforms, "view", view);
 
-    uniforms[xx "uTint"] = create_uniform("uTint", color);
-    uniforms[xx "uFrame"] = create_uniform("uFrame", Vector4.{0, 0, 1, 1});
+    set(*uniforms, "uTint", color);
+    set(*uniforms, "uFrame", Vector4.{0, 0, 1, 1});
 
     apply_uniforms(*default_shader, uniforms);
 
@@ -142,14 +142,14 @@ draw_rect :: (top_left: Vector2, dimensions: Vector2, color: Color = .{1, 1, 1, 
     uniforms: ShaderUniforms;
     defer destroy(uniforms);
 
-    uniforms[xx "uTexture"] = create_uniform("uTexture", white_texture);
+    set(*uniforms, "uTexture", white_texture);
     
-    uniforms[xx "projection"] = create_uniform("projection", projection);
-    uniforms[xx "model"] = create_uniform("model", model);
-    uniforms[xx "view"] = create_uniform("view", view);
+    set(*uniforms, "projection", projection);
+    set(*uniforms, "model", model);
+    set(*uniforms, "view", view);
     
-    uniforms[xx "uTint"] = create_uniform("uTint", color);
-    uniforms[xx "uFrame"] = create_uniform("uFrame", Vector4.{0, 0, 1, 1});
+    set(*uniforms, "uTint", color);
+    set(*uniforms, "uFrame", Vector4.{0, 0, 1, 1});
 
     apply_uniforms(*default_shader, uniforms);
 
@@ -177,8 +177,8 @@ draw_rounded_rect :: (top_left: Vector2, dimensions: Vector2, corner_radius: flo
     static_sprite.shader = *rounded_rect_shader;
     static_sprite.tint = color;
 
-    rounded_rect_shader.uniforms[xx "uDimensions"] = create_uniform("uDimensions", dimensions);
-    rounded_rect_shader.uniforms[xx "uRadius"] = create_uniform("uRadius", corner_radius);
+    set(*rounded_rect_shader.uniforms, "uDimensions", dimensions);
+    set(*rounded_rect_shader.uniforms, "uRadius", corner_radius);
 
     draw(static_sprite);
 }
@@ -239,14 +239,14 @@ draw_polygon :: (points: [] Vector2, color: Color = .{1, 1, 1, 1}, border: Color
     uniforms: ShaderUniforms;
     defer destroy(uniforms);
 
-    uniforms[xx "uTexture"] = create_uniform("uTexture", cast(u32) 0);
+    set(*uniforms, "uTexture", cast(u32) 0);
     
-    uniforms[xx "projection"] = create_uniform("projection", projection);
-    uniforms[xx "model"] = create_uniform("model", model);
-    uniforms[xx "view"] = create_uniform("view", view);
+    set(*uniforms, "projection", projection);
+    set(*uniforms, "model", model);
+    set(*uniforms, "view", view);
     
-    uniforms[xx "uTint"] = create_uniform("uTint", color);
-    uniforms[xx "uFrame"] = create_uniform("uFrame", Vector4.{0, 0, 1, 1});
+    set(*uniforms, "uTint", color);
+    set(*uniforms, "uFrame", Vector4.{0, 0, 1, 1});
 
     apply_uniforms(*default_shader, uniforms);
 
@@ -302,9 +302,9 @@ draw_ellipse :: (center: Vector2, dimensions: Vector2, color: Color = .{1, 1, 1,
     uniforms: ShaderUniforms;
     defer destroy(uniforms);
     
-    uniforms[xx "uTint"] = create_uniform("uTint", color);
-    uniforms[xx "uBorderTint"] = create_uniform("uBorderTint", border);
-    uniforms[xx "uFrame"] = create_uniform("uFrame", Vector4.{0, 0, 1, 1});
+    set(*uniforms, "uTint", color);
+    set(*uniforms, "uBorderTint", border);
+    set(*uniforms, "uFrame", Vector4.{0, 0, 1, 1});
 
     apply_uniforms(*default_ellipse_shader, uniforms);
 
@@ -359,11 +359,11 @@ draw_circles :: (positions: [] Vector2, radius: float, color: Color = .{1, 1, 1,
     uniforms: ShaderUniforms;
     defer destroy(uniforms);
     
-    uniforms[xx "projection"] = create_uniform("projection", projection);
-    uniforms[xx "model"] = create_uniform("model", model);
-    uniforms[xx "view"] = create_uniform("view", view);
+    set(*uniforms, "projection", projection);
+    set(*uniforms, "model", model);
+    set(*uniforms, "view", view);
     
-    uniforms[xx "uTint"] = create_uniform("uTint", color);
+    set(*uniforms, "uTint", color);
 
     // TODO use attributes or whatever instead of looping this shader 1000 times
     index: int;
@@ -373,7 +373,7 @@ draw_circles :: (positions: [] Vector2, radius: float, color: Color = .{1, 1, 1,
         offsets: [1000] Vector2;
         remaining_count := min(1000, positions.count - index);
         memcpy(offsets.data, positions.data + index, remaining_count * size_of(Vector2));
-        uniforms[xx "offsets"] = create_uniform("offsets", offsets);
+        set(*uniforms, "offsets", offsets);
 
         // TODO apply 1 only
         apply_uniforms(*default_shader, uniforms);

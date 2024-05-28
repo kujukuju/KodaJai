@@ -76,13 +76,13 @@ draw :: (animated: AnimatedModel, joints: [] Matrix4, transform: Matrix4 = Matri
     
     model_view := view * model_mat;
     model_view_projection := projection * model_view;
-    uniforms[xx "modelViewProjection"] = create_uniform("modelViewProjection", model_view_projection);
-    uniforms[xx "modelView"] = create_uniform("modelView", model_view);
-    uniforms[xx "projection"] = create_uniform("projection", projection);
-    uniforms[xx "model"] = create_uniform("model", model_mat);
-    uniforms[xx "view"] = create_uniform("view", view);
+    set(*uniforms, "modelViewProjection", model_view_projection);
+    set(*uniforms, "modelView", model_view);
+    set(*uniforms, "projection", projection);
+    set(*uniforms, "model", model_mat);
+    set(*uniforms, "view", view);
 
-    uniforms[xx "uJoints"] = create_uniform("uJoints", joints);
+    set(*uniforms, "uJoints", joints);
     
     apply_uniforms(shader, uniforms);
 
