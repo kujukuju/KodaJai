@@ -494,7 +494,7 @@ get_accessor_view :: (accessor: GltfAccessorInfo, $type: string) -> [] Matrix4 #
     return view;
 }
 
-get_texture :: (json: GltfJson, bufferviews: [..] [] u8, texture_index: int) -> Texture {
+get_texture :: (json: GltfJson, bufferviews: [..] [] u8, texture_index: int, should_upload: bool) -> Texture {
     json_texture := json.textures[texture_index];
 
     // this has to do with repeat/clamp/etc
@@ -556,7 +556,7 @@ get_texture :: (json: GltfJson, bufferviews: [..] [] u8, texture_index: int) -> 
     } else if json_image.bufferView {
         view_index := json_image.bufferView.*;
         buffer_view := bufferviews[view_index];
-        texture = create_texture(buffer_view, wrap, interp);
+        texture = create_texture(buffer_view, wrap, interp, should_upload = should_upload);
     } else {
         assert(false, "I think you have to have either an image uri or buffer.");
     }

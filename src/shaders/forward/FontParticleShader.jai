@@ -26,6 +26,7 @@ layout (location = 8) in vec4 aParticleTint;
 layout (location = 9) in float aParticlePadding;
 layout (location = 10) in float aParticleScale;
 layout (location = 11) in float aParticleBlur;
+layout (location = 12) in vec3 aParticleWorldPosition;
 
 out vec3 vTexCoord;
 flat out float vIndex;
@@ -39,7 +40,10 @@ uniform mat4 projection;
 uniform mat4 view;
 
 void main() {
-    mat3 transform = mat3(aParticleTransform1, aParticleTransform2, aParticleTransform3);
+    mat3 transform = mat3(
+        aParticleTransform1.x, aParticleTransform2.x, aParticleTransform3.x,
+        aParticleTransform1.y, aParticleTransform2.y, aParticleTransform3.y,
+        aParticleTransform1.z, aParticleTransform2.z, aParticleTransform3.z);
     vTexCoord = vec3(aPos.xy, 1);
     vIndex = aParticleIndex;
     vTexSize = aParticleTexSize;
@@ -53,7 +57,7 @@ void main() {
     vTexCoord.z = pos.z;
     vTexCoord.xy /= vTexCoord.z;
 
-    gl_Position = projection * view * vec4(pos.xy, 0.0, 1.0);
+    gl_Position = projection * view * vec4(vec3(pos.xy, 0.0) + aParticleWorldPosition, 1.0);
 }
 ___glsl
 

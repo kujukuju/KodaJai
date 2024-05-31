@@ -82,55 +82,31 @@ load_models :: (path: string, should_upload: bool = true) -> [..] *Model, [..] *
     }
 
     if ends_with(path, ".obj") {
-        models, success := load_model_obj(file);
+        models, success := load_model_obj(file, should_upload);
         if !success {
             empty_models: [..] *Model;
             empty_instances: [..] *InstancedModel;
             return empty_models, empty_instances, false;
-        }
-
-        if should_upload {
-            for model: models {
-                upload(model);
-            }
         }
 
         instances: [..] *InstancedModel;
 
         return models, instances, true;
     } else if ends_with(path, ".glb") {
-        models, instances, success := load_model_glb(file);
+        models, instances, success := load_model_glb(file, should_upload);
         if !success {
             empty_models: [..] *Model;
             empty_instances: [..] *InstancedModel;
             return empty_models, empty_instances, false;
-        }
-
-        if should_upload {
-            for model: models {
-                upload(model);
-            }
-            for instance: instances {
-                upload(instance);
-            }
         }
 
         return models, instances, true;
     } else if ends_with(path, ".gltf") {
-        models, instances, success := load_model_gltf(file, path);
+        models, instances, success := load_model_gltf(file, path, should_upload);
         if !success {
             empty_models: [..] *Model;
             empty_instances: [..] *InstancedModel;
             return empty_models, empty_instances, false;
-        }
-
-        if should_upload {
-            for model: models {
-                upload(model);
-            }
-            for instance: instances {
-                upload(instance);
-            }
         }
 
         return models, instances, true;
@@ -434,10 +410,7 @@ draw :: (model: Model, transform: Matrix4 = Matrix4Identity, projection: Matrix4
             shader = get_default_shader(model.geometry.attributes);
         }
     }
-
-    if !shader {
-        assert(false, tprint("Could not find appropriate shader for model attributes. % %\n", model.name, model.geometry.attributes));
-    }
+    assert(!!shader, "Could not find appropriate shader for model attributes. % %\n", model.name, model.geometry.attributes);
 
     // TODO shouldn't I leave it as it is?
     cull_face := koda.cull_face;
@@ -478,7 +451,7 @@ draw :: (model: Model, transform: Matrix4 = Matrix4Identity, projection: Matrix4
 
 #scope_module
 
-load_model_obj :: (file: string) -> [..] *Model, bool {
+load_model_obj :: (file: string, should_upload: bool) -> [..] *Model, bool {
     geometries, success := load_geometry_obj(file);
     defer array_free(geometries);
     if !success {
@@ -489,14 +462,14 @@ load_model_obj :: (file: string) -> [..] *Model, bool {
     models: [..] *Model;
     array_reserve(*models, geometries.count);
     for geometry: geometries {
-        model := create_model(geometry, get_white_texture(), false);
+        model := create_model(geometry, get_white_texture(), should_upload = should_upload);
         array_add(*models, model);
     }
 
     return models, true;
 }
 
-load_model_glb :: (file: string) -> [..] *Model, [..] *InstancedModel(ModelMatrixGpu), bool {
+load_model_glb :: (file: string, should_upload: bool) -> [..] *Model, [..] *InstancedModel(ModelMatrixGpu), bool {
     json, binary, json_memory, valid := load_glb(file);
     defer free(json_memory);
     if !valid {
@@ -505,11 +478,11 @@ load_model_glb :: (file: string) -> [..] *Model, [..] *InstancedModel(ModelMatri
         return empty_models, empty_instances, false;
     }
 
-    models, instanced, data_success := load_model_gltf_data(json, binary);
+    models, instanced, data_success := load_model_gltf_data(json, binary, should_upload);
     return models, instanced, data_success;
 }
 
-load_model_gltf :: (file: string, path: string) -> [..] *Model, [..] *InstancedModel(ModelMatrixGpu), bool {
+load_model_gltf :: (file: string, path: string, should_upload: bool) -> [..] *Model, [..] *InstancedModel(ModelMatrixGpu), bool {
     json, binary, json_memory, valid := load_gltf(file, path);
     defer free(json_memory);
     if !valid {
@@ -518,11 +491,11 @@ load_model_gltf :: (file: string, path: string) -> [..] *Model, [..] *InstancedM
         return empty_models, empty_instances, false;
     }
 
-    models, instanced, data_success := load_model_gltf_data(json, binary);
+    models, instanced, data_success := load_model_gltf_data(json, binary, should_upload);
     return models, instanced, data_success;
 }
 
-load_model_gltf_data :: (json: GltfJson, binary: [] u8) -> [..] *Model, [..] *InstancedModel(ModelMatrixGpu), bool {
+load_model_gltf_data :: (json: GltfJson, binary: [] u8, should_upload: bool) -> [..] *Model, [..] *InstancedModel(ModelMatrixGpu), bool {
     models: [..] *Model;
     instances: [..] *InstancedModel;
 
@@ -678,7 +651,7 @@ load_model_gltf_data :: (json: GltfJson, binary: [] u8) -> [..] *Model, [..] *In
             instance_index := instance_lookup[index];
             transforms := instance_transforms[instance_index];
 
-            instance := create_instanced_model(geometry, transforms, should_upload = false);
+            instance := create_instanced_model(geometry, transforms, should_upload = should_upload);
             if instance_names[instance_index] {
                 instance.name = copy_string(instance_names[instance_index]);
             }
@@ -688,7 +661,7 @@ load_model_gltf_data :: (json: GltfJson, binary: [] u8) -> [..] *Model, [..] *In
             model_index := model_lookup[index];
             info := model_infos[model_index];
 
-            model := create_model(geometry, false);
+            model := create_model(geometry, should_upload = should_upload);
             model.position = info.position;
             model.rotation = info.rotation;
             model.scale = info.scale;
@@ -797,7 +770,7 @@ load_model_gltf_data :: (json: GltfJson, binary: [] u8) -> [..] *Model, [..] *In
 
                 texture, found := table_find(*textures, texture_index);
                 if !found {
-                    texture = get_texture(json, bufferviews, texture_index);
+                    texture = get_texture(json, bufferviews, texture_index, should_upload);
                     if material.name {
                         texture.name = copy_string(material.name.*);
                     }
@@ -844,7 +817,7 @@ load_model_gltf_data :: (json: GltfJson, binary: [] u8) -> [..] *Model, [..] *In
 
                 texture, found := table_find(*textures, texture_index);
                 if !found {
-                    texture = get_texture(json, bufferviews, texture_index);
+                    texture = get_texture(json, bufferviews, texture_index, should_upload);
                     if material.name {
                         texture.name = copy_string(material.name.*);
                     }
@@ -870,7 +843,7 @@ load_model_gltf_data :: (json: GltfJson, binary: [] u8) -> [..] *Model, [..] *In
 
                 texture, found := table_find(*textures, texture_index);
                 if !found {
-                    texture = get_texture(json, bufferviews, texture_index);
+                    texture = get_texture(json, bufferviews, texture_index, should_upload);
                     if material.name {
                         texture.name = copy_string(material.name.*);
                     }

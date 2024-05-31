@@ -23,6 +23,7 @@ FontParticleGpu :: struct {
     padding: float;
     scale: float;
     blur: float;
+    world_position: Vector3;
     
 #place transform1;
     transform: Matrix3 = ---;

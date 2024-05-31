@@ -69,6 +69,20 @@ create_geometry :: (vertices: [] float32, indices: [] u32, attributes: [] Attrib
 //     return geometries;
 // }
 
+create_geometry :: (geometry: *Geometry, should_upload: bool = true) -> *Geometry {
+    result := New(Geometry);
+    array_copy(*result.vertices, geometry.vertices);
+    array_copy(*result.indices, geometry.indices);
+    array_copy(*result.attributes, geometry.attributes);
+    result.aabb = geometry.aabb;
+
+    if should_upload {
+        upload(result);
+    }
+
+    return result;
+}
+
 create_geometry :: (geometries: [] *Geometry, should_upload: bool = true) -> *Geometry {
     if geometries.count > 0 {
         for i: 1..geometries.count - 1 {
@@ -256,7 +270,7 @@ upload :: (geometry: *Geometry) {
     assert(koda.initialized, "Attempting to gen geometry without the window being initialized.");
 
     if geometry.vao_ {
-        print("Warning: Trying to upload a geometry that's already uploaded.\n", true);
+        print("Warning: Trying to upload a geometry that's already uploaded.\n");
         print_stack_trace();
         return;
     }

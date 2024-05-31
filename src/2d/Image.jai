@@ -36,6 +36,18 @@ create_image :: (width: int, height: int, format: PixelFormat) -> Image {
     return image;
 }
 
+create_image :: (bytes: [] u8, width: int, height: int, format: PixelFormat) -> Image {
+    image: Image;
+    image.width = width;
+    image.height = height;
+    image.format = format;
+
+    assert(bytes.count == width * height * get_stride(format), "Incorrect image data.\n");
+    image.pixels = array_copy(bytes);
+    
+    return image;
+}
+
 create_image :: (bytes: [] u8) -> Image {
     image: Image;
     comp: s32;

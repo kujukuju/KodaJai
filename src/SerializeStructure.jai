@@ -26,17 +26,25 @@ read_serialized :: (serialized_path: string, hash_files: [$N] string, data: *$T,
             return false;
         }
 
-        cache_hash, cache_size, cache_success := get_hash_from_files(hash_files);
-        if !cache_success {
-            return false;
-        }
+        #if VALIDATE_SERIALIZED {
+            cache_hash, cache_size, cache_success := get_hash_from_files(hash_files);
+            if !cache_success {
+                return false;
+            }
 
-        serialized_hash := deserialize_hash(file_bytes);
-        if serialized_hash.hash == cache_hash && serialized_hash.size == cache_size {
-            // data_bytes: [] u8;
-            // data_bytes.data = file_bytes.data + size_of(SerializedStructureHash);
-            // data_bytes.count = file_bytes.count - size_of(SerializedStructureHash);
-            
+            serialized_hash := deserialize_hash(file_bytes);
+            if serialized_hash.hash == cache_hash && serialized_hash.size == cache_size {
+                // data_bytes: [] u8;
+                // data_bytes.data = file_bytes.data + size_of(SerializedStructureHash);
+                // data_bytes.count = file_bytes.count - size_of(SerializedStructureHash);
+                
+                serialized: SerializeStructure(T);
+                serializer_read(file_bytes, *serialized, 0, reuse_memory);
+                data.* = serialized.data;
+
+                return true;
+            }
+        } else {
             serialized: SerializeStructure(T);
             serializer_read(file_bytes, *serialized, 0, reuse_memory);
             data.* = serialized.data;
@@ -50,7 +58,7 @@ read_serialized :: (serialized_path: string, hash_files: [$N] string, data: *$T,
     return false;
 }
 
-load_serialized :: (serialized_path: string, hash_files: [$N] string, fallback: () -> $T, $reuse_memory: bool = false) -> T, bool {
+load_serialized :: (serialized_path: string, hash_files: [$N] string, fallback: (data: $D) -> $T, fallback_data: D, $reuse_memory: bool = false) -> T, bool {
     data: T;
     success := read_serialized(serialized_path, hash_files, *data, reuse_memory);
 
@@ -58,10 +66,22 @@ load_serialized :: (serialized_path: string, hash_files: [$N] string, fallback: 
         return data, true;
     }
 
-    data = fallback();
-    write_serialized(serialized_path, hash_files, data, reuse_memory);
+    #if VALIDATE_SERIALIZED {
+        data = fallback(fallback_data);
+        write_serialized(serialized_path, hash_files, data, reuse_memory);
 
-    return data, true;
+        return data, true;
+    } else {
+        return data, false;
+    }
+}
+
+load_serialized :: (serialized_path: string, hash_files: [$N] string, fallback: () -> $T, $reuse_memory: bool = false) -> T, bool {
+    result, success := load_serialized(serialized_path, hash_files, (fallback: () -> T) -> T {
+        return fallback();
+    }, fallback, reuse_memory);
+
+    return result, success;
 }
 
 write_serialized :: (serialized_path: string, hash_files: [$N] string, data: $T, $reuse_memory: bool = false) {

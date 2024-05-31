@@ -1,13 +1,17 @@
 
-draw_text :: (content: string, font: *Font, position: Vector2, anchor: Vector2 = .{0, 0}, scale: float = 1.0, tint: Color = .{1, 1, 1, 1}, padding: float = 0.0, blur: float = 0.0, fixed_height_string: string = "") {
+draw_text :: (content: string, font: *Font, position: Vector2, anchor: Vector2 = .{0, 0}, scale: float = 1.0, tint: Color = .{1, 1, 1, 1}, padding: float = 0.0, blur: float = 0.0, world_position: Vector3 = .{}, fixed_height_string: string = "") {
     assert(!font.buffer_required, "Cannot draw text when doing a text buffer.\n");
 
     begin_buffer_text(font);
-    buffer_text(content, font, position, anchor, scale, tint, padding, blur, fixed_height_string);
+    buffer_text(content, font, position, anchor, scale, tint, padding, blur, world_position, fixed_height_string);
     flush_text(font);
 }
 
-draw_text :: (content: string, font: *Font, transform: Matrix3, anchor: Vector2, scale: float, tint: Color, padding: float, blur: float, fixed_height_string: string = "") {
+// draw_text :: (content: string, font: *Font, transform: Matrix3, anchor: Vector2, scale: float, tint: Color, padding: float, blur: float, fixed_height_string: string = "") {
+//     // draw_text(content, font, )
+// }
+
+draw_text :: (content: string, font: *Font, transform: Matrix3, anchor: Vector2, scale: float, tint: Color, padding: float, blur: float, world_position: Vector3, fixed_height_string: string = "") {
     assert(!font.buffer_required, "Cannot draw text when doing a text buffer.\n");
 
     begin_buffer_text(font);
@@ -21,13 +25,13 @@ begin_buffer_text :: (font: *Font) {
     font.buffer_view = koda.view;
 }
 
-buffer_text :: (content: string, font: *Font, position: Vector2, anchor: Vector2 = .{0, 0}, scale: float = 1.0, tint: Color = .{1, 1, 1, 1}, padding: float = 0.0, blur: float = 0.0, fixed_height_string: string = "") {
+buffer_text :: (content: string, font: *Font, position: Vector2, anchor: Vector2 = .{0, 0}, scale: float = 1.0, tint: Color = .{1, 1, 1, 1}, padding: float = 0.0, blur: float = 0.0, world_position: Vector3 = .{}, fixed_height_string: string = "") {
     translation := make_translation_matrix3(position);
 
-    buffer_text(content, font, translation, anchor, scale, tint, padding, blur, fixed_height_string);
+    buffer_text(content, font, translation, anchor, scale, tint, padding, blur, world_position, fixed_height_string);
 }
 
-buffer_text :: (content: string, font: *Font, transform: Matrix3, anchor: Vector2, scale: float, tint: Color, padding: float, blur: float, fixed_height_string: string = "") {
+buffer_text :: (content: string, font: *Font, transform: Matrix3, anchor: Vector2, scale: float, tint: Color, padding: float, blur: float, world_position: Vector3, fixed_height_string: string = "") {
     assert(font.buffer_required, "You should call buffer text after calling begin buffer text.\n");
     if !font.buffer_required {
         return;
@@ -59,17 +63,15 @@ buffer_text :: (content: string, font: *Font, transform: Matrix3, anchor: Vector
     x := -dimensions.x * anchor.x - aabb.lower.x;
     y := -dimensions.y * anchor.y - aabb.lower.y;
 
-    tranposed := transpose(transform);
-
     real_padding := padding / scale;
     if real_padding > 16 {
-        print("Warning: Your font padding can't be larger than 16 * your scale.\n");
+        if !PRODUCTION then print("Warning: Your font padding can't be larger than 16 * your scale.\n");
         real_padding = 16;
     }
 
     real_blur := blur / scale;
     if real_blur + real_padding > 16 {
-        print("Warning: Your font blur + padding can't be larger than 16 * your scale.\n");
+        if !PRODUCTION then print("Warning: Your font blur + padding can't be larger than 16 * your scale.\n");
         real_blur = 16 - real_padding;
     }
 
@@ -94,11 +96,12 @@ buffer_text :: (content: string, font: *Font, transform: Matrix3, anchor: Vector
         gpu.size = .{w, h};
         gpu.texSize = .{cast(float) character.width / font.max_width, cast(float) character.height / font.max_height};
         gpu.index = cast(float) character.index;
-        gpu.transform = tranposed;
+        gpu.transform = transform;
         gpu.tint = tint.rgba;
         gpu.padding = real_padding;
         gpu.scale = scale;
         gpu.blur = real_blur;
+        gpu.world_position = world_position;
 
         particle_system_add_particle(*font.font_system, gpu, .{});
 
@@ -109,12 +112,15 @@ buffer_text :: (content: string, font: *Font, transform: Matrix3, anchor: Vector
 }
 
 flush_text :: (font: *Font) {
+    projection := orthographic_projection_matrix(0, xx koda.width, xx koda.height, 0, -1.0, 1.0);
+    flush_text(font, projection);
+}
+
+flush_text :: (font: *Font, projection: Matrix4) {
     font.buffer_required = false;
 
     set_depth_test_scope(false);
     set_cull_face_scope(false);
-
-    projection := orthographic_projection_matrix(0, xx koda.width, xx koda.height, 0, -1.0, 1.0);
 
     particle_system_update_and_render(*font.font_system, 0, projection);
     particle_system_clear(*font.font_system);

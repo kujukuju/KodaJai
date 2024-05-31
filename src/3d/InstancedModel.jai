@@ -183,6 +183,19 @@ upload :: (model: *InstancedModel($T)) {
     glBindVertexArray(0);
 }
 
+get_instances :: (model: *InstancedModel($T)) -> [] T {
+    assert(!model.dynamic, "Cannot call get_instances for a dynamic instanced model. Only static.\n");
+    return model.instances;
+}
+
+get_instances :: (model: *InstancedModel(ModelMatrixGpu)) -> [] Matrix4 {
+    assert(!model.dynamic, "Cannot call get_instances for a dynamic instanced model. Only static.\n");
+    matrix_view: [] Matrix4;
+    matrix_view.data = cast(*Matrix4) model.instances.data;
+    matrix_view.count = model.instances.count;
+    return matrix_view;
+}
+
 set_instances :: (model: *InstancedModel($T), instances: [] T) {
     assert(model.dynamic, "You cannot set instances of a non-dynamically created instanced model.\n");
     

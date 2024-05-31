@@ -270,6 +270,18 @@ convert_format :: (texture: *Texture, desired_format: PixelFormat) {
     }
 }
 
+create_image_from_data :: (texture: Texture) -> Image {
+    texture_stride := get_stride(texture.format);
+
+    byte_count := texture.width * texture.height * texture_stride;
+
+    byte_view: [] u8;
+    byte_view.data = texture.data;
+    byte_view.count = byte_count;
+
+    return create_image(byte_view, texture.width, texture.height, texture.format);
+}
+
 draw :: (texture: Texture, position: Vector2, anchor: Vector2 = .{}) {
     static_sprite.texture = texture;
     static_sprite.width = xx texture.width;

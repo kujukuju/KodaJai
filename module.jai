@@ -1,5 +1,5 @@
 
-#module_parameters(PRODUCTION := false, WASM := false);
+#module_parameters(PRODUCTION := false, WASM := false, VALIDATE_SERIALIZED := true);
 
 #if WASM {
     core_count :: 8;
@@ -77,6 +77,7 @@
 #load "src/3d/SdfGenerator.jai";
 #load "src/3d/Shapes3.jai";
 #load "src/3d/SphereGeometry.jai";
+#load "src/3d/Sprite3.jai";
 #load "src/3d/Texture3.jai";
 #load "src/3d/TorusGeometry.jai";
 #load "src/3d/VolumetricCloud.jai";
@@ -116,6 +117,7 @@
 #load "src/shaders/forward/SkinnedAnimationNoNormalShader3.jai";
 #load "src/shaders/forward/SkinnedAnimationNoTextureShader3.jai";
 #load "src/shaders/forward/SkinnedAnimationShader3.jai";
+#load "src/shaders/forward/SpriteShader3.jai";
 #load "src/shaders/forward/TextureShader3.jai";
 #load "src/shaders/forward/TorusShader3.jai";
 #load "src/shaders/forward/TransformShader.jai";
