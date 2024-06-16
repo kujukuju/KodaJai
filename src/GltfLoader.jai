@@ -249,6 +249,7 @@ load_glb :: (file: string) -> GltfJson, [] u8, *u8, bool {
     gltf_header := cast(*GltfHeader) file.data;
     
     if gltf_header.magic != 0x46546C67 {
+        print("1\n");
         return .{}, .[], null, false;
     }
 

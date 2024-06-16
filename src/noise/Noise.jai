@@ -79,18 +79,6 @@ floor :: inline (v: Vector3) -> Vector3 {
     return Vector3.{floor(v.x), floor(v.y), floor(v.z)};
 }
 
-ceil :: inline (v: Vector3) -> Vector3 {
-    return Vector3.{ceil(v.x), ceil(v.y), ceil(v.z)};
-}
-
-saturate :: (x: float) -> float {
-    return clamp(x, 0.0, 1.0);
-}
-
-saturate :: (v: Vector3) -> Vector3 {
-    return Vector3.{clamp(v.x, 0.0, 1.0), clamp(v.y, 0.0, 1.0), clamp(v.z, 0.0, 1.0)};
-}
-
 clamp :: (v: Vector2, a: Vector2, b: Vector2) -> Vector2 {
     return Vector2.{clamp(v.x, a.x, b.x), clamp(v.y, a.y, b.y)};
 }

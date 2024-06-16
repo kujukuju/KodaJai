@@ -493,6 +493,8 @@ rotate_vertices :: (geometry: *Geometry, axis: Vector3, radians: float) {
 
 get_indices :: (geometry: Geometry, $T: Type = int) -> [..] T {
     indices: [..] T;
+    indices.allocator = temp;
+    
     array_reserve(*indices, geometry.indices.count);
 
     for index: geometry.indices {
@@ -504,6 +506,7 @@ get_indices :: (geometry: Geometry, $T: Type = int) -> [..] T {
 
 get_vertices :: (geometry: Geometry, preserve_faces: bool = false) -> [..] Vector3 {
     vertices: [..] Vector3;
+    vertices.allocator = temp;
 
     stride := get_attribute_stride(geometry);
 

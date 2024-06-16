@@ -119,7 +119,6 @@ draw :: (sprite: Sprite3, transform: Matrix4 = Matrix4Identity, shader: *Shader 
 draw :: (sprite: Sprite3, transform: Matrix4 = Matrix4Identity, projection: Matrix4, shader: *Shader = null) {
     assert(koda.can_render, "Cannot currently make any draw calls.\n");
 
-    
     if !shader {
         if sprite.shader {
             shader = sprite.shader;
@@ -138,6 +137,7 @@ draw :: (sprite: Sprite3, transform: Matrix4 = Matrix4Identity, projection: Matr
     apply_uniforms(shader, sprite.uniforms);
 
     model := transform * get_transform(sprite);
+    model = scale(model, Vector3.{abs(sprite.width / sprite.height) * sign(sprite.width), sign(sprite.height), 1});
     view := koda.view;
 
     uniforms: ShaderUniforms;

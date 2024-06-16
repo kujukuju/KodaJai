@@ -669,7 +669,7 @@ use_shader :: (shader: *Shader) {
     }
 
     // we only validate information about the fragment output channels if there is a fragment shader
-    if shader.has_fragment_shader {
+    if shader.has_fragment_shader && get_color_write() {
         if shader.output_channels.count != koda.active_pass_channels.count {
             assert(false, tprint("Using shader % with % output channels inside a render pass with % output channels.\n", shader.name, shader.output_channels.count, koda.active_pass_channels.count));
             return;
