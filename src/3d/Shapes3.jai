@@ -363,7 +363,7 @@ draw_cube_border :: (lower: Vector3, upper: Vector3, transform: Matrix4 = Matrix
     glDrawArrays(GL_LINES, 0, xx vertices.count);
 }
 
-draw_sphere :: (position: Vector3, dimensions: Vector3 = .{1, 1, 1}, color: Color = .{1, 1, 1, 1}) {
+draw_sphere :: (position: Vector3, half_dimensions: Vector3 = .{1, 1, 1}, color: Color = .{1, 1, 1, 1}) {
     // no radius control yet
     if !sphere_loaded {
         load_sphere();
@@ -374,7 +374,7 @@ draw_sphere :: (position: Vector3, dimensions: Vector3 = .{1, 1, 1}, color: Colo
     projection := get_perspective_matrix();
     model := Matrix4Identity;
     model = translate(model, position);
-    model = scale(model, dimensions * 0.5);
+    model = scale(model, half_dimensions);
     view := koda.view;
 
     white_texture := get_white_texture();
@@ -395,7 +395,7 @@ draw_sphere :: (position: Vector3, dimensions: Vector3 = .{1, 1, 1}, color: Colo
     glBindVertexArray(0);
 }
 
-draw_spheres :: (positions: [] Vector3, scalev: Vector3, color: Color = .{1, 1, 1, 1}) {
+draw_spheres :: (positions: [] Vector3, half_dimensions: Vector3, color: Color = .{1, 1, 1, 1}) {
     // no radius control yet
     if !sphere_loaded {
         load_sphere();
@@ -439,7 +439,7 @@ draw_spheres :: (positions: [] Vector3, scalev: Vector3, color: Color = .{1, 1, 
         loop_uniforms: ShaderUniforms;
         defer destroy(loop_uniforms);
 
-        loop_uniforms[xx "offsets"] = create_uniform("offsets", offsets);
+        set(*loop_uniforms, "offset", offsets);
 
         apply_uniforms(*instanced_shader3, loop_uniforms);
 

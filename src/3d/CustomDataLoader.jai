@@ -47,6 +47,22 @@ load_custom_data :: (path: string) -> [..] CustomData, bool {
     }
 }
 
+get_property_entry :: (object: JsonObjectEntry) -> [2] string {
+    property: [2] string;
+    property[0] = copy_string(object.name);
+
+    if object.value.type == .String {
+        property[1] = copy_string(object.value.str);
+    } else if object.value.type == .Boolean {
+        property[1] = ifx object.value.boolean then copy_string("true") else copy_string("false");
+    } else {
+        assert(false, "Unknown custom data property type. %\n", object.value.type);
+        return .["", ""];
+    }
+
+    return property;
+}
+
 #scope_file
 
 load_custom_data_glb :: (file: string) -> [..] CustomData, bool {
@@ -100,14 +116,7 @@ load_custom_data_gltf_data :: (json: GltfJson) -> [..] CustomData, bool {
         }
 
         for property: node.extras.object {
-            name := property.name;
-            value := property.value;
-            assert(value.type == .String, "Unknown custom data property type. %\n", value.type);
-            if value.type != .String {
-                continue;
-            }
-
-            array_add(*data.properties, .[copy_string(name), copy_string(value.str)]);
+            array_add(*data.properties, get_property_entry(property));
         }
 
         array_add(*custom_data, data);

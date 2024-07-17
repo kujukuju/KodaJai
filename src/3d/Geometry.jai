@@ -160,6 +160,37 @@ load_serialized_geometry :: (serialized_path: string, hash_files: [$N] string, f
     return geometry, true;
 }
 
+// load_serialized_geometries :: (serialized_path: string, hash_files: [$N] string, fallback: () -> *[] Geometry, should_upload: bool = true, $reuse_memory: bool = false) -> [] *Geometry, bool {
+//     for hash_file: hash_files {
+//         assert(serialized_path != hash_file, "You cannot have a serialized path that matches a hash file path.\n");
+//     }
+
+//     geometries: [] *Geometry;
+//     success := read_serialized(serialized_path, hash_files, *geometries, reuse_memory);
+
+//     if success {
+//         for geometry: geoemtries {
+//             geometry.vao_ = 0;
+//             geometry.vbo_ = 0;
+//             geometry.ebo_ = 0;
+
+//             if should_upload {
+//                 upload(geometry);
+//             }
+//         }
+
+//         return geometries, true;
+//     }
+
+//     geometries = fallback();
+//     if should_upload {
+//         upload(geometries);
+//     }
+
+//     write_serialized(serialized_path, hash_files, geometries, reuse_memory);
+//     return geometries, true;
+// }
+
 load_geometry :: (path: string, should_upload: bool = true) -> *Geometry, bool {
     geometries, success := load_geometries(path, false);
     defer array_free(geometries);

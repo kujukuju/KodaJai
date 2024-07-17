@@ -724,12 +724,7 @@ load_model_gltf_data :: (json: GltfJson, binary: [] u8, should_upload: bool) -> 
                 assert(mesh.extras.type == .Object);
                 
                 for entry: mesh.extras.object {
-                    assert(entry.value.type == .String);
-
-                    property: [2] string;
-                    property[0] = copy_string(entry.name);
-                    property[1] = copy_string(entry.value.str);
-                    array_add(properties, property);
+                    array_add(properties, get_property_entry(entry));
                 }
             }
 
@@ -743,14 +738,7 @@ load_model_gltf_data :: (json: GltfJson, binary: [] u8, should_upload: bool) -> 
                     assert(material.extras.type == .Object);
                     
                     for entry: material.extras.object {
-                        if entry.value.type != .String {
-                            continue;
-                        }
-
-                        property: [2] string;
-                        property[0] = copy_string(entry.name);
-                        property[1] = copy_string(entry.value.str);
-                        array_add(material_properties, property);
+                        array_add(material_properties, get_property_entry(entry));
                     }
                 }
             }

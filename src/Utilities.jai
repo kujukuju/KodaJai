@@ -195,6 +195,19 @@ for_expansion :: (wrapper: EfficientRemove($T), body: Code, flags: For_Flags) #e
 
     insert_index := 0;
     check_index := 0;
+
+    defer {
+        // handle breaks
+        while insert_index != check_index && check_index < wrapper.captured.count {
+            wrapper.captured.*[insert_index] = wrapper.captured.*[check_index];
+
+            insert_index += 1;
+            check_index += 1;
+        }
+
+        wrapper.captured.count -= check_index - insert_index;
+    };
+
     while check_index < wrapper.captured.count {
         #if flags & .POINTER {
             `it := *wrapper.captured.*[check_index];
@@ -215,16 +228,67 @@ for_expansion :: (wrapper: EfficientRemove($T), body: Code, flags: For_Flags) #e
         }
         #insert (remove={check_index += 1; should_keep = false;}) body;
     }
-    
-    // handle breaks
-    while insert_index != check_index && check_index < wrapper.captured.count {
-        wrapper.captured.*[insert_index] = wrapper.captured.*[check_index];
+}
 
-        insert_index += 1;
-        check_index += 1;
+EfficientRemove2 :: struct (A: Type, B: Type) {
+    captured_left: *[] A;
+    captured_right: *[] B;
+}
+
+efficient_remove :: (captured_left: *[] $A, captured_right: *[] $B) -> EfficientRemove2(A, B) {
+    return EfficientRemove2(A, B).{captured_left, captured_right};
+}
+
+for_expansion :: (wrapper: EfficientRemove2($A, $B), body: Code, flags: For_Flags) #expand {
+    // you can't efficiently remove in reverse as far as I can tell unless you manually reverse first
+    #assert(!(flags & .REVERSE));
+
+    insert_index := 0;
+    check_index := 0;
+
+    defer {
+        // handle breaks
+        while insert_index != check_index && check_index < wrapper.captured_left.count {
+            wrapper.captured_left.*[insert_index] = wrapper.captured_left.*[check_index];
+            wrapper.captured_right.*[insert_index] = wrapper.captured_right.*[check_index];
+
+            insert_index += 1;
+            check_index += 1;
+        }
+
+        wrapper.captured_left.count -= check_index - insert_index;
+        wrapper.captured_right.count -= check_index - insert_index;
+    };
+
+    while check_index < wrapper.captured_left.count {
+        #if flags & .POINTER {
+            Value :: struct {
+                left: *A;
+                right: *B;
+            }
+            `it := Value.{*wrapper.captured_left.*[check_index], *wrapper.captured_right.*[check_index]};
+        } else {
+            Value :: struct {
+                left: A;
+                right: B;
+            }
+            `it := Value.{wrapper.captured_left.*[check_index], wrapper.captured_right.*[check_index]};
+        }
+
+        `it_index := check_index;
+
+        should_keep := true;
+        defer if should_keep {
+            if insert_index != check_index {
+                wrapper.captured_left.*[insert_index] = wrapper.captured_left.*[check_index];
+                wrapper.captured_right.*[insert_index] = wrapper.captured_right.*[check_index];
+            }
+
+            insert_index += 1;
+            check_index += 1;
+        }
+        #insert (remove={check_index += 1; should_keep = false;}) body;
     }
-
-    wrapper.captured.count -= check_index - insert_index;
 }
 
 // efficient removal exmaple
@@ -256,39 +320,39 @@ for_expansion :: (wrapper: EfficientRemove($T), body: Code, flags: For_Flags) #e
 //     print("Final array. Should be missing 1, 4 through 13, 15, and 20. %\n", array);
 // }
 
-efficient_remove :: (captured: *[] $T, code: Code) #expand {
-    insert_index := 0;
-    check_index := 0;
-    while check_index < captured.count {
-        it := captured.*[check_index];
-        it_index := check_index;
+// efficient_remove :: (captured: *[] $T, code: Code) #expand {
+//     insert_index := 0;
+//     check_index := 0;
+//     while check_index < captured.count {
+//         it := captured.*[check_index];
+//         it_index := check_index;
 
-        should_remove := false;
+//         should_remove := false;
 
-        defer if should_remove {
-            check_index += 1;
-        } else {
-            if insert_index != check_index {
-                captured.*[insert_index] = captured.*[check_index];
-            }
+//         defer if should_remove {
+//             check_index += 1;
+//         } else {
+//             if insert_index != check_index {
+//                 captured.*[insert_index] = captured.*[check_index];
+//             }
 
-            insert_index += 1;
-            check_index += 1;
-        }
+//             insert_index += 1;
+//             check_index += 1;
+//         }
 
-        #insert,scope() code;
-    }
+//         #insert,scope() code;
+//     }
 
-    // handle breaks
-    while insert_index != check_index && check_index < captured.count {
-        captured.*[insert_index] = captured.*[check_index];
+//     // handle breaks
+//     while insert_index != check_index && check_index < captured.count {
+//         captured.*[insert_index] = captured.*[check_index];
 
-        insert_index += 1;
-        check_index += 1;
-    }
+//         insert_index += 1;
+//         check_index += 1;
+//     }
 
-    captured.count -= check_index - insert_index;
-}
+//     captured.count -= check_index - insert_index;
+// }
 
 // efficient removal function test
 // #run {
@@ -318,6 +382,28 @@ efficient_remove :: (captured: *[] $T, code: Code) #expand {
 //     print("First valid. %\n", first_valid);
 //     print("Final array. Should be missing 1, 4 through 13, 15, and 20. %\n", array);
 // }
+
+// this copies all context additions defined outside of the base context
+// however, that includes all context additions made by modules, such as random_state
+copy_context_additions :: (parent: Context) {
+    info :: type_info(Context);
+
+    #insert #run () -> string {
+        builder: String_Builder;
+        for member: info.members {
+            if member.type == cast(*Type_Info) Context_Base {
+                continue;
+            }
+
+            append(*builder, "context.");
+            append(*builder, member.name);
+            append(*builder, " = parent.");
+            append(*builder, member.name);
+            append(*builder, ";\n");
+        }
+        return builder_to_string(*builder);
+    }();
+} @thread
 
 #scope_file
 
