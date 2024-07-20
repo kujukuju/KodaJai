@@ -47,7 +47,7 @@ get_white_texture :: () -> Texture {
         white_texture_bytes: [] u8;
         white_texture_bytes.data = White.data;
         white_texture_bytes.count = White.count;
-        white_texture = create_texture(white_texture_bytes, .Clamp, .Nearest);
+        white_texture = create_texture(create_image(white_texture_bytes), .Clamp, .Nearest);
     }
 
     return white_texture;
@@ -181,116 +181,6 @@ print_stack_trace :: () #expand {
     }
 }
 
-EfficientRemove :: struct (T: Type) {
-    captured: *[] T;
-}
-
-efficient_remove :: (captured: *[] $T) -> EfficientRemove(T) {
-    return EfficientRemove(T).{captured};
-}
-
-for_expansion :: (wrapper: EfficientRemove($T), body: Code, flags: For_Flags) #expand {
-    // you can't efficiently remove in reverse as far as I can tell unless you manually reverse first
-    #assert(!(flags & .REVERSE));
-
-    insert_index := 0;
-    check_index := 0;
-
-    defer {
-        // handle breaks
-        while insert_index != check_index && check_index < wrapper.captured.count {
-            wrapper.captured.*[insert_index] = wrapper.captured.*[check_index];
-
-            insert_index += 1;
-            check_index += 1;
-        }
-
-        wrapper.captured.count -= check_index - insert_index;
-    };
-
-    while check_index < wrapper.captured.count {
-        #if flags & .POINTER {
-            `it := *wrapper.captured.*[check_index];
-        } else {
-            `it := wrapper.captured.*[check_index];
-        }
-
-        `it_index := check_index;
-
-        should_keep := true;
-        defer if should_keep {
-            if insert_index != check_index {
-                wrapper.captured.*[insert_index] = wrapper.captured.*[check_index];
-            }
-
-            insert_index += 1;
-            check_index += 1;
-        }
-        #insert (remove={check_index += 1; should_keep = false;}) body;
-    }
-}
-
-EfficientRemove2 :: struct (A: Type, B: Type) {
-    captured_left: *[] A;
-    captured_right: *[] B;
-}
-
-efficient_remove :: (captured_left: *[] $A, captured_right: *[] $B) -> EfficientRemove2(A, B) {
-    return EfficientRemove2(A, B).{captured_left, captured_right};
-}
-
-for_expansion :: (wrapper: EfficientRemove2($A, $B), body: Code, flags: For_Flags) #expand {
-    // you can't efficiently remove in reverse as far as I can tell unless you manually reverse first
-    #assert(!(flags & .REVERSE));
-
-    insert_index := 0;
-    check_index := 0;
-
-    defer {
-        // handle breaks
-        while insert_index != check_index && check_index < wrapper.captured_left.count {
-            wrapper.captured_left.*[insert_index] = wrapper.captured_left.*[check_index];
-            wrapper.captured_right.*[insert_index] = wrapper.captured_right.*[check_index];
-
-            insert_index += 1;
-            check_index += 1;
-        }
-
-        wrapper.captured_left.count -= check_index - insert_index;
-        wrapper.captured_right.count -= check_index - insert_index;
-    };
-
-    while check_index < wrapper.captured_left.count {
-        #if flags & .POINTER {
-            Value :: struct {
-                left: *A;
-                right: *B;
-            }
-            `it := Value.{*wrapper.captured_left.*[check_index], *wrapper.captured_right.*[check_index]};
-        } else {
-            Value :: struct {
-                left: A;
-                right: B;
-            }
-            `it := Value.{wrapper.captured_left.*[check_index], wrapper.captured_right.*[check_index]};
-        }
-
-        `it_index := check_index;
-
-        should_keep := true;
-        defer if should_keep {
-            if insert_index != check_index {
-                wrapper.captured_left.*[insert_index] = wrapper.captured_left.*[check_index];
-                wrapper.captured_right.*[insert_index] = wrapper.captured_right.*[check_index];
-            }
-
-            insert_index += 1;
-            check_index += 1;
-        }
-        #insert (remove={check_index += 1; should_keep = false;}) body;
-    }
-}
-
 // efficient removal exmaple
 // #run {
 //     first_valid := 0;
@@ -385,25 +275,6 @@ for_expansion :: (wrapper: EfficientRemove2($A, $B), body: Code, flags: For_Flag
 
 // this copies all context additions defined outside of the base context
 // however, that includes all context additions made by modules, such as random_state
-copy_context_additions :: (parent: Context) {
-    info :: type_info(Context);
-
-    #insert #run () -> string {
-        builder: String_Builder;
-        for member: info.members {
-            if member.type == cast(*Type_Info) Context_Base {
-                continue;
-            }
-
-            append(*builder, "context.");
-            append(*builder, member.name);
-            append(*builder, " = parent.");
-            append(*builder, member.name);
-            append(*builder, ";\n");
-        }
-        return builder_to_string(*builder);
-    }();
-} @thread
 
 #scope_file
 

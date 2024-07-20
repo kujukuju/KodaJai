@@ -115,7 +115,7 @@ operator == :: (a: ShaderUniforms, b: ShaderUniforms) -> bool {
 
 get :: (uniforms: ShaderUniforms, name: string) -> *ShaderUniform {
     for *uniform: uniforms.uniforms {
-        if temp_string(*uniform.name) == name {
+        if to_string(*uniform.name) == name {
             return uniform;
         }
     }
@@ -124,12 +124,12 @@ get :: (uniforms: ShaderUniforms, name: string) -> *ShaderUniform {
 }
 
 get :: (uniforms: ShaderUniforms, name: FixedString(64)) -> *ShaderUniform {
-    return get(uniforms, temp_string(*name));
+    return get(uniforms, to_string(*name));
 }
 
 set :: (uniforms: *ShaderUniforms, name: string, created: ShaderUniform) {
     for i: 0..uniforms.uniforms.count - 1 {
-        if temp_string(*uniforms.uniforms[i].name) == name {
+        if to_string(*uniforms.uniforms[i].name) == name {
             if uniforms.uniforms[i].ownership {
                 destroy(uniforms.uniforms[i]);
             }
@@ -147,7 +147,7 @@ set :: (uniforms: *ShaderUniforms, name: string, value: $T) {
 }
 
 set :: (uniforms: *ShaderUniforms, name: FixedString(64), value: $T) {
-    set(uniforms, temp_string(*name), value);
+    set(uniforms, to_string(*name), value);
 }
 
 // operator [] :: (uniforms: ShaderUniforms, name: *u8) -> *ShaderUniform {
@@ -182,7 +182,7 @@ set :: (uniforms: *ShaderUniforms, name: FixedString(64), value: $T) {
 
 has_uniform :: (uniforms: ShaderUniforms, name: string) -> bool {
     for i: 0..uniforms.uniforms.count - 1 {
-        if temp_string(*uniforms.uniforms[i].name) == name {
+        if to_string(*uniforms.uniforms[i].name) == name {
             return true;
         }
     }

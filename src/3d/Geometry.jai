@@ -131,34 +131,42 @@ create_geometry :: (geometries: [] *Geometry, should_upload: bool = true) -> *Ge
     return result;
 }
 
-load_serialized_geometry :: (serialized_path: string, hash_files: [$N] string, fallback: () -> *Geometry, should_upload: bool = true, $reuse_memory: bool = false) -> *Geometry, bool {
-    for hash_file: hash_files {
-        assert(serialized_path != hash_file, "You cannot have a serialized path that matches a hash file path.\n");
-    }
+// I think these should be specific to your own game... so removing them soon
+// load_serialized_geometry :: (serialized_path: string, hash_files: [$N] string, $fallback: () -> *Geometry, should_upload: bool = true, $reuse_memory: bool = false) -> *Geometry, bool {
+//     geometry, success := load_serialized_geometry(serialized_path, hash_files, (a: int) -> *Geometry {
+//         return fallback();
+//     }, 0, should_upload, reuse_memory);
+//     return geometry, success;
+// }
 
-    geometry: *Geometry;
-    success := read_serialized(serialized_path, hash_files, *geometry, reuse_memory);
+// load_serialized_geometry :: (serialized_path: string, hash_files: [$N] string, $fallback: (data: $D) -> *Geometry, data: D, should_upload: bool = true, $reuse_memory: bool = false) -> *Geometry, bool {
+//     for hash_file: hash_files {
+//         assert(serialized_path != hash_file, "You cannot have a serialized path that matches a hash file path.\n");
+//     }
 
-    if success {
-        geometry.vao_ = 0;
-        geometry.vbo_ = 0;
-        geometry.ebo_ = 0;
+//     geometry: *Geometry;
+//     success := read_serialized(serialized_path, hash_files, *geometry, reuse_memory);
 
-        if should_upload {
-            upload(geometry);
-        }
+//     if success {
+//         geometry.vao_ = 0;
+//         geometry.vbo_ = 0;
+//         geometry.ebo_ = 0;
 
-        return geometry, true;
-    }
+//         if should_upload {
+//             upload(geometry);
+//         }
 
-    geometry = fallback();
-    if should_upload {
-        upload(geometry);
-    }
+//         return geometry, true;
+//     }
 
-    write_serialized(serialized_path, hash_files, geometry, reuse_memory);
-    return geometry, true;
-}
+//     geometry = fallback(data);
+//     if should_upload {
+//         upload(geometry);
+//     }
+
+//     write_serialized(serialized_path, hash_files, geometry, reuse_memory);
+//     return geometry, true;
+// }
 
 // load_serialized_geometries :: (serialized_path: string, hash_files: [$N] string, fallback: () -> *[] Geometry, should_upload: bool = true, $reuse_memory: bool = false) -> [] *Geometry, bool {
 //     for hash_file: hash_files {
@@ -274,28 +282,28 @@ load_geometries :: (path: string, should_upload: bool = true) -> [..] *Geometry,
 }
 
 // TODO remove this, if youre directly serializing or deserializing things it shouldnt have anything to do with a hash
-deserialize_geometry :: (bytes: [] u8, should_upload: bool = true) -> *Geometry {
-    geometry: *Geometry;
-    serializer_read(bytes, *geometry);
-    geometry.vao_ = 0;
-    geometry.vbo_ = 0;
-    geometry.ebo_ = 0;
+// deserialize_geometry :: (bytes: [] u8, should_upload: bool = true) -> *Geometry {
+//     geometry: *Geometry;
+//     serializer_read(bytes, *geometry);
+//     geometry.vao_ = 0;
+//     geometry.vbo_ = 0;
+//     geometry.ebo_ = 0;
 
-    if should_upload {
-        upload(geometry);
-    }
+//     if should_upload {
+//         upload(geometry);
+//     }
 
-    return geometry;
-}
+//     return geometry;
+// }
 
-serialize_geometry :: (geometry: *Geometry) -> [..] u8 {
-    bytes: [..] u8;
-    serializer_write(*bytes, geometry);
+// serialize_geometry :: (geometry: *Geometry) -> [..] u8 {
+//     bytes: [..] u8;
+//     serializer_write(*bytes, geometry);
 
-    print("wrote % bytes for geometry.\n", bytes.count);
+//     print("wrote % bytes for geometry.\n", bytes.count);
 
-    return bytes;
-}
+//     return bytes;
+// }
 
 upload :: (geometry: *Geometry) {
     assert(koda.initialized, "Attempting to gen geometry without the window being initialized.");

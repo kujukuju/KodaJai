@@ -1,9 +1,25 @@
+
 Image3 :: struct {
     pixels: [] u8;
     width: int;
     height: int;
     depth: int;
     format: PixelFormat;
+}
+
+load_image3 :: (path: string) -> Image3 {
+    data, success := read_entire_file(path, false);
+    defer free(data);
+
+    if !success {
+        print("Could not load image data. %\n", path);
+        return .{};
+    }
+
+    bytes: [] u8;
+    bytes.data = data.data;
+    bytes.count = data.count;
+    return create_image3(bytes);
 }
 
 create_image3 :: (width: int, height: int, depth: int, format: PixelFormat) -> Image3 {
@@ -17,6 +33,71 @@ create_image3 :: (width: int, height: int, depth: int, format: PixelFormat) -> I
     image.pixels = NewArray(width * height * depth * stride, u8);
 
     return image;
+}
+
+create_image3 :: (bytes: [] u8, width: int, height: int, depth: int, format: PixelFormat) -> Image3 {
+    image: Image3;
+    image.width = width;
+    image.height = height;
+    image.depth = depth;
+    image.format = format;
+
+    assert(bytes.count == width * height * depth * get_stride(format), "Incorrect image data.\n");
+    image.pixels = array_copy(bytes);
+    
+    return image;
+
+
+    image: Image3;
+    image.width = width;
+    image.height = height;
+    image.depth = depth;
+    image.format = format;
+    
+    stride := get_stride(format);
+    image.pixels = NewArray(width * height * depth * stride, u8);
+
+    return image;
+}
+
+create_image3 :: (bytes: [] u8, width: int, height: int, depth: int, format: PixelFormat, reuse_memory: bool = false) -> Image3 {
+    image: Image3;
+    image.width = width;
+    image.height = height;
+    image.depth = depth;
+    image.format = format;
+
+    assert(bytes.count == width * height * depth * get_stride(format), "Incorrect image data.\n");
+    if bytes.count != width * height * depth * get_stride(format) {
+        return .{};
+    }
+
+    if reuse_memory {
+        image.pixels = bytes;
+    } else {
+        image.pixels = array_copy(bytes);
+    }
+    
+    return image;
+}
+
+create_image3 :: (bytes: [] u8) -> Image3 {
+    image := create_image(bytes);
+
+    assert(image.height % image.width == 0, "Image3 height must be a multiple of the width.");
+    if image.height % image.width != 0 {
+        destroy(image);
+        return .{};
+    }
+    
+    image3: Image3;
+    image3.width = image.width;
+    image3.height = image.width;
+    image3.depth = image.height / image.width;
+    image3.format = image.format;
+    image3.pixels = image.pixels;
+
+    return image3;
 }
 
 destroy :: (image: Image3) {

@@ -12,21 +12,8 @@ Texture :: struct {
     data: *u8;
 }
 
-create_texture :: (bytes: [] u8, wrap: TextureWrap = .Clamp, interp: TextureInterp = .Linear, should_upload: bool = true) -> Texture {
-    texture := load_data(bytes);
-    texture.wrap = wrap;
-    texture.interp = interp;
-
-    if texture.data == null {
-        print("Could not load texture.\n");
-        return .{};
-    }
-
-    if should_upload {
-        upload(*texture);
-    }
-
-    return texture;
+load_texture :: (path: string, wrap: TextureWrap = .Clamp, interp: TextureInterp = .Linear, should_upload: bool = true) -> Texture {
+    return create_texture(load_image(path), wrap, interp, should_upload);
 }
 
 create_texture :: (image: Image, wrap: TextureWrap = .Clamp, interp: TextureInterp = .Linear, should_upload: bool = true) -> Texture {
@@ -64,17 +51,6 @@ create_texture :: (width: int, height: int, format: PixelFormat = .RGBA8, wrap: 
     }
 
     return texture;
-}
-
-load_texture :: (path: string, wrap: TextureWrap = .Clamp, interp: TextureInterp = .Linear, should_upload: bool = true) -> Texture {
-    file, success := read_entire_file(path, false);
-    defer free(file);
-
-    bytes: [] u8;
-    bytes.data = file.data;
-    bytes.count = file.count;
-
-    return create_texture(bytes, wrap, interp, should_upload);
 }
 
 upload :: (texture: *Texture) {
@@ -144,7 +120,7 @@ unload :: (texture: *Texture) {
 
 destroy :: (texture: Texture) {
     if texture.data {
-        stbi_image_free(texture.data);
+        free(texture.data);
     }
 
     if texture.buffer {
@@ -317,38 +293,3 @@ draw :: (texture: Texture, position: Vector2, rotation: float = 0, scale: Vector
 
     draw(static_sprite);
 }
-
-#scope_file
-
-load_data :: (data: [] u8) -> Texture {
-    #if WASM {
-        assert(false, "Cannot load raw image data in wasm.");
-        return;
-    }
-
-    texture: Texture;
-    comp: s32;
-    texture.data = stbi_load_from_memory(data.data, xx data.count, *texture.width, *texture.height, *comp, 0);
-    if !texture.data {
-        print("Could not parse texture data.\n");
-        assert(false, "Could not parse texture data.");
-        return .{};
-    }
-    
-    if comp == 1 {
-        texture.format = .R8;
-    } else if comp == 2 {
-        texture.format = .RG8;
-    } else if comp == 3 {
-        texture.format = .RGB8;
-    } else if comp == 4 {
-        texture.format = .RGBA8;
-    } else {
-        assert(false, "Unknown texture comp format.\n");
-    }
-
-    return texture;
-}
-
-#import "Basic";
-#import "File";

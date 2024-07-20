@@ -8,9 +8,7 @@ Image :: struct {
 }
 
 load_image :: (path: string) -> Image {
-    data: string;
-    success: bool;
-    data, success = read_entire_file(path, false);
+    data, success := read_entire_file(path, false);
     defer free(data);
 
     if !success {
@@ -36,14 +34,22 @@ create_image :: (width: int, height: int, format: PixelFormat) -> Image {
     return image;
 }
 
-create_image :: (bytes: [] u8, width: int, height: int, format: PixelFormat) -> Image {
+create_image :: (bytes: [] u8, width: int, height: int, format: PixelFormat, reuse_memory: bool = false) -> Image {
     image: Image;
     image.width = width;
     image.height = height;
     image.format = format;
 
     assert(bytes.count == width * height * get_stride(format), "Incorrect image data.\n");
-    image.pixels = array_copy(bytes);
+    if bytes.count != width * height * get_stride(format) {
+        return .{};
+    }
+    
+    if reuse_memory {
+        image.pixels = bytes;
+    } else {
+        image.pixels = array_copy(bytes);
+    }
     
     return image;
 }
@@ -53,18 +59,21 @@ create_image :: (bytes: [] u8) -> Image {
     comp: s32;
     width: s32;
     height: s32;
+
     // stupid fucking not default allocator shit
     stbi_data := stbi_load_from_memory(bytes.data, xx bytes.count, *width, *height, *comp, 0);
     defer stbi_image_free(stbi_data);
-    image.pixels = NewArray(width * height * comp, u8);
-    memcpy(image.pixels.data, stbi_data, image.pixels.count);
-    image.pixels.count = width * height * comp;
-    image.width = width;
-    image.height = height;
-    if !image.pixels.data {
-        print("Could not parse image data.\n");
+
+    assert(!!stbi_data, "Could not parse image data.\n");
+    if !stbi_data {
         return .{};
     }
+
+    image.pixels = NewArray(width * height * comp, u8);
+    memcpy(image.pixels.data, stbi_data, image.pixels.count);
+    
+    image.width = width;
+    image.height = height;
     
     if comp == 1 {
         image.format = .R8;

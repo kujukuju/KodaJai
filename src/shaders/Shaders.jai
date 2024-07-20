@@ -531,7 +531,7 @@ apply_uniforms :: (shader: *Shader, uniforms: ShaderUniforms, printing: bool = f
 
             // if uniform.name == shader_uniform.name {
                 // TODO this could be improved if I force uniform names to be less than a certain size, and use fixed strings
-                location := glGetUniformLocation(shader.program, temp_c_string(*uniform.name));
+                location := glGetUniformLocation(shader.program, to_c_string(*uniform.name));
                 uniform.location = location;
                 if location == -1 {
                     continue;

@@ -557,7 +557,7 @@ get_texture :: (json: GltfJson, bufferviews: [..] [] u8, texture_index: int, sho
     } else if json_image.bufferView {
         view_index := json_image.bufferView.*;
         buffer_view := bufferviews[view_index];
-        texture = create_texture(buffer_view, wrap, interp, should_upload = should_upload);
+        texture = create_texture(create_image(buffer_view), wrap, interp, should_upload = should_upload);
     } else {
         assert(false, "I think you have to have either an image uri or buffer.");
     }

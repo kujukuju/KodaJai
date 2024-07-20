@@ -35,7 +35,7 @@ operator == :: (a: Model, b: Model) -> bool {
 // this is temporary I guess
 should_bake_material_color_textures := false;
 
-create_model :: (geometry: *Geometry, should_upload: bool = false) -> *Model {
+create_model :: (geometry: *Geometry, should_upload: bool = true) -> *Model {
     model := New(Model);
     model.geometry = geometry;
 
@@ -46,7 +46,7 @@ create_model :: (geometry: *Geometry, should_upload: bool = false) -> *Model {
     return model;
 }
 
-create_model :: (geometry: *Geometry, texture: Texture, should_upload: bool = false) -> *Model {
+create_model :: (geometry: *Geometry, texture: Texture, should_upload: bool = true) -> *Model {
     model := New(Model);
     model.geometry = geometry;
     set(*model.uniforms, "uTexture0", texture);

@@ -1,10 +1,22 @@
+
+
+
+
+
+
+
+
+
+
+
+
 AnimatedModel :: struct {
     model: *Model;
     animations: ModelAnimations;
     // joints: [] Matrix4;
 }
 
-create_animated_model :: (model: *Model, animations: ModelAnimations, joint_count: int) -> *AnimatedModel {
+create_animated_model :: (model: *Model, animations: ModelAnimations) -> *AnimatedModel {
     animated_model := New(AnimatedModel);
     animated_model.model = model;
     animated_model.animations = animations;
