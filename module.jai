@@ -1,5 +1,5 @@
 
-#module_parameters(PRODUCTION := false, WASM := false, VALIDATE_SERIALIZED := true);
+#module_parameters () (PRODUCTION := false, WASM := false, VALIDATE_SERIALIZED := true);
 
 #if WASM {
     core_count :: 8;
@@ -8,7 +8,7 @@
 } else {
     core_count :: #run get_number_of_processors();
 
-    #import "GL";
+    #import "GL"(DUMP_GL_ERRORS = !PRODUCTION, DEFAULT_MSAA = 0);
     #import "stb_image";
     #import "stb_image_write";
 }
@@ -65,6 +65,7 @@
 #load "src/3d/CubemapTexture.jai";
 #load "src/3d/CustomDataLoader.jai";
 #load "src/3d/DecalMath.jai";
+#load "src/3d/DrawCallContainer.jai";
 #load "src/3d/Geometry.jai";
 #load "src/3d/GridGeometry.jai";
 #load "src/3d/Image3.jai";
@@ -129,6 +130,8 @@
 
 #load "src/shadows/ShadowUtilities.jai";
 
+#load "src/utilities/BoundingShapes.jai";
+
 #load "src/CircleAllocator.jai";
 #load "src/Color.jai";
 #load "src/GltfLoader.jai";
@@ -189,6 +192,7 @@ static_sprite: Sprite;
 #import "String";
 #import "Hash_Table";
 #import "File_Utilities";
+#import "File";
 #import "Hash";
 #import "System";
 #import "Random";
@@ -201,6 +205,8 @@ static_sprite: Sprite;
 #import "JaiBoundingTree";
 #import "JaiSerializer";
 #import "JaiParallel";
+#import "BlockAllocatorJai";
+#import "JaiMath";
 
 c_alloc :: (size : u64) -> *void #foreign crt "malloc";
 c_free :: (memory: *void) #foreign crt "free";

@@ -10,11 +10,14 @@ SerializedStructureHash :: struct {
 
 // if you reuse memory you can basically never free it because itll be offset by the hash value
 // checks the hash files against the saved hash to see whether or not the serialized file needs to be updated
-read_serialized :: (serialized_path: string, hash_files: [$N] string, data: *$T, $reuse_memory: bool = false) -> bool {
+read_serialized :: (serialized_path: string, hash_files: [$N] string, data: *$T, $reuse_memory: bool = false) -> bool, *void {
     // TODO maybe use file mod time
     file, success := read_entire_file(serialized_path, log_errors = false);
     #if !reuse_memory {
         defer free(file);
+        memory: *void = null;
+    } else {
+        memory: *void = file.data;
     }
 
     if success {
@@ -23,13 +26,13 @@ read_serialized :: (serialized_path: string, hash_files: [$N] string, data: *$T,
         file_bytes.count = file.count;
 
         if file_bytes.count < size_of(SerializedStructureHash) {
-            return false;
+            return false, memory;
         }
 
         #if VALIDATE_SERIALIZED {
             cache_hash, cache_size, cache_success := get_hash_from_files(hash_files);
             if !cache_success {
-                return false;
+                return false, memory;
             }
 
             serialized_hash := deserialize_hash(file_bytes);
@@ -42,46 +45,46 @@ read_serialized :: (serialized_path: string, hash_files: [$N] string, data: *$T,
                 serializer_read(file_bytes, *serialized, 0, reuse_memory);
                 data.* = serialized.data;
 
-                return true;
+                return true, memory;
             }
         } else {
             serialized: SerializeStructure(T);
             serializer_read(file_bytes, *serialized, 0, reuse_memory);
             data.* = serialized.data;
 
-            return true;
+            return true, memory;
         }
     }
 
     print("Could not read serialized %.\n", serialized_path);
 
-    return false;
+    return false, memory;
 }
 
-load_serialized :: (serialized_path: string, hash_files: [$N] string, fallback: (data: $D) -> $T, fallback_data: D, $reuse_memory: bool = false) -> T, bool {
+load_serialized :: (serialized_path: string, hash_files: [$N] string, fallback: (data: $D) -> $T, fallback_data: D, $reuse_memory: bool = false) -> T, bool, *void {
     data: T;
-    success := read_serialized(serialized_path, hash_files, *data, reuse_memory);
+    success, memory := read_serialized(serialized_path, hash_files, *data, reuse_memory);
 
     if success {
-        return data, true;
+        return data, true, memory;
     }
 
     #if VALIDATE_SERIALIZED {
         data = fallback(fallback_data);
         write_serialized(serialized_path, hash_files, data, reuse_memory);
 
-        return data, true;
+        return data, true, null;
     } else {
-        return data, false;
+        return data, false, memory;
     }
 }
 
-load_serialized :: (serialized_path: string, hash_files: [$N] string, fallback: () -> $T, $reuse_memory: bool = false) -> T, bool {
-    result, success := load_serialized(serialized_path, hash_files, (fallback: () -> T) -> T {
+load_serialized :: (serialized_path: string, hash_files: [$N] string, fallback: () -> $T, $reuse_memory: bool = false) -> T, bool, *void {
+    result, success, memory := load_serialized(serialized_path, hash_files, (fallback: () -> T) -> T {
         return fallback();
     }, fallback, reuse_memory);
 
-    return result, success;
+    return result, success, memory;
 }
 
 write_serialized :: (serialized_path: string, hash_files: [$N] string, data: $T, $reuse_memory: bool = false) {
@@ -97,17 +100,6 @@ write_serialized :: (serialized_path: string, hash_files: [$N] string, data: $T,
     serializer_write(*bytes, serialized, reuse_memory);
 
     write_entire_file(serialized_path, bytes.data, bytes.count);
-}
-
-#scope_file
-
-deserialize_hash :: (bytes: [] u8) -> SerializedStructureHash {
-    index: int;
-
-    hash: SerializedStructureHash;
-    hash = (cast(*SerializedStructureHash) bytes.data).*;
-
-    return hash;
 }
 
 get_hash_from_files :: (hash_files: [$N] string) -> u32, s64, bool {
@@ -138,4 +130,15 @@ get_hash_from_files :: (hash_files: [$N] string) -> u32, s64, bool {
     }
 
     return cache_hash, cache_size, true;
+}
+
+#scope_file
+
+deserialize_hash :: (bytes: [] u8) -> SerializedStructureHash {
+    index: int;
+
+    hash: SerializedStructureHash;
+    hash = (cast(*SerializedStructureHash) bytes.data).*;
+
+    return hash;
 }

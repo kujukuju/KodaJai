@@ -110,11 +110,6 @@ load_remap_animations :: (animations: *ModelAnimations, animation_source: string
         return false;
     }
 
-    // for animation: source_animations.animations {
-    //     print("source animation name %\n", animation.name);
-    //     print("source animation frames %\n", animation.frames);
-    // }
-
     return true;
 }
 

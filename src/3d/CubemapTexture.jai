@@ -7,59 +7,84 @@ CubemapTexture :: struct {
     data: *u8;
 }
 
-// create_cubemap_texture :: (bytes: [] [] u8, wrap: TextureWrap = .Clamp, should_upload: bool = true) -> CubemapTexture {
+create_cubemap_image :: (image: Image) -> Image {
+    cubemap: Image;
 
-// }
+    // if this texture is the cross shape thing we'll fix it
+    if image.width / 4 == image.height / 3 {
+        face_width := image.width / 4;
+        face_height := image.height / 3;
+        stride := get_stride(image.format);
 
-create_cubemap_texture :: (bytes: [] u8, wrap: TextureWrap = .Clamp, should_upload: bool = true) -> CubemapTexture {
-    texture := load_data(bytes);
-    texture.wrap = wrap;
+        image_width := image.width;
 
-    if texture.data == null {
-        print("Could not load texture.\n");
+        cubemap.pixels = NewArray(face_width * face_height * stride * 6, u8);
+        cubemap.width = image.width / 4;
+        cubemap.height = cubemap.width * 6;
+        cubemap.format = image.format;
+
+        texture_data_offset := 0;
+
+        faces :: int.[1, 4, 5, 6, 7, 9];
+
+        for face: faces {
+            face_index_x := face % 4;
+            face_index_y := face / 4;
+
+            for y: 0..face_height - 1 {
+                image_pixel_x := face_index_x * face_width;
+                image_pixel_y := face_index_y * face_height + y;
+
+                image_row_pointer := image.pixels.data + (image_pixel_y * image_width + image_pixel_x) * stride;
+
+                copy_bytes := face_width * stride;
+                memcpy(cubemap.pixels.data + texture_data_offset, image_row_pointer, copy_bytes);
+                texture_data_offset += copy_bytes;
+            }
+        }
+    } else if image.width * 6 == image.height {
+        face_width := image.width / 6;
+        face_height := image.height;
+        stride := get_stride(image.format);
+
+        cubemap.pixels = array_copy(image.pixels);
+        cubemap.width = image.width;
+        cubemap.height = image.height;
+        cubemap.format = image.format;
+    } else {
+        assert(false, "Unknown texture image dimensions. Must either be the cross shape or a strided consecutive memory shape.");
+    }
+
+    return cubemap;
+}
+
+load_cubemap_texture :: (path: string, wrap: TextureWrap = .Clamp, should_upload: bool = true) -> CubemapTexture {
+    return create_cubemap_texture(load_image(path), wrap, should_upload);
+}
+
+create_cubemap_texture :: (image: Image, wrap: TextureWrap = .Clamp, should_upload: bool = true) -> CubemapTexture {
+    if !image.pixels.data {
+        print("Could not create cubemap texture.\n");
         return .{};
     }
+
+    assert(image.width * 6 == image.height, "Invalid cubemap texture dimensions. It must be contiguous memory. You should probably call create_cubemap_image first.\n");
+    if image.width * 6 != image.height {
+        return .{};
+    }
+
+    texture: CubemapTexture;
+    texture.width = cast(s32) image.width;
+    texture.height = cast(s32) image.width;
+    texture.data = image.pixels.data;
+    texture.format = image.format;
+    texture.wrap = wrap;
 
     if should_upload {
         upload(*texture);
     }
 
     return texture;
-}
-
-// create_cubemap_texture :: (image: Image, wrap: TextureWrap = .Clamp, should_upload: bool = true) -> CubemapTexture {
-//     if !image.pixels.data {
-//         print("Could not create cubemap texture.\n");
-//         return .{};
-//     }
-
-//     assert(image.width % 4 == 0, "The width must be divisible by 4 for a cubemap if providing a single image.");
-//     assert(image.height % 3 == 0, "The height must be divisible by 3 for a cubemap if providing a single image.");
-
-//     texture: CubemapTexture;
-//     texture.data = image.pixels.data;
-//     its not this simple
-//     texture.width = xx image.width / 4;
-//     texture.height = xx image.height / 3;
-//     texture.format = image.format;
-//     texture.wrap = wrap;
-
-//     if should_upload {
-//         upload(*texture);
-//     }
-
-//     return texture;
-// }
-
-load_cubemap_texture :: (path: string, wrap: TextureWrap = .Clamp, should_upload: bool = true) -> CubemapTexture {
-    file, success := read_entire_file(path, false);
-    defer free(file);
-
-    bytes: [] u8;
-    bytes.data = file.data;
-    bytes.count = file.count;
-
-    return create_cubemap_texture(bytes, wrap, should_upload);
 }
 
 upload :: (texture: *CubemapTexture) {
@@ -139,77 +164,3 @@ destroy :: (texture: CubemapTexture) {
         glDeleteTextures(1, *texture.buffer);
     }
 }
-
-#scope_file
-
-load_data :: (data: [] u8) -> CubemapTexture {
-    texture: CubemapTexture;
-    comp: s32;
-    image_data: *u8 = stbi_load_from_memory(data.data, xx data.count, *texture.width, *texture.height, *comp, 0);
-    defer stbi_image_free(image_data);
-    if !image_data {
-        print("Could not parse texture data.\n");
-        assert(false, "Could not parse texture data.");
-        return .{};
-    }
-    
-    if comp == 1 {
-        texture.format = .R8;
-    } else if comp == 2 {
-        texture.format = .RG8;
-    } else if comp == 3 {
-        texture.format = .RGB8;
-    } else if comp == 4 {
-        texture.format = .RGBA8;
-    }
-
-    // if this texture is the cross shape thing we'll fix it
-    if texture.width / 4 == texture.height / 3 {
-        face_width := texture.width / 4;
-        face_height := texture.height / 3;
-        stride := get_stride(texture.format);
-
-        image_width := texture.width;
-
-        texture.data = alloc(face_width * face_height * stride * 6);
-        texture.width = texture.width / 4;
-        texture.height = texture.height / 3;
-
-        texture_data_offset := 0;
-
-        faces :: int.[1, 4, 5, 6, 7, 9];
-
-        for face: faces {
-            face_index_x := face % 4;
-            face_index_y := face / 4;
-
-            for y: 0..face_height - 1 {
-                image_pixel_x := face_index_x * face_width;
-                image_pixel_y := face_index_y * face_height + y;
-
-                image_row_pointer := image_data + (image_pixel_y * image_width + image_pixel_x) * stride;
-
-                copy_bytes := face_width * stride;
-                memcpy(texture.data + texture_data_offset, image_row_pointer, copy_bytes);
-                texture_data_offset += copy_bytes;
-            }
-        }
-    } else if texture.width / 6 == texture.height {
-        face_width := texture.width / 6;
-        face_height := texture.height;
-        stride := get_stride(texture.format);
-
-        texture.data = alloc(face_width * face_height * stride * 6);
-        texture.width = texture.width / 6;
-
-        // have to alloc and memcpy unfortunately because stbi uses the c allocator and this uses the normal allocator womp womp very stupid
-        memcpy(texture.data, image_data, face_width * face_height * stride * 6);
-    } else {
-        assert(false, "Unknown texture image dimensions. Must either be the cross shape or a strided consecutive memory shape.");
-    }
-
-    return texture;
-}
-
-#import "Basic";
-#import "File";

@@ -134,6 +134,13 @@ create_image :: (texture: Texture) -> Image {
     return new;
 }
 
+copy_image :: (image: Image) -> Image {
+    new := image;
+    new.pixels = array_copy(image.pixels);
+
+    return new;
+}
+
 destroy :: (image: Image) {
     array_free(image.pixels);
 }

@@ -121,7 +121,7 @@ load_models :: (path: string, should_upload: bool = true) -> [..] *Model, [..] *
 upload :: (model: *Model) {
     upload(model.geometry);
 
-    for *uniform: model.uniforms.uniforms {
+    for *uniform: model.uniforms {
         if uniform.type == .Texture {
             upload(*uniform.texture);
         } else if uniform.type == .Texture3 {
@@ -134,7 +134,7 @@ unload :: (model: *Model) {
     unload(model.geometry);
 
     // TODO This is bad bc it doesnt force me to expand the list per uniform
-    for *uniform: model.uniforms.uniforms {
+    for *uniform: model.uniforms {
         if uniform.type == .Texture {
             unload(*uniform.texture);
         } else if uniform.type == .Texture3 {
@@ -175,6 +175,19 @@ get_aabb :: (model: Model) -> AABB3 {
     aabb := model.geometry.aabb;
 
     return transform_aabb(get_transform(model), aabb);
+}
+
+get_local_aabb :: (model: Model) -> AABB3 {
+    return model.geometry.aabb;
+}
+
+get_bounding_sphere :: (model: Model) -> Sphere {
+    sphere := model.geometry.bounding_sphere;
+
+    sphere.center = transform_point(get_transform(model), sphere.center);
+    sphere.radius *= max(model.scale.x, model.scale.y, model.scale.z);
+
+    return sphere;
 }
 
 ModelVertices :: struct {
@@ -288,7 +301,7 @@ merge_by_material_id :: (models: [] *Model, should_upload: bool = true) -> [..] 
             if models[0].name {
                 created.name = copy_string(models[0].name);
             }
-            array_copy(*created.uniforms.uniforms, models[0].uniforms.uniforms);
+            created.uniforms = copy(models[0].uniforms);
             for property: models[0].properties {
                 array_add(*created.properties, .[copy_string(property[0]), copy_string(property[1])]);
             }
@@ -372,7 +385,7 @@ merge_by_material_id :: (models: [] *Model, should_upload: bool = true) -> [..] 
         if models[0].name {
             created.name = copy_string(models[0].name);
         }
-        array_copy(*created.uniforms.uniforms, models[0].uniforms.uniforms);
+        created.uniforms = copy(models[0].uniforms);
         for property: models[0].properties {
             array_add(*created.properties, .[copy_string(property[0]), copy_string(property[1])]);
         }

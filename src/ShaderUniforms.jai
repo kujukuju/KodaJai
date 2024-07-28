@@ -1,3 +1,6 @@
+
+UNIFORM_LENGTH :: 32;
+
 ShaderUniformType :: enum {
     Float1;
     Float1N;
@@ -36,7 +39,7 @@ ShaderUniformType :: enum {
 }
 
 ShaderUniform :: struct {
-    name: FixedString(64);
+    name: FixedString(UNIFORM_LENGTH);
     ownership: bool = true;
     type: ShaderUniformType;
     location: s32;
@@ -79,29 +82,59 @@ ShaderUniform :: struct {
 }
 
 ShaderUniforms :: struct {
+    fixed: [16] ShaderUniform = ---;
+    fixed_count: int;
     uniforms: [..] ShaderUniform;
 }
 
+
+for_expansion :: (uniforms: *ShaderUniforms, body: Code, flags: For_Flags) #expand {
+    #assert(!(flags & .REVERSE));
+
+    for i: 0..get_count(uniforms) - 1 {
+        #if flags & .POINTER {
+            `it: *ShaderUniform = *(uniforms.*[i]);
+        } else {
+            `it: ShaderUniform = uniforms.*[i];
+        }
+
+        `it_index := i;
+
+        #insert body;
+    }
+}
+
+operator [] :: (uniforms: ShaderUniforms, index: int) -> ShaderUniform {
+    if uniforms.uniforms.data {
+        return uniforms.uniforms[index];
+    } else {
+        return uniforms.fixed[index];
+    }
+}
+
+operator *[] :: (uniforms: *ShaderUniforms, index: int) -> *ShaderUniform {
+    if uniforms.uniforms.data {
+        return *uniforms.uniforms[index];
+    } else {
+        return *uniforms.fixed[index];
+    }
+}
+
 equals :: (a: ShaderUniforms, b: ShaderUniforms) -> bool {
-    if a.uniforms.count != b.uniforms.count {
+    if get_count(a) != get_count(b) {
         return false;
     }
 
-    for i: 0..a.uniforms.count - 1 {
-        if a.uniforms[i].name != b.uniforms[i].name {
-            return false;
-        }
-        
-        a_data: ShaderUniform;
-        b_data: ShaderUniform;
-        memcpy(*a_data, *a.uniforms[i], size_of(ShaderUniform));
-        memcpy(*b_data, *b.uniforms[i], size_of(ShaderUniform));
-        a_data.name = .{};
-        b_data.name = .{};
-        a_data.location = 0;
-        b_data.location = 0;
+    for i: 0..get_count(a) - 1 {
+        a_copy := a[i];
+        a_copy.ownership = false;
+        a_copy.location = 0;
 
-        if memcmp(*a_data, *b_data, size_of(ShaderUniform)) != 0 {
+        b_copy := b[i];
+        b_copy.ownership = false;
+        b_copy.location = 0;
+
+        if memcmp(*a_copy, *b_copy, size_of(ShaderUniform)) != 0 {
             return false;
         }
     }
@@ -109,13 +142,33 @@ equals :: (a: ShaderUniforms, b: ShaderUniforms) -> bool {
     return true;
 }
 
-operator == :: (a: ShaderUniforms, b: ShaderUniforms) -> bool {
-    return a.uniforms.data == b.uniforms.data;
+get_count :: (uniforms: ShaderUniforms) -> int {
+    if uniforms.uniforms.data {
+        return uniforms.uniforms.count;
+    }
+    return uniforms.fixed_count;
 }
 
-get :: (uniforms: ShaderUniforms, name: string) -> *ShaderUniform {
-    for *uniform: uniforms.uniforms {
-        if to_string(*uniform.name) == name {
+copy :: (uniforms: ShaderUniforms) -> ShaderUniforms {
+    copied: ShaderUniforms;
+
+    if uniforms.uniforms.data {
+        array_copy(*copied.uniforms, uniforms.uniforms);
+    } else {
+        copied.fixed = uniforms.fixed;
+        copied.fixed_count = uniforms.fixed_count;
+    }
+
+    return copied;
+}
+
+// operator == :: (a: ShaderUniforms, b: ShaderUniforms) -> bool {
+//     return a.uniforms.data == b.uniforms.data;
+// }
+
+get :: (uniforms: *ShaderUniforms, name: FixedString(UNIFORM_LENGTH)) -> *ShaderUniform {
+    for *uniform: uniforms {
+        if uniform.name == name {
             return uniform;
         }
     }
@@ -123,66 +176,53 @@ get :: (uniforms: ShaderUniforms, name: string) -> *ShaderUniform {
     return null;
 }
 
-get :: (uniforms: ShaderUniforms, name: FixedString(64)) -> *ShaderUniform {
-    return get(uniforms, to_string(*name));
+get :: (uniforms: *ShaderUniforms, name: string) -> *ShaderUniform {
+    assert(name.count <= UNIFORM_LENGTH, "Cannot have uniforms with more than % characters.\n", UNIFORM_LENGTH);
+    for *uniform: uniforms {
+        if uniform.name == name {
+            return uniform;
+        }
+    }
+    
+    return null;
 }
 
-set :: (uniforms: *ShaderUniforms, name: string, created: ShaderUniform) {
-    for i: 0..uniforms.uniforms.count - 1 {
-        if to_string(*uniforms.uniforms[i].name) == name {
-            if uniforms.uniforms[i].ownership {
-                destroy(uniforms.uniforms[i]);
+set :: (uniforms: *ShaderUniforms, created: ShaderUniform) {
+    for i: 0..get_count(uniforms) - 1 {
+        if uniforms.*[i].name == created.name {
+            if uniforms.*[i].ownership {
+                destroy(uniforms.*[i]);
             }
-            uniforms.uniforms[i] = created;
+            uniforms.*[i] = created;
             return;
         }
     }
 
-    array_add(*uniforms.uniforms, created);
+    if uniforms.uniforms.data {
+        array_add(*uniforms.uniforms, created);
+    } else if uniforms.fixed_count == uniforms.fixed.count {
+        array_reserve(*uniforms.uniforms, uniforms.fixed.count * 2);
+        array_add(*uniforms.uniforms, ..uniforms.fixed);
+        array_add(*uniforms.uniforms, created);
+    } else {
+        uniforms.fixed[uniforms.fixed_count] = created;
+        uniforms.fixed_count += 1;
+    }
 }
 
 set :: (uniforms: *ShaderUniforms, name: string, value: $T) {
+    assert(name.count <= UNIFORM_LENGTH, "Cannot have uniforms with more than % characters.\n", UNIFORM_LENGTH);
+    set(uniforms, create_fixed_string(name, UNIFORM_LENGTH), value);
+}
+
+set :: (uniforms: *ShaderUniforms, name: FixedString(UNIFORM_LENGTH), value: $T) {
     created := create_uniform(name, value);
-    set(uniforms, name, created);
+    set(uniforms, created);
 }
-
-set :: (uniforms: *ShaderUniforms, name: FixedString(64), value: $T) {
-    set(uniforms, to_string(*name), value);
-}
-
-// operator [] :: (uniforms: ShaderUniforms, name: *u8) -> *ShaderUniform {
-//     name_string := to_string(name);
-
-//     for *uniform: uniforms.uniforms {
-//         if to_string(uniform.name) == name_string {
-//             return uniform;
-//         }
-//     }
-
-//     return null;
-// }
-
-// TODO can optimize this by set_or_create method that won't delete memory, for example for animation
-
-// operator *[] :: (uniforms: *ShaderUniforms, name: *u8) -> *ShaderUniform {
-//     name_string := to_string(name);
-
-//     for i: 0..uniforms.uniforms.count - 1 {
-//         if to_string(uniforms.uniforms[i].name) == name_string {
-//             if uniforms.uniforms[i].ownership {
-//                 destroy(uniforms.uniforms[i]);
-//             }
-//             return *uniforms.uniforms[i];
-            
-//         }
-//     }
-
-//     return array_add(*uniforms.uniforms);
-// }
 
 has_uniform :: (uniforms: ShaderUniforms, name: string) -> bool {
-    for i: 0..uniforms.uniforms.count - 1 {
-        if to_string(*uniforms.uniforms[i].name) == name {
+    for i: 0..get_count(uniforms) - 1 {
+        if to_string(*uniforms[i].name) == name {
             return true;
         }
     }
@@ -190,147 +230,149 @@ has_uniform :: (uniforms: ShaderUniforms, name: string) -> bool {
     return false;
 }
 
-// is there a use case for non compile time uniform names?
+create_uniform :: (name: string, value: $T) -> ShaderUniform {
+    return create_uniform(create_fixed_string(name, UNIFORM_LENGTH), value);
+}
 
-create_uniform :: (name: string, value: float) -> ShaderUniform {
+create_uniform :: (name: FixedString(UNIFORM_LENGTH), value: float) -> ShaderUniform {
     uniform: ShaderUniform;
-    uniform.name = create_fixed_string(name, 64);
+    uniform.name = name;
     uniform.type = .Float1;
     uniform.float1 = value;
     return uniform;
 }
 
-create_uniform :: (name: string, value: [] float) -> ShaderUniform {
+create_uniform :: (name: FixedString(UNIFORM_LENGTH), value: [] float) -> ShaderUniform {
     uniform: ShaderUniform;
-    uniform.name = create_fixed_string(name, 64);
+    uniform.name = name;
     uniform.type = .Float1N;
     uniform.float1n = array_copy(value);
     return uniform;
 }
 
-create_uniform :: (name: string, value: [2] float) -> ShaderUniform {
+create_uniform :: (name: FixedString(UNIFORM_LENGTH), value: [2] float) -> ShaderUniform {
     uniform: ShaderUniform;
-    uniform.name = create_fixed_string(name, 64);
+    uniform.name = name;
     uniform.type = .Float2;
     uniform.float2 = value;
     return uniform;
 }
 
-create_uniform :: (name: string, value: [] [2] float) -> ShaderUniform {
+create_uniform :: (name: FixedString(UNIFORM_LENGTH), value: [] [2] float) -> ShaderUniform {
     uniform: ShaderUniform;
-    uniform.name = create_fixed_string(name, 64);
+    uniform.name = name;
     uniform.type = .Float2N;
     uniform.float2n = array_copy(value);
     return uniform;
 }
 
-create_uniform :: (name: string, value: Vector2) -> ShaderUniform {
+create_uniform :: (name: FixedString(UNIFORM_LENGTH), value: Vector2) -> ShaderUniform {
     uniform: ShaderUniform;
-    uniform.name = create_fixed_string(name, 64);
+    uniform.name = name;
     uniform.type = .Float2;
     uniform.float2 = value.component;
     return uniform;
 }
 
-create_uniform :: (name: string, value: [] Vector2) -> ShaderUniform {
+create_uniform :: (name: FixedString(UNIFORM_LENGTH), value: [] Vector2) -> ShaderUniform {
     uniform: ShaderUniform;
-    uniform.name = create_fixed_string(name, 64);
+    uniform.name = name;
     uniform.type = .Float2N;
     uniform.float2n = array_copy_memory(value, [2] float);
     return uniform;
 }
 
-create_uniform :: (name: string, value: Vector3) -> ShaderUniform {
+create_uniform :: (name: FixedString(UNIFORM_LENGTH), value: Vector3) -> ShaderUniform {
     uniform: ShaderUniform;
-    uniform.name = create_fixed_string(name, 64);
+    uniform.name = name;
     uniform.type = .Float3;
     uniform.float3 = value.component;
     return uniform;
 }
 
-create_uniform :: (name: string, value: [] Vector3) -> ShaderUniform {
+create_uniform :: (name: FixedString(UNIFORM_LENGTH), value: [] Vector3) -> ShaderUniform {
     uniform: ShaderUniform;
-    uniform.name = create_fixed_string(name, 64);
+    uniform.name = name;
     uniform.type = .Float3N;
     uniform.float3n = array_copy_memory(value, [3] float);
     return uniform;
 }
 
-create_uniform :: (name: string, value: [3] float) -> ShaderUniform {
+create_uniform :: (name: FixedString(UNIFORM_LENGTH), value: [3] float) -> ShaderUniform {
     uniform: ShaderUniform;
-    uniform.name = create_fixed_string(name, 64);
+    uniform.name = name;
     uniform.type = .Float3;
     uniform.float3 = value;
     return uniform;
 }
 
-create_uniform :: (name: string, value: [] [3] float) -> ShaderUniform {
+create_uniform :: (name: FixedString(UNIFORM_LENGTH), value: [] [3] float) -> ShaderUniform {
     uniform: ShaderUniform;
-    uniform.name = create_fixed_string(name, 64);
+    uniform.name = name;
     uniform.type = .Float3N;
     uniform.float3n = array_copy(value);
     return uniform;
 }
 
-create_uniform :: (name: string, value: Vector4) -> ShaderUniform {
+create_uniform :: (name: FixedString(UNIFORM_LENGTH), value: Vector4) -> ShaderUniform {
     uniform: ShaderUniform;
-    uniform.name = create_fixed_string(name, 64);
+    uniform.name = name;
     uniform.type = .Float4;
     uniform.float4 = value.component;
     return uniform;
 }
 
-create_uniform :: (name: string, value: [] Vector4) -> ShaderUniform {
+create_uniform :: (name: FixedString(UNIFORM_LENGTH), value: [] Vector4) -> ShaderUniform {
     uniform: ShaderUniform;
-    uniform.name = create_fixed_string(name, 64);
+    uniform.name = name;
     uniform.type = .Float4N;
     uniform.float4n = array_copy_memory(value, [4] float);
     return uniform;
 }
 
-create_uniform :: (name: string, value: Color) -> ShaderUniform {
+create_uniform :: (name: FixedString(UNIFORM_LENGTH), value: Color) -> ShaderUniform {
     uniform: ShaderUniform;
-    uniform.name = create_fixed_string(name, 64);
+    uniform.name = name;
     uniform.type = .Float4;
     uniform.float4 = value.component;
     return uniform;
 }
 
-create_uniform :: (name: string, value: [] Color) -> ShaderUniform {
+create_uniform :: (name: FixedString(UNIFORM_LENGTH), value: [] Color) -> ShaderUniform {
     uniform: ShaderUniform;
-    uniform.name = create_fixed_string(name, 64);
+    uniform.name = name;
     uniform.type = .Float4N;
     uniform.float4n = array_copy_memory(value, [4] float);
     return uniform;
 }
 
-create_uniform :: (name: string, value: [4] float) -> ShaderUniform {
+create_uniform :: (name: FixedString(UNIFORM_LENGTH), value: [4] float) -> ShaderUniform {
     uniform: ShaderUniform;
-    uniform.name = create_fixed_string(name, 64);
+    uniform.name = name;
     uniform.type = .Float4;
     uniform.float4 = value;
     return uniform;
 }
 
-create_uniform :: (name: string, value: [] [4] float) -> ShaderUniform {
+create_uniform :: (name: FixedString(UNIFORM_LENGTH), value: [] [4] float) -> ShaderUniform {
     uniform: ShaderUniform;
-    uniform.name = create_fixed_string(name, 64);
+    uniform.name = name;
     uniform.type = .Float4N;
     uniform.float4n = array_copy(value);
     return uniform;
 }
 
-create_uniform :: (name: string, value: s64) -> ShaderUniform {
+create_uniform :: (name: FixedString(UNIFORM_LENGTH), value: s64) -> ShaderUniform {
     uniform: ShaderUniform;
-    uniform.name = create_fixed_string(name, 64);
+    uniform.name = name;
     uniform.type = .Int1;
     uniform.int1 = xx value;
     return uniform;
 }
 
-create_uniform :: (name: string, value: [] s64) -> ShaderUniform {
+create_uniform :: (name: FixedString(UNIFORM_LENGTH), value: [] s64) -> ShaderUniform {
     uniform: ShaderUniform;
-    uniform.name = create_fixed_string(name, 64);
+    uniform.name = name;
     uniform.type = .Int1N;
     uniform.int1n = NewArray(value.count, s32, initialized = false);
     for i: 0..uniform.int1n.count - 1 {
@@ -339,34 +381,34 @@ create_uniform :: (name: string, value: [] s64) -> ShaderUniform {
     return uniform;
 }
 
-create_uniform :: (name: string, value: s32) -> ShaderUniform {
+create_uniform :: (name: FixedString(UNIFORM_LENGTH), value: s32) -> ShaderUniform {
     uniform: ShaderUniform;
-    uniform.name = create_fixed_string(name, 64);
+    uniform.name = name;
     uniform.type = .Int1;
     uniform.int1 = value;
     return uniform;
 }
 
-create_uniform :: (name: string, value: [] s32) -> ShaderUniform {
+create_uniform :: (name: FixedString(UNIFORM_LENGTH), value: [] s32) -> ShaderUniform {
     uniform: ShaderUniform;
-    uniform.name = create_fixed_string(name, 64);
+    uniform.name = name;
     uniform.type = .Int1N;
     uniform.int1n = array_copy(value);
     return uniform;
 }
 
-create_uniform :: (name: string, value: Point2) -> ShaderUniform {
+create_uniform :: (name: FixedString(UNIFORM_LENGTH), value: Point2) -> ShaderUniform {
     uniform: ShaderUniform;
-    uniform.name = create_fixed_string(name, 64);
+    uniform.name = name;
     uniform.type = .Int2;
     uniform.int2[0] = xx value.x;
     uniform.int2[1] = xx value.y;
     return uniform;
 }
 
-create_uniform :: (name: string, value: [] Point2) -> ShaderUniform {
+create_uniform :: (name: FixedString(UNIFORM_LENGTH), value: [] Point2) -> ShaderUniform {
     uniform: ShaderUniform;
-    uniform.name = create_fixed_string(name, 64);
+    uniform.name = name;
     uniform.type = .Int2N;
     uniform.int2n = NewArray(value.count, [2] s32, initialized = false);
     for i: 0..uniform.int2n.count - 1 {
@@ -376,18 +418,18 @@ create_uniform :: (name: string, value: [] Point2) -> ShaderUniform {
     return uniform;
 }
 
-create_uniform :: (name: string, value: [2] s64) -> ShaderUniform {
+create_uniform :: (name: FixedString(UNIFORM_LENGTH), value: [2] s64) -> ShaderUniform {
     uniform: ShaderUniform;
-    uniform.name = create_fixed_string(name, 64);
+    uniform.name = name;
     uniform.type = .Int2;
     uniform.int2[0] = xx value[0];
     uniform.int2[1] = xx value[1];
     return uniform;
 }
 
-create_uniform :: (name: string, value: [] [2] s64) -> ShaderUniform {
+create_uniform :: (name: FixedString(UNIFORM_LENGTH), value: [] [2] s64) -> ShaderUniform {
     uniform: ShaderUniform;
-    uniform.name = create_fixed_string(name, 64);
+    uniform.name = name;
     uniform.type = .Int2N;
     uniform.int2n = NewArray(value.count, [2] s32, initialized = false);
     for i: 0..uniform.int2n.count - 1 {
@@ -398,17 +440,17 @@ create_uniform :: (name: string, value: [] [2] s64) -> ShaderUniform {
     return uniform;
 }
 
-create_uniform :: (name: string, value: [2] s32) -> ShaderUniform {
+create_uniform :: (name: FixedString(UNIFORM_LENGTH), value: [2] s32) -> ShaderUniform {
     uniform: ShaderUniform;
-    uniform.name = create_fixed_string(name, 64);
+    uniform.name = name;
     uniform.type = .Int2;
     uniform.int2 = value;
     return uniform;
 }
 
-create_uniform :: (name: string, value: [] [2] s32) -> ShaderUniform {
+create_uniform :: (name: FixedString(UNIFORM_LENGTH), value: [] [2] s32) -> ShaderUniform {
     uniform: ShaderUniform;
-    uniform.name = create_fixed_string(name, 64);
+    uniform.name = name;
     uniform.type = .Int2N;
     uniform.int2n = array_copy(value);
     return uniform;
@@ -416,7 +458,7 @@ create_uniform :: (name: string, value: [] [2] s32) -> ShaderUniform {
 
 create_uniform :: (name: string, value: Point3) -> ShaderUniform {
     uniform: ShaderUniform;
-    uniform.name = create_fixed_string(name, 64);
+    uniform.name = name;
     uniform.type = .Int3;
     uniform.int3[0] = xx value.x;
     uniform.int3[1] = xx value.y;
@@ -424,9 +466,9 @@ create_uniform :: (name: string, value: Point3) -> ShaderUniform {
     return uniform;
 }
 
-create_uniform :: (name: string, value: [] Point3) -> ShaderUniform {
+create_uniform :: (name: FixedString(UNIFORM_LENGTH), value: [] Point3) -> ShaderUniform {
     uniform: ShaderUniform;
-    uniform.name = create_fixed_string(name, 64);
+    uniform.name = name;
     uniform.type = .Int3N;
     uniform.int3n = NewArray(value.count, [3] s32, initialized = false);
     for i: 0..uniform.int3n.count - 1 {
@@ -437,9 +479,9 @@ create_uniform :: (name: string, value: [] Point3) -> ShaderUniform {
     return uniform;
 }
 
-create_uniform :: (name: string, value: [3] s64) -> ShaderUniform {
+create_uniform :: (name: FixedString(UNIFORM_LENGTH), value: [3] s64) -> ShaderUniform {
     uniform: ShaderUniform;
-    uniform.name = create_fixed_string(name, 64);
+    uniform.name = name;
     uniform.type = .Int3;
     uniform.int3[0] = xx value[0];
     uniform.int3[1] = xx value[1];
@@ -447,9 +489,9 @@ create_uniform :: (name: string, value: [3] s64) -> ShaderUniform {
     return uniform;
 }
 
-create_uniform :: (name: string, value: [] [3] s64) -> ShaderUniform {
+create_uniform :: (name: FixedString(UNIFORM_LENGTH), value: [] [3] s64) -> ShaderUniform {
     uniform: ShaderUniform;
-    uniform.name = create_fixed_string(name, 64);
+    uniform.name = name;
     uniform.type = .Int3N;
     uniform.int3n = NewArray(value.count, [3] s32, initialized = false);
     for i: 0..uniform.int3n.count - 1 {
@@ -460,33 +502,33 @@ create_uniform :: (name: string, value: [] [3] s64) -> ShaderUniform {
     return uniform;
 }
 
-create_uniform :: (name: string, value: [3] s32) -> ShaderUniform {
+create_uniform :: (name: FixedString(UNIFORM_LENGTH), value: [3] s32) -> ShaderUniform {
     uniform: ShaderUniform;
-    uniform.name = create_fixed_string(name, 64);
+    uniform.name = name;
     uniform.type = .Int3;
     uniform.int3 = value;
     return uniform;
 }
 
-create_uniform :: (name: string, value: [] [3] s32) -> ShaderUniform {
+create_uniform :: (name: FixedString(UNIFORM_LENGTH), value: [] [3] s32) -> ShaderUniform {
     uniform: ShaderUniform;
-    uniform.name = create_fixed_string(name, 64);
+    uniform.name = name;
     uniform.type = .Int3N;
     uniform.int3n = array_copy(value);
     return uniform;
 }
 
-create_uniform :: (name: string, value: Point4) -> ShaderUniform {
+create_uniform :: (name: FixedString(UNIFORM_LENGTH), value: Point4) -> ShaderUniform {
     uniform: ShaderUniform;
-    uniform.name = create_fixed_string(name, 64);
+    uniform.name = name;
     uniform.type = .Int4;
     uniform.int4 = value.component;
     return uniform;
 }
 
-create_uniform :: (name: string, value: [] Point4) -> ShaderUniform {
+create_uniform :: (name: FixedString(UNIFORM_LENGTH), value: [] Point4) -> ShaderUniform {
     uniform: ShaderUniform;
-    uniform.name = create_fixed_string(name, 64);
+    uniform.name = name;
     uniform.type = .Int4N;
     uniform.int4n = NewArray(value.count, [4] s32, initialized = false);
     for i: 0..uniform.int4n.count - 1 {
@@ -498,9 +540,9 @@ create_uniform :: (name: string, value: [] Point4) -> ShaderUniform {
     return uniform;
 }
 
-create_uniform :: (name: string, value: [4] s64) -> ShaderUniform {
+create_uniform :: (name: FixedString(UNIFORM_LENGTH), value: [4] s64) -> ShaderUniform {
     uniform: ShaderUniform;
-    uniform.name = create_fixed_string(name, 64);
+    uniform.name = name;
     uniform.type = .Int4;
     uniform.int4[0] = xx value[0];
     uniform.int4[1] = xx value[1];
@@ -509,9 +551,9 @@ create_uniform :: (name: string, value: [4] s64) -> ShaderUniform {
     return uniform;
 }
 
-create_uniform :: (name: string, value: [] [4] s64) -> ShaderUniform {
+create_uniform :: (name: FixedString(UNIFORM_LENGTH), value: [] [4] s64) -> ShaderUniform {
     uniform: ShaderUniform;
-    uniform.name = create_fixed_string(name, 64);
+    uniform.name = name;
     uniform.type = .Int4N;
     uniform.int4n = NewArray(value.count, [4] s32, initialized = false);
     for i: 0..uniform.int4n.count - 1 {
@@ -523,33 +565,33 @@ create_uniform :: (name: string, value: [] [4] s64) -> ShaderUniform {
     return uniform;
 }
 
-create_uniform :: (name: string, value: [4] s32) -> ShaderUniform {
+create_uniform :: (name: FixedString(UNIFORM_LENGTH), value: [4] s32) -> ShaderUniform {
     uniform: ShaderUniform;
-    uniform.name = create_fixed_string(name, 64);
+    uniform.name = name;
     uniform.type = .Int4;
     uniform.int4 = value;
     return uniform;
 }
 
-create_uniform :: (name: string, value: [] [4] s32) -> ShaderUniform {
+create_uniform :: (name: FixedString(UNIFORM_LENGTH), value: [] [4] s32) -> ShaderUniform {
     uniform: ShaderUniform;
-    uniform.name = create_fixed_string(name, 64);
+    uniform.name = name;
     uniform.type = .Int4N;
     uniform.int4n = array_copy(value);
     return uniform;
 }
 
-create_uniform :: (name: string, value: u64) -> ShaderUniform {
+create_uniform :: (name: FixedString(UNIFORM_LENGTH), value: u64) -> ShaderUniform {
     uniform: ShaderUniform;
-    uniform.name = create_fixed_string(name, 64);
+    uniform.name = name;
     uniform.type = .UInt1;
     uniform.uint1 = xx value;
     return uniform;
 }
 
-create_uniform :: (name: string, value: [] u64) -> ShaderUniform {
+create_uniform :: (name: FixedString(UNIFORM_LENGTH), value: [] u64) -> ShaderUniform {
     uniform: ShaderUniform;
-    uniform.name = create_fixed_string(name, 64);
+    uniform.name = name;
     uniform.type = .UInt1N;
     uniform.uint1n = NewArray(value.count, u32, initialized = false);
     for i: 0..uniform.uint1n.count - 1 {
@@ -558,34 +600,34 @@ create_uniform :: (name: string, value: [] u64) -> ShaderUniform {
     return uniform;
 }
 
-create_uniform :: (name: string, value: u32) -> ShaderUniform {
+create_uniform :: (name: FixedString(UNIFORM_LENGTH), value: u32) -> ShaderUniform {
     uniform: ShaderUniform;
-    uniform.name = create_fixed_string(name, 64);
+    uniform.name = name;
     uniform.type = .UInt1;
     uniform.uint1 = value;
     return uniform;
 }
 
-create_uniform :: (name: string, value: [] u32) -> ShaderUniform {
+create_uniform :: (name: FixedString(UNIFORM_LENGTH), value: [] u32) -> ShaderUniform {
     uniform: ShaderUniform;
-    uniform.name = create_fixed_string(name, 64);
+    uniform.name = name;
     uniform.type = .UInt1N;
     uniform.uint1n = array_copy(value);
     return uniform;
 }
 
-create_uniform :: (name: string, value: [2] u64) -> ShaderUniform {
+create_uniform :: (name: FixedString(UNIFORM_LENGTH), value: [2] u64) -> ShaderUniform {
     uniform: ShaderUniform;
-    uniform.name = create_fixed_string(name, 64);
+    uniform.name = name;
     uniform.type = .UInt2;
     uniform.uint2[0] = xx value[0];
     uniform.uint2[1] = xx value[1];
     return uniform;
 }
 
-create_uniform :: (name: string, value: [] [2] u64) -> ShaderUniform {
+create_uniform :: (name: FixedString(UNIFORM_LENGTH), value: [] [2] u64) -> ShaderUniform {
     uniform: ShaderUniform;
-    uniform.name = create_fixed_string(name, 64);
+    uniform.name = name;
     uniform.type = .UInt2N;
     uniform.uint2n = NewArray(value.count, u32, initialized = false);
     for i: 0..uniform.uint2n.count - 1 {
@@ -595,25 +637,25 @@ create_uniform :: (name: string, value: [] [2] u64) -> ShaderUniform {
     return uniform;
 }
 
-create_uniform :: (name: string, value: [2] u32) -> ShaderUniform {
+create_uniform :: (name: FixedString(UNIFORM_LENGTH), value: [2] u32) -> ShaderUniform {
     uniform: ShaderUniform;
-    uniform.name = create_fixed_string(name, 64);
+    uniform.name = name;
     uniform.type = .UInt2;
     uniform.uint2 = value;
     return uniform;
 }
 
-create_uniform :: (name: string, value: [] [2] u32) -> ShaderUniform {
+create_uniform :: (name: FixedString(UNIFORM_LENGTH), value: [] [2] u32) -> ShaderUniform {
     uniform: ShaderUniform;
-    uniform.name = create_fixed_string(name, 64);
+    uniform.name = name;
     uniform.type = .UInt2N;
     uniform.uint2n = array_copy(value);
     return uniform;
 }
 
-create_uniform :: (name: string, value: [3] u64) -> ShaderUniform {
+create_uniform :: (name: FixedString(UNIFORM_LENGTH), value: [3] u64) -> ShaderUniform {
     uniform: ShaderUniform;
-    uniform.name = create_fixed_string(name, 64);
+    uniform.name = name;
     uniform.type = .UInt3;
     uniform.uint3[0] = xx value[0];
     uniform.uint3[1] = xx value[1];
@@ -621,9 +663,9 @@ create_uniform :: (name: string, value: [3] u64) -> ShaderUniform {
     return uniform;
 }
 
-create_uniform :: (name: string, value: [] [3] u64) -> ShaderUniform {
+create_uniform :: (name: FixedString(UNIFORM_LENGTH), value: [] [3] u64) -> ShaderUniform {
     uniform: ShaderUniform;
-    uniform.name = create_fixed_string(name, 64);
+    uniform.name = name;
     uniform.type = .UInt3N;
     uniform.uint3n = NewArray(value.count, u32, initialized = false);
     for i: 0..uniform.uint3n.count - 1 {
@@ -634,25 +676,25 @@ create_uniform :: (name: string, value: [] [3] u64) -> ShaderUniform {
     return uniform;
 }
 
-create_uniform :: (name: string, value: [3] u32) -> ShaderUniform {
+create_uniform :: (name: FixedString(UNIFORM_LENGTH), value: [3] u32) -> ShaderUniform {
     uniform: ShaderUniform;
-    uniform.name = create_fixed_string(name, 64);
+    uniform.name = name;
     uniform.type = .UInt3;
     uniform.uint3 = value;
     return uniform;
 }
 
-create_uniform :: (name: string, value: [] [3] u32) -> ShaderUniform {
+create_uniform :: (name: FixedString(UNIFORM_LENGTH), value: [] [3] u32) -> ShaderUniform {
     uniform: ShaderUniform;
-    uniform.name = create_fixed_string(name, 64);
+    uniform.name = name;
     uniform.type = .UInt3N;
     uniform.uint3n = array_copy(value);
     return uniform;
 }
 
-create_uniform :: (name: string, value: [4] u64) -> ShaderUniform {
+create_uniform :: (name: FixedString(UNIFORM_LENGTH), value: [4] u64) -> ShaderUniform {
     uniform: ShaderUniform;
-    uniform.name = create_fixed_string(name, 64);
+    uniform.name = name;
     uniform.type = .UInt4;
     uniform.uint4[0] = xx value[0];
     uniform.uint4[1] = xx value[1];
@@ -661,9 +703,9 @@ create_uniform :: (name: string, value: [4] u64) -> ShaderUniform {
     return uniform;
 }
 
-create_uniform :: (name: string, value: [] [4] u64) -> ShaderUniform {
+create_uniform :: (name: FixedString(UNIFORM_LENGTH), value: [] [4] u64) -> ShaderUniform {
     uniform: ShaderUniform;
-    uniform.name = create_fixed_string(name, 64);
+    uniform.name = name;
     uniform.type = .UInt4N;
     uniform.uint4n = NewArray(value.count, u32, initialized = false);
     for i: 0..uniform.uint4n.count - 1 {
@@ -675,97 +717,97 @@ create_uniform :: (name: string, value: [] [4] u64) -> ShaderUniform {
     return uniform;
 }
 
-create_uniform :: (name: string, value: [4] u32) -> ShaderUniform {
+create_uniform :: (name: FixedString(UNIFORM_LENGTH), value: [4] u32) -> ShaderUniform {
     uniform: ShaderUniform;
-    uniform.name = create_fixed_string(name, 64);
+    uniform.name = name;
     uniform.type = .UInt4;
     uniform.uint4 = value;
     return uniform;
 }
 
-create_uniform :: (name: string, value: [] [4] u32) -> ShaderUniform {
+create_uniform :: (name: FixedString(UNIFORM_LENGTH), value: [] [4] u32) -> ShaderUniform {
     uniform: ShaderUniform;
-    uniform.name = create_fixed_string(name, 64);
+    uniform.name = name;
     uniform.type = .UInt4N;
     uniform.uint4n = array_copy(value);
     return uniform;
 }
 
-create_uniform :: (name: string, value: Matrix2) -> ShaderUniform {
+create_uniform :: (name: FixedString(UNIFORM_LENGTH), value: Matrix2) -> ShaderUniform {
     uniform: ShaderUniform;
-    uniform.name = create_fixed_string(name, 64);
+    uniform.name = name;
     uniform.type = .Mat2;
     uniform.mat2 = value.floats;
     return uniform;
 }
 
-create_uniform :: (name: string, value: [] Matrix2) -> ShaderUniform {
+create_uniform :: (name: FixedString(UNIFORM_LENGTH), value: [] Matrix2) -> ShaderUniform {
     uniform: ShaderUniform;
-    uniform.name = create_fixed_string(name, 64);
+    uniform.name = name;
     uniform.type = .Mat2N;
     uniform.mat2n = array_copy_memory(value, [4] float);
     return uniform;
 }
 
-create_uniform :: (name: string, value: Matrix3) -> ShaderUniform {
+create_uniform :: (name: FixedString(UNIFORM_LENGTH), value: Matrix3) -> ShaderUniform {
     uniform: ShaderUniform;
-    uniform.name = create_fixed_string(name, 64);
+    uniform.name = name;
     uniform.type = .Mat3;
     uniform.mat3 = value.floats;
     return uniform;
 }
 
-create_uniform :: (name: string, value: [] Matrix3) -> ShaderUniform {
+create_uniform :: (name: FixedString(UNIFORM_LENGTH), value: [] Matrix3) -> ShaderUniform {
     uniform: ShaderUniform;
-    uniform.name = create_fixed_string(name, 64);
+    uniform.name = name;
     uniform.type = .Mat3N;
     uniform.mat3n = array_copy_memory(value, [9] float);
     return uniform;
 }
 
-create_uniform :: (name: string, value: Matrix4) -> ShaderUniform {
+create_uniform :: (name: FixedString(UNIFORM_LENGTH), value: Matrix4) -> ShaderUniform {
     uniform: ShaderUniform;
-    uniform.name = create_fixed_string(name, 64);
+    uniform.name = name;
     uniform.type = .Mat4;
     uniform.mat4 = value.floats;
     return uniform;
 }
 
-create_uniform :: (name: string, value: [] Matrix4) -> ShaderUniform {
+create_uniform :: (name: FixedString(UNIFORM_LENGTH), value: [] Matrix4) -> ShaderUniform {
     uniform: ShaderUniform;
-    uniform.name = create_fixed_string(name, 64);
+    uniform.name = name;
     uniform.type = .Mat4N;
     uniform.mat4n = array_copy_memory(value, [16] float);
     return uniform;
 }
 
-create_uniform :: (name: string, value: Texture) -> ShaderUniform {
+create_uniform :: (name: FixedString(UNIFORM_LENGTH), value: Texture) -> ShaderUniform {
     uniform: ShaderUniform;
-    uniform.name = create_fixed_string(name, 64);
+    uniform.name = name;
     uniform.type = .Texture;
     uniform.texture = value;
     return uniform;
 }
 
-create_uniform :: (name: string, value: TextureArray) -> ShaderUniform {
+create_uniform :: (name: FixedString(UNIFORM_LENGTH), value: TextureArray) -> ShaderUniform {
     uniform: ShaderUniform;
-    uniform.name = create_fixed_string(name, 64);
+    uniform.name = name;
     uniform.type = .TextureArray;
     uniform.texture_array = value;
     return uniform;
 }
 
-create_uniform :: (name: string, value: Texture3) -> ShaderUniform {
+create_uniform :: (name: FixedString(UNIFORM_LENGTH), value: Texture3) -> ShaderUniform {
     uniform: ShaderUniform;
-    uniform.name = create_fixed_string(name, 64);
+    uniform.name = name;
     uniform.type = .Texture3;
     uniform.texture3 = value;
     return uniform;
 }
 
-create_uniform :: (name: string, value: CubemapTexture) -> ShaderUniform {
+create_uniform :: (name: FixedString(UNIFORM_LENGTH), value: CubemapTexture) -> ShaderUniform {
     uniform: ShaderUniform;
-    uniform.name = create_fixed_string(name, 64);
+    uniform.name = name;
     uniform.type = .CubemapTexture;
     uniform.cubemap_texture = value;
     return uniform;
@@ -784,7 +826,7 @@ create_uniform :: (name: string, value: CubemapTexture) -> ShaderUniform {
 // }
 
 destroy :: (uniforms: ShaderUniforms) {
-    for uniform: uniforms.uniforms {
+    for uniform: uniforms {
         if uniform.ownership {
             destroy(uniform);
         }

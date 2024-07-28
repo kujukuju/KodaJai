@@ -505,15 +505,16 @@ apply_uniforms :: (shader: *Shader, uniforms: ShaderUniforms, printing: bool = f
     //     debug_shaders && print("set % % %\n", to_string(uniform.name), uniform, shader.uniforms[xx uniform.name].*);
     // }
 
-    for uniform: uniforms.uniforms {
-        existing := get(shader.uniforms, uniform.name);
+    for uniform: uniforms {
+        existing := get(*shader.uniforms, uniform.name);
         existing_location := ifx existing then existing.location else -1;
 
-        set(*shader.uniforms, uniform.name, uniform);
-        get(shader.uniforms, uniform.name).ownership = false;
+        set(*shader.uniforms, uniform);
+        created := get(*shader.uniforms, uniform.name);
+        created.ownership = false;
         
         if existing_location >= 0 {
-            get(shader.uniforms, uniform.name).location = existing_location;
+            created.location = existing_location;
         }
     }
 
@@ -524,7 +525,7 @@ apply_uniforms :: (shader: *Shader, uniforms: ShaderUniforms, printing: bool = f
     // for *uniform: uniforms.uniforms {
         texture_index: s32;
 
-        for *uniform: shader.uniforms.uniforms {
+        for *uniform: shader.uniforms {
             if uniform.location == -1 {
                 continue;
             }

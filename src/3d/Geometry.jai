@@ -543,37 +543,59 @@ get_indices :: (geometry: Geometry, $T: Type = int) -> [..] T {
     return indices;
 }
 
-get_vertices :: (geometry: Geometry, preserve_faces: bool = false) -> [..] Vector3 {
-    vertices: [..] Vector3;
-    vertices.allocator = temp;
+GeometryVertices :: struct (preserve_faces: bool) {
+    geometry: Geometry;
+}
 
+get_vertices :: (geometry: Geometry, $preserve_faces: bool = false) -> GeometryVertices(preserve_faces) {
+    return GeometryVertices(preserve_faces).{geometry};
+}
+
+for_expansion :: (wrapper: GeometryVertices($preserve_faces), body: Code, flags: For_Flags) #expand {
+    #assert(!(flags & .REVERSE));
+
+    stride := get_attribute_stride(wrapper.geometry);
+
+    #if preserve_faces {
+        for i: 0..wrapper.geometry.indices.count - 1 {
+            #if flags & .POINTER {
+                `it := cast(*Vector3) (wrapper.geometry.vertices.data + wrapper.geometry.indices[i] * stride);
+            } else {
+                `it := (cast(*Vector3) (wrapper.geometry.vertices.data + wrapper.geometry.indices[i] * stride)).*;
+            }
+
+            `it_index := i;
+
+            #insert body;
+        }
+    } else {
+        for i: 0..wrapper.geometry.vertices.count / stride - 1 {
+            #if flags & .POINTER {
+                `it := cast(*Vector3) (wrapper.geometry.vertices.data + i * stride);
+            } else {
+                `it := (cast(*Vector3) (wrapper.geometry.vertices.data + i * stride)).*;
+            }
+
+            `it_index := i;
+
+            #insert body;
+        }
+    }
+}
+
+copy_vertices :: (geometry: Geometry, $preserve_faces: bool = false) -> [] Vector3 {
     stride := get_attribute_stride(geometry);
 
+    vertex_count: int;
     if preserve_faces {
-        array_reserve(*vertices, geometry.indices.count);
+        vertex_count = geometry.indices.count;
     } else {
-        array_reserve(*vertices, geometry.vertices.count / stride);
+        vertex_count = geometry.vertices.count / stride;
     }
 
-    if preserve_faces {
-        for geometry.indices {
-            x := geometry.vertices[it * stride];
-            y := geometry.vertices[it * stride + 1];
-            z := geometry.vertices[it * stride + 2];
-
-            array_add(*vertices, .{x, y, z});
-        }
-    } else {
-        i := 0;
-        while i < geometry.vertices.count {
-            defer i += stride;
-
-            x := geometry.vertices[i];
-            y := geometry.vertices[i + 1];
-            z := geometry.vertices[i + 2];
-
-            array_add(*vertices, .{x, y, z});
-        }
+    vertices := NewArray(vertex_count, Vector3);
+    for vertex: get_vertices(geometry, preserve_faces) {
+        vertices[it_index] = vertex;
     }
 
     return vertices;
@@ -689,28 +711,11 @@ has_attribute :: (attributes: [] Attribute, attribute: Attribute) -> bool {
 }
 
 calculate_aabb :: (geometry: Geometry) -> AABB3 {
-    set_aabb := false;
-    aabb := AABB3.{};
-    
-    stride := get_attribute_stride(geometry);
+    return calculate_aabb(get_vertices(geometry));
+}
 
-    for geometry.indices {
-        x := geometry.vertices[it * stride];
-        y := geometry.vertices[it * stride + 1];
-        z := geometry.vertices[it * stride + 2];
-
-        point := Vector3.{x, y, z};
-
-        if !set_aabb {
-            set_aabb = true;
-            aabb = .{point, point};
-        } else {
-            aabb.lower = min(aabb.lower, point);
-            aabb.upper = max(aabb.upper, point);
-        }
-    }
-
-    return aabb;
+calculate_bounding_sphere :: (geometry: Geometry) -> Sphere {
+    return calculate_bounding_sphere(get_vertices(geometry));
 }
 
 #scope_module
@@ -776,15 +781,11 @@ load_geometry_obj :: (file: string) -> [..] *Geometry, bool {
     geometries: [..] *Geometry;
     geometry: *Geometry;
 
-    set_aabb := false;
-
     index := 0;
     while index < file.count {
         if index + 1 < file.count && file[index] == #char "o" && file[index + 1] == #char " " {
             geometry = New(Geometry);
             array_add(*geometries, geometry);
-
-            set_aabb = false;
 
             vertex_offset += vertices.count;
             texcoord_offset += texcoords.count;
@@ -932,23 +933,6 @@ load_geometry_obj :: (file: string) -> [..] *Geometry, bool {
                 vt3_value := string_to_int(vt3_string);
                 array_add(*geometry.vertices, ..texcoords[vt3_value - texcoord_offset - 1].component);
             }
-
-            if !set_aabb {
-                set_aabb = true;
-                geometry.aabb.lower = vertices[v1_value - vertex_offset - 1];
-                geometry.aabb.upper = vertices[v1_value - vertex_offset - 1];
-                geometry.aabb.lower = min(geometry.aabb.lower, vertices[v2_value - vertex_offset - 1]);
-                geometry.aabb.upper = max(geometry.aabb.upper, vertices[v2_value - vertex_offset - 1]);
-                geometry.aabb.lower = min(geometry.aabb.lower, vertices[v3_value - vertex_offset - 1]);
-                geometry.aabb.upper = max(geometry.aabb.upper, vertices[v3_value - vertex_offset - 1]);
-            } else {
-                geometry.aabb.lower = min(geometry.aabb.lower, vertices[v1_value - vertex_offset - 1]);
-                geometry.aabb.upper = max(geometry.aabb.upper, vertices[v1_value - vertex_offset - 1]);
-                geometry.aabb.lower = min(geometry.aabb.lower, vertices[v2_value - vertex_offset - 1]);
-                geometry.aabb.upper = max(geometry.aabb.upper, vertices[v2_value - vertex_offset - 1]);
-                geometry.aabb.lower = min(geometry.aabb.lower, vertices[v3_value - vertex_offset - 1]);
-                geometry.aabb.upper = max(geometry.aabb.upper, vertices[v3_value - vertex_offset - 1]);
-            }
         }
 
         // skip to next newline
@@ -970,6 +954,10 @@ load_geometry_obj :: (file: string) -> [..] *Geometry, bool {
         if texcoords.count > 0 {
             add_attribute(geometry, .Texcoord);
         }
+    }
+
+    for geometry: geometries {
+        geometry.aabb = calculate_aabb(geometry);
     }
 
     if geometries.count == 0 {
@@ -1066,8 +1054,6 @@ load_geometry_gltf_data :: (
                     assert(attribute_accessor.component_type == .F32, "The position accessor must be a float32.");
 
                     array_add(*attribute_accessors[cast(int) Attribute.Position], attribute_accessor);
-                    memcpy(*geometry.aabb.lower, attribute_accessor.min.data, size_of(type_of(geometry.aabb.lower)));
-                    memcpy(*geometry.aabb.upper, attribute_accessor.max.data, size_of(type_of(geometry.aabb.upper)));
                 } else if begins_with(attribute_entry.name, "NORMAL") {
                     assert(attribute_accessor.type == "VEC3", "The normal accessor must be a vec3 type.");
                     assert(attribute_accessor.component_type == .F32, "The normal accessor must be a float32.");
@@ -1248,6 +1234,10 @@ load_geometry_gltf_data :: (
                 }
             }
         }
+    }
+
+    for geometry: geometries {
+        geometry.aabb = calculate_aabb(geometry);
     }
 
     return geometries, true;

@@ -30,7 +30,7 @@ load_panoramic_map :: (path: string, should_upload: bool = true) -> *PanoramicMa
 upload :: (panoramic: *PanoramicMap) {
     upload(panoramic.geometry);
 
-    for *uniform: panoramic.uniforms.uniforms {
+    for *uniform: panoramic.uniforms {
         if uniform.type == .Texture {
             upload(*uniform.texture);
         } else if uniform.type == .Texture3 {
@@ -42,7 +42,7 @@ upload :: (panoramic: *PanoramicMap) {
 unload :: (panoramic: *PanoramicMap) {
     unload(panoramic.geometry);
 
-    for *uniform: panoramic.uniforms.uniforms {
+    for *uniform: panoramic.uniforms {
         if uniform.type == .Texture {
             unload(*uniform.texture);
         } else if uniform.type == .Texture3 {

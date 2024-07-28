@@ -140,10 +140,8 @@ framebuffer_destroy :: (pass: *FramebufferPass($count, $depth, $drawable, $multi
         pass.vao = 0;
     }
 
-    if pass.uniforms.uniforms {
-        destroy(pass.uniforms);
-        pass.uniforms = .{};
-    }
+    destroy(pass.uniforms);
+    pass.uniforms = .{};
 
     if children {
         for texture: pass.textures {

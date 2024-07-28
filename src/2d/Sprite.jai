@@ -114,10 +114,6 @@ draw :: (sprite: Sprite, position: Vector2) {
     draw(new);
 }
 
-draw :: (sprite: Sprite, transform: Matrix4) {
-
-}
-
 draw :: (sprite: Sprite) {
     shader: *Shader = sprite.shader;
     if !shader {

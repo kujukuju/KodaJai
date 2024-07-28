@@ -294,6 +294,17 @@ vsync_wait :: () {
     }
 }
 
+get_vsync_rate :: () -> int {
+    monitor := glfwGetPrimaryMonitor();
+    video_mode := glfwGetVideoMode(monitor);
+
+    if !video_mode {
+        return 0;
+    }
+
+    return video_mode.refreshRate;
+}
+
 get_fullscreen :: () -> bool, bool {
     fullscreen := !!glfwGetWindowMonitor(koda.window);
     borderless := !glfwGetWindowAttrib(koda.window, GLFW_DECORATED);

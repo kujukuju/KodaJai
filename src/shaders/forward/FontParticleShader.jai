@@ -26,7 +26,8 @@ layout (location = 8) in vec4 aParticleTint;
 layout (location = 9) in float aParticlePadding;
 layout (location = 10) in float aParticleScale;
 layout (location = 11) in float aParticleBlur;
-layout (location = 12) in vec3 aParticleWorldPosition;
+layout (location = 12) in float aParticleRotation;
+layout (location = 13) in vec3 aParticleWorldPosition;
 
 out vec3 vTexCoord;
 flat out float vIndex;
@@ -38,6 +39,12 @@ flat out float vBlur;
 
 uniform mat4 projection;
 uniform mat4 view;
+
+vec2 rotate(vec2 p, float r) {
+    float cos_r = cos(r);
+    float sin_r = sin(r);
+    return vec2(p.x * cos_r - p.y * sin_r, p.x * sin_r + p.y * cos_r);
+}
 
 void main() {
     mat3 transform = mat3(
@@ -52,7 +59,10 @@ void main() {
     vScale = aParticleScale;
     vBlur = aParticleBlur;
 
-    vec3 pos = transform * vec3(aParticlePosition + aPos.xy * aParticleSize, 1.0);
+    vec2 localCenter = aParticleSize / 2.0;
+    vec2 localPos = rotate(aPos.xy * aParticleSize - localCenter, aParticleRotation) + localCenter;
+
+    vec3 pos = transform * vec3(aParticlePosition + localPos, 1.0);
     pos.xy /= pos.z;
     vTexCoord.z = pos.z;
     vTexCoord.xy /= vTexCoord.z;

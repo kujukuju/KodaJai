@@ -9,6 +9,8 @@ ModelMatrixGpu :: struct {
 }
 
 InstancedModel :: struct (T: Type = ModelMatrixGpu) {
+    using #as renderable: Renderable;
+    renderable.type = .InstancedModel;
     geometry: *Geometry;
     shader: *Shader;
     uniforms: ShaderUniforms;
@@ -48,22 +50,23 @@ create_instanced_model :: (geometry: *Geometry, should_upload: bool = true) -> *
 }
 
 create_instanced_model :: (geometry: *Geometry, instances: [] Matrix4, should_upload: bool = true) -> *InstancedModel(ModelMatrixGpu) {
-    model := New(InstancedModel(ModelMatrixGpu));
-    model.geometry = geometry;
-    model.dynamic = false;
-
+    #assert(size_of(Matrix4) == size_of(ModelMatrixGpu));
     instanced_gpu: [] ModelMatrixGpu;
     instanced_gpu.data = cast(*ModelMatrixGpu) instances.data;
     instanced_gpu.count = instances.count;
-    array_copy(*model.instances, instanced_gpu);
 
-    model.static_aabb = calculate_aabb(model);
+    vertex_iterator := get_vertices(geometry, instances);
+    aabb := calculate_aabb(vertex_iterator);
+    return create_instanced_model(ModelMatrixGpu, geometry, instanced_gpu, aabb, should_upload);
+}
 
-    if should_upload {
-        upload(model);
-    }
+create_instanced_model :: (geometry: *Geometry, instances: [] Matrix4, aabb: AABB3, should_upload: bool = true) -> *InstancedModel(ModelMatrixGpu) {
+    #assert(size_of(Matrix4) == size_of(ModelMatrixGpu));
+    instanced_gpu: [] ModelMatrixGpu;
+    instanced_gpu.data = cast(*ModelMatrixGpu) instances.data;
+    instanced_gpu.count = instances.count;
 
-    return model;
+    return create_instanced_model(ModelMatrixGpu, geometry, instanced_gpu, aabb, should_upload);
 }
 
 // create_instanced_model :: (geometry: *Geometry, dynamic: bool, should_upload: bool) -> *InstancedModel(ModelMatrixGpu) {
@@ -84,10 +87,16 @@ create_instanced_model :: ($T: Type, geometry: *Geometry, should_upload: bool = 
 }
 
 create_instanced_model :: ($T: Type, geometry: *Geometry, instances: [] T, should_upload: bool = true) -> *InstancedModel(T) {
+    return create_instanced_model(T, geometry, instances, .{}, .{}, should_upload);
+}
+
+create_instanced_model :: ($T: Type, geometry: *Geometry, instances: [] T, aabb: AABB3, should_upload: bool = true) -> *InstancedModel(T) {
     model := New(InstancedModel(T));
     model.geometry = geometry;
     model.dynamic = false;
     array_copy(*model.instances, instances);
+
+    model.static_aabb = aabb;
 
     if should_upload {
         upload(model);
@@ -234,7 +243,7 @@ get_aabb :: (model: InstancedModel(ModelMatrixGpu)) -> AABB3 {
 
 calculate_aabb :: (model: InstancedModel(ModelMatrixGpu)) -> AABB3 {
     if model.dynamic {
-        print("Warning: You shouldn't be calling this method I think if it's a dynamic instanced model.\n");
+        print("Warning: You shouldn't be calling this method if it's a dynamic instanced model.\n");
     }
 
     if !model.instances {
@@ -252,28 +261,38 @@ calculate_aabb :: (model: InstancedModel(ModelMatrixGpu)) -> AABB3 {
 }
 
 InstancedModelVertices :: struct {
-    model: *InstancedModel(ModelMatrixGpu);
+    geometry: Geometry;
+    instances: [] Matrix4;
 }
 
-get_vertices :: (model: *InstancedModel(ModelMatrixGpu)) -> InstancedModelVertices {
+get_vertices :: (model: InstancedModel(ModelMatrixGpu)) -> InstancedModelVertices {
     assert(model.geometry.attributes.count > 0);
     assert(model.geometry.attributes[0] == .Position);
 
-    return InstancedModelVertices.{model};
+    matrices: [] Matrix4;
+    matrices.data = cast(*Matrix4) model.instances.data;
+    matrices.count = model.instances.count;
+
+    return InstancedModelVertices.{model.geometry, matrices};
+}
+
+get_vertices :: (geometry: Geometry, instances: [] Matrix4) -> InstancedModelVertices {
+    assert(geometry.attributes.count > 0);
+    assert(geometry.attributes[0] == .Position);
+
+    return InstancedModelVertices.{geometry, instances};
 }
 
 for_expansion :: (wrapper: InstancedModelVertices, body: Code, flags: For_Flags) #expand {
     #assert(!(flags & .REVERSE));
     #assert(!(flags & .POINTER));
 
-    stride := get_attribute_stride(wrapper.model.geometry);
+    stride := get_attribute_stride(wrapper.geometry);
 
-    geometry := wrapper.model.geometry;
+    geometry := wrapper.geometry;
     geometry_vertex_count := geometry.vertices.count / stride;
 
-    for instance, instance_index: wrapper.model.instances {
-        transform := instance.model;
-
+    for transform, instance_index: wrapper.instances {
         `it_instance := instance_index;
 
         for i: 0..geometry_vertex_count - 1 {

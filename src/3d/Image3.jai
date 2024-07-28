@@ -46,18 +46,6 @@ create_image3 :: (bytes: [] u8, width: int, height: int, depth: int, format: Pix
     image.pixels = array_copy(bytes);
     
     return image;
-
-
-    image: Image3;
-    image.width = width;
-    image.height = height;
-    image.depth = depth;
-    image.format = format;
-    
-    stride := get_stride(format);
-    image.pixels = NewArray(width * height * depth * stride, u8);
-
-    return image;
 }
 
 create_image3 :: (bytes: [] u8, width: int, height: int, depth: int, format: PixelFormat, reuse_memory: bool = false) -> Image3 {

@@ -278,69 +278,79 @@ perf_tracker_finish :: (tracker_index: int, builder: *String_Builder, gpu: bool)
 
     average_time := ifx gpu then tracker.average_gpu_time else tracker.average_cpu_time;
 
-    space_line := "  ";
-    vertical_line := "│ ";
-    horizontal_line := "└─";
-    continuation_line := "├─";
-
-    tracker_continue_depths.count = 0;
-    memset(tracker_continue_depths.data, 0, tracker_continue_depths.allocated * size_of(bool));
-
-    // this marks where every next indentation might be so it can be drawn to
-    for next_tracker_index: tracker_index + 1..trackers.count - 1 {
-        next_indent := trackers[next_tracker_index].indent;
-        
-        if next_indent <= 0 {
-            continue;
-        }
-        next_indent -= 1;
-
-        if tracker_continue_depths.count <= next_indent {
-            if tracker_continue_depths.allocated <= next_indent {
-                array_reserve(*tracker_continue_depths, next_indent + 1);
-            }
-            
-            tracker_continue_depths.count = next_indent + 1;
-        }
-
-        tracker_continue_depths[next_indent] = true;
+    append(builder, "\t");
+    for i: 0..tracker.indent - 1 {
+        print(builder, "  ");
     }
-
-    // if this indentation immediately ends, we don't want to continue drawing
-    if tracker_index < trackers.count - 1 {
-        next_indent := trackers[tracker_index + 1].indent;
-
-        // im totally guessing here but it's probably right
-        if next_indent < tracker.indent {
-            for indent: next_indent..tracker.indent - 1 {
-                tracker_continue_depths[indent] = false;
-            }
-        }
-    }
-
-    current_indent := 0;
-    if current_indent < tracker.indent {
-        while current_indent < tracker.indent - 1 {
-            defer current_indent += 1;
-
-            if tracker_continue_depths[current_indent] {
-                append(builder, vertical_line.data, vertical_line.count);
-            } else {
-                append(builder, space_line.data, space_line.count);
-            }
-        }
-
-        if tracker_continue_depths[current_indent] {
-            append(builder, continuation_line.data, continuation_line.count);
-        } else {
-            append(builder, horizontal_line.data, horizontal_line.count);
-        }
-    }
-
     append(builder, tracker.name);
     append(builder, ": ");
-    append(builder, tprint("%", average_time));
-    append(builder, "\n");
+    append(builder, tprint("%\n", average_time));
+
+
+
+    // space_line := "  ";
+    // vertical_line := "│ ";
+    // horizontal_line := "└─";
+    // continuation_line := "├─";
+
+    // tracker_continue_depths.count = 0;
+    // memset(tracker_continue_depths.data, 0, tracker_continue_depths.allocated * size_of(bool));
+
+    // // this marks where every next indentation might be so it can be drawn to
+    // for next_tracker_index: tracker_index + 1..trackers.count - 1 {
+    //     next_indent := trackers[next_tracker_index].indent;
+        
+    //     if next_indent <= 0 {
+    //         continue;
+    //     }
+    //     next_indent -= 1;
+
+    //     if tracker_continue_depths.count <= next_indent {
+    //         if tracker_continue_depths.allocated <= next_indent {
+    //             array_reserve(*tracker_continue_depths, next_indent + 1);
+    //         }
+            
+    //         tracker_continue_depths.count = next_indent + 1;
+    //     }
+
+    //     tracker_continue_depths[next_indent] = true;
+    // }
+
+    // // if this indentation immediately ends, we don't want to continue drawing
+    // if tracker_index < trackers.count - 1 {
+    //     next_indent := trackers[tracker_index + 1].indent;
+
+    //     // im totally guessing here but it's probably right
+    //     if next_indent < tracker.indent {
+    //         for indent: next_indent..tracker.indent - 1 {
+    //             tracker_continue_depths[indent] = false;
+    //         }
+    //     }
+    // }
+
+    // current_indent := 0;
+    // if current_indent < tracker.indent {
+    //     while current_indent < tracker.indent - 1 {
+    //         defer current_indent += 1;
+
+    //         if tracker_continue_depths[current_indent] {
+    //             append(builder, vertical_line.data, vertical_line.count);
+    //         } else {
+    //             append(builder, space_line.data, space_line.count);
+    //         }
+    //     }
+
+    //     if tracker_continue_depths[current_indent] {
+    //         append(builder, continuation_line.data, continuation_line.count);
+    //     } else {
+    //         append(builder, horizontal_line.data, horizontal_line.count);
+    //     }
+    // }
+
+    // append(builder, tracker.name);
+    // append(builder, ": ");
+    // append(builder, tprint("%", average_time));
+    // append(builder, "\n");
 }
 
 trackers: [..] TrackerInfo;

@@ -35,7 +35,7 @@ load_cube_map :: (path: string, half_width: float = 1.0, should_upload: bool = t
 upload :: (cube: *CubeMap) {
     upload(cube.geometry);
 
-    for *uniform: cube.uniforms.uniforms {
+    for *uniform: cube.uniforms {
         if uniform.type == .Texture {
             upload(*uniform.texture);
         } else if uniform.type == .Texture3 {
@@ -49,7 +49,7 @@ upload :: (cube: *CubeMap) {
 unload :: (cube: *CubeMap) {
     unload(cube.geometry);
 
-    for *uniform: cube.uniforms.uniforms {
+    for *uniform: cube.uniforms {
         if uniform.type == .Texture {
             unload(*uniform.texture);
         } else if uniform.type == .Texture3 {

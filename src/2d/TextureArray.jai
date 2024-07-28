@@ -11,29 +11,16 @@ TextureArray :: struct {
     data: *u8; @serializer(skip)
 }
 
-create_texture_array :: (bytes: [] u8, wrap: TextureWrap = .Clamp, interp: TextureInterp = .Linear, should_upload: bool = true) -> TextureArray {
+load_texture_array :: (path: string, wrap: TextureWrap = .Clamp, interp: TextureInterp = .Linear, should_upload: bool = true) -> TextureArray {
     wrap_array: [2] TextureWrap;
     wrap_array[0] = wrap;
     wrap_array[1] = wrap;
 
-    return create_texture_array(bytes, wrap_array, interp, should_upload);
+    return load_texture_array(load_image3(path), wrap_array, interp, should_upload);
 }
 
-create_texture_array :: (bytes: [] u8, wrap: [2] TextureWrap, interp: TextureInterp, should_upload: bool = true) -> TextureArray {
-    texture := load_data(bytes);
-    texture.wrap = wrap;
-    texture.interp = interp;
-
-    if texture.data == null {
-        print("Could not load texture.\n");
-        return .{};
-    }
-
-    if should_upload {
-        upload(*texture);
-    }
-
-    return texture;
+load_texture_array :: (path: string, wrap: [2] TextureWrap, interp: TextureInterp, should_upload: bool = true) -> TextureArray {
+    return create_texture_array(load_image3(path), wrap, interp, should_upload);
 }
 
 create_texture_array :: (image: Image3, wrap: TextureWrap = .Clamp, interp: TextureInterp = .Linear, should_upload: bool = true) -> TextureArray {
@@ -64,25 +51,6 @@ create_texture_array :: (image: Image3, wrap: [2] TextureWrap, interp: TextureIn
     }
 
     return texture;
-}
-
-load_texture_array :: (path: string, wrap: TextureWrap = .Clamp, interp: TextureInterp = .Linear, should_upload: bool = true) -> TextureArray {
-    wrap_array: [2] TextureWrap;
-    wrap_array[0] = wrap;
-    wrap_array[1] = wrap;
-
-    return load_texture_array(path, wrap_array, interp, should_upload);
-}
-
-load_texture_array :: (path: string, wrap: [2] TextureWrap, interp: TextureInterp, should_upload: bool = true) -> TextureArray {
-    file, success := read_entire_file(path, false);
-    defer free(file);
-
-    bytes: [] u8;
-    bytes.data = file.data;
-    bytes.count = file.count;
-
-    return create_texture_array(bytes, wrap, interp, should_upload);
 }
 
 // TODO clear data here and in texture unless explicitly requested otherwise
@@ -207,40 +175,3 @@ convert_format :: (texture: *TextureArray, desired_format: PixelFormat) {
         }
     }
 }
-
-#scope_file
-
-load_data :: (data: [] u8) -> TextureArray {
-    texture_data: TextureArray;
-    comp: s32;
-    texture_data.data = stbi_load_from_memory(data.data, xx data.count, *texture_data.width, *texture_data.height, *comp, 0);
-    if !texture_data.data {
-        print("Could not parse texture data.\n");
-        assert(false, "Could not parse texture data.");
-        return .{};
-    }
-
-    // assert(texture_data.width == texture_data.height * texture_data.height, "TextureArray data loaded from a file can only be a cube.");
-    // assert(texture_data.width % texture_data.height == 0, "The texture width must be a multiple of the texture height.");
-    assert(texture_data.height % texture_data.width == 0, "The texture height must be a multiple of the texture width.");
-
-    texture_data.depth = texture_data.height / texture_data.width;
-    texture_data.height = texture_data.width;
-    
-    if comp == 1 {
-        texture_data.format = .R8;
-    } else if comp == 2 {
-        texture_data.format = .RG8;
-    } else if comp == 3 {
-        texture_data.format = .RGB8;
-    } else if comp == 4 {
-        texture_data.format = .RGBA8;
-    } else {
-        assert(false, "Unknown texture comp format.\n");
-    }
-
-    return texture_data;
-}
-
-#import "Basic";
-#import "File";

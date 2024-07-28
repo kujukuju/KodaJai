@@ -1,4 +1,65 @@
 
+get_aabb :: (models: [] *Model) -> AABB2 {
+    aabb: AABB2;
+    aabb_set := false;
+    for model: models {
+        for vertex: get_vertices(model) {
+            if !aabb_set {
+                aabb_set = true;
+
+                aabb.lower = .{vertex.x, vertex.z};
+                aabb.upper = .{vertex.x, vertex.z};
+            } else {
+                aabb.lower = min(aabb.lower, .{vertex.x, vertex.z});
+                aabb.upper = max(aabb.upper, .{vertex.x, vertex.z});
+            }
+        }
+    }
+
+    return aabb;
+}
+
+create_sdf_image :: (model_aabb: AABB2, pixel_units: float, format: PixelFormat, $sample: (position: Vector2, data: $T) -> Color, data: T) -> Image, AABB2, Vector2 {
+    aabb := model_aabb;
+    dimensions := aabb.upper - aabb.lower;
+    width := cast(int) round(dimensions.x / pixel_units);
+    height := cast(int) round(dimensions.y / pixel_units);
+
+    // the number of units actually inside a given pixel after rounding
+    width_units := dimensions.x / width;
+    height_units := dimensions.y / height;
+
+    width += 2;
+    height += 2;
+
+    aabb.lower.x -= width_units;
+    aabb.lower.y -= height_units;
+    aabb.upper.x += width_units;
+    aabb.upper.y += height_units;
+    dimensions = aabb.upper - aabb.lower;
+
+    assert(abs(width_units - dimensions.x / width) < 0.00001);
+    assert(abs(height_units - dimensions.y / height) < 0.00001);
+
+    image := create_image(width, height, format);
+
+    for y: 0..image.height - 1 {
+        for x: 0..image.width - 1 {
+            index := x + y * image.width;
+
+            position := aabb.lower;
+            position += Vector2.{x + 0.5, y + 0.5} * Vector2.{width_units, height_units};
+
+            color := sample(position, data);
+
+            draw_pixel(*image, .{x, y}, color);
+        }
+    }
+
+    return image, aabb, Vector2.{width_units, height_units};
+}
+
+// TODO this should reuse the above function, but in 3d
 create_sdf_image :: (models: [] *Model, pixel_units: float) -> Image3, AABB3, Vector3 {
     // validity check
     for model: models {
@@ -54,6 +115,8 @@ create_sdf_image :: (models: [] *Model, pixel_units: float) -> Image3, AABB3, Ve
     dimensions = aabb.upper - aabb.lower;
 
     assert(abs(width_units - dimensions.x / width) < 0.00001);
+    assert(abs(height_units - dimensions.y / height) < 0.00001);
+    assert(abs(depth_units - dimensions.z / depth) < 0.00001);
 
     model_tree := create_bounding_tree(*Model);
     defer free_bounding_tree(model_tree);

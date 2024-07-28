@@ -6,7 +6,6 @@ Renderable :: struct {
 
 RenderableType :: enum {
     Sprite;
-    Container2;
     Model;
-    Container3;
+    InstancedModel;
 }
