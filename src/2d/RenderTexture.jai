@@ -22,13 +22,13 @@ create_render_texture :: (width: int, height: int, format: PixelFormat) -> *Rend
 
     glBindFramebuffer(GL_FRAMEBUFFER, rt.framebuffer);
 
-    glBindTexture(GL_TEXTURE_2D, rt.texture.buffer);
+    glBindTextureTemporary(GL_TEXTURE_2D, rt.texture.buffer);
     glTexImage2D(GL_TEXTURE_2D, 0, xx gl_format, xx width, xx height, 0, gl_format, GL_UNSIGNED_BYTE, null);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
     glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, rt.texture.buffer, 0); 
 
-    glBindTexture(GL_TEXTURE_2D, rt.depth.buffer);
+    glBindTextureTemporary(GL_TEXTURE_2D, rt.depth.buffer);
     glTexImage2D(GL_TEXTURE_2D, 0, GL_DEPTH_COMPONENT32F, xx width, xx height, 0, GL_DEPTH_COMPONENT, GL_FLOAT, null);
     glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D, rt.depth.buffer, 0);
 

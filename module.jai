@@ -161,6 +161,11 @@
 #load "src/assets/TriplexSansBold.jai";
 #load "src/assets/White.jai";
 
+ActiveTexture :: struct {
+    buffer: u32;
+    bytes: int;
+}
+
 koda: struct {
     initialized: bool;
     window: *GLFWwindow;
@@ -169,7 +174,10 @@ koda: struct {
     frame_tracker: FrameTracker;
     time_tracker: TimeTracker;
     render_flipped: bool;
-    shader: *Shader;
+    shader: u32;
+    active_textures: [..] ActiveTexture;
+    texture_expirations: [..] int;
+    maximum_active_texture_count: int;
     view: Matrix4 = Matrix4Identity;
     projection: Matrix4 = Matrix4Identity;
     fovy: float = 0.5 * PI;

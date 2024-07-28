@@ -70,7 +70,7 @@ upload :: (texture: *TextureArray) {
     has_mipmap := get_mipmap(texture.interp);
 
     glGenTextures(1, *texture.buffer);
-    glBindTexture(GL_TEXTURE_2D_ARRAY, texture.buffer);
+    glBindTextureTemporary(GL_TEXTURE_2D_ARRAY, texture.buffer);
     glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_WRAP_S, wrap_formats[0]);
     glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_WRAP_T, wrap_formats[1]);
     glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_MIN_FILTER, interp_min_format);
@@ -116,6 +116,10 @@ destroy :: (texture: TextureArray) {
     stbi_image_free(texture.data);
     // delete data?
     glDeleteTextures(1, *texture.buffer);
+}
+
+get_bytes :: (texture: TextureArray) -> int {
+    return texture.width * texture.height * texture.depth * get_stride(texture.format);
 }
 
 update_texture :: (texture: *TextureArray, image: Image3) {

@@ -16,7 +16,7 @@ swap_buffer_create :: (size: int, format: GLenum) -> SwapBuffer {
     glGenBuffers(1, *buffer.buffer);
 	glGenTextures(1, *buffer.texture);
     glBindBuffer(GL_TEXTURE_BUFFER, buffer.buffer);
-    glBindTexture(GL_TEXTURE_BUFFER, buffer.texture);
+    glBindTextureTemporary(GL_TEXTURE_BUFFER, buffer.texture);
     glTexBuffer(GL_TEXTURE_BUFFER, format, buffer.buffer);
     glBufferData(GL_TEXTURE_BUFFER, size, null, GL_DYNAMIC_DRAW);
 
@@ -32,7 +32,7 @@ swap_buffer_set_data :: (buffer: *SwapBuffer, data: [] u8) {
     assert(buffer.size == data.count, tprint("Buffer size must be the same. % %\n", buffer.size, data.count));
 
     glBindBuffer(GL_TEXTURE_BUFFER, buffer.buffer);
-    glBindTexture(GL_TEXTURE_BUFFER, buffer.texture);
+    glBindTextureTemporary(GL_TEXTURE_BUFFER, buffer.texture);
     // glTexBuffer(GL_TEXTURE_BUFFER, format, buffer.buffer);
     glBufferData(GL_TEXTURE_BUFFER, buffer.size, null, GL_DYNAMIC_DRAW);
     glBufferSubData(GL_TEXTURE_BUFFER, 0, buffer.size, data.data);

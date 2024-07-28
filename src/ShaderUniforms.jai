@@ -36,13 +36,13 @@ ShaderUniformType :: enum {
     TextureArray;
     Texture3;
     CubemapTexture;
+    ShadowTexture;
 }
 
 ShaderUniform :: struct {
     name: FixedString(UNIFORM_LENGTH);
     ownership: bool = true;
     type: ShaderUniformType;
-    location: s32;
     union {
         float1: float;
         float1n: [] float;
@@ -78,6 +78,7 @@ ShaderUniform :: struct {
         texture_array: TextureArray;
         texture3: Texture3;
         cubemap_texture: CubemapTexture;
+        shadow_texture: Texture;
     }
 }
 
@@ -128,11 +129,9 @@ equals :: (a: ShaderUniforms, b: ShaderUniforms) -> bool {
     for i: 0..get_count(a) - 1 {
         a_copy := a[i];
         a_copy.ownership = false;
-        a_copy.location = 0;
 
         b_copy := b[i];
         b_copy.ownership = false;
-        b_copy.location = 0;
 
         if memcmp(*a_copy, *b_copy, size_of(ShaderUniform)) != 0 {
             return false;
@@ -140,6 +139,89 @@ equals :: (a: ShaderUniforms, b: ShaderUniforms) -> bool {
     }
 
     return true;
+}
+
+get_uniform_type :: (type: u32, size: int) -> ShaderUniformType {
+    if size == 1 {
+        if type == {
+            case GL_FLOAT;
+                return .Float1;
+            case GL_FLOAT_VEC2;
+                return .Float2;
+            case GL_FLOAT_VEC3;
+                return .Float3;
+            case GL_FLOAT_VEC4;
+                return .Float4;
+            case GL_INT;
+                return .Int1;
+            case GL_INT_VEC2;
+                return .Int2;
+            case GL_INT_VEC3;
+                return .Int3;
+            case GL_INT_VEC4;
+                return .Int4;
+            case GL_UNSIGNED_INT;
+                return .UInt1;
+            case GL_UNSIGNED_INT_VEC2;
+                return .UInt2;
+            case GL_UNSIGNED_INT_VEC3;
+                return .UInt3;
+            case GL_UNSIGNED_INT_VEC4;
+                return .UInt4;
+            case GL_FLOAT_MAT2;
+                return .Mat2;
+            case GL_FLOAT_MAT3;
+                return .Mat3;
+            case GL_FLOAT_MAT4;
+                return .Mat4;
+            case GL_SAMPLER_2D;
+                return .Texture;
+            case GL_SAMPLER_2D_ARRAY;
+                return .TextureArray;
+            case GL_SAMPLER_3D;
+                return .Texture3;
+            case GL_SAMPLER_CUBE;
+                return .CubemapTexture;
+            case GL_SAMPLER_2D_SHADOW;
+                return .ShadowTexture;
+        }
+    } else {
+        if type == {
+            case GL_FLOAT;
+                return .Float1N;
+            case GL_FLOAT_VEC2;
+                return .Float2N;
+            case GL_FLOAT_VEC3;
+                return .Float3N;
+            case GL_FLOAT_VEC4;
+                return .Float4N;
+            case GL_INT;
+                return .Int1N;
+            case GL_INT_VEC2;
+                return .Int2N;
+            case GL_INT_VEC3;
+                return .Int3N;
+            case GL_INT_VEC4;
+                return .Int4N;
+            case GL_UNSIGNED_INT;
+                return .UInt1N;
+            case GL_UNSIGNED_INT_VEC2;
+                return .UInt2N;
+            case GL_UNSIGNED_INT_VEC3;
+                return .UInt3N;
+            case GL_UNSIGNED_INT_VEC4;
+                return .UInt4N;
+            case GL_FLOAT_MAT2;
+                return .Mat2N;
+            case GL_FLOAT_MAT3;
+                return .Mat3N;
+            case GL_FLOAT_MAT4;
+                return .Mat4N;
+        }
+    }
+
+    assert(false, "Unknown uniform type. % %\n", type, size);
+    return .Float1;
 }
 
 get_count :: (uniforms: ShaderUniforms) -> int {
@@ -784,7 +866,8 @@ create_uniform :: (name: FixedString(UNIFORM_LENGTH), value: [] Matrix4) -> Shad
 create_uniform :: (name: FixedString(UNIFORM_LENGTH), value: Texture) -> ShaderUniform {
     uniform: ShaderUniform;
     uniform.name = name;
-    uniform.type = .Texture;
+    // TODO implies shadow texture needs its own type
+    uniform.type = ifx value.shadow then .ShadowTexture else .Texture;
     uniform.texture = value;
     return uniform;
 }

@@ -31,8 +31,7 @@ draw_line :: (x1: float, y1: float, x2: float, y2: float, width: float = 1.0, co
     vertices[11] = .{1, 0};
 
     white_texture := get_white_texture();
-    glBindTexture(GL_TEXTURE_2D, white_texture.buffer);
-    defer glBindTexture(GL_TEXTURE_2D, 0);
+    glBindTextureTemporary(GL_TEXTURE_2D, white_texture.buffer);
 
     vao: GLuint;
     glGenVertexArrays(1, *vao);
@@ -109,8 +108,7 @@ draw_rect :: (top_left: Vector2, dimensions: Vector2, color: Color = .{1, 1, 1, 
     vertices[11] = .{1, 0};
 
     white_texture := get_white_texture();
-    glBindTexture(GL_TEXTURE_2D, white_texture.buffer);
-    defer glBindTexture(GL_TEXTURE_2D, 0);
+    glBindTextureTemporary(GL_TEXTURE_2D, white_texture.buffer);
 
     vao: GLuint;
     glGenVertexArrays(1, *vao);
@@ -205,8 +203,7 @@ draw_polygon :: (points: [] Vector2, color: Color = .{1, 1, 1, 1}, border: Color
     }
 
     white_texture := get_white_texture();
-    glBindTexture(GL_TEXTURE_2D, white_texture.buffer);
-    defer glBindTexture(GL_TEXTURE_2D, 0);
+    glBindTextureTemporary(GL_TEXTURE_2D, white_texture.buffer);
 
     // minor optimization compared to the quad thing, but I should be reusing this vao
     vao: GLuint;

@@ -85,6 +85,10 @@ create_window :: (title: *u8, width: s32, height: s32, multisample: int = 0) {
 
     // TODO listen to window position change, and current monitor and monitor size
 
+    maximum_fragment: s32;
+    glGetIntegerv(GL_MAX_TEXTURE_IMAGE_UNITS, *maximum_fragment);
+    koda.maximum_active_texture_count = max(maximum_fragment, 16);
+
     set_vsync(false);
     set_target_fps(0);
 
@@ -190,12 +194,16 @@ set_viewport :: (width: int, height: int) {
     glViewport(0, 0, xx width, xx height);
 }
 
-error_check_gl :: () -> bool #expand {
+error_check_gl :: ($full_stack := false) -> bool #expand {
     errored := false;
     err := glGetError();
     while err != GL_NO_ERROR {
         print("GL error: %\n", err);
-        print_caller_trace();
+        #if full_stack {
+            print_stack_trace();
+        } else {
+            print_caller_trace();
+        }
         err = glGetError();
         errored = true;
     }

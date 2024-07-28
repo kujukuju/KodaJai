@@ -72,7 +72,7 @@ upload :: (texture: *Texture3) {
     has_mipmap := get_mipmap(texture.interp);
 
     glGenTextures(1, *texture.buffer);
-    glBindTexture(GL_TEXTURE_3D, texture.buffer);
+    glBindTextureTemporary(GL_TEXTURE_3D, texture.buffer);
     glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_WRAP_S, wrap_formats[0]);
     glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_WRAP_T, wrap_formats[1]);
     glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_WRAP_R, wrap_formats[2]);
@@ -123,6 +123,10 @@ destroy :: (texture: Texture3) {
     if texture.buffer {
         glDeleteTextures(1, *texture.buffer);
     }
+}
+
+get_bytes :: (texture: Texture3) -> int {
+    return texture.width * texture.height * texture.depth * get_stride(texture.format);
 }
 
 update_texture :: (texture: *Texture3, image: Image3) {

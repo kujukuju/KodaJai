@@ -128,7 +128,7 @@ create_image :: (texture: Texture) -> Image {
     stride := get_stride(texture.format);
     new.pixels = NewArray(new.width * new.height * stride, u8, false);
 
-    glBindTexture(GL_TEXTURE_2D, texture.buffer);
+    glBindTextureTemporary(GL_TEXTURE_2D, texture.buffer);
     glGetTextureImage(texture.buffer, 0, gl_format, gl_type, xx new.pixels.count, new.pixels.data);
 
     return new;

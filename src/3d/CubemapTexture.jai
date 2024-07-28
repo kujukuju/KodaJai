@@ -19,8 +19,8 @@ create_cubemap_image :: (image: Image) -> Image {
         image_width := image.width;
 
         cubemap.pixels = NewArray(face_width * face_height * stride * 6, u8);
-        cubemap.width = image.width / 4;
-        cubemap.height = cubemap.width * 6;
+        cubemap.width = face_width;
+        cubemap.height = face_height * 6;
         cubemap.format = image.format;
 
         texture_data_offset := 0;
@@ -43,10 +43,6 @@ create_cubemap_image :: (image: Image) -> Image {
             }
         }
     } else if image.width * 6 == image.height {
-        face_width := image.width / 6;
-        face_height := image.height;
-        stride := get_stride(image.format);
-
         cubemap.pixels = array_copy(image.pixels);
         cubemap.width = image.width;
         cubemap.height = image.height;
@@ -75,7 +71,7 @@ create_cubemap_texture :: (image: Image, wrap: TextureWrap = .Clamp, should_uplo
 
     texture: CubemapTexture;
     texture.width = cast(s32) image.width;
-    texture.height = cast(s32) image.width;
+    texture.height = cast(s32) image.height / 6;
     texture.data = image.pixels.data;
     texture.format = image.format;
     texture.wrap = wrap;
@@ -98,7 +94,7 @@ upload :: (texture: *CubemapTexture) {
     wrap_format := get_gl_format(texture.wrap);
 
     glGenTextures(1, *texture.buffer);
-    glBindTexture(GL_TEXTURE_CUBE_MAP, texture.buffer);
+    glBindTextureTemporary(GL_TEXTURE_CUBE_MAP, texture.buffer);
     glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_S, wrap_format);	
     glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_T, wrap_format);
     glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_R, wrap_format);
@@ -163,4 +159,8 @@ destroy :: (texture: CubemapTexture) {
     if texture.buffer {
         glDeleteTextures(1, *texture.buffer);
     }
+}
+
+get_bytes :: (texture: CubemapTexture) -> int {
+    return texture.width * texture.height * 6 * get_stride(texture.format);
 }

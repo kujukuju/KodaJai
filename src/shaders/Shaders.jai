@@ -6,11 +6,18 @@ Shader :: struct {
     vertex_parts: [] ResolvedShaderPart;
     fragment_parts: [] ResolvedShaderPart;
     output_channels: [] int;
+    uniform_locations: [] UniformLocation;
     name: string;
     vertex: string;
     fragment: string;
     has_vertex_shader: bool;
     has_fragment_shader: bool;
+}
+
+UniformLocation :: struct {
+    name: FixedString(UNIFORM_LENGTH);
+    type: ShaderUniformType;
+    location: s32;
 }
 
 ShaderDependency :: struct {
@@ -301,7 +308,11 @@ initialize_shader :: (shader: *Shader, dependencies: [$N] Any, dependency_names:
     success: GLint;
     glGetProgramiv(shader.program, GL_LINK_STATUS, *success);
 
+    if shader.output_channels then array_free(shader.output_channels);
     shader.output_channels = get_output_channels(shader.program);
+
+    if shader.uniform_locations then array_free(shader.uniform_locations);
+    shader.uniform_locations = get_uniform_locations(shader.name, shader.program);
 
     if !success {
         message: [512] u8;
@@ -458,8 +469,59 @@ destroy :: (shader: *Shader) {
     shader.fragment_parts = .[];
     array_free(shader.output_channels);
     shader.output_channels = .[];
+    array_free(shader.uniform_locations);
+    shader.uniform_locations = .[];
     // the strings are expected to be constant more or less
     // so... should they go in the struct definition?
+}
+
+get_uniform_locations :: (shader_name: string, program: u32) -> [] UniformLocation {
+    uniform_count: s32;
+
+    built_ins :: string.[
+        "gl_DepthRange.near",
+        "gl_DepthRange.far",
+        "gl_DepthRange.diff",
+        "gl_DepthRange",
+        "gl_NumSamples",
+    ];
+
+    glGetProgramiv(program, GL_ACTIVE_UNIFORMS, *uniform_count);
+
+    uniforms := NewArray(uniform_count, UniformLocation);
+    array_index := 0;
+    for uniform_index: 0..uniform_count - 1 {
+        length: u32;
+        size: s32;
+        type: u32;
+
+        name_buffer: [UNIFORM_LENGTH + 1] u8;
+        glGetActiveUniform(program, cast(u32) uniform_index, name_buffer.count, *length, *size, *type, name_buffer.data);
+
+        name_string: string;
+        name_string.data = name_buffer.data;
+        name_string.count = length;
+
+        if ends_with(name_string, "[0]") { 
+            name_string.count -= 3;
+        }
+        assert(length <= UNIFORM_LENGTH, "Shader has a uniform with too long of a name. %\n", name_string);
+
+        if array_find(built_ins, name_string) {
+            uniforms.count -= 1;
+            
+            continue;
+        }
+
+        uniforms[array_index].name = create_fixed_string(name_string, UNIFORM_LENGTH);
+        uniforms[array_index].type = get_uniform_type(type, size);
+        uniforms[array_index].location = glGetUniformLocation(program, to_c_string(*uniforms[array_index].name));
+        assert(uniforms[array_index].location >= 0, "Could not find valid location for shader uniform. %: %\n", shader_name, name_string);
+
+        array_index += 1;
+    }
+
+    return uniforms;
 }
 
 get_shader_source :: (shader_object: u32) -> string {
@@ -488,171 +550,205 @@ get_shader_strings :: (shader: Shader) -> string, string {
     return "", "";
 }
 
-// TODO apply_uniform singular as well? maybe impossible bc of textures
+claim_texture_slot :: (buffer: u32, bytes: int) -> texture_slot: u32, already_bound: bool {
+    // this could be optimized even more by having a heuristic that tries to avoid large texture binds
+
+    for active_texture, active_slot: koda.active_textures {
+        if active_texture.buffer == buffer {
+            koda.texture_expirations[active_slot] = 0;
+            return cast(u32) active_slot, true;
+        }
+    }
+
+    // we haven't found the texture as currently uploaded
+    if koda.active_textures.count < koda.maximum_active_texture_count {
+        array_add(*koda.active_textures, .{buffer, bytes});
+        array_add(*koda.texture_expirations, 0);
+
+        active_slot := koda.active_textures.count - 1;
+
+        return cast(u32) active_slot, false;
+    } else {
+        // texture_swap_count += 1;
+
+        // I'm going off of the equation 8*8 -> 1, 16*16 -> 2, 32*32 -> 3, which is y=2^(2x+4)
+        // and larger values are removed sooner, so we'll basically divide by this number
+        get_expiration_mul :: inline (bytes: int) -> float {
+            // multiplier meaning, we will multiplier the expirator by 1 more every time
+            // a single dimension increases by this multiplier from the previous value
+            multiplier :: 4;
+            // this is 2^smallest_size_exp is a single dimension that will have a multiplier of 1
+            smallest_size_exp :: 4;
+            denominator :: #run multiplier * 2 * log(2.0);
+            subtractive :: #run (smallest_size_exp - 1) / multiplier;
+
+            // 2, 3 -> 2 + 2x -> log(y) / (4 * log(2)) - 1
+            // 2, 4 -> 3 + 2x -> log(y) / (4 * log(2)) - 3 / 2
+            // 2, 5 -> 4 + 2x -> log(y) / (4 * log(2)) - 2
+
+            // 3, 3 -> 2 + 3x -> log(y) / (6 * log(2)) - 2 / 3
+            // 3, 4 -> 3 + 3x -> log(y) / (6 * log(2)) - 1
+            // 3, 5 -> 4 + 3x -> log(y) / (6 * log(2)) - 4 / 3
+
+            bytes = max(bytes, 1);
+            return cast(float) (1.0 / max(log(cast(float64) bytes) / denominator - subtractive, 1));
+        }
+
+        oldest_expiration_index := 0;
+        oldest_expiration_value := 0.0;
+
+        for expiration, expiration_index: koda.texture_expirations {
+            expiration_mul := get_expiration_mul(koda.active_textures[expiration_index].bytes);
+
+            if expiration * expiration_mul >= oldest_expiration_value {
+                oldest_expiration_index = expiration_index;
+                oldest_expiration_value = expiration * expiration_mul;
+            }
+        }
+
+        assert(oldest_expiration_value > 0, "All texture slots are filled and there's another texture trying to be assigned. I think this means I actually need to detect the real texture uniform max.\n");
+
+        koda.active_textures[oldest_expiration_index] = .{buffer, bytes};
+        koda.texture_expirations[oldest_expiration_index] = 0;
+        return cast(u32) oldest_expiration_index, false;
+    }
+}
+
+glBindTextureTemporary :: (texture_type: u32, buffer: u32) #expand {
+    last_2d_texture: s32;
+    last_3d_texture: s32;
+    last_cube_map_texture: s32;
+    last_array_texture: s32;
+    glGetIntegerv(GL_TEXTURE_BINDING_2D, *last_2d_texture);
+    glGetIntegerv(GL_TEXTURE_BINDING_3D, *last_3d_texture);
+    glGetIntegerv(GL_TEXTURE_BINDING_CUBE_MAP, *last_cube_map_texture);
+    glGetIntegerv(GL_TEXTURE_BINDING_2D_ARRAY, *last_array_texture);
+    `defer if last_2d_texture then glBindTexture(GL_TEXTURE_2D, cast(u32) last_2d_texture);
+    `defer if last_3d_texture then glBindTexture(GL_TEXTURE_3D, cast(u32) last_3d_texture);
+    `defer if last_cube_map_texture then glBindTexture(GL_TEXTURE_CUBE_MAP, cast(u32) last_cube_map_texture);
+    `defer if last_array_texture then glBindTexture(GL_TEXTURE_2D_ARRAY, cast(u32) last_array_texture);
+
+    glBindTexture(texture_type, buffer);
+}
+
+temporary_force_location_lookup := false;
 
 apply_uniforms :: (shader: *Shader, uniforms: ShaderUniforms, printing: bool = false) {
-    if shader != koda.shader {
+    if shader.program != koda.shader {
         print("Applying uniforms to inactive shader. This is very unusual. I'm even considering disallowing this.\n");
         print_stack_trace();
     }
 
-    // final_uniforms: ShaderUniforms;
-    // defer destroy(final_uniforms);
+    for *uniform: uniforms {
+        location: s32 = -1;
+        for uniform_location: shader.uniform_locations {
+            if uniform_location.name == uniform.name {
+                assert(uniform_location.type == uniform.type, "Trying to assign a texture uniform to a slot with a different type. %: %: % != %\n", shader.name, to_string(*uniform.name), uniform_location.type, uniform.type);
+                location = uniform_location.location;
+                break;
+            }
+        }
 
-    // for uniform: shader.uniforms.uniforms {
-    //     shader.uniforms[xx uniform.name] = uniform;
-    //     shader.uniforms[xx uniform.name].ownership = false;
-    //     debug_shaders && print("set % % %\n", to_string(uniform.name), uniform, shader.uniforms[xx uniform.name].*);
-    // }
+        if temporary_force_location_lookup {
+            location = glGetUniformLocation(shader.program, to_c_string(*uniform.name));
+        }
 
-    for uniform: uniforms {
-        existing := get(*shader.uniforms, uniform.name);
-        existing_location := ifx existing then existing.location else -1;
+        if location == -1 {
+            continue;
+        }
 
-        set(*shader.uniforms, uniform);
-        created := get(*shader.uniforms, uniform.name);
-        created.ownership = false;
-        
-        if existing_location >= 0 {
-            created.location = existing_location;
+        if #complete uniform.type == {
+            case .Float1;
+                glUniform1f(location, uniform.float1);
+            case .Float1N;
+                glUniform1fv(location, xx uniform.float1n.count, uniform.float1n.data);
+            case .Float2;
+                glUniform2f(location, uniform.float2[0], uniform.float2[1]);
+            case .Float2N;
+                glUniform2fv(location, xx uniform.float2n.count, cast(*float) uniform.float2n.data);
+            case .Float3;
+                glUniform3f(location, uniform.float3[0], uniform.float3[1], uniform.float3[2]);
+            case .Float3N;
+                glUniform3fv(location, xx uniform.float3n.count, cast(*float) uniform.float3n.data);
+            case .Float4;
+                glUniform4f(location, uniform.float4[0], uniform.float4[1], uniform.float4[2], uniform.float4[3]);
+            case .Float4N;
+                glUniform4fv(location, xx uniform.float4n.count, cast(*float) uniform.float4n.data);
+            case .Int1;
+                glUniform1i(location, uniform.int1);
+            case .Int1N;
+                glUniform1iv(location, xx uniform.int1n.count, uniform.int1n.data);
+            case .Int2;
+                glUniform2i(location, uniform.int2[0], uniform.int2[1]);
+            case .Int2N;
+                glUniform2iv(location, xx uniform.int2n.count, cast(*s32) uniform.int2n.data);
+            case .Int3;
+                glUniform3i(location, uniform.int3[0], uniform.int3[1], uniform.int3[2]);
+            case .Int3N;
+                glUniform3iv(location, xx uniform.int3n.count, cast(*s32) uniform.int3n.data);
+            case .Int4;
+                glUniform4i(location, uniform.int4[0], uniform.int4[1], uniform.int4[2], uniform.int4[3]);
+            case .Int4N;
+                glUniform4iv(location, xx uniform.int4n.count, cast(*s32) uniform.int4n.data);
+            case .UInt1;
+                glUniform1ui(location, uniform.uint1);
+            case .UInt1N;
+                glUniform1uiv(location, xx uniform.uint1n.count, uniform.uint1n.data);
+            case .UInt2;
+                glUniform2ui(location, uniform.uint2[0], uniform.uint2[1]);
+            case .UInt2N;
+                glUniform2uiv(location, xx uniform.uint2n.count, cast(*u32) uniform.uint2n.data);
+            case .UInt3;
+                glUniform3ui(location, uniform.uint3[0], uniform.uint3[1], uniform.uint3[2]);
+            case .UInt3N;
+                glUniform3uiv(location, xx uniform.uint3n.count, cast(*u32) uniform.uint3n.data);
+            case .UInt4;
+                glUniform4ui(location, uniform.uint4[0], uniform.uint4[1], uniform.uint4[2], uniform.uint4[3]);
+            case .UInt4N;
+                glUniform4uiv(location, xx uniform.uint4n.count, cast(*u32) uniform.uint4n.data);
+            case .Mat2;
+                glUniformMatrix2fv(location, 1, true, cast(*float) uniform.mat2.data);
+            case .Mat2N;
+                glUniformMatrix2fv(location, xx uniform.mat2n.count, true, cast(*float) uniform.mat2n.data);
+            case .Mat3;
+                glUniformMatrix3fv(location, 1, true, cast(*float) uniform.mat3.data);
+            case .Mat3N;
+                glUniformMatrix3fv(location, xx uniform.mat3n.count, true, cast(*float) uniform.mat3n.data);
+            case .Mat4;
+                glUniformMatrix4fv(location, 1, true, cast(*float) uniform.mat4.data);
+            case .Mat4N;
+                glUniformMatrix4fv(location, xx uniform.mat4n.count, true, cast(*float) uniform.mat4n.data);
+            case .Texture; #through;
+            case .ShadowTexture;
+                texture_slot, already_bound := claim_texture_slot(uniform.texture.buffer, get_bytes(uniform.texture));
+                if !already_bound {
+                    glActiveTexture(GL_TEXTURE0 + texture_slot);
+                    glBindTexture(GL_TEXTURE_2D, uniform.texture.buffer);
+                }
+                glUniform1i(location, cast(s32) texture_slot);
+            case .TextureArray;
+                texture_slot, already_bound := claim_texture_slot(uniform.texture_array.buffer, get_bytes(uniform.texture_array));
+                if !already_bound {
+                    glActiveTexture(GL_TEXTURE0 + texture_slot);
+                    glBindTexture(GL_TEXTURE_2D_ARRAY, uniform.texture_array.buffer);
+                }
+                glUniform1i(location, cast(s32) texture_slot);
+            case .Texture3;
+                texture_slot, already_bound := claim_texture_slot(uniform.texture3.buffer, get_bytes(uniform.texture3));
+                if !already_bound {
+                    glActiveTexture(GL_TEXTURE0 + texture_slot);
+                    glBindTexture(GL_TEXTURE_3D, uniform.texture3.buffer);
+                }
+                glUniform1i(location, cast(s32) texture_slot);
+            case .CubemapTexture;
+                texture_slot, already_bound := claim_texture_slot(uniform.cubemap_texture.buffer, get_bytes(uniform.cubemap_texture));
+                if !already_bound {
+                    glActiveTexture(GL_TEXTURE0 + texture_slot);
+                    glBindTexture(GL_TEXTURE_CUBE_MAP, uniform.cubemap_texture.buffer);
+                }
+                glUniform1i(location, cast(s32) texture_slot);
         }
     }
-
-    // TODO because currently the shader does not own its own memory, this is leaking memory every frame
-    // TODO so the shader should have uniforms that it owns, and then there should be an unowned stack uniform that gets applied or something
-
-    // the uniforms stay in order for the shaders uniforms, so after we apply all the uniforms we can lookup the texture indices by iterating over them in order
-    // for *uniform: uniforms.uniforms {
-        texture_index: s32;
-
-        for *uniform: shader.uniforms {
-            if uniform.location == -1 {
-                continue;
-            }
-
-            // if uniform.name == shader_uniform.name {
-                // TODO this could be improved if I force uniform names to be less than a certain size, and use fixed strings
-                location := glGetUniformLocation(shader.program, to_c_string(*uniform.name));
-                uniform.location = location;
-                if location == -1 {
-                    continue;
-                }
-
-                if #complete uniform.type == {
-                    case .Float1;
-                        glUniform1f(location, uniform.float1);
-                    case .Float1N;
-                        glUniform1fv(location, xx uniform.float1n.count, uniform.float1n.data);
-                    case .Float2;
-                        glUniform2f(location, uniform.float2[0], uniform.float2[1]);
-                    case .Float2N;
-                        glUniform2fv(location, xx uniform.float2n.count, cast(*float) uniform.float2n.data);
-                    case .Float3;
-                        glUniform3f(location, uniform.float3[0], uniform.float3[1], uniform.float3[2]);
-                    case .Float3N;
-                        glUniform3fv(location, xx uniform.float3n.count, cast(*float) uniform.float3n.data);
-                    case .Float4;
-                        glUniform4f(location, uniform.float4[0], uniform.float4[1], uniform.float4[2], uniform.float4[3]);
-                    case .Float4N;
-                        glUniform4fv(location, xx uniform.float4n.count, cast(*float) uniform.float4n.data);
-                    case .Int1;
-                        glUniform1i(location, uniform.int1);
-                    case .Int1N;
-                        glUniform1iv(location, xx uniform.int1n.count, uniform.int1n.data);
-                    case .Int2;
-                        glUniform2i(location, uniform.int2[0], uniform.int2[1]);
-                    case .Int2N;
-                        glUniform2iv(location, xx uniform.int2n.count, cast(*s32) uniform.int2n.data);
-                    case .Int3;
-                        glUniform3i(location, uniform.int3[0], uniform.int3[1], uniform.int3[2]);
-                    case .Int3N;
-                        glUniform3iv(location, xx uniform.int3n.count, cast(*s32) uniform.int3n.data);
-                    case .Int4;
-                        glUniform4i(location, uniform.int4[0], uniform.int4[1], uniform.int4[2], uniform.int4[3]);
-                    case .Int4N;
-                        glUniform4iv(location, xx uniform.int4n.count, cast(*s32) uniform.int4n.data);
-                    case .UInt1;
-                        glUniform1ui(location, uniform.uint1);
-                    case .UInt1N;
-                        glUniform1uiv(location, xx uniform.uint1n.count, uniform.uint1n.data);
-                    case .UInt2;
-                        glUniform2ui(location, uniform.uint2[0], uniform.uint2[1]);
-                    case .UInt2N;
-                        glUniform2uiv(location, xx uniform.uint2n.count, cast(*u32) uniform.uint2n.data);
-                    case .UInt3;
-                        glUniform3ui(location, uniform.uint3[0], uniform.uint3[1], uniform.uint3[2]);
-                    case .UInt3N;
-                        glUniform3uiv(location, xx uniform.uint3n.count, cast(*u32) uniform.uint3n.data);
-                    case .UInt4;
-                        glUniform4ui(location, uniform.uint4[0], uniform.uint4[1], uniform.uint4[2], uniform.uint4[3]);
-                    case .UInt4N;
-                        glUniform4uiv(location, xx uniform.uint4n.count, cast(*u32) uniform.uint4n.data);
-                    case .Mat2;
-                        glUniformMatrix2fv(location, 1, true, cast(*float) uniform.mat2.data);
-                    case .Mat2N;
-                        glUniformMatrix2fv(location, xx uniform.mat2n.count, true, cast(*float) uniform.mat2n.data);
-                    case .Mat3;
-                        glUniformMatrix3fv(location, 1, true, cast(*float) uniform.mat3.data);
-                    case .Mat3N;
-                        glUniformMatrix3fv(location, xx uniform.mat3n.count, true, cast(*float) uniform.mat3n.data);
-                    case .Mat4;
-                        glUniformMatrix4fv(location, 1, true, cast(*float) uniform.mat4.data);
-                    case .Mat4N;
-                        glUniformMatrix4fv(location, xx uniform.mat4n.count, true, cast(*float) uniform.mat4n.data);
-                    case .Texture;
-                        glActiveTexture(GL_TEXTURE0 + cast(u32) texture_index);
-                        glBindTexture(GL_TEXTURE_2D, uniform.texture.buffer);
-                        glUniform1i(location, texture_index);
-
-                        texture_index += 1;
-                    case .TextureArray;
-                        glActiveTexture(GL_TEXTURE0 + cast(u32) texture_index);
-                        glBindTexture(GL_TEXTURE_2D_ARRAY, uniform.texture_array.buffer);
-                        glUniform1i(location, texture_index);
-
-                        texture_index += 1;
-                    case .Texture3;
-                        glActiveTexture(GL_TEXTURE0 + cast(u32) texture_index);
-                        glBindTexture(GL_TEXTURE_3D, uniform.texture3.buffer);
-                        glUniform1i(location, texture_index);
-
-                        texture_index += 1;
-                    case .CubemapTexture;
-                        glActiveTexture(GL_TEXTURE0 + cast(u32) texture_index);
-                        glBindTexture(GL_TEXTURE_CUBE_MAP, uniform.cubemap_texture.buffer);
-                        glUniform1i(location, texture_index);
-
-                        texture_index += 1;
-                    // case .TextureN;
-                    //     // TODO no allocations
-                    //     texture_values := NewArray(uniform.uint1n.count, u32, initialized = false);
-                    //     defer array_free(texture_values);
-
-                    //     for i: 0..uniform.uint1n.count - 1 {
-                    //         glActiveTexture(GL_TEXTURE0 + texture_index);
-                    //         glBindTexture(GL_TEXTURE_2D, uniform.uint1n[i]);
-                    //         texture_values[i] = texture_index;
-
-                    //         texture_index += 1;
-                    //     }
-                    //     glUniform1uiv(location, xx texture_values.count, texture_values.data);
-                }
-            // } else {
-            //     if shader_uniform.type == {
-            //         case .Texture;
-            //             texture_index += 1;
-            //         case .Texture3;
-            //             texture_index += 1;
-            //         case .CubemapTexture;
-            //             texture_index += 1;
-            //         // case .TextureN;
-            //         //     texture_index += cast(u32) shader_uniform.uint1n.count;
-            //     }
-            // }
-        }
-    // }
-
-    // TODO is it important to set back glActiveTexture(GL_TEXTURE0); here?
 }
 
 use_shader :: (shader: *Shader) {
@@ -685,7 +781,13 @@ use_shader :: (shader: *Shader) {
         }
     }
 
-    if koda.shader == shader {
+    // increment texture expirations and apply default shader uniforms if any
+    for i: 0..koda.texture_expirations.count - 1 {
+        koda.texture_expirations[i] += 1;
+    }
+    
+    if koda.shader == shader.program {
+        apply_uniforms(shader, shader.uniforms);
         return;
     }
 
@@ -695,7 +797,9 @@ use_shader :: (shader: *Shader) {
 
     glUseProgram(shader.program);
     koda.active_program = shader.program;
-    koda.shader = shader;
+    koda.shader = shader.program;
+
+    apply_uniforms(shader, shader.uniforms);
 }
 
 #import "Basic";

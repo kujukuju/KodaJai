@@ -69,7 +69,7 @@ upload :: (texture: *Texture) {
     }
 
     glGenTextures(1, *texture.buffer);
-    glBindTexture(texture_type, texture.buffer);
+    glBindTextureTemporary(texture_type, texture.buffer);
     glTexParameteri(texture_type, GL_TEXTURE_WRAP_S, wrap_format);	
     glTexParameteri(texture_type, GL_TEXTURE_WRAP_T, wrap_format);
     glTexParameteri(texture_type, GL_TEXTURE_MIN_FILTER, interp_min_format);
@@ -130,6 +130,10 @@ destroy :: (texture: Texture) {
     if texture.name {
         free(texture.name);
     }
+}
+
+get_bytes :: (texture: Texture) -> int {
+    return texture.width * texture.height * get_stride(texture.format);
 }
 
 scale_data :: (data: Texture, width: s32, height: s32, preserve_ratio: bool = true) -> Texture {
@@ -199,11 +203,6 @@ update_texture :: (texture: *Texture, image: Image) {
     assert(texture.format == image.format, "Formats must match.");
     
     glTextureSubImage2D(texture.buffer, 0, 0, 0, xx texture.width, xx texture.height, get_gl_format(texture.format), GL_UNSIGNED_BYTE, image.pixels.data);
-    // glBindBuffer(GL_TEXTURE_BUFFER, texture.buffer);
-    // glBindTexture(GL_TEXTURE_BUFFER, buffer.texture);
-    // // glTexBuffer(GL_TEXTURE_BUFFER, format, buffer.buffer);
-    // glBufferData(GL_TEXTURE_BUFFER, buffer.size, null, GL_DYNAMIC_DRAW);
-    // glBufferSubData(GL_TEXTURE_BUFFER, 0, buffer.size, data.data);
 }
 
 convert_format :: (texture: *Texture, desired_format: PixelFormat) {
