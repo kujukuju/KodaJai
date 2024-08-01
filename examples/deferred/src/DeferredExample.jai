@@ -63,7 +63,7 @@ main :: () {
 
     clear(.{0, 0, 0, 1});
 
-    while !should_exit() {
+    while !koda_should_exit() {
         reset_temporary_storage();
 
         update_inputs();

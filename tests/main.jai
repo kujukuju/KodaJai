@@ -14,7 +14,7 @@ main :: () {
     camera.position = .{10, 15, 20};
     look_at(*camera, .{0, 8, 0});
 
-    while !should_exit() {
+    while !koda_should_exit() {
         update_inputs();
 
         clear(Color.{0.56, 0.88, 0.92, 1.0});

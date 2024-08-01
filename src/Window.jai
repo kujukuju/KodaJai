@@ -211,7 +211,7 @@ error_check_gl :: ($full_stack := false) -> bool #expand {
     return errored;
 }
 
-should_exit :: () -> bool {
+koda_should_exit :: () -> bool {
     if glfwWindowShouldClose(koda.window) == GLFW_TRUE {
         return true;
     }
