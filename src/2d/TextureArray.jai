@@ -105,6 +105,7 @@ upload :: (texture: *TextureArray) {
 
 unload :: (texture: *TextureArray) {
     if texture.buffer {
+        release_texture_slot(texture.buffer);
         glDeleteTextures(1, *texture.buffer);
         texture.buffer = 0;
     }
@@ -114,7 +115,7 @@ unload :: (texture: *TextureArray) {
 
 destroy :: (texture: TextureArray) {
     stbi_image_free(texture.data);
-    // delete data?
+    release_texture_slot(texture.buffer);
     glDeleteTextures(1, *texture.buffer);
 }
 

@@ -41,7 +41,9 @@ create_render_texture :: (width: int, height: int, format: PixelFormat) -> *Rend
 
 destroy :: (render_texture: *RenderTexture) {
     glDeleteFramebuffers(1, *render_texture.framebuffer);
+    release_texture_slot(render_texture.texture.buffer);
     glDeleteTextures(1, *render_texture.texture.buffer);
+    release_texture_slot(render_texture.depth.buffer);
     glDeleteTextures(1, *render_texture.depth.buffer);
     free(render_texture);
 }
@@ -49,6 +51,7 @@ destroy :: (render_texture: *RenderTexture) {
 get_texture_and_free :: (render_texture: *RenderTexture) -> Texture {
     texture := render_texture.texture;
     glDeleteFramebuffers(1, *render_texture.framebuffer);
+    release_texture_slot(render_texture.depth.buffer);
     glDeleteTextures(1, *render_texture.depth.buffer);
     free(render_texture);
 

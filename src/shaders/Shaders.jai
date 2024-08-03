@@ -614,6 +614,16 @@ claim_texture_slot :: (buffer: u32, bytes: int) -> texture_slot: u32, already_bo
     }
 }
 
+release_texture_slot :: (buffer: u32) {
+    for active_texture, active_slot: koda.active_textures {
+        if active_texture.buffer == buffer {
+            koda.active_textures[active_slot].buffer = 0;
+            koda.active_textures[active_slot].bytes = 0;
+            koda.texture_expirations[active_slot] = S32_MAX;
+        }
+    }
+}
+
 glBindTextureTemporary :: (texture_type: u32, buffer: u32) #expand {
     last_2d_texture: s32;
     last_3d_texture: s32;

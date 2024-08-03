@@ -146,7 +146,8 @@ upload :: (texture: *CubemapTexture) {
 
 unload :: (texture: *CubemapTexture) {
     if texture.buffer {
-        glDeleteTextures(1, texture.buffer);
+        release_texture_slot(texture.buffer);
+        glDeleteTextures(1, *texture.buffer);
         texture.buffer = 0;
     }
 }
@@ -157,6 +158,7 @@ destroy :: (texture: CubemapTexture) {
     }
 
     if texture.buffer {
+        release_texture_slot(texture.buffer);
         glDeleteTextures(1, *texture.buffer);
     }
 }

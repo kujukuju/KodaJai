@@ -108,6 +108,7 @@ upload :: (texture: *Texture3) {
 
 unload :: (texture: *Texture3) {
     if texture.buffer {
+        release_texture_slot(texture.buffer);
         glDeleteTextures(1, *texture.buffer);
         texture.buffer = 0;
     }
@@ -121,6 +122,7 @@ destroy :: (texture: Texture3) {
     }
     // delete data?
     if texture.buffer {
+        release_texture_slot(texture.buffer);
         glDeleteTextures(1, *texture.buffer);
     }
 }
