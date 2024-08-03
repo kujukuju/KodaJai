@@ -1,3 +1,4 @@
+
 SerializeStructure :: struct (DataType: Type) {
     hash: SerializedStructureHash;
     data: DataType;
@@ -61,7 +62,14 @@ read_serialized :: (serialized_path: string, hash_files: [$N] string, data: *$T,
     return false, memory;
 }
 
-load_serialized :: (serialized_path: string, hash_files: [$N] string, fallback: (data: $D) -> $T, fallback_data: D, $reuse_memory: bool = false) -> T, bool, *void {
+load_serialized :: (serialized_path: string, $T: Type, $reuse_memory: bool = false) -> T, bool, *void {
+    data: T;
+    success, memory := read_serialized(serialized_path, .[], *data, reuse_memory);
+
+    return data, success, memory;
+}
+
+load_serialized :: (serialized_path: string, hash_files: [$N] string, $fallback: (data: $D) -> $T, fallback_data: D, $reuse_memory: bool = false) -> T, bool, *void {
     data: T;
     success, memory := read_serialized(serialized_path, hash_files, *data, reuse_memory);
 

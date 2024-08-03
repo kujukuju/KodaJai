@@ -1,3 +1,4 @@
+
 enum_count :: ($t: Type) -> s64 {
     return enum_highest_value(t) + 1;
 }
