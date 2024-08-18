@@ -82,7 +82,7 @@ buffer_text :: (content: string, font: *Font, transform: Matrix3, anchor: Vector
     }
     dimensions := aabb.upper - aabb.lower;
 
-    x := -dimensions.x * anchor.x - aabb.lower.x + offset_x;
+    x := -dimensions.x * anchor.x - aabb.lower.x + offset_x * scale;
     y := -dimensions.y * anchor.y - aabb.lower.y;
 
     real_padding := padding / scale;

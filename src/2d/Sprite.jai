@@ -12,8 +12,8 @@ Sprite :: struct {
     alpha: float = 1;
     texture_frame: Vector4 = .{0, 0, 1, 1};
     shader: *Shader;
-    vbo_: GLuint;
     vao_: GLuint;
+    vbo_: GLuint;
     ebo_: GLuint;
 }
 

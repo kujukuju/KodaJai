@@ -344,7 +344,7 @@ set_fullscreen :: (fullscreen: bool, borderless: bool, width: int = 0, height: i
         // TODO use GLFW_DONT_CARE for refresh rate
         set_window_size(width, height);
         glfwSetWindowAttrib(koda.window, GLFW_DECORATED, GLFW_FALSE);
-        glfwSetWindowMonitor(koda.window, null, 0, 0, cast(s32) width, cast(s32) height, 0);
+        glfwSetWindowMonitor(koda.window, monitor, 0, 0, cast(s32) width, cast(s32) height, video_mode.refreshRate);
         set_vsync(get_vsync());
     } else if borderless {
         if !width then width = video_mode.width;
@@ -352,14 +352,16 @@ set_fullscreen :: (fullscreen: bool, borderless: bool, width: int = 0, height: i
 
         set_window_size(width, height);
         glfwSetWindowAttrib(koda.window, GLFW_DECORATED, GLFW_FALSE);
-        glfwSetWindowMonitor(koda.window, null, cast(s32) (video_mode.width - width) / 2, cast(s32) (video_mode.height - height) / 2, cast(s32) width, cast(s32) height, 0);
+        glfwSetWindowMonitor(koda.window, null, cast(s32) (video_mode.width - width) / 2, cast(s32) (video_mode.height - height) / 2, cast(s32) width, cast(s32) height, GLFW_DONT_CARE);
+        glfwSetWindowPos(koda.window, cast(s32) (video_mode.width - width) / 2, cast(s32) (video_mode.height - height) / 2);
         set_vsync(get_vsync());
     } else if !borderless {
         if !width then width = koda.width;
         if !height then height = koda.height;
 
         glfwSetWindowAttrib(koda.window, GLFW_DECORATED, GLFW_TRUE);
-        glfwSetWindowMonitor(koda.window, null, cast(s32) (video_mode.width - width) / 2, cast(s32) (video_mode.height - height) / 2, cast(s32) width, cast(s32) height, 0);
+        glfwSetWindowMonitor(koda.window, null, cast(s32) (video_mode.width - width) / 2, cast(s32) (video_mode.height - height) / 2, cast(s32) width, cast(s32) height, GLFW_DONT_CARE);
+        glfwSetWindowPos(koda.window, cast(s32) (video_mode.width - width) / 2, cast(s32) (video_mode.height - height) / 2);
         glfwSetWindowAttrib(koda.window, GLFW_DECORATED, GLFW_TRUE);
         set_window_size(width, height);
         set_vsync(get_vsync());
@@ -430,8 +432,9 @@ set_mouse_capture :: (capture: bool) {
         }
         
         mouse_capture = capture;
-        resolve_mouse_capture();
     }
+
+    resolve_mouse_capture();
 }
 
 get_mouse_currently_captured :: () -> bool {

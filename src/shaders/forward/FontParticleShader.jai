@@ -63,11 +63,20 @@ void main() {
     vec2 localPos = rotate(aPos.xy * aParticleSize - localCenter, aParticleRotation) + localCenter;
 
     vec3 pos = transform * vec3(aParticlePosition + localPos, 1.0);
-    pos.xy /= pos.z;
-    vTexCoord.z = pos.z;
-    vTexCoord.xy /= vTexCoord.z;
 
-    gl_Position = projection * view * vec4(vec3(pos.xy, 0.0) + aParticleWorldPosition, 1.0);
+    if (dot(aParticleWorldPosition, aParticleWorldPosition) > 0.0) {
+        // when in 3d space we will keep it always camera facing for now
+        vTexCoord.y = 1.0 - vTexCoord.y;
+
+        gl_Position = projection * (view * vec4(aParticleWorldPosition, 1.0) + vec4(pos.xy, 0.0, 0.0));
+    } else {
+        // when in 2d space we will appropriately transform the font by the view matrix
+        pos.xy /= pos.z;
+        vTexCoord.z = pos.z;
+        vTexCoord.xy /= vTexCoord.z;
+
+        gl_Position = projection * view * vec4(pos.xy, 0.0, 1.0);
+    }
 }
 ___glsl
 
@@ -90,9 +99,11 @@ void main() {
     vec2 coord = vTexCoord.xy * vTexCoord.z;
     coord *= vTexSize;
 
+    float fScale = 4.0 / (length(fwidth(vTexCoord.xy)) * length(vec2(textureSize(uTexture, 0).xy)));
+
     // TODO implement smdb w/e sdf
     float sdf;
-    if (vScale < 1.5) {
+    if (fScale < 1.5) {
         sdf = texture(uTexture, vec3(coord, vIndex)).r;
     } else {
         vec2 pixelSize = 1.0 / vec2(textureSize(uTexture, 0).xy) * vScale;
@@ -107,7 +118,7 @@ void main() {
     // it seems to change 16 / 255 per pixel
 
     float edge = 128.0 / 255.0;
-    float edgeWidth = 12.0 / 255.0 / vScale;
+    float edgeWidth = 12.0 / 255.0 / fScale;
     float edgeMin = clamp(edge - edgeWidth * 1.0 - vPadding / 16.0 - vBlur / 8.0, 0.0, 1.0 - edgeWidth);
     float edgeMax = clamp(edge + edgeWidth * 1.0 - vPadding / 16.0 + vBlur / 8.0, edgeWidth, 1.0);
 

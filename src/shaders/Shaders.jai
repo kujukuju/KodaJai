@@ -641,9 +641,9 @@ glBindTextureTemporary :: (texture_type: u32, buffer: u32) #expand {
     glBindTexture(texture_type, buffer);
 }
 
-temporary_force_location_lookup := false;
-
 apply_uniforms :: (shader: *Shader, uniforms: ShaderUniforms, printing: bool = false) {
+    shader = get_shader_replacement(shader);
+
     if shader.program != koda.shader {
         print("Applying uniforms to inactive shader. This is very unusual. I'm even considering disallowing this.\n");
         print_stack_trace();
@@ -657,10 +657,6 @@ apply_uniforms :: (shader: *Shader, uniforms: ShaderUniforms, printing: bool = f
                 location = uniform_location.location;
                 break;
             }
-        }
-
-        if temporary_force_location_lookup {
-            location = glGetUniformLocation(shader.program, to_c_string(*uniform.name));
         }
 
         if location == -1 {
@@ -761,7 +757,46 @@ apply_uniforms :: (shader: *Shader, uniforms: ShaderUniforms, printing: bool = f
     }
 }
 
+set_shader_replacement :: (source: *Shader, dest: *Shader) {
+    for *replacement: koda.shader_replacements {
+        if replacement.*[0] == source {
+            replacement.*[1] = dest;
+            return;
+        }
+    }
+
+    array_add(*koda.shader_replacements, .[source, dest]);
+}
+
+clear_shader_replacements :: () {
+    koda.shader_replacements.count = 0;
+}
+
+get_shader_replacement :: (source: *Shader) -> *Shader {
+    for replacement: koda.shader_replacements {
+        if replacement[0] == source {
+            return replacement[1];
+        }
+    }
+
+    assert(!should_asset_without_replacement, "Did not find shader replacement for shader %.\n", source.name);
+
+    return source;
+}
+
+should_asset_without_replacement: bool;
+
+set_should_asset_without_replacement :: (enabled: bool) {
+    should_asset_without_replacement = enabled;
+}
+
 use_shader :: (shader: *Shader) {
+    shader = get_shader_replacement(shader);
+    
+    old_should_asset_without_replacement := should_asset_without_replacement;
+    defer should_asset_without_replacement = old_should_asset_without_replacement;
+    should_asset_without_replacement = false;
+
     if !shader.program {
         assert(false, tprint("You have to manually initialize shaders. %\n", shader.name));
         if !shader.name {
@@ -797,6 +832,7 @@ use_shader :: (shader: *Shader) {
     }
     
     if koda.shader == shader.program {
+
         apply_uniforms(shader, shader.uniforms);
         return;
     }

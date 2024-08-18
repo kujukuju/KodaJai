@@ -13,36 +13,6 @@
     #import "stb_image_write";
 }
 
-// #insert #run () -> string {
-//     filepath :: #filepath;
-
-//     builder: String_Builder;
-
-//     files := file_list(tprint("%src", #filepath), recursive = true);
-//     for file: files {
-//         if !ends_with(file, ".jai") {
-//             continue;
-//         }
-
-//         relative_file: string;
-//         relative_file.data = file.data + filepath.count;
-//         relative_file.count = file.count - filepath.count;
-
-//         print("relative_file %\n", relative_file);
-
-//         // im not actually sure if #scope_export is necessary
-//         append(*builder, "#scope_export\n");
-//         append(*builder, "#load \"");
-//         append(*builder, relative_file);
-//         append(*builder, "\";\n");
-//     }
-
-//     str := builder_to_string(*builder);
-//     print("output %\n", str);
-
-//     return str;
-// }();
-
 #load "src/2d/AnimatedSprite.jai";
 #load "src/2d/Camera2.jai";
 #load "src/2d/Container2.jai";
@@ -178,6 +148,7 @@ koda: struct {
     active_textures: [..] ActiveTexture;
     texture_expirations: [..] int;
     maximum_active_texture_count: int;
+    shader_replacements: [..] [2] *Shader;
     view: Matrix4 = Matrix4Identity;
     projection: Matrix4 = Matrix4Identity;
     fovy: float = 0.5 * PI;
