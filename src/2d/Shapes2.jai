@@ -290,20 +290,26 @@ draw_ellipse :: (center: Vector2, dimensions: Vector2, color: Color = .{1, 1, 1,
     static_sprite.shader = *default_ellipse_shader;
     static_sprite.tint = color;
 
-    use_shader(*default_ellipse_shader);
+    set(*default_ellipse_shader.uniforms, "uTint", color);
+    set(*default_ellipse_shader.uniforms, "uBorderTint", border);
+    set(*default_ellipse_shader.uniforms, "uFrame", Vector4.{0, 0, 1, 1});
 
-    projection := get_orthographic_matrix();
-    model := Matrix4Identity;
-    view := koda.view;
+    // use_shader(*default_ellipse_shader);
 
-    uniforms: ShaderUniforms;
-    defer destroy(uniforms);
+    // projection := get_orthographic_matrix();
+    // model := Matrix4Identity;
+    // view := koda.view;
+
+    // uniforms: ShaderUniforms;
+    // defer destroy(uniforms);
     
-    set(*uniforms, "uTint", color);
-    set(*uniforms, "uBorderTint", border);
-    set(*uniforms, "uFrame", Vector4.{0, 0, 1, 1});
+    // set(*uniforms, "uTint", color);
+    // set(*uniforms, "uBorderTint", border);
+    // set(*uniforms, "uFrame", Vector4.{0, 0, 1, 1});
 
-    apply_uniforms(*default_ellipse_shader, uniforms);
+    // apply_uniforms(*default_ellipse_shader, uniforms);
+
+    set_view_scope(Matrix4Identity);
 
     draw(static_sprite);
 }
@@ -372,8 +378,7 @@ draw_circles :: (positions: [] Vector2, radius: float, color: Color = .{1, 1, 1,
         memcpy(offsets.data, positions.data + index, remaining_count * size_of(Vector2));
         set(*uniforms, "offsets", offsets);
 
-        // TODO apply 1 only
-        apply_uniforms(*default_shader, uniforms);
+        apply_uniforms(*instanced_shader2, uniforms);
 
         glDrawArraysInstanced(GL_TRIANGLES, 0, xx (vertices.count / 2), xx remaining_count);
     }

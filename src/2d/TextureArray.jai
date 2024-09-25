@@ -16,7 +16,7 @@ load_texture_array :: (path: string, wrap: TextureWrap = .Clamp, interp: Texture
     wrap_array[0] = wrap;
     wrap_array[1] = wrap;
 
-    return load_texture_array(load_image3(path), wrap_array, interp, should_upload);
+    return create_texture_array(load_image3(path), wrap_array, interp, should_upload);
 }
 
 load_texture_array :: (path: string, wrap: [2] TextureWrap, interp: TextureInterp, should_upload: bool = true) -> TextureArray {
@@ -127,7 +127,7 @@ update_texture :: (texture: *TextureArray, image: Image3) {
     assert(texture.width == image.width && texture.height == image.height && texture.depth == image.depth, "Dimensions must match.");
     assert(texture.format == image.format, "Formats must match.");
     
-    update_texture(texture, image.data);
+    update_texture(texture, image.pixels);
 }
 
 update_texture :: (texture: *TextureArray, bytes: [] u8) {

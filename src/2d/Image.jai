@@ -115,6 +115,8 @@ create_image :: (image: Image, position: Point2, size: Point2) -> Image {
 
         memcpy(new_pointer, old_pointer, copy_bytes);
     }
+
+    return new;
 }
 
 create_image :: (texture: Texture) -> Image {

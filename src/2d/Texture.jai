@@ -207,45 +207,45 @@ update_texture :: (texture: *Texture, image: Image) {
     glTextureSubImage2D(texture.buffer, 0, 0, 0, xx texture.width, xx texture.height, get_gl_format(texture.format), GL_UNSIGNED_BYTE, image.pixels.data);
 }
 
-convert_format :: (texture: *Texture, desired_format: PixelFormat) {
-    assert(texture.format == .R8 || texture.format == .RG8 || texture.format == .RGB8 || texture.format == .RGBA8, tprint("Cannot convert from format of %.\n", texture.format));
-    assert(desired_format == .R8 || desired_format == .RG8 || desired_format == .RGB8 || desired_format == .RGBA8, tprint("Cannot convert to format of %.\n", desired_format));
+// convert_format :: (texture: *Texture, desired_format: PixelFormat) {
+//     assert(texture.format == .R8 || texture.format == .RG8 || texture.format == .RGB8 || texture.format == .RGBA8, tprint("Cannot convert from format of %.\n", texture.format));
+//     assert(desired_format == .R8 || desired_format == .RG8 || desired_format == .RGB8 || desired_format == .RGBA8, tprint("Cannot convert to format of %.\n", desired_format));
 
-    if texture.format == desired_format {
-        return;
-    }
+//     if texture.format == desired_format {
+//         return;
+//     }
 
-    texture_stride := get_stride(texture.format);
-    desired_stride := get_stride(desired_format);
+//     texture_stride := get_stride(texture.format);
+//     desired_stride := get_stride(desired_format);
 
-    texture.format = desired_format;
+//     texture.format = desired_format;
 
-    total_pixels := texture.width * texture.height;
+//     total_pixels := texture.width * texture.height;
 
-    if desired_stride < texture_stride {
-        for i: 0..total_pixels - 1 {
-            texture_index := i * texture_stride;
-            desired_index := i * desired_stride;
+//     if desired_stride < texture_stride {
+//         for i: 0..total_pixels - 1 {
+//             texture_index := i * texture_stride;
+//             desired_index := i * desired_stride;
 
-            memcpy(texture.data + desired_index, texture.data + texture_index, desired_stride);
-        }
-    } else {
-        // untested
-        old_data := texture.data;
-        defer c_free(old_data);
+//             memcpy(texture.data + desired_index, texture.data + texture_index, desired_stride);
+//         }
+//     } else {
+//         // untested
+//         old_data := texture.data;
+//         defer c_free(old_data);
 
-        // honestly I'm not sure if this gives you guaranteed zeroed out memory
-        texture.data = c_alloc(cast(u64) (texture.width * texture.height * desired_stride));
-        memset(texture.data, 0, texture.width * texture.height * desired_stride);
+//         // honestly I'm not sure if this gives you guaranteed zeroed out memory
+//         texture.data = c_alloc(cast(u64) (texture.width * texture.height * desired_stride));
+//         memset(texture.data, 0, texture.width * texture.height * desired_stride);
 
-        for i: 0..total_pixels - 1 {
-            texture_index := i * texture_stride;
-            desired_index := i * desired_stride;
+//         for i: 0..total_pixels - 1 {
+//             texture_index := i * texture_stride;
+//             desired_index := i * desired_stride;
 
-            memcpy(texture.data + desired_index, old_data + texture_index, texture_stride);
-        }
-    }
-}
+//             memcpy(texture.data + desired_index, old_data + texture_index, texture_stride);
+//         }
+//     }
+// }
 
 create_image_from_data :: (texture: Texture) -> Image {
     texture_stride := get_stride(texture.format);

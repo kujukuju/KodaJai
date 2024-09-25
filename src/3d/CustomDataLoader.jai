@@ -47,7 +47,7 @@ load_custom_data :: (path: string) -> [..] CustomData, bool {
     }
 }
 
-get_property_entry :: (object: JsonObjectEntry) -> [2] string {
+get_property_entry :: (name: string, object: JsonObjectEntry) -> [2] string {
     property: [2] string;
     property[0] = copy_string(object.name);
 
@@ -56,7 +56,7 @@ get_property_entry :: (object: JsonObjectEntry) -> [2] string {
     } else if object.value.type == .Boolean {
         property[1] = ifx object.value.boolean then copy_string("true") else copy_string("false");
     } else {
-        assert(false, "Unknown custom data property type. %\n", object.value.type);
+        assert(false, "Unknown custom data property type. % % %\n", name, property[0], object.value.type);
         return .["", ""];
     }
 
@@ -116,7 +116,8 @@ load_custom_data_gltf_data :: (json: GltfJson) -> [..] CustomData, bool {
         }
 
         for property: node.extras.object {
-            array_add(*data.properties, get_property_entry(property));
+            name := ifx node.name then node.name.* else "";
+            array_add(*data.properties, get_property_entry(name, property));
         }
 
         array_add(*custom_data, data);

@@ -143,30 +143,6 @@ Button :: enum {
 
 BUTTON_COUNT :: #run enum_count(Button);
 
-// ClientInput :: struct {
-//     should_quit: bool;
-
-//     keys: [INPUT_COUNT] InputState;
-//     released_keys: [INPUT_COUNT] bool;
-
-//     mouse_left: InputState;
-//     released_mouse_left: bool;
-//     mouse_right: InputState;
-//     released_mouse_right: bool;
-//     mouse_delta_x: float64;
-//     mouse_delta_y: float64;
-
-//     scroll_delta_x: float64;
-//     scroll_delta_y: float64;
-
-//     controller_active: bool;
-//     controller_left: Vector2;
-//     controller_right: Vector2;
-//     joystick_projected: bool = true;
-//     controller_buttons: [CONTROLLER_BUTTON_COUNT] InputState;
-//     released_controller_buttons: [CONTROLLER_BUTTON_COUNT] bool;
-// }
-
 InputState :: enum_flags u8 {
     NONE :: 0x0;
     DOWN :: 0x1;
@@ -189,7 +165,9 @@ Input :: struct {
     released_keys: [KEY_COUNT] bool;
     controller_active: bool;
     controller_left: Vector2;
+    controller_left_projected: Vector2;
     controller_right: Vector2;
+    controller_right_projected: Vector2;
     buttons: [BUTTON_COUNT] InputState;
     released_buttons: [BUTTON_COUNT] bool;
     controller_left_trigger: float;
@@ -265,22 +243,26 @@ update_inputs :: ($update_features: InputFeature = .All) {
             length_left := length(input.controller_left) * (1.0 + joystick_padding * 2) - joystick_padding;
             length_left = min(max(length_left, 0.0), 1.0);
             input.controller_left = normalize(input.controller_left) * length_left;
+            input.controller_left_projected = input.controller_left;
 
             length_right := length(input.controller_right) * (1.0 + joystick_padding * 2) - joystick_padding;
             length_right = min(max(length_right, 0.0), 1.0);
             input.controller_right = normalize(input.controller_right) * length_right;
+            input.controller_right_projected = input.controller_right;
 
-            if joystick_projected {
-                if length_left > 0 {
-                    angle := atan2(input.controller_left.y, input.controller_left.x);
-                    denom := max(abs(cos(angle)), abs(sin(angle)));
-                    input.controller_left /= denom;
-                }
-                if length_right > 0 {
-                    angle := atan2(input.controller_right.y, input.controller_right.x);
-                    denom := max(abs(cos(angle)), abs(sin(angle)));
-                    input.controller_right /= denom;
-                }
+            if length_left > 0 {
+                angle := atan2(input.controller_left_projected.y, input.controller_left_projected.x);
+                denom := max(abs(cos(angle)), abs(sin(angle)));
+                input.controller_left_projected /= denom;
+            }
+            if length_right > 0 {
+                angle := atan2(input.controller_right_projected.y, input.controller_right_projected.x);
+                denom := max(abs(cos(angle)), abs(sin(angle)));
+                input.controller_right_projected /= denom;
+            }
+
+            if length_left > 0.5 || length_right > 0.5 {
+                input.controller_active = true;
             }
         }
     }
@@ -307,6 +289,7 @@ update_inputs :: ($update_features: InputFeature = .All) {
         mouse_left := glfwGetMouseButton(koda.window, GLFW_MOUSE_BUTTON_LEFT);
         input.released_mouse_left = input.mouse_left && !mouse_left;
         if mouse_left && !input.mouse_left {
+            input.controller_active = false;
             input.mouse_left |= InputState.START;
             input.mouse_left_start = input.mouse;
             input.mouse_left_drag = .{};
@@ -322,6 +305,7 @@ update_inputs :: ($update_features: InputFeature = .All) {
         mouse_right := glfwGetMouseButton(koda.window, GLFW_MOUSE_BUTTON_RIGHT);
         input.released_mouse_right = input.mouse_right && !mouse_right;
         if mouse_right && !input.mouse_right {
+            input.controller_active = false;
             input.mouse_right |= InputState.START;
             input.mouse_right_start = input.mouse;
             input.mouse_right_drag = .{};
@@ -337,6 +321,7 @@ update_inputs :: ($update_features: InputFeature = .All) {
         mouse_middle := glfwGetMouseButton(koda.window, GLFW_MOUSE_BUTTON_MIDDLE);
         input.released_mouse_middle = input.mouse_middle && !mouse_middle;
         if mouse_middle && !input.mouse_middle {
+            input.controller_active = false;
             input.mouse_middle |= InputState.START;
             input.mouse_middle_start = input.mouse;
             input.mouse_middle_drag = .{};
@@ -383,14 +368,6 @@ update_inputs :: ($update_features: InputFeature = .All) {
     if abort_shortcut && input.keys[Key.LEFT_CONTROL] && (input.keys[Key.C] & InputState.START) {
         glfwSetWindowShouldClose(koda.window, GLFW_TRUE);
     }
-}
-
-get_joystick_projected :: () -> bool {
-    return joystick_projected;
-}
-
-set_joystick_projected :: (projected: bool) {
-    joystick_projected = enabled;
 }
 
 get_joystick_padding :: () -> float {
@@ -452,7 +429,6 @@ mouse_position: [2] float64;
 accumulated_mouse: [2] float64;
 
 joystick_padding := 0.2;
-joystick_projected := true;
 
 abort_shortcut := false;
 

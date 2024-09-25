@@ -50,13 +50,13 @@ void main() {
     const float edgeWidth = 2.0;
 
     float color = smoothstep(1.0, 1.0 - length(fwidth(vTexCoord)) * edgeWidth, distance);
-    float border = smoothstep(1.0 - length(fwidth(vTexCoord)) * edgeWidth, 1.0 - length(fwidth(vTexCoord)) * edgeWidth * 2.0, distance);
+    float border = smoothstep(1.0 - length(fwidth(vTexCoord)) * edgeWidth * 3.0, 1.0 - length(fwidth(vTexCoord)) * edgeWidth * 2.0, distance);
 
-    // TODO use whatever that pixel density function is
+    vec4 finalColor = uTint * color;
+    finalColor = finalColor * (1.0 - border) + uBorderTint * border;
+    finalColor *= color;
+    finalColor.rgb /= finalColor.a;
 
-    vec4 averageColor = (uTint * uTint.a * color + uBorderTint * uBorderTint.a * border) / (uTint.a * color + uBorderTint.a * border);
-
-    FragColor = averageColor * max(uTint.a * color, uBorderTint.a * border);
-    // FragColor = vec4(1.0, 1.0, 1.0, 1.0);
+    FragColor = finalColor;
 }
 ___glsl

@@ -46,7 +46,7 @@ smootherstep :: (edge0: float, edge1: float, x: float) -> float {
 }
 
 smootherstep2 :: (edge0: Vector2, edge1: Vector2, x: Vector2) -> Vector2 {
-    new := clamp((x - edge0) / (edge1 - edge0), Vector2.{0, 0, 0}, Vector2.{1, 1, 1});
+    new := clamp((x - edge0) / (edge1 - edge0), Vector2.{0, 0}, Vector2.{1, 1});
     return new * new * new * (new * (new * 6.0 - 15.0) + 10.0);
 }
 

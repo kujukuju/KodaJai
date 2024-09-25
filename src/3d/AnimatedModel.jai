@@ -36,7 +36,7 @@ draw :: (animated: AnimatedModel, animation: string, frame: float = 0.0, transfo
 }
 
 draw :: (animated: AnimatedModel, animation: string, frame: float = 0.0, transform: Matrix4 = Matrix4Identity, projection: Matrix4, shader: *Shader = null) {
-    if animated.model.geometry.count == 0 {
+    if !animated.model.geometry {
         return;
     }
 

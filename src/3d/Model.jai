@@ -29,7 +29,7 @@ SerializedModel :: struct {
 }
 
 operator == :: (a: Model, b: Model) -> bool {
-    return a.geometry == b.geometry && a.uniforms == b.uniforms;
+    return a.geometry == b.geometry && equals(a.uniforms, b.uniforms);
 }
 
 // this is temporary I guess
@@ -158,7 +158,6 @@ destroy :: (model: *Model, children: bool = true) {
     }
     array_free(model.material_properties);
     destroy(model.uniforms);
-    // TODO should destroy textures here unless I move ownership later
     free(model.name);
     free(model);
 }
@@ -181,14 +180,14 @@ get_local_aabb :: (model: Model) -> AABB3 {
     return model.geometry.aabb;
 }
 
-get_bounding_sphere :: (model: Model) -> Sphere {
-    sphere := model.geometry.bounding_sphere;
+// get_bounding_sphere :: (model: Model) -> Sphere {
+//     sphere := model.geometry.bounding_sphere;
 
-    sphere.center = transform_point(get_transform(model), sphere.center);
-    sphere.radius *= max(model.scale.x, model.scale.y, model.scale.z);
+//     sphere.center = transform_point(get_transform(model), sphere.center);
+//     sphere.radius *= max(model.scale.x, model.scale.y, model.scale.z);
 
-    return sphere;
-}
+//     return sphere;
+// }
 
 ModelVertices :: struct {
     model: *Model;
@@ -737,7 +736,7 @@ load_model_gltf_data :: (json: GltfJson, binary: [] u8, should_upload: bool) -> 
                 assert(mesh.extras.type == .Object);
                 
                 for entry: mesh.extras.object {
-                    array_add(properties, get_property_entry(entry));
+                    array_add(properties, get_property_entry(mesh.name, entry));
                 }
             }
 
@@ -749,9 +748,11 @@ load_model_gltf_data :: (json: GltfJson, binary: [] u8, should_upload: bool) -> 
 
                 if material.extras {
                     assert(material.extras.type == .Object);
+
+                    name := ifx material.name then material.name.* else "";
                     
                     for entry: material.extras.object {
-                        array_add(material_properties, get_property_entry(entry));
+                        array_add(material_properties, get_property_entry(name, entry));
                     }
                 }
             }

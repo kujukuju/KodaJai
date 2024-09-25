@@ -56,7 +56,7 @@ goto_animation :: (framed: *FramedSprite, name: string, frame: int) {
     } else {
         framed.frame_f = cast(float) min(frame, frame_count) + animation.start;
         framed.frame = min(cast(int) framed.frame_f, animation.end);
-        framed.finished = framed.frame_f == frame_count + animation.start;
+        framed.finished = framed.frame_f == cast(float) frame_count + animation.start;
     }
 }
 

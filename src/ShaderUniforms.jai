@@ -538,7 +538,7 @@ create_uniform :: (name: FixedString(UNIFORM_LENGTH), value: [] [2] s32) -> Shad
     return uniform;
 }
 
-create_uniform :: (name: string, value: Point3) -> ShaderUniform {
+create_uniform :: (name: FixedString(UNIFORM_LENGTH), value: Point3) -> ShaderUniform {
     uniform: ShaderUniform;
     uniform.name = name;
     uniform.type = .Int3;
@@ -604,7 +604,7 @@ create_uniform :: (name: FixedString(UNIFORM_LENGTH), value: Point4) -> ShaderUn
     uniform: ShaderUniform;
     uniform.name = name;
     uniform.type = .Int4;
-    uniform.int4 = value.component;
+    uniform.int4 = .[cast(s32) value.x, cast(s32) value.y, cast(s32) value.z, cast(s32) value.w];
     return uniform;
 }
 
@@ -711,7 +711,7 @@ create_uniform :: (name: FixedString(UNIFORM_LENGTH), value: [] [2] u64) -> Shad
     uniform: ShaderUniform;
     uniform.name = name;
     uniform.type = .UInt2N;
-    uniform.uint2n = NewArray(value.count, u32, initialized = false);
+    uniform.uint2n = NewArray(value.count, [2] u32, initialized = false);
     for i: 0..uniform.uint2n.count - 1 {
         uniform.uint2n[i][0] = xx value[i][0];
         uniform.uint2n[i][1] = xx value[i][1];
@@ -749,7 +749,7 @@ create_uniform :: (name: FixedString(UNIFORM_LENGTH), value: [] [3] u64) -> Shad
     uniform: ShaderUniform;
     uniform.name = name;
     uniform.type = .UInt3N;
-    uniform.uint3n = NewArray(value.count, u32, initialized = false);
+    uniform.uint3n = NewArray(value.count, [3] u32, initialized = false);
     for i: 0..uniform.uint3n.count - 1 {
         uniform.uint3n[i][0] = xx value[i][0];
         uniform.uint3n[i][1] = xx value[i][1];
@@ -789,7 +789,7 @@ create_uniform :: (name: FixedString(UNIFORM_LENGTH), value: [] [4] u64) -> Shad
     uniform: ShaderUniform;
     uniform.name = name;
     uniform.type = .UInt4N;
-    uniform.uint4n = NewArray(value.count, u32, initialized = false);
+    uniform.uint4n = NewArray(value.count, [4] u32, initialized = false);
     for i: 0..uniform.uint4n.count - 1 {
         uniform.uint4n[i][0] = xx value[i][0];
         uniform.uint4n[i][1] = xx value[i][1];

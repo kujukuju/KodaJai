@@ -135,7 +135,7 @@ update_texture :: (texture: *Texture3, image: Image3) {
     assert(texture.width == image.width && texture.height == image.height && texture.depth == image.depth, "Dimensions must match.");
     assert(texture.format == image.format, "Formats must match.");
     
-    update_texture(texture, image.data);
+    update_texture(texture, image.pixels);
 }
 
 update_texture :: (texture: *Texture3, bytes: [] u8) {

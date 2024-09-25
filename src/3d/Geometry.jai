@@ -341,8 +341,14 @@ destroy :: (geometry: *Geometry) {
     }
 
     array_free(geometry.vertices);
+    geometry.vertices.data = null;
+    geometry.vertices.count = 0;
     array_free(geometry.indices);
+    geometry.indices.data = null;
+    geometry.indices.count = 0;
     array_free(geometry.attributes);
+    geometry.attributes.data = null;
+    geometry.attributes.count = 0;
     free(geometry);
 }
 

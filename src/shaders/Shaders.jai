@@ -458,12 +458,12 @@ destroy :: (shader: *Shader) {
     destroy(shader.uniforms);
     shader.uniforms = .{};
     for part: shader.vertex_parts {
-        destroy(part);
+        free(part);
     }
     array_free(shader.vertex_parts);
     shader.vertex_parts = .[];
     for part: shader.fragment_parts {
-        destroy(part);
+        free(part);
     }
     array_free(shader.fragment_parts);
     shader.fragment_parts = .[];
@@ -786,7 +786,7 @@ get_shader_replacement :: (source: *Shader) -> *Shader {
 
 should_asset_without_replacement: bool;
 
-set_should_asset_without_replacement :: (enabled: bool) {
+set_should_assert_without_replacement :: (enabled: bool) {
     should_asset_without_replacement = enabled;
 }
 
@@ -798,7 +798,7 @@ use_shader :: (shader: *Shader) {
     should_asset_without_replacement = false;
 
     if !shader.program {
-        assert(false, tprint("You have to manually initialize shaders. %\n", shader.name));
+        assert(false, "You have to manually initialize shaders. %\n", shader.name);
         if !shader.name {
             print_stack_trace();
         }
@@ -813,14 +813,14 @@ use_shader :: (shader: *Shader) {
     // we only validate information about the fragment output channels if there is a fragment shader
     if shader.has_fragment_shader && get_color_write() {
         if shader.output_channels.count != koda.active_pass_channels.count {
-            assert(false, tprint("Using shader % with % output channels inside a render pass with % output channels.\n", shader.name, shader.output_channels.count, koda.active_pass_channels.count));
+            assert(false, "Using shader % with % output channels inside a render pass with % output channels.\n", shader.name, shader.output_channels.count, koda.active_pass_channels.count);
             return;
         }
 
         for i: 0..shader.output_channels.count - 1 {
             channel_component_count := get_component_count(koda.active_pass_channels[i]);
             if shader.output_channels[i] != channel_component_count {
-                assert(false, tprint("Using shader % where output channel % has % components inside a render pass where output channel % has % components.\n", shader.name, i, shader.output_channels[i], i, channel_component_count));
+                assert(false, "Using shader % where output channel % has % components inside a render pass where output channel % has % components.\n", shader.name, i, shader.output_channels[i], i, channel_component_count);
                 return;
             }
         }
@@ -832,7 +832,6 @@ use_shader :: (shader: *Shader) {
     }
     
     if koda.shader == shader.program {
-
         apply_uniforms(shader, shader.uniforms);
         return;
     }

@@ -1,5 +1,6 @@
 
 PERF_TRACKER_ENABLED :: false;
+perf_tracker_output_file := "";
 
 // loop
 // (enter)
@@ -191,7 +192,14 @@ PERF_TRACKER_ENABLED :: false;
         }
         append(*builder, "\n");
 
-        write_builder(*builder);
+        if perf_tracker_output_file {
+            file_string := builder_to_string(*builder);
+            defer free(file_string);
+
+            write_entire_file(perf_tracker_output_file, file_string);
+        } else {
+            write_builder(*builder);
+        }
 
         if clear {
             for tracker: trackers {

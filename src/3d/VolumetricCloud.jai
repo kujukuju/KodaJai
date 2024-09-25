@@ -24,8 +24,9 @@ create_volumetric_cloud :: (center: Vector3, half_dimensions: Vector3) -> *Model
     // rotation := yaw_rotation * pitch_rotation;
 
     cloud := New(CloudModel);
-    array_resize(*cloud.geometry, 1);
-    cloud.geometry[0] = render_cube;
+    cloud.geometry = render_cube;
+    // array_resize(*cloud.geometry, 1);
+    // cloud.geometry[0] = render_cube;
     cloud.position = center;
     // cloud.rotation = rotation;
     cloud.scale = half_dimensions;

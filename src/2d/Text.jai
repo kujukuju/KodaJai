@@ -106,7 +106,7 @@ buffer_text :: (content: string, font: *Font, transform: Matrix3, anchor: Vector
         if char == #char "\n" {
             x = -dimensions.x * anchor.x - aabb.lower.x;
             y += advance_y * scale;
-            advance_y = 0;
+            advance_y = font.max_height / 2;
             continue;
         }
 

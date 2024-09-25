@@ -90,7 +90,7 @@ load_remap_animations :: (target: string, animation_source: string, root_bone: s
     animations: ModelAnimations;
     load_animations(*animations, target, base_only = true);
 
-    success := load_remap_animations(*animations, target, animation_source, root_bone, remap, name_override, stationary_bone, stationary_axis);
+    success := load_remap_animations(*animations, animation_source, root_bone, remap, name_override, stationary_bone, stationary_axis);
     if !success {
         destroy(animations);
         return .{}, false;

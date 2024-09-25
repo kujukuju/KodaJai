@@ -1,3 +1,4 @@
+
 PixelFormat :: enum {
     R8;
     R16;
@@ -21,6 +22,24 @@ PixelFormat :: enum {
     Depth32F;
     // DepthStencil;
 };
+
+ColorChannels :: enum_flags {
+    R :: 1;
+    G :: 2;
+    B :: 4;
+    A :: 8;
+    RG :: R | G;
+    RB :: R | B;
+    RA :: R | A;
+    GB :: G | B;
+    GA :: G | A;
+    BA :: B | A;
+    RGB :: R | G | B;
+    RGA :: R | G | A;
+    RBA :: R | B | A;
+    GBA :: G | B | A;
+    RGBA :: R | G | B | A;
+}
 
 get_component_info :: (format: PixelFormat) -> stride: int, component_count: int {
     return get_stride(format), get_component_count(format);

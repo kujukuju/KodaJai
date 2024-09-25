@@ -83,6 +83,8 @@ destroy :: (sprite: Sprite, children: bool = true) {
     glDeleteBuffers(1, *sprite.ebo_);
     glDeleteBuffers(1, *sprite.vbo_);
     glDeleteVertexArrays(1, *sprite.vao_);
+
+    destroy(sprite.uniforms);
 }
 
 get_scale :: (sprite: Sprite) -> Vector2 {

@@ -35,6 +35,30 @@ create_image3 :: (width: int, height: int, depth: int, format: PixelFormat) -> I
     return image;
 }
 
+create_image3 :: (images: [] Image) -> Image3 {
+    if images.count == 0 {
+        return .{};
+    }
+
+    width := images[0].width;
+    height := images[0].height;
+    format := images[0].format;
+
+    for i: 1..images.count - 1 {
+        assert(images[i].width == width, "Provided images to image3 without consistent widths. % % %\n", i, images[i].width, width);
+        assert(images[i].height == height, "Provided images to image3 without consistent heights. % % %\n", i, images[i].height, height);
+        assert(images[i].format == format, "Provided images to image3 without consistent formats. % % %\n", i, images[i].format, format);
+    }
+
+    image := create_image3(width, height, images.count, format);
+    image_stride := width * height * get_stride(format);
+    for i: 0..images.count - 1 {
+        memcpy(image.pixels.data + image_stride * i, images[i].pixels.data, image_stride);
+    }
+
+    return image;
+}
+
 create_image3 :: (bytes: [] u8, width: int, height: int, depth: int, format: PixelFormat) -> Image3 {
     image: Image3;
     image.width = width;
@@ -124,9 +148,9 @@ clear_image :: (image: *Image3, color: Color) {
     }
 }
 
-convert_format :: (image: *Image3, desired_format: PixelFormat) {
-    assert(image.format == .R8 || image.format == .RG8 || image.format == .RGB8 || image.format == .RGBA8, tprint("Cannot convert from format of %.\n", image.format));
-    assert(desired_format == .R8 || desired_format == .RG8 || desired_format == .RGB8 || desired_format == .RGBA8, tprint("Cannot convert to format of %.\n", desired_format));
+convert_format :: (image: *$T, desired_format: PixelFormat, $channels: ColorChannels) {
+    assert(image.format == .R8 || image.format == .RG8 || image.format == .RGB8 || image.format == .RGBA8, "Cannot convert from format of %.\n", image.format);
+    assert(desired_format == .R8 || desired_format == .RG8 || desired_format == .RGB8 || desired_format == .RGBA8, "Cannot convert to format of %.\n", desired_format);
 
     if image.format == desired_format {
         return;
@@ -135,34 +159,192 @@ convert_format :: (image: *Image3, desired_format: PixelFormat) {
     image_stride := get_stride(image.format);
     desired_stride := get_stride(desired_format);
 
-    image.format = desired_format;
+    channel_count := 0;
+    ifx channels & .R then channel_count += 1;
+    ifx channels & .G then channel_count += 1;
+    ifx channels & .B then channel_count += 1;
+    ifx channels & .A then channel_count += 1;
+    maximum_channel := 0;
+    ifx channels & .R then maximum_channel = 1;
+    ifx channels & .G then maximum_channel = 2;
+    ifx channels & .B then maximum_channel = 3;
+    ifx channels & .A then maximum_channel = 4;
 
-    total_pixels := image.width * image.height * image.depth;
+    // TODO this could be optimized by looking for contiguous color channel conversions and memcpying instead of doing it this way
 
     if desired_stride < image_stride {
-        for i: 0..total_pixels - 1 {
-            image_index := i * image_stride;
-            desired_index := i * desired_stride;
+        assert(desired_stride == channel_count, "Converting format to fewer channels but didn't provide the correct channel info. % %\n", channels, desired_stride);
+        assert(maximum_channel <= image_stride, "The conversion channels is out of bounds for the provided source image. % %\n", channels, image_stride);
 
-            memcpy(image.pixels.data + desired_index, image.pixels.data + image_index, desired_stride);
+        pixel_count := image.pixels.count / image_stride;
+        for pixel_i: 0..pixel_count - 1 {
+            #if #complete channels == {
+                case .R;
+                    image.pixels.data[pixel_i * desired_stride + 0] = image.pixels.data[pixel_i * image_stride + 0];
+                case .G;
+                    image.pixels.data[pixel_i * desired_stride + 0] = image.pixels.data[pixel_i * image_stride + 1];
+                case .B;
+                    image.pixels.data[pixel_i * desired_stride + 0] = image.pixels.data[pixel_i * image_stride + 2];
+                case .A;
+                    image.pixels.data[pixel_i * desired_stride + 0] = image.pixels.data[pixel_i * image_stride + 3];
+                case .RG;
+                    image.pixels.data[pixel_i * desired_stride + 0] = image.pixels.data[pixel_i * image_stride + 0];
+                    image.pixels.data[pixel_i * desired_stride + 1] = image.pixels.data[pixel_i * image_stride + 1];
+                case .RB;
+                    image.pixels.data[pixel_i * desired_stride + 0] = image.pixels.data[pixel_i * image_stride + 0];
+                    image.pixels.data[pixel_i * desired_stride + 1] = image.pixels.data[pixel_i * image_stride + 2];
+                case .RA;
+                    image.pixels.data[pixel_i * desired_stride + 0] = image.pixels.data[pixel_i * image_stride + 0];
+                    image.pixels.data[pixel_i * desired_stride + 1] = image.pixels.data[pixel_i * image_stride + 3];
+                case .GB;
+                    image.pixels.data[pixel_i * desired_stride + 0] = image.pixels.data[pixel_i * image_stride + 1];
+                    image.pixels.data[pixel_i * desired_stride + 1] = image.pixels.data[pixel_i * image_stride + 2];
+                case .GA;
+                    image.pixels.data[pixel_i * desired_stride + 0] = image.pixels.data[pixel_i * image_stride + 1];
+                    image.pixels.data[pixel_i * desired_stride + 1] = image.pixels.data[pixel_i * image_stride + 3];
+                case .BA;
+                    image.pixels.data[pixel_i * desired_stride + 0] = image.pixels.data[pixel_i * image_stride + 2];
+                    image.pixels.data[pixel_i * desired_stride + 1] = image.pixels.data[pixel_i * image_stride + 3];
+                case .RGB;
+                    image.pixels.data[pixel_i * desired_stride + 0] = image.pixels.data[pixel_i * image_stride + 0];
+                    image.pixels.data[pixel_i * desired_stride + 1] = image.pixels.data[pixel_i * image_stride + 1];
+                    image.pixels.data[pixel_i * desired_stride + 2] = image.pixels.data[pixel_i * image_stride + 2];
+                case .RGA;
+                    image.pixels.data[pixel_i * desired_stride + 0] = image.pixels.data[pixel_i * image_stride + 0];
+                    image.pixels.data[pixel_i * desired_stride + 1] = image.pixels.data[pixel_i * image_stride + 1];
+                    image.pixels.data[pixel_i * desired_stride + 2] = image.pixels.data[pixel_i * image_stride + 3];
+                case .RBA;
+                    image.pixels.data[pixel_i * desired_stride + 0] = image.pixels.data[pixel_i * image_stride + 0];
+                    image.pixels.data[pixel_i * desired_stride + 1] = image.pixels.data[pixel_i * image_stride + 2];
+                    image.pixels.data[pixel_i * desired_stride + 2] = image.pixels.data[pixel_i * image_stride + 3];
+                case .GBA;
+                    image.pixels.data[pixel_i * desired_stride + 0] = image.pixels.data[pixel_i * image_stride + 1];
+                    image.pixels.data[pixel_i * desired_stride + 1] = image.pixels.data[pixel_i * image_stride + 2];
+                    image.pixels.data[pixel_i * desired_stride + 2] = image.pixels.data[pixel_i * image_stride + 3];
+                case .RGBA;
+                    image.pixels.data[pixel_i * desired_stride + 0] = image.pixels.data[pixel_i * image_stride + 0];
+                    image.pixels.data[pixel_i * desired_stride + 1] = image.pixels.data[pixel_i * image_stride + 1];
+                    image.pixels.data[pixel_i * desired_stride + 2] = image.pixels.data[pixel_i * image_stride + 2];
+                    image.pixels.data[pixel_i * desired_stride + 3] = image.pixels.data[pixel_i * image_stride + 3];
+            }
         }
 
-        image.pixels.count = total_pixels * desired_stride;
-    } else {
+        image.pixels.count = pixel_count * desired_stride;
+    } else if desired_stride > image_stride {
+        assert(image_stride == channel_count, "Converting format to more channels but didn't provide the correct channel info. % %\n", channels, image_stride);
+        assert(maximum_channel <= desired_stride, "The conversion channels is out of bounds for the provided destination image. % %\n", channels, desired_stride);
+
         // untested
+        pixel_count := image.pixels.count / image_stride;
+
         old_pixels := image.pixels;
         defer array_free(old_pixels);
 
-        image.pixels = NewArray(total_pixels * desired_stride, u8);
+        image.pixels = NewArray(pixel_count * desired_stride, u8);
 
-        for i: 0..total_pixels - 1 {
-            image_index := i * image_stride;
-            desired_index := i * desired_stride;
-
-            memcpy(image.pixels.data + desired_index, old_pixels.data + image_index, image_stride);
+        for pixel_i: 0..pixel_count - 1 {
+            #if #complete channels == {
+                case .R;
+                    image.pixels.data[pixel_i * desired_stride + 0] = old_pixels.data[pixel_i * image_stride + 0];
+                case .G;
+                    image.pixels.data[pixel_i * desired_stride + 1] = old_pixels.data[pixel_i * image_stride + 0];
+                case .B;
+                    image.pixels.data[pixel_i * desired_stride + 2] = old_pixels.data[pixel_i * image_stride + 0];
+                case .A;
+                    image.pixels.data[pixel_i * desired_stride + 3] = old_pixels.data[pixel_i * image_stride + 0];
+                case .RG;
+                    image.pixels.data[pixel_i * desired_stride + 0] = old_pixels.data[pixel_i * image_stride + 0];
+                    image.pixels.data[pixel_i * desired_stride + 1] = old_pixels.data[pixel_i * image_stride + 1];
+                case .RB;
+                    image.pixels.data[pixel_i * desired_stride + 0] = old_pixels.data[pixel_i * image_stride + 0];
+                    image.pixels.data[pixel_i * desired_stride + 2] = old_pixels.data[pixel_i * image_stride + 1];
+                case .RA;
+                    image.pixels.data[pixel_i * desired_stride + 0] = old_pixels.data[pixel_i * image_stride + 0];
+                    image.pixels.data[pixel_i * desired_stride + 3] = old_pixels.data[pixel_i * image_stride + 1];
+                case .GB;
+                    image.pixels.data[pixel_i * desired_stride + 1] = old_pixels.data[pixel_i * image_stride + 0];
+                    image.pixels.data[pixel_i * desired_stride + 2] = old_pixels.data[pixel_i * image_stride + 1];
+                case .GA;
+                    image.pixels.data[pixel_i * desired_stride + 1] = old_pixels.data[pixel_i * image_stride + 0];
+                    image.pixels.data[pixel_i * desired_stride + 3] = old_pixels.data[pixel_i * image_stride + 1];
+                case .BA;
+                    image.pixels.data[pixel_i * desired_stride + 2] = old_pixels.data[pixel_i * image_stride + 0];
+                    image.pixels.data[pixel_i * desired_stride + 3] = old_pixels.data[pixel_i * image_stride + 1];
+                case .RGB;
+                    image.pixels.data[pixel_i * desired_stride + 0] = old_pixels.data[pixel_i * image_stride + 0];
+                    image.pixels.data[pixel_i * desired_stride + 1] = old_pixels.data[pixel_i * image_stride + 1];
+                    image.pixels.data[pixel_i * desired_stride + 2] = old_pixels.data[pixel_i * image_stride + 2];
+                case .RGA;
+                    image.pixels.data[pixel_i * desired_stride + 0] = old_pixels.data[pixel_i * image_stride + 0];
+                    image.pixels.data[pixel_i * desired_stride + 1] = old_pixels.data[pixel_i * image_stride + 1];
+                    image.pixels.data[pixel_i * desired_stride + 3] = old_pixels.data[pixel_i * image_stride + 2];
+                case .RBA;
+                    image.pixels.data[pixel_i * desired_stride + 0] = old_pixels.data[pixel_i * image_stride + 0];
+                    image.pixels.data[pixel_i * desired_stride + 2] = old_pixels.data[pixel_i * image_stride + 1];
+                    image.pixels.data[pixel_i * desired_stride + 3] = old_pixels.data[pixel_i * image_stride + 2];
+                case .GBA;
+                    image.pixels.data[pixel_i * desired_stride + 1] = old_pixels.data[pixel_i * image_stride + 0];
+                    image.pixels.data[pixel_i * desired_stride + 2] = old_pixels.data[pixel_i * image_stride + 1];
+                    image.pixels.data[pixel_i * desired_stride + 3] = old_pixels.data[pixel_i * image_stride + 2];
+                case .RGBA;
+                    image.pixels.data[pixel_i * desired_stride + 0] = old_pixels.data[pixel_i * image_stride + 0];
+                    image.pixels.data[pixel_i * desired_stride + 1] = old_pixels.data[pixel_i * image_stride + 1];
+                    image.pixels.data[pixel_i * desired_stride + 2] = old_pixels.data[pixel_i * image_stride + 2];
+                    image.pixels.data[pixel_i * desired_stride + 3] = old_pixels.data[pixel_i * image_stride + 3];
+            }
         }
+
+        image.pixels.count = pixel_count * desired_stride;
+    } else {
+        assert(false, "Don't understand what's happening with the channel conversion... % %\n", image.format, desired_format);
     }
+
+    image.format = desired_format;
 }
+
+// copies the available channels into channels if expanding
+// copies channels into the new format if reducing
+// convert_format :: (image: *Image3, desired_format: PixelFormat) {
+//     assert(image.format == .R8 || image.format == .RG8 || image.format == .RGB8 || image.format == .RGBA8, "Cannot convert from format of %.\n", image.format);
+//     assert(desired_format == .R8 || desired_format == .RG8 || desired_format == .RGB8 || desired_format == .RGBA8, "Cannot convert to format of %.\n", desired_format);
+
+    
+
+//     if image.format == desired_format {
+//         return;
+//     }
+
+//     image_stride := get_stride(image.format);
+//     desired_stride := get_stride(desired_format);
+
+//     image.format = desired_format;
+
+//     total_pixels := image.width * image.height * image.depth;
+
+//     if desired_stride < image_stride {
+//         for i: 0..total_pixels - 1 {
+//             image_index := i * image_stride;
+//             desired_index := i * desired_stride;
+
+//             memcpy(image.pixels.data + desired_index, image.pixels.data + image_index, desired_stride);
+//         }
+
+//         image.pixels.count = total_pixels * desired_stride;
+//     } else {
+//         // untested
+//         old_pixels := image.pixels;
+//         defer array_free(old_pixels);
+
+//         image.pixels = NewArray(total_pixels * desired_stride, u8);
+
+//         for i: 0..total_pixels - 1 {
+//             image_index := i * image_stride;
+//             desired_index := i * desired_stride;
+
+//             memcpy(image.pixels.data + desired_index, old_pixels.data + image_index, image_stride);
+//         }
+//     }
+// }
 
 blur :: (image: *Image3, radius: float) {
     assert(image.format == .R8);

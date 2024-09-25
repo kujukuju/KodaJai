@@ -442,6 +442,9 @@ get_attributes_from_struct :: (gpu: Type) -> [] Attribute {
         }
         array_add(*visited_offsets, member.offset_in_bytes);
 
+        expected_offset := get_attribute_stride(attributes) * 4;
+        assert(member.offset_in_bytes == expected_offset, "Struct % member % had an offset of % while the expected offset was %.\n", struct_info.name, member.name, member.offset_in_bytes, expected_offset);
+
         if member.flags & .USING {
             array_add(*attributes, ..get_attributes_from_struct((cast(*Type) *member.type).*));
             continue;

@@ -19,6 +19,7 @@
 #load "src/2d/FramedSprite.jai";
 #load "src/2d/Font.jai";
 #load "src/2d/Image.jai";
+#load "src/2d/Quad.jai";
 #load "src/2d/RenderTexture.jai";
 #load "src/2d/Shapes2.jai";
 #load "src/2d/Sprite.jai";
@@ -183,15 +184,37 @@ static_sprite: Sprite;
 #import "FixedStringJai";
 #import "JaiBoundingTree";
 #import "JaiSerializer";
-#import "JaiParallel";
 #import "BlockAllocatorJai";
 #import "JaiMath";
 
-c_alloc :: (size : u64) -> *void #foreign crt "malloc";
-c_free :: (memory: *void) #foreign crt "free";
+#if WASM {
+    parallel_init :: () {}
+    parallel_for :: (start: int, end_exclusive: int, $callback: (i: int, thread: int, data: $T), data: T, thread_count: int = 0) {
+        for i: start..end_exclusive {
+            callback(i, 0, data);
+        }
+    }
 
-#if OS == .WINDOWS {
-    crt :: #system_library "msvcrt";
-} else #if OS == .LINUX {
-    crt :: #system_library "libc";
+    Mutex :: struct {}
+    lock :: (m: *Mutex) {}
+    unlock :: (m: *Mutex) {}
+    init :: (m: *Mutex) {}
+
+    c_alloc :: (size : u64) -> *void #foreign "malloc";
+    c_free :: (memory: *void) #foreign "free";
+
+    exit :: (sig: int) #foreign;
+} else {
+    #import "Thread";
+    #import "JaiParallel";
+
+    c_alloc :: (size : u64) -> *void #foreign crt "malloc";
+    c_free :: (memory: *void) #foreign crt "free";
+
+    #if OS == .WINDOWS {
+        crt :: #system_library "msvcrt";
+    } else #if OS == .LINUX {
+        crt :: #system_library "libc";
+    }
 }
+

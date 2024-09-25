@@ -1,9 +1,9 @@
 
 get_decal_vertices :: (vertices: *[..] float32, indices: *[..] u32, triangle: [3] Vector3, normals: [3] Vector3, colors: [3] Vector4, uv_range: [2] Vector2, decal_position: Vector3, decal_rotation: Quaternion, decal_width: float, decal_height: float, decal_depth: float) {
-    transform := Matrix4;
-    transform := translate(transform, decal_position);
-    transform := rotate(transform, decal_rotation);
-    transform := scale(transform, Vector3.{decal_width, decal_height, decal_depth});
+    transform := Matrix4Identity;
+    transform = translate(transform, decal_position);
+    transform = rotate(transform, decal_rotation);
+    transform = scale(transform, Vector3.{decal_width, decal_height, decal_depth});
 
     inline get_decal_vertices(vertuces, indices, triangle, normals, colors, uv_range, transform);
 }
