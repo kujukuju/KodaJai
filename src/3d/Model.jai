@@ -176,17 +176,20 @@ get_aabb :: (model: Model) -> AABB3 {
     return transform_aabb(get_transform(model), aabb);
 }
 
+get_bounding_sphere :: (model: Model) -> Sphere {
+    sphere := model.geometry.bounding_sphere;
+
+    sphere.center = transform_point(get_transform(model), sphere.center);
+    sphere.radius *= max(model.scale.x, model.scale.y, model.scale.z);
+
+    return sphere;
+}
+
 get_local_aabb :: (model: Model) -> AABB3 {
     return model.geometry.aabb;
 }
 
 // get_bounding_sphere :: (model: Model) -> Sphere {
-//     sphere := model.geometry.bounding_sphere;
-
-//     sphere.center = transform_point(get_transform(model), sphere.center);
-//     sphere.radius *= max(model.scale.x, model.scale.y, model.scale.z);
-
-//     return sphere;
 // }
 
 ModelVertices :: struct {
@@ -293,6 +296,7 @@ merge_by_material_id :: (models: [] *Model, should_upload: bool = true) -> [..] 
             array_copy(*geometry.indices, models[0].geometry.indices);
             array_copy(*geometry.attributes, models[0].geometry.attributes);
             geometry.aabb = calculate_aabb(geometry);
+            geometry.bounding_sphere = calculate_bounding_sphere(get_vertices(geometry));
             created := create_model(geometry, should_upload = false);
             created.position = models[0].position;
             created.rotation = models[0].rotation;
@@ -379,6 +383,7 @@ merge_by_material_id :: (models: [] *Model, should_upload: bool = true) -> [..] 
         }
 
         geometry.aabb = calculate_aabb(geometry);
+        geometry.bounding_sphere = calculate_bounding_sphere(get_vertices(geometry));
 
         created := create_model(geometry, should_upload = false);
         if models[0].name {

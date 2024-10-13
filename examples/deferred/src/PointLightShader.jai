@@ -68,14 +68,14 @@ vec4 calcLightInternal(vec3 baseColor, float ambientIntensity, float diffuseInte
     if (diffuseFactor > 0.0) {
         diffuseColor = vec4(baseColor * diffuseIntensity * diffuseFactor, 1.0);
 
-        vec3 vertexToEye = normalize(vCamera - position);
-        vec3 lightReflect = normalize(reflect(direction, normal));
-        float specularFactor = dot(vertexToEye, lightReflect);        
-        if (specularFactor > 0.0) {
-            specularFactor = pow(specularFactor, uSpecularPower);
-            const float matSpecularIntensity = 0.0;
-            specularColor = vec4(baseColor * matSpecularIntensity * specularFactor, 1.0);
-        }
+        // vec3 vertexToEye = normalize(vCamera - position);
+        // vec3 lightReflect = normalize(reflect(direction, normal));
+        // float specularFactor = dot(vertexToEye, lightReflect);        
+        // if (specularFactor > 0.0) {
+        //     specularFactor = pow(specularFactor, uSpecularPower);
+        //     const float matSpecularIntensity = 0.0;
+        //     specularColor = vec4(baseColor * matSpecularIntensity * specularFactor, 1.0);
+        // }
     }
 
     return ambientColor + diffuseColor + specularColor;

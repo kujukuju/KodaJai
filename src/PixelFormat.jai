@@ -20,7 +20,7 @@ PixelFormat :: enum {
     Depth24;
     Depth32;
     Depth32F;
-    // DepthStencil;
+    // CompressedBC7;
 };
 
 ColorChannels :: enum_flags {

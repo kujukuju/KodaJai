@@ -390,25 +390,92 @@ get_pixel_raw :: (image: Image, point: Point2) -> Color {
 }
 
 get_pixel :: (image: Image, point: Point2) -> Color {
-    if point.x < 0 || point.y < 0 || point.x >= image.width || point.y >= image.height {
-        return .{};
+    x := clamp(point.x, 0, image.width - 1);
+    y := clamp(point.y, 0, image.height - 1);
+
+    stride := get_stride(image.format);
+    index := image.width * y + x;
+
+    if stride == {
+        case 1;
+            return color(image.pixels[index * stride], 0, 0, 0);
+        case 2;
+            return color(image.pixels[index * stride], image.pixels[index * stride + 1], 0, 0);
+        case 3;
+            return color(image.pixels[index * stride], image.pixels[index * stride + 1], image.pixels[index * stride + 2], 0);
+        case 4;
+            return color(image.pixels[index * stride], image.pixels[index * stride + 1], image.pixels[index * stride + 2], image.pixels[index * stride + 3]);
+        case;
+            assert(false, "This stride isn't supported.");
+            return .{};
+    }
+}
+
+get_pixel_interp :: (image: Image, point: Vector2, $wrap: bool = false) -> Color {
+    #if wrap {
+        x := clamp(point.x % image.width, 0, image.width - 1.0);
+        y := clamp(point.y % image.height, 0, image.height - 1.0);
+    } else {
+        x := clamp(point.x, 0, image.width - 1.0);
+        y := clamp(point.y, 0, image.height - 1.0);
     }
 
     stride := get_stride(image.format);
-    index := image.width * point.y + point.x;
+    index := image.width * y + x;
 
-    if stride == 1 {
-        return color(image.pixels[index * stride], 0, 0, 0);
-    } else if stride == 2 {
-        return color(image.pixels[index * stride], image.pixels[index * stride + 1], 0, 0);
-    } else if stride == 3 {
-        return color(image.pixels[index * stride], image.pixels[index * stride + 1], image.pixels[index * stride + 2], 0);
-    } else if stride == 4 {
-        return color(image.pixels[index * stride], image.pixels[index * stride + 1], image.pixels[index * stride + 2], image.pixels[index * stride + 3]);
+    left: Color = ---;
+    right: Color = ---;
+    right_weight: float = ---;
+    remaining_x := fmod(point.x, 1.0);
+    if remaining_x < 0.5 {
+        #if wrap {
+            left_point := point2(point);
+            left_point.x = (left_point.x + image.width - 1) % image.width;
+            left = get_pixel(image, left_point);
+        } else {
+            left = get_pixel(image, point2(point) - .{1, 0});
+        }
+        right = get_pixel(image, point2(point));
+        right_weight = remaining_x + 0.5;
     } else {
-        assert(false, "This stride isn't supported.");
-        return .{};
+        left = get_pixel(image, point2(point));
+        #if wrap {
+            right_point := point2(point);
+            right_point.x = (right_point.x + 1) % image.width;
+            right = get_pixel(image, right_point);
+        } else {
+            right = get_pixel(image, point2(point) + .{1, 0});
+        }
+        right_weight = remaining_x - 0.5;
     }
+
+    top: Color = ---;
+    bottom: Color = ---;
+    bottom_weight: float = ---;
+    remaining_y := fmod(point.y, 1.0);
+    if remaining_y < 0.5 {
+        #if wrap {
+            top_point := point2(point);
+            top_point.y = (top_point.y + image.height - 1) % image.height;
+            top = get_pixel(image, top_point);
+        } else {
+            top = get_pixel(image, point2(point) - .{0, 1});
+        }
+        bottom = get_pixel(image, point2(point));
+        bottom_weight = remaining_y + 0.5;
+    } else {
+        top = get_pixel(image, point2(point));
+        #if wrap {
+            bottom_point := point2(point);
+            bottom_point.y = (bottom_point.y + 1) % image.height;
+            bottom = get_pixel(image, bottom_point);
+        } else {
+            bottom = get_pixel(image, point2(point) + .{0, 1});
+        }
+        bottom_weight = remaining_y - 0.5;
+    }
+
+    return left * (1.0 - right_weight) * 0.5 + right * right_weight * 0.5 + top * (1 - bottom_weight) * 0.5 + bottom * bottom_weight * 0.5;
 }
 
 draw :: (destination: *Image, source: Image) {

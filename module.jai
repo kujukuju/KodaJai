@@ -105,6 +105,8 @@
 
 #load "src/CircleAllocator.jai";
 #load "src/Color.jai";
+// #load "src/CompressedTextures.jai";
+#load "src/DebugInfo.jai";
 #load "src/GltfLoader.jai";
 #load "src/Input.jai";
 #load "src/Material.jai";

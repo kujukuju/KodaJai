@@ -221,7 +221,7 @@ calculate_directional_shadow_matrices :: (
         shadow_forward_64 := Vector3_64.{shadow_forward.x, shadow_forward.y, shadow_forward.z};
         shadow_origin_plane := create_plane3_64(.{0, 0, 0}, shadow_forward_64);
         ortho_start_64 := Vector3_64.{ortho_start.x, ortho_start.y, ortho_start.z};
-        ortho_coord, origin_plane_right, origin_plane_up := convert_coordinates(shadow_origin_plane, ortho_start_64);
+        ortho_coord, origin_plane_right, origin_plane_up := convert_coordinates(shadow_origin_plane, .{0, 0, 0}, ortho_start_64);
 
         // fewer pixels means larger movement
         // so we divide this by the size per pixel

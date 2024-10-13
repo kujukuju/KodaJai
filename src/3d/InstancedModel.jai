@@ -27,6 +27,7 @@ InstancedModel :: struct (T: Type = ModelMatrixGpu) {
     name: string;
     dynamic: bool;
     static_aabb: AABB3;
+    static_bounding_sphere: Sphere;
     material_id: int;
     properties: [..] [2] string;
     // temporary until materials exist
@@ -57,16 +58,17 @@ create_instanced_model :: (geometry: *Geometry, instances: [] Matrix4, should_up
 
     vertex_iterator := get_vertices(geometry, instances);
     aabb := calculate_aabb(vertex_iterator);
-    return create_instanced_model(ModelMatrixGpu, geometry, instanced_gpu, aabb, should_upload);
+    bounding_sphere := calculate_bounding_sphere(vertex_iterator);
+    return create_instanced_model(ModelMatrixGpu, geometry, instanced_gpu, aabb, bounding_sphere, should_upload);
 }
 
-create_instanced_model :: (geometry: *Geometry, instances: [] Matrix4, aabb: AABB3, should_upload: bool = true) -> *InstancedModel(ModelMatrixGpu) {
+create_instanced_model :: (geometry: *Geometry, instances: [] Matrix4, aabb: AABB3, bounding_sphere: Sphere, should_upload: bool = true) -> *InstancedModel(ModelMatrixGpu) {
     #assert(size_of(Matrix4) == size_of(ModelMatrixGpu));
     instanced_gpu: [] ModelMatrixGpu;
     instanced_gpu.data = cast(*ModelMatrixGpu) instances.data;
     instanced_gpu.count = instances.count;
 
-    return create_instanced_model(ModelMatrixGpu, geometry, instanced_gpu, aabb, should_upload);
+    return create_instanced_model(ModelMatrixGpu, geometry, instanced_gpu, aabb, bounding_sphere, should_upload);
 }
 
 // create_instanced_model :: (geometry: *Geometry, dynamic: bool, should_upload: bool) -> *InstancedModel(ModelMatrixGpu) {
@@ -87,16 +89,17 @@ create_instanced_model :: ($T: Type, geometry: *Geometry, should_upload: bool = 
 }
 
 create_instanced_model :: ($T: Type, geometry: *Geometry, instances: [] T, should_upload: bool = true) -> *InstancedModel(T) {
-    return create_instanced_model(T, geometry, instances, .{}, .{}, should_upload);
+    return create_instanced_model(T, geometry, instances, .{}, .{}, .{}, should_upload);
 }
 
-create_instanced_model :: ($T: Type, geometry: *Geometry, instances: [] T, aabb: AABB3, should_upload: bool = true) -> *InstancedModel(T) {
+create_instanced_model :: ($T: Type, geometry: *Geometry, instances: [] T, aabb: AABB3, bounding_sphere: Sphere, should_upload: bool = true) -> *InstancedModel(T) {
     model := New(InstancedModel(T));
     model.geometry = geometry;
     model.dynamic = false;
     array_copy(*model.instances, instances);
 
     model.static_aabb = aabb;
+    model.static_bounding_sphere = bounding_sphere;
 
     if should_upload {
         upload(model);
@@ -227,6 +230,20 @@ set_instances :: (model: *InstancedModel(ModelMatrixGpu), instances: [] Matrix4)
     instanced_gpu.count = instances.count;
 
     set_instances(model, instanced_gpu);
+}
+
+get_bounding_sphere :: (model: InstancedModel(ModelMatrixGpu)) -> Sphere {
+    if !model.instances {
+        return .{};
+    }
+
+    if !model.dynamic {
+        return model.static_bounding_sphere;
+    }
+
+    assert(false, "Cannot return a bounding sphere for a dynamic instanced model.\n");
+
+    return .{};
 }
 
 get_aabb :: (model: InstancedModel(ModelMatrixGpu)) -> AABB3 {
@@ -514,3 +531,8 @@ get_instanced_opengl_initialization :: (current_attribute_index_name: string, $a
 
     return builder_to_string(*builder);
 }
+
+#scope_file
+
+JaiMath :: #import "JaiMath";
+#poke_name JaiMath for_expansion;

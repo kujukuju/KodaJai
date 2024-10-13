@@ -55,6 +55,25 @@ get_property_entry :: (name: string, object: JsonObjectEntry) -> [2] string {
         property[1] = copy_string(object.value.str);
     } else if object.value.type == .Boolean {
         property[1] = ifx object.value.boolean then copy_string("true") else copy_string("false");
+    } else if object.value.type == .Object {
+        found_type: string;
+        found_name: string;
+        for entry: object.value.object {
+            assert(entry.value.type == .String, "Found a custom data entry of type Data that didn't contain a string. % %\n", name, entry.value.type);
+            if entry.value.type == .String && entry.name == "type" {
+                found_type = entry.value.str;
+            }
+            if entry.value.type == .String && entry.name == "name" {
+                found_name = entry.value.str;
+            }
+        }
+        assert(found_type == "Object", "Found a custom data entry of type Data that wasn't for an Object. % %\n", name, found_type);
+
+        property[1] = copy_string(found_name);
+    } else if object.value.type == .Integer {
+        property[1] = sprint("%", object.value.integer);
+    } else if object.value.type == .Float {
+        property[1] = sprint("%", formatFloat(object.value.number, trailing_width = 24));
     } else {
         assert(false, "Unknown custom data property type. % % %\n", name, property[0], object.value.type);
         return .["", ""];

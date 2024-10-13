@@ -59,6 +59,13 @@ create_image3 :: (images: [] Image) -> Image3 {
     return image;
 }
 
+create_image3 :: (image: Image3) -> Image3 {
+    copy := image;
+    copy.pixels = array_copy(image.pixels);
+
+    return copy;
+}
+
 create_image3 :: (bytes: [] u8, width: int, height: int, depth: int, format: PixelFormat) -> Image3 {
     image: Image3;
     image.width = width;
@@ -148,9 +155,50 @@ clear_image :: (image: *Image3, color: Color) {
     }
 }
 
+draw_pixel :: (image: *Image3, point: Point3, color: Color) {
+    if !image.pixels.data || point.x < 0 || point.y < 0 || point.z < 0 || point.x >= image.width || point.y >= image.height || point.z >= image.depth {
+        return;
+    }
+
+    stride := get_stride(image.format);
+    index := (point.x + point.y * image.width + point.z * image.width * image.height) * stride;
+    
+    if is_float(image.format) {
+        assert(image.format == .R32F || image.format == .RG32F || image.format == .RGB32F || image.format == .RGBA32F);
+
+        memcpy(image.pixels.data + index, *color, stride);
+    } else {
+        assert(image.format == .R8 || image.format == .RG8 || image.format == .RGB8 || image.format == .RGBA8);
+
+        bytes: [4] u8 = ---;
+        bytes.data[0] = cast(u8) round(color.r * 255);
+        bytes.data[1] = cast(u8) round(color.g * 255);
+        bytes.data[2] = cast(u8) round(color.b * 255);
+        bytes.data[3] = cast(u8) round(color.a * 255);
+
+        memcpy(image.pixels.data + index, bytes.data, stride);
+    }
+}
+
 convert_format :: (image: *$T, desired_format: PixelFormat, $channels: ColorChannels) {
-    assert(image.format == .R8 || image.format == .RG8 || image.format == .RGB8 || image.format == .RGBA8, "Cannot convert from format of %.\n", image.format);
-    assert(desired_format == .R8 || desired_format == .RG8 || desired_format == .RGB8 || desired_format == .RGBA8, "Cannot convert to format of %.\n", desired_format);
+    assert(
+        image.format == .R8 ||
+        image.format == .R32F ||
+        image.format == .RG8 || 
+        image.format == .RG32F ||
+        image.format == .RGB8 ||
+        image.format == .RGB32F ||
+        image.format == .RGBA8 ||
+        image.format == .RGBA32F, "Cannot convert from format of %.\n", image.format);
+    assert(
+        desired_format == .R8 ||
+        desired_format == .R32F ||
+        desired_format == .RG8 ||
+        desired_format == .RG32F ||
+        desired_format == .RGB8 ||
+        desired_format == .RGB32F ||
+        desired_format == .RGBA8 ||
+        desired_format == .RGBA32F, "Cannot convert to format of %.\n", desired_format);
 
     if image.format == desired_format {
         return;
@@ -170,6 +218,61 @@ convert_format :: (image: *$T, desired_format: PixelFormat, $channels: ColorChan
     ifx channels & .B then maximum_channel = 3;
     ifx channels & .A then maximum_channel = 4;
 
+    convert_pixels :: (new_pixels: [] u8, new_stride: int, old_pixels: [] u8, old_stride: int, $convert: #type (write: *u8, read: *u8)) {
+        pixel_count := old_pixels.count / old_stride;
+        for i: 0..pixel_count - 1 {
+            #if #complete channels == {
+                case .R;
+                    convert(new_pixels.data + i * new_stride + 0, old_pixels.data + i * old_stride + 0);
+                case .G;
+                    convert(new_pixels.data + i * new_stride + 0, old_pixels.data + i * old_stride + 1);
+                case .B;
+                    convert(new_pixels.data + i * new_stride + 0, old_pixels.data + i * old_stride + 2);
+                case .A;
+                    convert(new_pixels.data + i * new_stride + 0, old_pixels.data + i * old_stride + 3);
+                case .RG;
+                    convert(new_pixels.data + i * new_stride + 0, old_pixels.data + i * old_stride + 0);
+                    convert(new_pixels.data + i * new_stride + 1, old_pixels.data + i * old_stride + 1);
+                case .RB;
+                    convert(new_pixels.data + i * new_stride + 0, old_pixels.data + i * old_stride + 0);
+                    convert(new_pixels.data + i * new_stride + 1, old_pixels.data + i * old_stride + 2);
+                case .RA;
+                    convert(new_pixels.data + i * new_stride + 0, old_pixels.data + i * old_stride + 0);
+                    convert(new_pixels.data + i * new_stride + 1, old_pixels.data + i * old_stride + 3);
+                case .GB;
+                    convert(new_pixels.data + i * new_stride + 0, old_pixels.data + i * old_stride + 1);
+                    convert(new_pixels.data + i * new_stride + 1, old_pixels.data + i * old_stride + 2);
+                case .GA;
+                    convert(new_pixels.data + i * new_stride + 0, old_pixels.data + i * old_stride + 1);
+                    convert(new_pixels.data + i * new_stride + 1, old_pixels.data + i * old_stride + 3);
+                case .BA;
+                    convert(new_pixels.data + i * new_stride + 0, old_pixels.data + i * old_stride + 2);
+                    convert(new_pixels.data + i * new_stride + 1, old_pixels.data + i * old_stride + 3);
+                case .RGB;
+                    convert(new_pixels.data + i * new_stride + 0, old_pixels.data + i * old_stride + 0);
+                    convert(new_pixels.data + i * new_stride + 1, old_pixels.data + i * old_stride + 1);
+                    convert(new_pixels.data + i * new_stride + 2, old_pixels.data + i * old_stride + 2);
+                case .RGA;
+                    convert(new_pixels.data + i * new_stride + 0, old_pixels.data + i * old_stride + 0);
+                    convert(new_pixels.data + i * new_stride + 1, old_pixels.data + i * old_stride + 1);
+                    convert(new_pixels.data + i * new_stride + 2, old_pixels.data + i * old_stride + 3);
+                case .RBA;
+                    convert(new_pixels.data + i * new_stride + 0, old_pixels.data + i * old_stride + 0);
+                    convert(new_pixels.data + i * new_stride + 1, old_pixels.data + i * old_stride + 2);
+                    convert(new_pixels.data + i * new_stride + 2, old_pixels.data + i * old_stride + 3);
+                case .GBA;
+                    convert(new_pixels.data + i * new_stride + 0, old_pixels.data + i * old_stride + 1);
+                    convert(new_pixels.data + i * new_stride + 1, old_pixels.data + i * old_stride + 2);
+                    convert(new_pixels.data + i * new_stride + 2, old_pixels.data + i * old_stride + 3);
+                case .RGBA;
+                    convert(new_pixels.data + i * new_stride + 0, old_pixels.data + i * old_stride + 0);
+                    convert(new_pixels.data + i * new_stride + 1, old_pixels.data + i * old_stride + 1);
+                    convert(new_pixels.data + i * new_stride + 2, old_pixels.data + i * old_stride + 2);
+                    convert(new_pixels.data + i * new_stride + 3, old_pixels.data + i * old_stride + 3);
+            }
+        }
+    }
+
     // TODO this could be optimized by looking for contiguous color channel conversions and memcpying instead of doing it this way
 
     if desired_stride < image_stride {
@@ -177,56 +280,27 @@ convert_format :: (image: *$T, desired_format: PixelFormat, $channels: ColorChan
         assert(maximum_channel <= image_stride, "The conversion channels is out of bounds for the provided source image. % %\n", channels, image_stride);
 
         pixel_count := image.pixels.count / image_stride;
-        for pixel_i: 0..pixel_count - 1 {
-            #if #complete channels == {
-                case .R;
-                    image.pixels.data[pixel_i * desired_stride + 0] = image.pixels.data[pixel_i * image_stride + 0];
-                case .G;
-                    image.pixels.data[pixel_i * desired_stride + 0] = image.pixels.data[pixel_i * image_stride + 1];
-                case .B;
-                    image.pixels.data[pixel_i * desired_stride + 0] = image.pixels.data[pixel_i * image_stride + 2];
-                case .A;
-                    image.pixels.data[pixel_i * desired_stride + 0] = image.pixels.data[pixel_i * image_stride + 3];
-                case .RG;
-                    image.pixels.data[pixel_i * desired_stride + 0] = image.pixels.data[pixel_i * image_stride + 0];
-                    image.pixels.data[pixel_i * desired_stride + 1] = image.pixels.data[pixel_i * image_stride + 1];
-                case .RB;
-                    image.pixels.data[pixel_i * desired_stride + 0] = image.pixels.data[pixel_i * image_stride + 0];
-                    image.pixels.data[pixel_i * desired_stride + 1] = image.pixels.data[pixel_i * image_stride + 2];
-                case .RA;
-                    image.pixels.data[pixel_i * desired_stride + 0] = image.pixels.data[pixel_i * image_stride + 0];
-                    image.pixels.data[pixel_i * desired_stride + 1] = image.pixels.data[pixel_i * image_stride + 3];
-                case .GB;
-                    image.pixels.data[pixel_i * desired_stride + 0] = image.pixels.data[pixel_i * image_stride + 1];
-                    image.pixels.data[pixel_i * desired_stride + 1] = image.pixels.data[pixel_i * image_stride + 2];
-                case .GA;
-                    image.pixels.data[pixel_i * desired_stride + 0] = image.pixels.data[pixel_i * image_stride + 1];
-                    image.pixels.data[pixel_i * desired_stride + 1] = image.pixels.data[pixel_i * image_stride + 3];
-                case .BA;
-                    image.pixels.data[pixel_i * desired_stride + 0] = image.pixels.data[pixel_i * image_stride + 2];
-                    image.pixels.data[pixel_i * desired_stride + 1] = image.pixels.data[pixel_i * image_stride + 3];
-                case .RGB;
-                    image.pixels.data[pixel_i * desired_stride + 0] = image.pixels.data[pixel_i * image_stride + 0];
-                    image.pixels.data[pixel_i * desired_stride + 1] = image.pixels.data[pixel_i * image_stride + 1];
-                    image.pixels.data[pixel_i * desired_stride + 2] = image.pixels.data[pixel_i * image_stride + 2];
-                case .RGA;
-                    image.pixels.data[pixel_i * desired_stride + 0] = image.pixels.data[pixel_i * image_stride + 0];
-                    image.pixels.data[pixel_i * desired_stride + 1] = image.pixels.data[pixel_i * image_stride + 1];
-                    image.pixels.data[pixel_i * desired_stride + 2] = image.pixels.data[pixel_i * image_stride + 3];
-                case .RBA;
-                    image.pixels.data[pixel_i * desired_stride + 0] = image.pixels.data[pixel_i * image_stride + 0];
-                    image.pixels.data[pixel_i * desired_stride + 1] = image.pixels.data[pixel_i * image_stride + 2];
-                    image.pixels.data[pixel_i * desired_stride + 2] = image.pixels.data[pixel_i * image_stride + 3];
-                case .GBA;
-                    image.pixels.data[pixel_i * desired_stride + 0] = image.pixels.data[pixel_i * image_stride + 1];
-                    image.pixels.data[pixel_i * desired_stride + 1] = image.pixels.data[pixel_i * image_stride + 2];
-                    image.pixels.data[pixel_i * desired_stride + 2] = image.pixels.data[pixel_i * image_stride + 3];
-                case .RGBA;
-                    image.pixels.data[pixel_i * desired_stride + 0] = image.pixels.data[pixel_i * image_stride + 0];
-                    image.pixels.data[pixel_i * desired_stride + 1] = image.pixels.data[pixel_i * image_stride + 1];
-                    image.pixels.data[pixel_i * desired_stride + 2] = image.pixels.data[pixel_i * image_stride + 2];
-                    image.pixels.data[pixel_i * desired_stride + 3] = image.pixels.data[pixel_i * image_stride + 3];
-            }
+
+        if get_gl_type(image.format) == GL_UNSIGNED_BYTE && get_gl_type(desired_format) == GL_UNSIGNED_BYTE {
+            convert_pixels(image.pixels, desired_stride, image.pixels, image_stride, (write: *u8, read: *u8) {
+                write.* = read.*;
+            });
+        } else if get_gl_type(image.format) == GL_FLOAT && get_gl_type(desired_format) == GL_FLOAT {
+            convert_pixels(image.pixels, desired_stride, image.pixels, image_stride, (write: *u8, read: *u8) {
+                write.* = read.*;
+            });
+        } else if get_gl_type(image.format) == GL_UNSIGNED_BYTE && get_gl_type(desired_format) == GL_FLOAT {
+            convert_pixels(image.pixels, desired_stride, image.pixels, image_stride, (write: *u8, read: *u8) {
+                // is this * 256, floor, and clamp to 255...?
+                write.* = cast(u8) round((cast(*float) read).* * 255);
+            });
+        } else if get_gl_type(image.format) == GL_FLOAT && get_gl_type(desired_format) == GL_UNSIGNED_BYTE {
+            convert_pixels(image.pixels, desired_stride, image.pixels, image_stride, (write: *u8, read: *u8) {
+                // is this * 256, floor, and clamp to 255...?
+                (cast(*float) write).* = read.* / 255.0;
+            });
+        } else {
+            assert(false, "Unknown conversion types. % %\n", image.format, desired_format);
         }
 
         image.pixels.count = pixel_count * desired_stride;
@@ -242,56 +316,26 @@ convert_format :: (image: *$T, desired_format: PixelFormat, $channels: ColorChan
 
         image.pixels = NewArray(pixel_count * desired_stride, u8);
 
-        for pixel_i: 0..pixel_count - 1 {
-            #if #complete channels == {
-                case .R;
-                    image.pixels.data[pixel_i * desired_stride + 0] = old_pixels.data[pixel_i * image_stride + 0];
-                case .G;
-                    image.pixels.data[pixel_i * desired_stride + 1] = old_pixels.data[pixel_i * image_stride + 0];
-                case .B;
-                    image.pixels.data[pixel_i * desired_stride + 2] = old_pixels.data[pixel_i * image_stride + 0];
-                case .A;
-                    image.pixels.data[pixel_i * desired_stride + 3] = old_pixels.data[pixel_i * image_stride + 0];
-                case .RG;
-                    image.pixels.data[pixel_i * desired_stride + 0] = old_pixels.data[pixel_i * image_stride + 0];
-                    image.pixels.data[pixel_i * desired_stride + 1] = old_pixels.data[pixel_i * image_stride + 1];
-                case .RB;
-                    image.pixels.data[pixel_i * desired_stride + 0] = old_pixels.data[pixel_i * image_stride + 0];
-                    image.pixels.data[pixel_i * desired_stride + 2] = old_pixels.data[pixel_i * image_stride + 1];
-                case .RA;
-                    image.pixels.data[pixel_i * desired_stride + 0] = old_pixels.data[pixel_i * image_stride + 0];
-                    image.pixels.data[pixel_i * desired_stride + 3] = old_pixels.data[pixel_i * image_stride + 1];
-                case .GB;
-                    image.pixels.data[pixel_i * desired_stride + 1] = old_pixels.data[pixel_i * image_stride + 0];
-                    image.pixels.data[pixel_i * desired_stride + 2] = old_pixels.data[pixel_i * image_stride + 1];
-                case .GA;
-                    image.pixels.data[pixel_i * desired_stride + 1] = old_pixels.data[pixel_i * image_stride + 0];
-                    image.pixels.data[pixel_i * desired_stride + 3] = old_pixels.data[pixel_i * image_stride + 1];
-                case .BA;
-                    image.pixels.data[pixel_i * desired_stride + 2] = old_pixels.data[pixel_i * image_stride + 0];
-                    image.pixels.data[pixel_i * desired_stride + 3] = old_pixels.data[pixel_i * image_stride + 1];
-                case .RGB;
-                    image.pixels.data[pixel_i * desired_stride + 0] = old_pixels.data[pixel_i * image_stride + 0];
-                    image.pixels.data[pixel_i * desired_stride + 1] = old_pixels.data[pixel_i * image_stride + 1];
-                    image.pixels.data[pixel_i * desired_stride + 2] = old_pixels.data[pixel_i * image_stride + 2];
-                case .RGA;
-                    image.pixels.data[pixel_i * desired_stride + 0] = old_pixels.data[pixel_i * image_stride + 0];
-                    image.pixels.data[pixel_i * desired_stride + 1] = old_pixels.data[pixel_i * image_stride + 1];
-                    image.pixels.data[pixel_i * desired_stride + 3] = old_pixels.data[pixel_i * image_stride + 2];
-                case .RBA;
-                    image.pixels.data[pixel_i * desired_stride + 0] = old_pixels.data[pixel_i * image_stride + 0];
-                    image.pixels.data[pixel_i * desired_stride + 2] = old_pixels.data[pixel_i * image_stride + 1];
-                    image.pixels.data[pixel_i * desired_stride + 3] = old_pixels.data[pixel_i * image_stride + 2];
-                case .GBA;
-                    image.pixels.data[pixel_i * desired_stride + 1] = old_pixels.data[pixel_i * image_stride + 0];
-                    image.pixels.data[pixel_i * desired_stride + 2] = old_pixels.data[pixel_i * image_stride + 1];
-                    image.pixels.data[pixel_i * desired_stride + 3] = old_pixels.data[pixel_i * image_stride + 2];
-                case .RGBA;
-                    image.pixels.data[pixel_i * desired_stride + 0] = old_pixels.data[pixel_i * image_stride + 0];
-                    image.pixels.data[pixel_i * desired_stride + 1] = old_pixels.data[pixel_i * image_stride + 1];
-                    image.pixels.data[pixel_i * desired_stride + 2] = old_pixels.data[pixel_i * image_stride + 2];
-                    image.pixels.data[pixel_i * desired_stride + 3] = old_pixels.data[pixel_i * image_stride + 3];
-            }
+        if get_gl_type(image.format) == GL_UNSIGNED_BYTE && get_gl_type(desired_format) == GL_UNSIGNED_BYTE {
+            convert_pixels(image.pixels, desired_stride, old_pixels, image_stride, (write: *u8, read: *u8) {
+                write.* = read.*;
+            });
+        } else if get_gl_type(image.format) == GL_FLOAT && get_gl_type(desired_format) == GL_FLOAT {
+            convert_pixels(image.pixels, desired_stride, old_pixels, image_stride, (write: *u8, read: *u8) {
+                write.* = read.*;
+            });
+        } else if get_gl_type(image.format) == GL_UNSIGNED_BYTE && get_gl_type(desired_format) == GL_FLOAT {
+            convert_pixels(image.pixels, desired_stride, old_pixels, image_stride, (write: *u8, read: *u8) {
+                // is this * 256, floor, and clamp to 255...?
+                write.* = cast(u8) round((cast(*float) read).* * 255);
+            });
+        } else if get_gl_type(image.format) == GL_FLOAT && get_gl_type(desired_format) == GL_UNSIGNED_BYTE {
+            convert_pixels(image.pixels, desired_stride, old_pixels, image_stride, (write: *u8, read: *u8) {
+                // is this * 256, floor, and clamp to 255...?
+                (cast(*float) write).* = read.* / 255.0;
+            });
+        } else {
+            assert(false, "Unknown conversion types. % %\n", image.format, desired_format);
         }
 
         image.pixels.count = pixel_count * desired_stride;
@@ -301,50 +345,6 @@ convert_format :: (image: *$T, desired_format: PixelFormat, $channels: ColorChan
 
     image.format = desired_format;
 }
-
-// copies the available channels into channels if expanding
-// copies channels into the new format if reducing
-// convert_format :: (image: *Image3, desired_format: PixelFormat) {
-//     assert(image.format == .R8 || image.format == .RG8 || image.format == .RGB8 || image.format == .RGBA8, "Cannot convert from format of %.\n", image.format);
-//     assert(desired_format == .R8 || desired_format == .RG8 || desired_format == .RGB8 || desired_format == .RGBA8, "Cannot convert to format of %.\n", desired_format);
-
-    
-
-//     if image.format == desired_format {
-//         return;
-//     }
-
-//     image_stride := get_stride(image.format);
-//     desired_stride := get_stride(desired_format);
-
-//     image.format = desired_format;
-
-//     total_pixels := image.width * image.height * image.depth;
-
-//     if desired_stride < image_stride {
-//         for i: 0..total_pixels - 1 {
-//             image_index := i * image_stride;
-//             desired_index := i * desired_stride;
-
-//             memcpy(image.pixels.data + desired_index, image.pixels.data + image_index, desired_stride);
-//         }
-
-//         image.pixels.count = total_pixels * desired_stride;
-//     } else {
-//         // untested
-//         old_pixels := image.pixels;
-//         defer array_free(old_pixels);
-
-//         image.pixels = NewArray(total_pixels * desired_stride, u8);
-
-//         for i: 0..total_pixels - 1 {
-//             image_index := i * image_stride;
-//             desired_index := i * desired_stride;
-
-//             memcpy(image.pixels.data + desired_index, old_pixels.data + image_index, image_stride);
-//         }
-//     }
-// }
 
 blur :: (image: *Image3, radius: float) {
     assert(image.format == .R8);
@@ -390,35 +390,48 @@ blur :: (image: *Image3, radius: float) {
     }, .{image, copied, radius_ceil, radius});
 }
 
-normalize :: (image: *Image3) {
-    assert(image.format == .R8);
+normalize :: (image: Image3) {
+    assert(
+        image.format == .R8 ||
+        image.format == .R32F ||
+        image.format == .RG8 ||
+        image.format == .RG32F ||
+        image.format == .RGB8 ||
+        image.format == .RGB32F ||
+        image.format == .RGBA8 ||
+        image.format == .RGBA32F);
 
-    min_value := 255.0;
+    min_value := FLOAT32_MAX;
     max_value := 0.0;
 
-    for z: 0..image.depth - 1 {
-        for y: 0..image.height - 1 {
-            for x: 0..image.width - 1 {
-                index := x + y * image.width + z * image.width * image.height;
+    if get_gl_type(image.format) == GL_UNSIGNED_BYTE {
+        bytes: [] u8;
+        bytes.data = xx image.pixels.data;
+        bytes.count = image.pixels.count;
 
-                value := image.pixels[index];
-                min_value = min(min_value, cast(float) value);
-                max_value = max(max_value, cast(float) value);
-            }
+        for byte: bytes {
+            min_value = min(min_value, cast(float) byte);
+            max_value = max(max_value, cast(float) byte);
         }
-    }
 
-    for z: 0..image.depth - 1 {
-        for y: 0..image.height - 1 {
-            for x: 0..image.width - 1 {
-                index := x + y * image.width + z * image.width * image.height;
-
-                value := cast(float) image.pixels[index];
-                value = (value - min_value) / (max_value - min_value);
-                value = min(clamp(value, 0, 1) * 256, 255);
-
-                image.pixels[index] = cast(u8) value;
-            }
+        for *byte: bytes {
+            value := (byte.* - min_value) / (max_value - min_value);
+            byte.* = cast(u8) clamp(floor(value / 256.0), 0, 255);
         }
+    } else if get_gl_type(image.format) == GL_FLOAT {
+        floats: [] float;
+        floats.data = xx image.pixels.data;
+        floats.count = image.pixels.count / size_of(float);
+
+        for f: floats {
+            min_value = min(min_value, cast(float) f);
+            max_value = max(max_value, cast(float) f);
+        }
+
+        for *f: floats {
+            f.* = (f.* - min_value) / (max_value - min_value);
+        }
+    } else {
+        assert(false, "Unknown normalize type. %\n", image.format);
     }
 }

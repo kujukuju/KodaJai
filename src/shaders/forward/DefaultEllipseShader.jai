@@ -53,10 +53,10 @@ void main() {
     float border = smoothstep(1.0 - length(fwidth(vTexCoord)) * edgeWidth * 3.0, 1.0 - length(fwidth(vTexCoord)) * edgeWidth * 2.0, distance);
 
     vec4 finalColor = uTint * color;
-    finalColor = finalColor * (1.0 - border) + uBorderTint * border;
-    finalColor *= color;
+    // finalColor = finalColor * (1.0 - border) + uBorderTint * border;
     finalColor.rgb /= finalColor.a;
 
     FragColor = finalColor;
+    // FragColor = vec4(1.0);
 }
 ___glsl

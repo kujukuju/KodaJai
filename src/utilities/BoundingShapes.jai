@@ -11,120 +11,120 @@
 
 
 
-calculate_bounding_sphere :: (vertex_iterator: $T) -> Sphere {
-    start := seconds_since_init() * 1000;
-    defer print("Calculate bounding sphere took % ms.\n", seconds_since_init() * 1000 - start);
+// calculate_bounding_sphere :: (vertex_iterator: $T) -> Sphere {
+//     start := seconds_since_init() * 1000;
+//     defer print("Calculate bounding sphere took % ms.\n", seconds_since_init() * 1000 - start);
     
-    points: [..] Vector3;
-    defer array_free(points);
+//     points: [..] Vector3;
+//     defer array_free(points);
 
-    for vertex: vertex_iterator {
-        array_add(*points, vertex);
-    }
+//     for vertex: vertex_iterator {
+//         array_add(*points, vertex);
+//     }
 
-    // shuffle points randomly
-    for index: 0..points.count - 1 {
-        random_index := random_get() % cast(u64) points.count;
-        points[index], points[random_index] = points[random_index], points[index];
-    }
+//     // shuffle points randomly
+//     for index: 0..points.count - 1 {
+//         random_index := random_get() % cast(u64) points.count;
+//         points[index], points[random_index] = points[random_index], points[index];
+//     }
 
-    StackEntry :: struct {
-        phase: int;
-        point_count: int;
-        supports: [4] Vector3;
-        support_count: int;
-        p: Vector3;
-    }
+//     StackEntry :: struct {
+//         phase: int;
+//         point_count: int;
+//         supports: [4] Vector3;
+//         support_count: int;
+//         p: Vector3;
+//     }
 
-    stack: [..] StackEntry;
+//     stack: [..] StackEntry;
 
-    get_first :: (array: [..] StackEntry) -> *StackEntry {
-        return *array[array.count - 1];
-    }
+//     get_first :: (array: [..] StackEntry) -> *StackEntry {
+//         return *array[array.count - 1];
+//     }
 
-    push_first :: (array: *[..] StackEntry, entry: StackEntry) {
-        array_add(array, entry);
-    }
+//     push_first :: (array: *[..] StackEntry, entry: StackEntry) {
+//         array_add(array, entry);
+//     }
 
-    pop_first :: (array: *[..] StackEntry) {
-        array.count -= 1;
-    }
+//     pop_first :: (array: *[..] StackEntry) {
+//         array.count -= 1;
+//     }
 
-    sphere: Sphere;
+//     sphere: Sphere;
 
-    empty_supports: [4] Vector3;
-    push_first(*stack, StackEntry.{
-        0,
-        points.count,
-        empty_supports,
-        0,
-        .{},
-    });
+//     empty_supports: [4] Vector3;
+//     push_first(*stack, StackEntry.{
+//         0,
+//         points.count,
+//         empty_supports,
+//         0,
+//         .{},
+//     });
 
-    while stack.count > 0 {
-        using get_first(stack);
+//     while stack.count > 0 {
+//         using get_first(stack);
 
-        if phase == 0 {
-            if point_count == 0 || support_count == 4 {
-                if support_count == 4 {
-                    sphere = create_sphere(supports[0], supports[1], supports[2], supports[3]);
-                    pop_first(*stack);
-                    continue;
-                } else if support_count == 3 {
-                    sphere = create_sphere(supports[0], supports[1], supports[2]);
-                    pop_first(*stack);
-                    continue;
-                } else if support_count == 2 {
-                    sphere = create_sphere(supports[0], supports[1]);
-                    pop_first(*stack);
-                    continue;
-                } else if support_count == 1 {
-                    sphere = create_sphere(supports[0]);
-                    pop_first(*stack);
-                    continue;
-                } else {
-                    sphere = .{};
-                    pop_first(*stack);
-                    continue;
-                }
-            }
+//         if phase == 0 {
+//             if point_count == 0 || support_count == 4 {
+//                 if support_count == 4 {
+//                     sphere = create_sphere(supports[0], supports[1], supports[2], supports[3]);
+//                     pop_first(*stack);
+//                     continue;
+//                 } else if support_count == 3 {
+//                     sphere = create_sphere(supports[0], supports[1], supports[2]);
+//                     pop_first(*stack);
+//                     continue;
+//                 } else if support_count == 2 {
+//                     sphere = create_sphere(supports[0], supports[1]);
+//                     pop_first(*stack);
+//                     continue;
+//                 } else if support_count == 1 {
+//                     sphere = create_sphere(supports[0]);
+//                     pop_first(*stack);
+//                     continue;
+//                 } else {
+//                     sphere = .{};
+//                     pop_first(*stack);
+//                     continue;
+//                 }
+//             }
 
-            p = points[point_count - 1];
-            phase = 1;
+//             p = points[point_count - 1];
+//             phase = 1;
 
-            next_entry := StackEntry.{
-                0,
-                point_count - 1,
-                supports,
-                support_count,
-                .{},
-            };
-            push_first(*stack, next_entry);
-            continue;
-        } else if phase == 1 {
-            if contains(sphere, p) {
-                pop_first(*stack);
-                continue;
-            }
+//             next_entry := StackEntry.{
+//                 0,
+//                 point_count - 1,
+//                 supports,
+//                 support_count,
+//                 .{},
+//             };
+//             push_first(*stack, next_entry);
+//             continue;
+//         } else if phase == 1 {
+//             if contains(sphere, p) {
+//                 pop_first(*stack);
+//                 continue;
+//             }
 
-            supports[support_count] = p;
-            support_count += 1;
+//             supports[support_count] = p;
+//             support_count += 1;
 
-            next_entry := StackEntry.{
-                0,
-                point_count - 1,
-                supports,
-                support_count,
-                .{},
-            };
-            pop_first(*stack);
-            push_first(*stack, next_entry);
-            continue;
-        }
-    }
+//             next_entry := StackEntry.{
+//                 0,
+//                 point_count - 1,
+//                 supports,
+//                 support_count,
+//                 .{},
+//             };
+//             pop_first(*stack);
+//             push_first(*stack, next_entry);
+//             continue;
+//         }
+//     }
 
-    return sphere;
-}
+//     return sphere;
+// }
 
 // calculate_bounding_sphere :: (vertex_iterator: $T) -> Sphere {
 //     start := seconds_since_init() * 1000;

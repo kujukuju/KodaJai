@@ -1,4 +1,10 @@
 
+#program_export "NvOptimusEnablement"
+NvOptimusEnablement: u32 = 1;
+
+#program_export "AmdPowerXpressRequestHighPerformance"
+AmdPowerXpressRequestHighPerformance: s32 = 1;
+
 koda_init :: () {
     glfwSetErrorCallback(error_callback);
     if !glfwInit() {
@@ -53,10 +59,20 @@ create_window :: (title: *u8, width: s32, height: s32, multisample: int = 0) {
 
     if multisample {
         glfwWindowHint(GLFW_SAMPLES, xx multisample);
+        glEnable(GL_MULTISAMPLE);
     }
 
     #if OS == .MACOS {
-        glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE);
+        glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GLFW_TRUE);
+    }
+
+    glfwWindowHint(GLFW_CLIENT_API, GLFW_OPENGL_API);
+    glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
+
+    #if !PRODUCTION {
+        glfwWindowHint(GLFW_OPENGL_DEBUG_CONTEXT, GLFW_TRUE);
+
+        gl_enable_debug_output(true);
     }
 
     glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, MINIMUM_GL_MAJOR_VERSION);
@@ -73,6 +89,19 @@ create_window :: (title: *u8, width: s32, height: s32, multisample: int = 0) {
     glfwMakeContextCurrent(koda.window);
     gl_load(*gl, glfwGetProcAddress);
 
+    renderer := glGetString(GL_RENDERER);
+    vendor := glGetString(GL_VENDOR);
+    version := glGetString(GL_VERSION);
+
+    print("GL Renderer: %\n", to_string(renderer));
+    print("GL Vendor: %\n", to_string(vendor));
+    print("GL Version: %\n", to_string(version));
+
+    graphics_info := get_graphics_info();
+    defer free(graphics_info);
+    wrote_graphics_info := write_entire_file("graphics_info.txt", graphics_info);
+    print("Wrote graphics info: %\n", wrote_graphics_info);
+
     glfwSetInputMode(koda.window, GLFW_STICKY_MOUSE_BUTTONS, GLFW_TRUE);
     glfwSetInputMode(koda.window, GLFW_STICKY_KEYS, GLFW_TRUE);
     glfwSetScrollCallback(koda.window, scroll_callback);
@@ -87,14 +116,15 @@ create_window :: (title: *u8, width: s32, height: s32, multisample: int = 0) {
 
     maximum_fragment: s32;
     glGetIntegerv(GL_MAX_TEXTURE_IMAGE_UNITS, *maximum_fragment);
-    koda.maximum_active_texture_count = max(maximum_fragment, 16);
+    if !maximum_fragment {
+        maximum_fragment = 16;
+    }
+    koda.maximum_active_texture_count = maximum_fragment;
+
+    print("GL Texture Cache Size: %\n", maximum_fragment);
 
     set_vsync(false);
     set_target_fps(0);
-
-    if multisample {
-        glEnable(GL_MULTISAMPLE);
-    }
 
     set_viewport(width, height);
 

@@ -1,3 +1,4 @@
+
 Texture :: struct {
     name: string;
     buffer: u32;

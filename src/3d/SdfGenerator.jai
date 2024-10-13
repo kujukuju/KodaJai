@@ -3,6 +3,7 @@ get_aabb :: (models: [] *Model) -> AABB2 {
     aabb: AABB2;
     aabb_set := false;
     for model: models {
+        print("model %\n", model);
         for vertex: get_vertices(model) {
             if !aabb_set {
                 aabb_set = true;
@@ -57,6 +58,94 @@ create_sdf_image :: (model_aabb: AABB2, pixel_units: float, format: PixelFormat,
     }
 
     return image, aabb, Vector2.{width_units, height_units};
+}
+
+create_sdf_image :: (model_aabb: AABB3, pixel_units: float, format: PixelFormat, $sample: (position: Vector3, data: $T) -> Color, data: T, $parallel: bool = false, $print_progress: bool = false) -> Image3, AABB3, Vector3 {
+    aabb := model_aabb;
+    dimensions := aabb.upper - aabb.lower;
+    width := cast(int) round(dimensions.x / pixel_units);
+    height := cast(int) round(dimensions.y / pixel_units);
+    depth := cast(int) round(dimensions.z / pixel_units);
+
+    // the number of units actually inside a given pixel after rounding
+    width_units := dimensions.x / width;
+    height_units := dimensions.y / height;
+    depth_units := dimensions.z / depth;
+
+    width += 2;
+    height += 2;
+    depth += 2;
+
+    aabb.lower.x -= width_units;
+    aabb.lower.y -= height_units;
+    aabb.lower.z -= depth_units;
+    aabb.upper.x += width_units;
+    aabb.upper.y += height_units;
+    aabb.upper.z += depth_units;
+    dimensions = aabb.upper - aabb.lower;
+
+    assert(abs(width_units - dimensions.x / width) < 0.00001, "Invalid width units. % %\n", width_units, dimensions.x / width);
+    assert(abs(height_units - dimensions.y / height) < 0.00001, "Invalid height units. % %\n", height_units, dimensions.y / height);
+    assert(abs(depth_units - dimensions.z / depth) < 0.00001, "Invalid depth units. % %\n", depth_units, dimensions.z / depth);
+
+    image := create_image3(width, height, depth, format);
+
+    #if parallel {
+        parallel_for(0, image.depth, (z: int, thread: int, using data: struct {
+            image: *Image3;
+            aabb: AABB3;
+            width_units: float;
+            height_units: float;
+            depth_units: float;
+            sample_data: T;
+        }) {
+            if thread == 0 && print_progress {
+                print("Sdf progress: % / %\n", z * get_thread_count() + 1, image.depth);
+            }
+
+            for y: 0..image.height - 1 {
+                for x: 0..image.width - 1 {
+                    index := x + y * image.width + z * image.width * image.height;
+
+                    position := aabb.lower;
+                    position += Vector3.{x + 0.5, y + 0.5, z + 0.5} * Vector3.{width_units, height_units, depth_units};
+
+                    color := sample(position, sample_data);
+
+                    draw_pixel(image, .{x, y, z}, color);
+                }
+            }
+        }, .{
+            *image,
+            aabb,
+            width_units,
+            height_units,
+            depth_units,
+            data,
+        });
+    } else {
+        for z: 0..image.depth - 1 {
+            if print_progress {
+                print("Sdf progress: % / %\n", z + 1, image.depth);
+            }
+
+            for y: 0..image.height - 1 {
+                for x: 0..image.width - 1 {
+                    index := x + y * image.width + z * image.width * image.height;
+
+                    position := aabb.lower;
+                    position += Vector3.{x + 0.5, y + 0.5, z + 0.5} * Vector3.{width_units, height_units, depth_units};
+
+                    color := sample(position, data);
+
+                    draw_pixel(*image, .{x, y, z}, color);
+                }
+            }
+        }
+    }
+
+
+    return image, aabb, Vector3.{width_units, height_units, depth_units};
 }
 
 // TODO this should reuse the above function, but in 3d

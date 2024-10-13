@@ -70,6 +70,14 @@ operator - :: (color: Color, value: float) -> Color {
     return out;
 }
 
+color :: (integer: int) -> Color {
+    return color(cast(u8) ((integer >> 24) & 0xff), cast(u8) ((integer >> 16) & 0xff), cast(u8) ((integer >> 8) & 0xff), cast(u8) (integer & 0xff));
+}
+
+color_rgb :: (integer: int) -> Color {
+    return color(cast(u8) ((integer >> 16) & 0xff), cast(u8) ((integer >> 8) & 0xff), cast(u8) (integer & 0xff), cast(u8) 0xff);
+}
+
 color :: (r: u8, g: u8, b: u8, a: u8) -> Color {
     c: Color = ---;
     c.r = r / 255.0;

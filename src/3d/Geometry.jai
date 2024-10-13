@@ -8,6 +8,7 @@ Geometry :: struct {
     indices: [..] u32;
     attributes: [..] Attribute;
     aabb: AABB3;
+    bounding_sphere: Sphere;
 }
 
 // this is also the alignment order that the loader will force the attributes into
@@ -48,6 +49,7 @@ create_geometry :: (vertices: [] float32, indices: [] u32, attributes: [] Attrib
     array_copy(*geometry.attributes, attributes);
 
     geometry.aabb = calculate_aabb(geometry);
+    geometry.bounding_sphere = calculate_bounding_sphere(get_vertices(geometry));
 
     if should_upload {
         upload(geometry);
@@ -75,6 +77,7 @@ create_geometry :: (geometry: *Geometry, should_upload: bool = true) -> *Geometr
     array_copy(*result.indices, geometry.indices);
     array_copy(*result.attributes, geometry.attributes);
     result.aabb = geometry.aabb;
+    result.bounding_sphere = geometry.bounding_sphere;
 
     if should_upload {
         upload(result);
@@ -123,6 +126,8 @@ create_geometry :: (geometries: [] *Geometry, should_upload: bool = true) -> *Ge
         }
         result.indices.count += geometry.indices.count;
     }
+
+    result.bounding_sphere = calculate_bounding_sphere(get_vertices(result));
 
     if should_upload {
         upload(result);
@@ -896,6 +901,7 @@ load_geometry_obj :: (file: string) -> [..] *Geometry, bool {
 
     for geometry: geometries {
         geometry.aabb = calculate_aabb(geometry);
+        geometry.bounding_sphere = calculate_bounding_sphere(geometry);
     }
 
     if geometries.count == 0 {
@@ -988,38 +994,37 @@ load_geometry_gltf_data :: (
                 assert(attribute_count == attribute_accessor_count, "Found an attribute with an inconsistent count.");
 
                 if begins_with(attribute_entry.name, "POSITION") {
-                    assert(attribute_accessor.type == "VEC3", "The position accessor must be a vec3 type.");
-                    assert(attribute_accessor.component_type == .F32, "The position accessor must be a float32.");
+                    assert(attribute_accessor.type == "VEC3", "The position accessor must be a vec3 type. % %", mesh.name, attribute_accessor.type);
+                    assert(attribute_accessor.component_type == .F32, "The position accessor must be a float32. % %", mesh.name, attribute_accessor.component_type);
 
                     array_add(*attribute_accessors[cast(int) Attribute.Position], attribute_accessor);
                 } else if begins_with(attribute_entry.name, "NORMAL") {
-                    assert(attribute_accessor.type == "VEC3", "The normal accessor must be a vec3 type.");
-                    assert(attribute_accessor.component_type == .F32, "The normal accessor must be a float32.");
+                    assert(attribute_accessor.type == "VEC3", "The normal accessor must be a vec3 type. % %", mesh.name, attribute_accessor.type);
+                    assert(attribute_accessor.component_type == .F32, "The normal accessor must be a float32. % %", mesh.name, attribute_accessor.component_type);
 
                     array_add(*attribute_accessors[cast(int) Attribute.Normal], attribute_accessor);
                 } else if begins_with(attribute_entry.name, "TEXCOORD") {
-                    assert(attribute_accessor.type == "VEC2", "The texcoord accessor must be a vec2 type.");
-                    assert(attribute_accessor.component_type == .F32, "The texcoord accessor must be a float32.");
+                    assert(attribute_accessor.type == "VEC2", "The texcoord accessor must be a vec2 type. % %", mesh.name, attribute_accessor.type);
+                    assert(attribute_accessor.component_type == .F32, "The texcoord accessor must be a float32. % %", mesh.name, attribute_accessor.component_type);
 
                     array_add(*attribute_accessors[cast(int) Attribute.Texcoord], attribute_accessor);
                 } else if begins_with(attribute_entry.name, "COLOR") {
-                    assert(attribute_accessor.type == "VEC4", "The color accessor must be a vec4 type.");
-                    assert(attribute_accessor.component_type == .U8 || attribute_accessor.component_type == .U16 ||attribute_accessor.component_type == .F32, "The color accessor must be a u8 or u16 or float32.");
+                    assert(attribute_accessor.type == "VEC4", "The color accessor must be a vec4 type. % %", mesh.name, attribute_accessor.type);
+                    assert(attribute_accessor.component_type == .U8 || attribute_accessor.component_type == .U16 ||attribute_accessor.component_type == .F32, "The color accessor must be a u8 or u16 or float32. % %", mesh.name, attribute_accessor.component_type);
 
                     array_add(*attribute_accessors[cast(int) Attribute.Color], attribute_accessor);
                 } else if begins_with(attribute_entry.name, "JOINTS") {
-                    assert(attribute_accessor.type == "VEC4", "The joint indices accessor must be a vec4 type.");
-                    assert(attribute_accessor.component_type == .U8 || attribute_accessor.component_type == .U16 || attribute_accessor.component_type == .U32, "The joint indices accessor must be a u8 or u16 or u32.");
+                    assert(attribute_accessor.type == "VEC4", "The joint indices accessor must be a vec4 type. % %", mesh.name, attribute_accessor.type);
+                    assert(attribute_accessor.component_type == .U8 || attribute_accessor.component_type == .U16 || attribute_accessor.component_type == .U32, "The joint indices accessor must be a u8 or u16 or u32. % %", mesh.name, attribute_accessor.component_type);
 
                     array_add(*attribute_accessors[cast(int) Attribute.JointIndices], attribute_accessor);
                 } else if begins_with(attribute_entry.name, "WEIGHTS") {
-                    assert(attribute_accessor.type == "VEC4", "The joint weights accessor must be a vec4 type.");
-                    assert(attribute_accessor.component_type == .F32, "The joint weights accessor must be a float32.");
+                    assert(attribute_accessor.type == "VEC4", "The joint weights accessor must be a vec4 type. % %", mesh.name, attribute_accessor.type);
+                    assert(attribute_accessor.component_type == .F32, "The joint weights accessor must be a float32. % %", mesh.name, attribute_accessor.component_type);
 
                     array_add(*attribute_accessors[cast(int) Attribute.JointWeights], attribute_accessor);
                 } else {
-                    print("Found unknown attribute type. %\n", attribute_entry.name);
-                    assert(false, "Found unknown attribute type.");
+                    assert(false, "Found unknown attribute type. % %", mesh.name, attribute_entry.name);
                 }
             }
 
@@ -1176,6 +1181,7 @@ load_geometry_gltf_data :: (
 
     for geometry: geometries {
         geometry.aabb = calculate_aabb(geometry);
+        geometry.bounding_sphere = calculate_bounding_sphere(geometry);
     }
 
     return geometries, true;
