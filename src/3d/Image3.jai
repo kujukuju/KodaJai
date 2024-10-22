@@ -218,85 +218,88 @@ convert_format :: (image: *$T, desired_format: PixelFormat, $channels: ColorChan
     ifx channels & .B then maximum_channel = 3;
     ifx channels & .A then maximum_channel = 4;
 
-    convert_pixels :: (new_pixels: [] u8, new_stride: int, old_pixels: [] u8, old_stride: int, $convert: #type (write: *u8, read: *u8)) {
+    convert_pixels :: (new_pixels: [] u8, new_stride: int, new_component_count: int, old_pixels: [] u8, old_stride: int, old_component_count: int, $convert: #type (write: *u8, read: *u8)) {
         pixel_count := old_pixels.count / old_stride;
+        new_component_stride := new_stride / new_component_count;
+        old_component_stride := old_stride / old_component_count;
         for i: 0..pixel_count - 1 {
             #if #complete channels == {
                 case .R;
-                    convert(new_pixels.data + i * new_stride + 0, old_pixels.data + i * old_stride + 0);
+                    convert(new_pixels.data + i * new_stride + 0 * new_component_stride, old_pixels.data + i * old_stride + 0 * old_component_stride);
                 case .G;
-                    convert(new_pixels.data + i * new_stride + 0, old_pixels.data + i * old_stride + 1);
+                    convert(new_pixels.data + i * new_stride + 0 * new_component_stride, old_pixels.data + i * old_stride + 1 * old_component_stride);
                 case .B;
-                    convert(new_pixels.data + i * new_stride + 0, old_pixels.data + i * old_stride + 2);
+                    convert(new_pixels.data + i * new_stride + 0 * new_component_stride, old_pixels.data + i * old_stride + 2 * old_component_stride);
                 case .A;
-                    convert(new_pixels.data + i * new_stride + 0, old_pixels.data + i * old_stride + 3);
+                    convert(new_pixels.data + i * new_stride + 0 * new_component_stride, old_pixels.data + i * old_stride + 3 * old_component_stride);
                 case .RG;
-                    convert(new_pixels.data + i * new_stride + 0, old_pixels.data + i * old_stride + 0);
-                    convert(new_pixels.data + i * new_stride + 1, old_pixels.data + i * old_stride + 1);
+                    convert(new_pixels.data + i * new_stride + 0 * new_component_stride, old_pixels.data + i * old_stride + 0 * old_component_stride);
+                    convert(new_pixels.data + i * new_stride + 1 * new_component_stride, old_pixels.data + i * old_stride + 1 * old_component_stride);
                 case .RB;
-                    convert(new_pixels.data + i * new_stride + 0, old_pixels.data + i * old_stride + 0);
-                    convert(new_pixels.data + i * new_stride + 1, old_pixels.data + i * old_stride + 2);
+                    convert(new_pixels.data + i * new_stride + 0 * new_component_stride, old_pixels.data + i * old_stride + 0 * old_component_stride);
+                    convert(new_pixels.data + i * new_stride + 1 * new_component_stride, old_pixels.data + i * old_stride + 2 * old_component_stride);
                 case .RA;
-                    convert(new_pixels.data + i * new_stride + 0, old_pixels.data + i * old_stride + 0);
-                    convert(new_pixels.data + i * new_stride + 1, old_pixels.data + i * old_stride + 3);
+                    convert(new_pixels.data + i * new_stride + 0 * new_component_stride, old_pixels.data + i * old_stride + 0 * old_component_stride);
+                    convert(new_pixels.data + i * new_stride + 1 * new_component_stride, old_pixels.data + i * old_stride + 3 * old_component_stride);
                 case .GB;
-                    convert(new_pixels.data + i * new_stride + 0, old_pixels.data + i * old_stride + 1);
-                    convert(new_pixels.data + i * new_stride + 1, old_pixels.data + i * old_stride + 2);
+                    convert(new_pixels.data + i * new_stride + 0 * new_component_stride, old_pixels.data + i * old_stride + 1 * old_component_stride);
+                    convert(new_pixels.data + i * new_stride + 1 * new_component_stride, old_pixels.data + i * old_stride + 2 * old_component_stride);
                 case .GA;
-                    convert(new_pixels.data + i * new_stride + 0, old_pixels.data + i * old_stride + 1);
-                    convert(new_pixels.data + i * new_stride + 1, old_pixels.data + i * old_stride + 3);
+                    convert(new_pixels.data + i * new_stride + 0 * new_component_stride, old_pixels.data + i * old_stride + 1 * old_component_stride);
+                    convert(new_pixels.data + i * new_stride + 1 * new_component_stride, old_pixels.data + i * old_stride + 3 * old_component_stride);
                 case .BA;
-                    convert(new_pixels.data + i * new_stride + 0, old_pixels.data + i * old_stride + 2);
-                    convert(new_pixels.data + i * new_stride + 1, old_pixels.data + i * old_stride + 3);
+                    convert(new_pixels.data + i * new_stride + 0 * new_component_stride, old_pixels.data + i * old_stride + 2 * old_component_stride);
+                    convert(new_pixels.data + i * new_stride + 1 * new_component_stride, old_pixels.data + i * old_stride + 3 * old_component_stride);
                 case .RGB;
-                    convert(new_pixels.data + i * new_stride + 0, old_pixels.data + i * old_stride + 0);
-                    convert(new_pixels.data + i * new_stride + 1, old_pixels.data + i * old_stride + 1);
-                    convert(new_pixels.data + i * new_stride + 2, old_pixels.data + i * old_stride + 2);
+                    convert(new_pixels.data + i * new_stride + 0 * new_component_stride, old_pixels.data + i * old_stride + 0 * old_component_stride);
+                    convert(new_pixels.data + i * new_stride + 1 * new_component_stride, old_pixels.data + i * old_stride + 1 * old_component_stride);
+                    convert(new_pixels.data + i * new_stride + 2 * new_component_stride, old_pixels.data + i * old_stride + 2 * old_component_stride);
                 case .RGA;
-                    convert(new_pixels.data + i * new_stride + 0, old_pixels.data + i * old_stride + 0);
-                    convert(new_pixels.data + i * new_stride + 1, old_pixels.data + i * old_stride + 1);
-                    convert(new_pixels.data + i * new_stride + 2, old_pixels.data + i * old_stride + 3);
+                    convert(new_pixels.data + i * new_stride + 0 * new_component_stride, old_pixels.data + i * old_stride + 0 * old_component_stride);
+                    convert(new_pixels.data + i * new_stride + 1 * new_component_stride, old_pixels.data + i * old_stride + 1 * old_component_stride);
+                    convert(new_pixels.data + i * new_stride + 2 * new_component_stride, old_pixels.data + i * old_stride + 3 * old_component_stride);
                 case .RBA;
-                    convert(new_pixels.data + i * new_stride + 0, old_pixels.data + i * old_stride + 0);
-                    convert(new_pixels.data + i * new_stride + 1, old_pixels.data + i * old_stride + 2);
-                    convert(new_pixels.data + i * new_stride + 2, old_pixels.data + i * old_stride + 3);
+                    convert(new_pixels.data + i * new_stride + 0 * new_component_stride, old_pixels.data + i * old_stride + 0 * old_component_stride);
+                    convert(new_pixels.data + i * new_stride + 1 * new_component_stride, old_pixels.data + i * old_stride + 2 * old_component_stride);
+                    convert(new_pixels.data + i * new_stride + 2 * new_component_stride, old_pixels.data + i * old_stride + 3 * old_component_stride);
                 case .GBA;
-                    convert(new_pixels.data + i * new_stride + 0, old_pixels.data + i * old_stride + 1);
-                    convert(new_pixels.data + i * new_stride + 1, old_pixels.data + i * old_stride + 2);
-                    convert(new_pixels.data + i * new_stride + 2, old_pixels.data + i * old_stride + 3);
+                    convert(new_pixels.data + i * new_stride + 0 * new_component_stride, old_pixels.data + i * old_stride + 1 * old_component_stride);
+                    convert(new_pixels.data + i * new_stride + 1 * new_component_stride, old_pixels.data + i * old_stride + 2 * old_component_stride);
+                    convert(new_pixels.data + i * new_stride + 2 * new_component_stride, old_pixels.data + i * old_stride + 3 * old_component_stride);
                 case .RGBA;
-                    convert(new_pixels.data + i * new_stride + 0, old_pixels.data + i * old_stride + 0);
-                    convert(new_pixels.data + i * new_stride + 1, old_pixels.data + i * old_stride + 1);
-                    convert(new_pixels.data + i * new_stride + 2, old_pixels.data + i * old_stride + 2);
-                    convert(new_pixels.data + i * new_stride + 3, old_pixels.data + i * old_stride + 3);
+                    convert(new_pixels.data + i * new_stride + 0 * new_component_stride, old_pixels.data + i * old_stride + 0 * old_component_stride);
+                    convert(new_pixels.data + i * new_stride + 1 * new_component_stride, old_pixels.data + i * old_stride + 1 * old_component_stride);
+                    convert(new_pixels.data + i * new_stride + 2 * new_component_stride, old_pixels.data + i * old_stride + 2 * old_component_stride);
+                    convert(new_pixels.data + i * new_stride + 3 * new_component_stride, old_pixels.data + i * old_stride + 3 * old_component_stride);
             }
         }
     }
 
     // TODO this could be optimized by looking for contiguous color channel conversions and memcpying instead of doing it this way
 
+    pixel_count := image.pixels.count / image_stride;
+    desired_component_count := get_component_count(desired_format);
+    image_component_count := get_component_count(image.format);
+
     if desired_stride < image_stride {
         assert(desired_stride == channel_count, "Converting format to fewer channels but didn't provide the correct channel info. % %\n", channels, desired_stride);
         assert(maximum_channel <= image_stride, "The conversion channels is out of bounds for the provided source image. % %\n", channels, image_stride);
 
-        pixel_count := image.pixels.count / image_stride;
-
         if get_gl_type(image.format) == GL_UNSIGNED_BYTE && get_gl_type(desired_format) == GL_UNSIGNED_BYTE {
-            convert_pixels(image.pixels, desired_stride, image.pixels, image_stride, (write: *u8, read: *u8) {
+            convert_pixels(image.pixels, desired_stride, desired_component_count, image.pixels, image_stride, image_component_count, (write: *u8, read: *u8) {
                 write.* = read.*;
             });
         } else if get_gl_type(image.format) == GL_FLOAT && get_gl_type(desired_format) == GL_FLOAT {
-            convert_pixels(image.pixels, desired_stride, image.pixels, image_stride, (write: *u8, read: *u8) {
-                write.* = read.*;
+            convert_pixels(image.pixels, desired_stride, desired_component_count, image.pixels, image_stride, image_component_count, (write: *u8, read: *u8) {
+                (cast(*float) write).* = (cast(*float) read).*;
             });
         } else if get_gl_type(image.format) == GL_UNSIGNED_BYTE && get_gl_type(desired_format) == GL_FLOAT {
-            convert_pixels(image.pixels, desired_stride, image.pixels, image_stride, (write: *u8, read: *u8) {
+            convert_pixels(image.pixels, desired_stride, desired_component_count, image.pixels, image_stride, image_component_count, (write: *u8, read: *u8) {
                 // is this * 256, floor, and clamp to 255...?
-                write.* = cast(u8) round((cast(*float) read).* * 255);
+                write.* = cast(u8) clamp(round(((cast(*float) read).*) * 255), 0, 255);
             });
         } else if get_gl_type(image.format) == GL_FLOAT && get_gl_type(desired_format) == GL_UNSIGNED_BYTE {
-            convert_pixels(image.pixels, desired_stride, image.pixels, image_stride, (write: *u8, read: *u8) {
-                // is this * 256, floor, and clamp to 255...?
+            convert_pixels(image.pixels, desired_stride, desired_component_count, image.pixels, image_stride, image_component_count, (write: *u8, read: *u8) {
                 (cast(*float) write).* = read.* / 255.0;
             });
         } else {
@@ -308,29 +311,26 @@ convert_format :: (image: *$T, desired_format: PixelFormat, $channels: ColorChan
         assert(image_stride == channel_count, "Converting format to more channels but didn't provide the correct channel info. % %\n", channels, image_stride);
         assert(maximum_channel <= desired_stride, "The conversion channels is out of bounds for the provided destination image. % %\n", channels, desired_stride);
 
-        // untested
-        pixel_count := image.pixels.count / image_stride;
-
         old_pixels := image.pixels;
         defer array_free(old_pixels);
 
         image.pixels = NewArray(pixel_count * desired_stride, u8);
 
         if get_gl_type(image.format) == GL_UNSIGNED_BYTE && get_gl_type(desired_format) == GL_UNSIGNED_BYTE {
-            convert_pixels(image.pixels, desired_stride, old_pixels, image_stride, (write: *u8, read: *u8) {
+            convert_pixels(image.pixels, desired_stride, desired_component_count, old_pixels, image_stride, image_component_count, (write: *u8, read: *u8) {
                 write.* = read.*;
             });
         } else if get_gl_type(image.format) == GL_FLOAT && get_gl_type(desired_format) == GL_FLOAT {
-            convert_pixels(image.pixels, desired_stride, old_pixels, image_stride, (write: *u8, read: *u8) {
+            convert_pixels(image.pixels, desired_stride, desired_component_count, old_pixels, image_stride, image_component_count, (write: *u8, read: *u8) {
                 write.* = read.*;
             });
         } else if get_gl_type(image.format) == GL_UNSIGNED_BYTE && get_gl_type(desired_format) == GL_FLOAT {
-            convert_pixels(image.pixels, desired_stride, old_pixels, image_stride, (write: *u8, read: *u8) {
+            convert_pixels(image.pixels, desired_stride, desired_component_count, old_pixels, image_stride, image_component_count, (write: *u8, read: *u8) {
                 // is this * 256, floor, and clamp to 255...?
-                write.* = cast(u8) round((cast(*float) read).* * 255);
+                write.* = cast(u8) clamp(round(((cast(*float) read).*) * 255), 0, 255);
             });
         } else if get_gl_type(image.format) == GL_FLOAT && get_gl_type(desired_format) == GL_UNSIGNED_BYTE {
-            convert_pixels(image.pixels, desired_stride, old_pixels, image_stride, (write: *u8, read: *u8) {
+            convert_pixels(image.pixels, desired_stride, desired_component_count, old_pixels, image_stride, image_component_count, (write: *u8, read: *u8) {
                 // is this * 256, floor, and clamp to 255...?
                 (cast(*float) write).* = read.* / 255.0;
             });
@@ -424,8 +424,8 @@ normalize :: (image: Image3) {
         floats.count = image.pixels.count / size_of(float);
 
         for f: floats {
-            min_value = min(min_value, cast(float) f);
-            max_value = max(max_value, cast(float) f);
+            min_value = min(min_value, f);
+            max_value = max(max_value, f);
         }
 
         for *f: floats {
