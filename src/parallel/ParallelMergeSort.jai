@@ -99,12 +99,7 @@ parallel_merge_sort :: (input: [] $T, $compare: (a: T, b: T) -> $N) {
         parallel_merge_sort_initialize();
     }
 
-    // if input.count < division_count * 64 {
-    //     quick_sort(input, compare);
-    //     return;
-    // }
-
-    if input.count < division_count * 2 {
+    if input.count < division_count * 64 {
         quick_sort(input, compare);
         return;
     }
@@ -116,19 +111,14 @@ parallel_merge_sort :: (input: [] $T, $compare: (a: T, b: T) -> $N) {
     raw_input_data = input.data;
     input_count = input.count;
 
-    // buffer_size := next_power_of_two(input.count * size_of(T));
-    // array_reserve(*merge_buffer, buffer_size);
-
-    // PLAN
-    // were gonna actually start the merge sort with thread_count chunks
-    // and each chunk will be sorted initially with single threaded quick sort
-    // and then when N chunks are finished, which needs to match the dependencies, they will go on
+    buffer_size := next_power_of_two(input.count * size_of(T));
+    array_reserve(*merge_buffer, buffer_size);
 
     baked_callback :: (index: int) {
         input_data := cast(*T) raw_input_data;
         work_index := index;
 
-        // merge_buffer_data := cast(*T) merge_buffer.data;
+        merge_buffer_data := cast(*T) merge_buffer.data;
 
         while true {
             work := work_queue[work_index];
@@ -145,21 +135,35 @@ parallel_merge_sort :: (input: [] $T, $compare: (a: T, b: T) -> $N) {
                 input_right.data = input_data + start_right;
                 input_right.count = end_right - start_right;
                 
-                for left_index: 0..input_left.count - 1 {
-                    if compare(input_left[left_index], input_right[0]) > 0 {
-                        input_left[left_index], input_right[0] = input_right[0], input_left[left_index];
+                buffer: [] T;
+                buffer.data = merge_buffer_data + start_left;
+                buffer.count = end_right - start_left;
 
-                        // now kind of resort the right array
-                        right_index := 0;
-                        while right_index < input_right.count - 1 && compare(input_right[right_index], input_right[right_index + 1]) > 0 {
-                            input_right[right_index], input_right[right_index + 1] = input_right[right_index + 1], input_right[right_index];
+                left_index := 0;
+                right_index := 0;
+                for i: 0..buffer.count - 1 {
+                    if left_index < input_left.count && right_index < input_right.count {
+                        if compare(input_left[left_index], input_right[right_index]) <= 0 {
+                            buffer[i] = input_left[left_index];
+                            left_index += 1;
+                        } else {
+                            buffer[i] = input_right[right_index];
                             right_index += 1;
                         }
+                    } else if left_index < input_left.count {
+                        buffer[i] = input_left[left_index];
+                        left_index += 1;
+                    } else if right_index < input_right.count {
+                        buffer[i] = input_right[right_index];
+                        right_index += 1;
+                    } else {
+                        assert(false, "There's nothing left to write!\n");
                     }
                 }
+
+                memcpy(input_left.data, buffer.data, buffer.count * size_of(T));
             } else {
                 start, end := get_indices(work.row, work.index);
-                // memcpy(merge_buffer_data + start, input_data + start, (end - start) * size_of(T));
                 // just sort this chunk because there are no dependencies so it's the very first chunk
                 segment_view: [] T;
                 segment_view.data = input_data + start;
