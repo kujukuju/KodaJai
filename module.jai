@@ -6,8 +6,6 @@
 
     #import "JaiWasmGL";
 } else {
-    core_count :: #run get_number_of_processors();
-
     #import "GL"(DUMP_GL_ERRORS = !PRODUCTION, DEFAULT_MSAA = 0);
     #import "stb_image";
     #import "stb_image_write";
@@ -64,6 +62,7 @@
 #load "src/noise/Worley.jai";
 
 #load "src/parallel/Parallel.jai";
+#load "src/parallel/ParallelMergeSort.jai";
 #load "src/parallel/ParallelQuickSort.jai";
 
 #load "src/shaders/forward/BlurShader.jai";
@@ -180,6 +179,7 @@ static_sprite: Sprite;
 #import "Random";
 #import "Compiler";
 #import "Math";
+#import "Atomics";
 
 #import "JaiGLFW";
 #import "ContiguousJsonJai"(ASM = !WASM);

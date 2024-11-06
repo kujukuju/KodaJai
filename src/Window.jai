@@ -13,7 +13,6 @@ koda_init :: () {
     }
 
     init_default_shaders();
-    init_quick_sort(core_count);
     parallel_init();
 
     koda.initialized = true;

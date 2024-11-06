@@ -119,6 +119,8 @@
     }
 
     quick_sort_add_task :: (data: [] DepthEntry, depth: s32) {
+        lock(*qs_task_mutex);
+        defer unlock(*qs_task_mutex);
         atomic_increment(*qs_tasks_remaining);
         #if QS_Print_Debug {
             info(
@@ -128,10 +130,8 @@
                 FormatInt.{value=depth},
             );
         }
-        lock(*qs_task_mutex);
         array_add(*qs_tasks, .{data, depth});
         signal(*qs_work_available);
-        unlock(*qs_task_mutex);
     }
 
     quick_sort_get_task :: (thread: *Thread) -> QS_Task, bool {

@@ -24,11 +24,6 @@ ParticleSystem :: struct (ParticleGpu: Type, ParticleCpu: Type, update_function:
     parallel_limit: int = 128;
 }
 
-ParentParticle :: struct (PG: Type, PC: Type) {
-    using pg: *PG;
-    using pc: *PC;
-}
-
 particle_system_create :: (shader: *Shader, $PG: Type, $PC: Type, $update_function: #type (particle_gpu: *PG, particle_cpu: *PC, time: float, dt: float) = null, geometry: *Geometry = null, $sort: bool = true) -> ParticleSystem(PG, PC, update_function, sort) {
     system: ParticleSystem(PG, PC, update_function, sort);
     particle_system_init(*system, shader, geometry);
@@ -36,8 +31,39 @@ particle_system_create :: (shader: *Shader, $PG: Type, $PC: Type, $update_functi
     return system;
 }
 
+struct_has_valid_destroy :: (struct_info: *Type_Info_Struct) -> bool {
+    assert(struct_info.type == .STRUCT);
+    
+    for member: struct_info.members {
+        if member.name == "destroy" && member.offset_in_bytes == 0 {
+            return true;
+        } else if member.type.type == .STRUCT && member.flags & .USING && member.offset_in_bytes == 0 {
+            member_struct_info := cast(*Type_Info_Struct) member.type;
+            all_children_valid := struct_has_valid_destroy(member_struct_info);
+            for child_member: member_struct_info.members {
+                if child_member.name == "destroy" {
+                    continue;
+                }
+
+                all_children_valid = all_children_valid && child_member.type.type == .STRUCT && child_member.offset_in_bytes == 0 && struct_has_valid_destroy(cast(*Type_Info_Struct) child_member.type);
+            }
+            return all_children_valid;
+        }
+    }
+
+    return false;
+}
+
 particle_system_init :: (system: *ParticleSystem($PG, $PC, $update_function, $sort), shader: *Shader, geometry: *Geometry = null) {
     init(*system.synchronous_lock);
+
+    #run {
+        if update_function {
+            struct_info := cast(*Type_Info_Struct) type_info(PC);
+            valid_destroy := struct_has_valid_destroy(struct_info);
+            assert(valid_destroy, "Did not find destroy member with bytes offset of 0 inside struct %.\n", struct_info.name);
+        }
+    }
 
     system.shader = shader;
 
@@ -102,7 +128,7 @@ particle_system_update_and_render :: (system: *ParticleSystem($PG, $PC, $update_
 }
 
 particle_system_update_and_render :: (system: *ParticleSystem($PG, $PC, $update_function, $sort), time: float64, projection: Matrix4) {
-    dt := cast(float) (time - system.last_render_time);
+    dt := cast(float) max(time - system.last_render_time, 0);
     system.last_render_time = time;
 
     if system.particles_gpu.count == 0 {
@@ -173,7 +199,44 @@ particle_system_update_and_render :: (system: *ParticleSystem($PG, $PC, $update_
         // TODO the potential problem here is the behavior is actually different I think
         // in the parallel case it doesn't guarantee same depth entries will maintain their order, potentially flickering
         if is_parallel {
-            quick_sort_threaded(system.depth_values);
+            #assert !PRODUCTION;
+            expected_results := array_copy(system.depth_values);
+            defer array_free(expected_results);
+
+            perf_test := array_copy(system.depth_values);
+            defer array_free(perf_test);
+
+            print("Parallel sort? %\n", system.depth_values.count >= 32 * 2);
+
+            start := seconds_since_init() * 1000;
+            quick_sort_threaded(perf_test);
+            print("Quick sort threaded took %\n", (seconds_since_init() * 1000 - start));
+
+            start = seconds_since_init() * 1000;
+            parallel_merge_sort(system.depth_values, (a: DepthEntry, b: DepthEntry) -> float {
+                return a.depth - b.depth;
+            });
+            print("Parallel merge sort took %\n", (seconds_since_init() * 1000 - start));
+
+            start = seconds_since_init() * 1000;
+            quick_sort(expected_results, (a: DepthEntry, b: DepthEntry) -> float {
+                return a.depth - b.depth;
+            });
+            print("Single threaded quick sort took %\n", (seconds_since_init() * 1000 - start));
+            
+            for i: 0..expected_results.count - 2 {
+                if expected_results[i].depth > expected_results[i + 1].depth {
+                    print("WRONG SINGLE THREADED DEPTH VALUE!!! % % %\n", i, expected_results[i], expected_results[i + 1]);
+                    break;
+                }
+            }
+            
+            for i: 0..system.depth_values.count - 2 {
+                if system.depth_values[i].depth > system.depth_values[i + 1].depth {
+                    print("WRONG DEPTH VALUE!!! % % %\n", i, system.depth_values[i], system.depth_values[i + 1]);
+                    break;
+                }
+            }
         } else {
             quick_sort(system.depth_values, (a: DepthEntry, b: DepthEntry) -> float {
                 return a.depth - b.depth;

@@ -493,6 +493,9 @@ get_attributes_from_struct :: (gpu: Type) -> [] Attribute {
         }
     }
 
+    expected_size := get_attribute_stride(attributes) * 4;
+    assert(expected_size == struct_info.runtime_size, "Gpu struct % has inconsistent size with members. % %\n", struct_info.name, struct_info.runtime_size, expected_size);
+
     return attributes;
 }
 
