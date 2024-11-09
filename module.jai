@@ -63,7 +63,6 @@
 
 #load "src/parallel/Parallel.jai";
 #load "src/parallel/ParallelMergeSort.jai";
-#load "src/parallel/ParallelQuickSort.jai";
 
 #load "src/shaders/forward/BlurShader.jai";
 #load "src/shaders/forward/CubemapShader.jai";

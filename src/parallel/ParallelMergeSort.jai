@@ -37,7 +37,7 @@ parallel_merge_sort_initialize :: (thread_count: int = 0) {
         };
     }
     
-    work_dependency_finish_count = NewArray(division_count * 2 - 1, int);
+    work_dependency_finish_count = NewArray(division_count * 2 - 1, u8);
 
     for i: 0..semaphores.count - 1 {
         init(*semaphores[i]);
@@ -233,7 +233,7 @@ threads: [] Thread;
 semaphores: [] Semaphore;
 
 work_queue: [] Work;
-work_dependency_finish_count: [] int;
+work_dependency_finish_count: [] u8;
 work_count: int;
 
 merge_buffer: [..] u8;

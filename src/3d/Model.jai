@@ -456,7 +456,11 @@ draw :: (model: Model, transform: Matrix4 = Matrix4Identity, projection: Matrix4
     apply_uniforms(shader, uniforms);
 
     glBindVertexArray(model.geometry.vao_);
-    glDrawElements(GL_TRIANGLES, xx model.geometry.indices.count, GL_UNSIGNED_INT, xx 0);
+    if draw_lines {
+        glDrawElements(GL_LINES, xx model.geometry.indices.count, GL_UNSIGNED_INT, xx 0);
+    } else {
+        glDrawElements(GL_TRIANGLES, xx model.geometry.indices.count, GL_UNSIGNED_INT, xx 0);
+    }
     glBindVertexArray(0);
 
     // TODO if we could avoid calling this gain that would be best
@@ -465,6 +469,8 @@ draw :: (model: Model, transform: Matrix4 = Matrix4Identity, projection: Matrix4
         set_cull_face(cull_face);
     }
 }
+
+draw_lines := false;
 
 #scope_module
 

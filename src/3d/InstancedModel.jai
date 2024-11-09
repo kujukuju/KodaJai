@@ -406,7 +406,11 @@ draw :: (model: *InstancedModel, projection: Matrix4, shader: *Shader = null) {
     apply_uniforms(shader, uniforms);
 
     glBindVertexArray(model.vao);
-    glDrawElementsInstanced(GL_TRIANGLES, cast(u32) model.indices_count, GL_UNSIGNED_INT, null, cast(u32) model.particle_vbo_count);
+    if draw_lines {
+        glDrawElementsInstanced(GL_LINES, cast(u32) model.indices_count, GL_UNSIGNED_INT, null, cast(u32) model.particle_vbo_count);
+    } else {
+        glDrawElementsInstanced(GL_TRIANGLES, cast(u32) model.indices_count, GL_UNSIGNED_INT, null, cast(u32) model.particle_vbo_count);
+    }
     glBindVertexArray(0);
 }
 

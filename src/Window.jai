@@ -499,6 +499,57 @@ set_front_face_ccw_scope :: (ccw: bool) #expand {
     set_front_face_ccw(ccw);
 }
 
+PolygonMode :: enum s32 {
+    Line;
+    Fill;
+}
+
+convert_polygon_mode :: (mode: PolygonMode) -> u32 {
+    if #complete mode == {
+        case .Line;
+            return GL_LINE;
+        case .Fill;
+            return GL_FILL;
+    }
+}
+
+convert_polygon_mode :: (mode: u32) -> PolygonMode {
+    if mode == {
+        case GL_LINE;
+            return .Line;
+        case GL_FILL;
+            return .Fill;
+        case;
+            print("Unhandled polygon mode. %\n", mode);
+            return .Fill;
+    }
+}
+
+get_polygon_mode :: () -> PolygonMode, PolygonMode {
+    polygon_mode: [2] s32;
+    glGetIntegerv(GL_FRONT, *polygon_mode[0]);
+    glGetIntegerv(GL_BACK, *polygon_mode[1]);
+
+    return convert_polygon_mode(polygon_mode[0]), convert_polygon_mode(polygon_mode[1]);
+}
+
+set_polygon_mode :: (mode: PolygonMode) {
+    gl_mode := convert_polygon_mode(mode);
+
+    glPolygonMode(GL_FRONT_AND_BACK, gl_mode);
+}
+
+set_polygon_mode_scope :: (mode: PolygonMode) #expand {
+    old_polygon_mode: [2] s32;
+    glGetIntegerv(GL_FRONT, *old_polygon_mode[0]);
+    glGetIntegerv(GL_BACK, *old_polygon_mode[1]);
+
+    `defer glPolygonMode(GL_FRONT, cast(u32) old_polygon_mode[0]);
+    `defer glPolygonMode(GL_BACK, cast(u32) old_polygon_mode[1]);
+
+    set_polygon_mode(mode);
+}
+
 DepthFunc :: enum s32 {
     Never;
     Less;
