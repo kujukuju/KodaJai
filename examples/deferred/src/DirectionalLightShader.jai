@@ -1,13 +1,5 @@
 
-DirectionalLightShader :: struct {
-    using #as shader: Shader;
-
-    shader.name = "DirectionalLightShader";
-    shader.vertex = DIRECTIONAL_LIGHT_VERTEX_SHADER;
-    shader.fragment = DIRECTIONAL_LIGHT_FRAGMENT_SHADER;
-}
-
-directional_light_shader: DirectionalLightShader;
+directional_light_shader := #run create_shader(DIRECTIONAL_LIGHT_VERTEX_SHADER, DIRECTIONAL_LIGHT_FRAGMENT_SHADER);
 
 #scope_module
 

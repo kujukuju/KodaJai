@@ -1,12 +1,5 @@
-TextureShader3 :: struct {
-    using #as shader: Shader;
 
-    shader.name = "TextureShader3";
-    shader.vertex = TEXTURE_VERTEX_SHADER3;
-    shader.fragment = TEXTURE_FRAGMENT_SHADER3;
-}
-
-texture_shader3: TextureShader3;
+texture_shader3 := #run create_shader(TEXTURE_VERTEX_SHADER3, TEXTURE_FRAGMENT_SHADER3);
 
 #scope_module
 

@@ -1,12 +1,5 @@
-SpriteShader3 :: struct {
-    using #as shader: Shader;
 
-    shader.name = "SpriteShader3";
-    shader.vertex = SPRITE3_VERTEX_SHADER;
-    shader.fragment = SPRITE3_FRAGMENT_SHADER;
-}
-
-sprite_shader3: SpriteShader3;
+sprite_shader3 := #run create_shader(SPRITE3_VERTEX_SHADER, SPRITE3_FRAGMENT_SHADER);
 
 #scope_module
 

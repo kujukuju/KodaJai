@@ -1,14 +1,6 @@
 
 // fast adaptive anti aliasing
-FAAAShader :: struct {
-    using #as shader: Shader;
-
-    shader.name = "FAAAShader";
-    shader.vertex = FAAA_VERTEX_SHADER;
-    shader.fragment = FAAA_FRAGMENT_SHADER;
-}
-
-faaa_shader: FAAAShader;
+faaa_shader := #run create_shader(FAAA_VERTEX_SHADER, FAAA_FRAGMENT_SHADER);
 
 #scope_module
 

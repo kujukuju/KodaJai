@@ -1,12 +1,5 @@
-SkinnedAnimationNoNormalShader3 :: struct {
-    using #as shader: Shader;
 
-    shader.name = "SkinnedAnimationNoNormalShader3";
-    shader.vertex = SKINNED_ANIMATION_NO_NORMAL_VERTEX_SHADER3;
-    shader.fragment = SKINNED_ANIMATION_NO_NORMAL_FRAGMENT_SHADER3;
-}
-
-skinned_animation_no_normal_shader3: SkinnedAnimationNoNormalShader3;
+skinned_animation_no_normal_shader3 := #run create_shader(SKINNED_ANIMATION_NO_NORMAL_VERTEX_SHADER3, SKINNED_ANIMATION_NO_NORMAL_FRAGMENT_SHADER3);
 
 #scope_module
 

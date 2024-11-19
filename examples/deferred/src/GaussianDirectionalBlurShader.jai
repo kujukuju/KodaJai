@@ -1,15 +1,5 @@
 
-// TODO you know... maybe this is just a bilateral blur? I'm not sure...
-
-GaussianDirectionalBlurShader :: struct {
-    using #as shader: Shader;
-
-    shader.name = "GaussianDirectionalBlurShader";
-    shader.vertex = GAUSSIAN_DIRECTIONAL_BLUR_VERTEX_SHADER;
-    shader.fragment = GAUSSIAN_DIRECTIONAL_BLUR_FRAGMENT_SHADER;
-}
-
-gaussian_directional_blur_shader: GaussianDirectionalBlurShader;
+gaussian_directional_blur_shader := #run create_shader(GAUSSIAN_DIRECTIONAL_BLUR_VERTEX_SHADER, GAUSSIAN_DIRECTIONAL_BLUR_FRAGMENT_SHADER);
 
 #scope_module
 

@@ -1,12 +1,5 @@
-DefaultColorShader3 :: struct {
-    using #as shader: Shader;
 
-    shader.name = "DefaultColorShader3";
-    shader.vertex = DEFAULT_COLOR_VERTEX_SHADER3;
-    shader.fragment = DEFAULT_COLOR_FRAGMENT_SHADER3;
-}
-
-default_color_shader3: DefaultColorShader3;
+default_color_shader3 := #run create_shader(DEFAULT_COLOR_VERTEX_SHADER3, DEFAULT_COLOR_FRAGMENT_SHADER3);
 
 #scope_module
 

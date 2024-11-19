@@ -1,12 +1,5 @@
-DefaultShapeShader3 :: struct {
-    using #as shader: Shader;
 
-    shader.name = "DefaultShapeShader3";
-    shader.vertex = DEFAULT_SHAPE_VERTEX_SHADER3;
-    shader.fragment = DEFAULT_SHAPE_FRAGMENT_SHADER3;
-}
-
-default_shape_shader3: DefaultShapeShader3;
+default_shape_shader3 := #run create_shader(DEFAULT_SHAPE_VERTEX_SHADER3, DEFAULT_SHAPE_FRAGMENT_SHADER3);
 
 #scope_module
 

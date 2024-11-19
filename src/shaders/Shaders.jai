@@ -8,10 +8,13 @@ Shader :: struct {
     output_channels: [] int;
     uniform_locations: [] UniformLocation;
     name: string;
-    vertex: string;
-    fragment: string;
     has_vertex_shader: bool;
     has_fragment_shader: bool;
+
+    #if HOT_LOAD_SHADERS {
+        watch_files: [] string;
+        last_dependencies: [] Any;
+    }
 }
 
 UniformLocation :: struct {
@@ -27,9 +30,9 @@ ShaderDependency :: struct {
 
 ValidDependency :: Type.[int, float];
 
-operator == :: (a: Shader, b: Shader) -> bool {
-    return a.vertex.data == b.vertex.data && a.fragment.data == b.fragment.data;
-}
+// operator == :: (a: Shader, b: Shader) -> bool {
+//     return a.vertex.data == b.vertex.data && a.fragment.data == b.fragment.data;
+// }
 
 initialize_shader :: (shader: *Shader) {
     dependencies :: Any.[];
@@ -153,14 +156,12 @@ initialize_shader :: (shader: *Shader, dependencies: [$N] Any, dependency_names:
         }
     }
 
-    make_shader_object :: (name: string, shader: string, sections: [] string, shader_type: GLenum) -> GLuint, bool #must {
+    make_shader_object :: (name: string, sections: [] string, shader_type: GLenum) -> GLuint, bool #must {
         shader_object := glCreateShader(shader_type);
 
-        source_strings := NewArray(sections.count + 1, *u8,, allocator = temp);
-        source_lengths := NewArray(sections.count + 1, s32,, allocator = temp);
+        source_strings := NewArray(sections.count, *u8,, allocator = temp);
+        source_lengths := NewArray(sections.count, s32,, allocator = temp);
 
-        source_strings[source_strings.count - 1] = shader.data;
-        source_lengths[source_strings.count - 1] = cast(s32) shader.count;
         for i: 0..sections.count - 1 {
             source_strings[i] = sections[i].data;
             source_lengths[i] = cast(s32) sections[i].count;
@@ -266,9 +267,9 @@ initialize_shader :: (shader: *Shader, dependencies: [$N] Any, dependency_names:
 
     shader_v: u32;
     success_v := true;
-    if shader.vertex || resolved_vertex_parts {
+    if resolved_vertex_parts {
         shader.has_vertex_shader = true;
-        shader_v, success_v = make_shader_object(shader.name, shader.vertex, resolved_vertex_parts, GL_VERTEX_SHADER);
+        shader_v, success_v = make_shader_object(shader.name, resolved_vertex_parts, GL_VERTEX_SHADER);
         if !success_v {
             print("Could not initialized vertex shader.\n");
         }
@@ -277,9 +278,9 @@ initialize_shader :: (shader: *Shader, dependencies: [$N] Any, dependency_names:
 
     shader_f: u32;
     success_f := true;
-    if shader.fragment || resolved_fragment_parts {
+    if resolved_fragment_parts {
         shader.has_fragment_shader = true;
-        shader_f, success_f = make_shader_object(shader.name, shader.fragment, resolved_fragment_parts, GL_FRAGMENT_SHADER);
+        shader_f, success_f = make_shader_object(shader.name, resolved_fragment_parts, GL_FRAGMENT_SHADER);
         if !success_f {
             print("Could not initialized fragment shader.\n");
         }

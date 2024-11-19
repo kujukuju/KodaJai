@@ -1,13 +1,5 @@
 
-FloatBlurShader :: struct {
-    using #as shader: Shader;
-
-    shader.name = "FloatBlurShader";
-    shader.vertex = FLOAT_BLUR_VERTEX_SHADER;
-    shader.fragment = FLOAT_BLUR_FRAGMENT_SHADER;
-}
-
-float_blur_shader: FloatBlurShader;
+float_blur_shader := #run create_shader(FLOAT_BLUR_VERTEX_SHADER, FLOAT_BLUR_FRAGMENT_SHADER);
 
 #scope_module
 

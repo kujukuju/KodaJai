@@ -1,12 +1,5 @@
-FlatGridShader3 :: struct {
-    using #as shader: Shader;
 
-    shader.name = "FlatGridShader3";
-    shader.vertex = FLAT_GRID_VERTEX_SHADER3;
-    shader.fragment = FLAT_GRID_FRAGMENT_SHADER3;
-}
-
-flat_grid_shader3: FlatGridShader3;
+flat_grid_shader3 := #run create_shader(FLAT_GRID_VERTEX_SHADER3, FLAT_GRID_FRAGMENT_SHADER3);
 
 #scope_module
 

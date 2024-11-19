@@ -1,5 +1,5 @@
 
-#module_parameters () (PRODUCTION := false, WASM := false, VALIDATE_SERIALIZED := true, NO_GRAPHICS := false);
+#module_parameters () (PRODUCTION := false, WASM := false, VALIDATE_SERIALIZED := true, NO_GRAPHICS := false, HOT_LOAD_SHADERS := false);
 
 #if WASM {
     core_count :: 8;

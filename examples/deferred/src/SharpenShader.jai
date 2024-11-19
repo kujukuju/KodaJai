@@ -1,13 +1,5 @@
 
-SharpenShader :: struct {
-    using #as shader: Shader;
-
-    shader.name = "SharpenShader";
-    shader.vertex = SHARPEN_VERTEX_SHADER;
-    shader.fragment = SHARPEN_FRAGMENT_SHADER;
-}
-
-sharpen_shader: SharpenShader;
+sharpen_shader := #run create_shader(SHARPEN_VERTEX_SHADER, SHARPEN_FRAGMENT_SHADER);
 
 #scope_module
 

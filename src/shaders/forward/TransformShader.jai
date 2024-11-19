@@ -1,12 +1,5 @@
-TransformShader :: struct {
-    using #as shader: Shader;
 
-    shader.name = "TransformShader";
-    shader.vertex = TRANSFORM_VERTEX_SHADER;
-    shader.fragment = TRANSFORM_FRAGMENT_SHADER;
-}
-
-transform_shader: TransformShader;
+transform_shader := #run create_shader(TRANSFORM_VERTEX_SHADER, TRANSFORM_FRAGMENT_SHADER);
 
 #scope_module
 

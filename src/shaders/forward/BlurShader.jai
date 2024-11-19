@@ -1,12 +1,5 @@
-BlurShader :: struct {
-    using #as shader: Shader;
 
-    shader.name = "BlurShader";
-    shader.vertex = BLUR_VERTEX_SHADER;
-    shader.fragment = BLUR_FRAGMENT_SHADER;
-}
-
-blur_shader: BlurShader;
+blur_shader := #run create_shader(BLUR_VERTEX_SHADER, BLUR_FRAGMENT_SHADER);
 
 #scope_module
 

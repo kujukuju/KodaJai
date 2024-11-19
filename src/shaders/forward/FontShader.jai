@@ -1,12 +1,5 @@
-FontShader :: struct {
-    using #as shader: Shader;
 
-    shader.name = "FontShader";
-    shader.vertex = FONT_VERTEX_SHADER;
-    shader.fragment = FONT_FRAGMENT_SHADER;
-}
-
-font_shader: FontShader;
+font_shader := #run create_shader(FONT_VERTEX_SHADER, FONT_FRAGMENT_SHADER);
 
 #scope_module
 

@@ -1,13 +1,5 @@
 
-EdgeShader :: struct {
-    using #as shader: Shader;
-
-    shader.name = "EdgeShader";
-    shader.vertex = EDGE_VERTEX_SHADER;
-    shader.fragment = EDGE_FRAGMENT_SHADER;
-}
-
-edge_shader: EdgeShader;
+edge_shader := #run create_shader(EDGE_VERTEX_SHADER, EDGE_FRAGMENT_SHADER);
 
 #scope_module
 

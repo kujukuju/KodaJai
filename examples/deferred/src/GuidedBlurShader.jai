@@ -1,15 +1,6 @@
 
 // TODO you know... maybe this is just a bilateral blur? I'm not sure...
-
-GuidedBlurShader :: struct {
-    using #as shader: Shader;
-
-    shader.name = "GuidedBlurShader";
-    shader.vertex = GUIDED_BLUR_VERTEX_SHADER;
-    shader.fragment = GUIDED_BLUR_FRAGMENT_SHADER;
-}
-
-guided_blur_shader: GuidedBlurShader;
+guided_blur_shader := #run create_shader(GUIDED_BLUR_VERTEX_SHADER, GUIDED_BLUR_FRAGMENT_SHADER);
 
 #scope_module
 

@@ -1,12 +1,5 @@
-RoundedRectShader :: struct {
-    using #as shader: Shader;
 
-    shader.name = "RoundedRectShader";
-    shader.vertex = ROUNDED_RECT_VERTEX_SHADER;
-    shader.fragment = ROUNDED_RECT_FRAGMENT_SHADER;
-}
-
-rounded_rect_shader: RoundedRectShader;
+rounded_rect_shader := #run create_shader(ROUNDED_RECT_VERTEX_SHADER, ROUNDED_RECT_FRAGMENT_SHADER);
 
 #scope_module
 

@@ -1,12 +1,5 @@
-CubemapShader :: struct {
-    using #as shader: Shader;
 
-    shader.name = "CubemapShader";
-    shader.vertex = CUBEMAP_VERTEX_SHADER;
-    shader.fragment = CUBEMAP_FRAGMENT_SHADER;
-}
-
-cubemap_shader: CubemapShader;
+cubemap_shader := #run create_shader(CUBEMAP_VERTEX_SHADER, CUBEMAP_FRAGMENT_SHADER);
 
 #scope_module
 

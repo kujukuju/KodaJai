@@ -1,12 +1,5 @@
-SkinnedAnimationDoubleShader3 :: struct {
-    using #as shader: Shader;
 
-    shader.name = "SkinnedAnimationDoubleShader3";
-    shader.vertex = SKINNED_ANIMATION_DOUBLE_VERTEX_SHADER3;
-    shader.fragment = SKINNED_ANIMATION_DOUBLE_FRAGMENT_SHADER3;
-}
-
-skinned_animation_double_shader3: SkinnedAnimationDoubleShader3;
+skinned_animation_double_shader3 := #run create_shader(SKINNED_ANIMATION_DOUBLE_VERTEX_SHADER3, SKINNED_ANIMATION_DOUBLE_FRAGMENT_SHADER3);
 
 #scope_module
 

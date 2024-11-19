@@ -1,12 +1,5 @@
-InstancedShader3 :: struct {
-    using #as shader: Shader;
 
-    shader.name = "InstancedShader3";
-    shader.vertex = INSTANCED_VERTEX_SHADER3;
-    shader.fragment = INSTANCED_FRAGMENT_SHADER3;
-}
-
-instanced_shader3: InstancedShader3;
+instanced_shader3 := #run create_shader(INSTANCED_VERTEX_SHADER3, INSTANCED_FRAGMENT_SHADER3);
 
 #scope_module
 
