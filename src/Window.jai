@@ -5,6 +5,14 @@ NvOptimusEnablement: u32 = 1;
 #program_export "AmdPowerXpressRequestHighPerformance"
 AmdPowerXpressRequestHighPerformance: s32 = 1;
 
+// this was found online as something that disables nahimic and sonar
+// which reportedly cause problems with opengl
+// I haven't experienced these problems and it kind of seems like a crazy
+// conspiracy theory to me but I can't imagine how adding this function export
+// would hurt anything in any way so here we are
+#program_export "NoHotPatch"
+NoHotPatch :: () #c_call {}
+
 koda_init :: () {
     glfwSetErrorCallback(error_callback);
     if !glfwInit() {

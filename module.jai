@@ -41,6 +41,7 @@
 #load "src/3d/InstancedModel.jai";
 #load "src/3d/Lights.jai";
 #load "src/3d/Model.jai";
+#load "src/3d/ModelOptimizer.jai";
 #load "src/3d/PanoramicMap.jai";
 #load "src/3d/ParticleEmitters.jai";
 #load "src/3d/PlaneGeometry.jai";
@@ -126,6 +127,7 @@
 #load "src/TextureInterp.jai";
 #load "src/TextureWrap.jai";
 #load "src/Time.jai";
+#load "src/TrailParticleSystem.jai";
 #load "src/Utilities.jai";
 #load "src/Window.jai";
 

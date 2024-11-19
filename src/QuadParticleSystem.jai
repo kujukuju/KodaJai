@@ -170,8 +170,6 @@ quad_particle_system_update_and_render :: (system: *QuadParticleSystem($PG, $PC,
 
         vertices := system.particle_quads[i];
 
-        // gpu := system.particles_gpu[i];
-
         for a: 0..vertices.verts.count - 1 {
             vert_offset := a * combined_size;
 

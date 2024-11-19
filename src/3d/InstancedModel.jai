@@ -471,7 +471,7 @@ get_attributes_from_struct :: (gpu: Type) -> [] Attribute {
             continue;
         }
         
-        assert(is_integer_or_float(member.type), "Only allowed to have a gpu struct of integers and floats.\n");
+        assert(is_integer_or_float(member.type), "Only allowed to have a gpu struct of integers and floats. %\n", member.type.*);
         
         member_stride := member.type.runtime_size;
 

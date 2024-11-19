@@ -242,6 +242,8 @@ particle_system_render :: (system: *ParticleSystem($PG, $PC, $update_function, $
 }
 
 particle_system_render :: (system: *ParticleSystem($PG, $PC, $update_function, $sort), time: float64, projection: Matrix4) {
+    assert(!!system.vao, "Need to initialize particle system.\n");
+
     cull_face := koda.cull_face;
     if system.cull_face != cull_face {
         set_cull_face(system.cull_face);

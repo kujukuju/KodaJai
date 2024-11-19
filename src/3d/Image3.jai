@@ -346,6 +346,18 @@ convert_format :: (image: *$T, desired_format: PixelFormat, $channels: ColorChan
     image.format = desired_format;
 }
 
+make_opaque :: (image: *$T) {
+    assert(image.format == .RGBA8);
+
+    bytes: [] u8;
+    bytes.data = xx image.pixels.data;
+    bytes.count = image.pixels.count;
+
+    for i: 0..bytes.count / 4 - 1 {
+        bytes[i * 4 + 3] = 255;
+    }
+}
+
 blur :: (image: *Image3, radius: float) {
     assert(image.format == .R8);
 
