@@ -94,6 +94,12 @@
 #load "src/shaders/forward/TransformShader.jai";
 #load "src/shaders/forward/VolumetricCloudShader.jai";
 
+#if HOT_LOAD_SHADERS {
+    #load "src/shaders/hotswap/FileChangeWatcher.jai";
+    #load "src/shaders/hotswap/ExternalShaderLoader.jai";
+}
+
+#load "src/shaders/ResolvedShaderParts.jai";
 #load "src/shaders/ShaderManager.jai";
 #load "src/shaders/ShaderParts.jai";
 #load "src/shaders/Shaders.jai";

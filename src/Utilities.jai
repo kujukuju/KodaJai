@@ -182,6 +182,57 @@ print_stack_trace :: () #expand {
     }
 }
 
+#scope_module
+
+EfficientRemove :: struct (T: Type) {
+    captured: *[] T;
+}
+
+efficient_remove :: (captured: *[] $T) -> EfficientRemove(T) {
+    return EfficientRemove(T).{captured};
+}
+
+for_expansion :: (wrapper: EfficientRemove($T), body: Code, flags: For_Flags) #expand {
+    // you can't efficiently remove in reverse as far as I can tell unless you manually reverse first
+    #assert(!(flags & .REVERSE));
+
+    insert_index := 0;
+    check_index := 0;
+
+    defer {
+        // handle breaks
+        while insert_index != check_index && check_index < wrapper.captured.count {
+            wrapper.captured.*[insert_index] = wrapper.captured.*[check_index];
+
+            insert_index += 1;
+            check_index += 1;
+        }
+
+        wrapper.captured.count -= check_index - insert_index;
+    };
+
+    while check_index < wrapper.captured.count {
+        #if flags & .POINTER {
+            `it := *wrapper.captured.*[check_index];
+        } else {
+            `it := wrapper.captured.*[check_index];
+        }
+
+        `it_index := check_index;
+
+        should_keep := true;
+        defer if should_keep {
+            if insert_index != check_index {
+                wrapper.captured.*[insert_index] = wrapper.captured.*[check_index];
+            }
+
+            insert_index += 1;
+            check_index += 1;
+        }
+        #insert (remove={check_index += 1; should_keep = false;}) body;
+    }
+}
+
 // efficient removal exmaple
 // #run {
 //     first_valid := 0;

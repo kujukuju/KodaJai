@@ -12,8 +12,10 @@ Shader :: struct {
     has_fragment_shader: bool;
 
     #if HOT_LOAD_SHADERS {
+        watching: bool;
         watch_files: [] string;
-        last_dependencies: [] Any;
+        last_dependencies: [] string;
+        last_dependency_names: [] string;
     }
 }
 
@@ -27,8 +29,6 @@ ShaderDependency :: struct {
     name: string;
     value: Any;
 }
-
-ValidDependency :: Type.[int, float];
 
 // operator == :: (a: Shader, b: Shader) -> bool {
 //     return a.vertex.data == b.vertex.data && a.fragment.data == b.fragment.data;
@@ -98,8 +98,31 @@ initialize_shader :: (shader: *Shader, named_dependencies: ..ShaderDependency, $
     initialize_shader(shader, dependencies, dependecy_names);
 }
 
-initialize_shader :: (shader: *Shader, dependencies: [$N] Any, dependency_names: [N] string) {
+initialize_shader :: (shader: *Shader, dependencies: [] Any, dependency_names: [] string) {
+    resolved_dependencies := NewArray(dependencies.count, string,, temp);
+    for dependency: dependencies {
+        resolved_dependencies[it_index] = resolve_dependency_value(dependency);
+    }
+
+    initialize_shader(shader, resolved_dependencies, dependency_names);
+}
+
+initialize_shader :: (shader: *Shader, resolved_dependencies: [] string, dependency_names: [] string, allow_failure: bool = false) {
     assert(koda.initialized && koda.window, "You can only initialize shaders after koda has been initialized and a window has been created.\n");
+
+    #if HOT_LOAD_SHADERS {
+        array_free(shader.last_dependencies);
+        array_free(shader.last_dependency_names);
+        shader.last_dependencies = array_copy(resolved_dependencies);
+        shader.last_dependency_names = array_copy(dependency_names);
+
+        // memory leak yay
+        for *resolved_dependency: shader.last_dependencies {
+            resolved_dependency.* = copy_string(resolved_dependency.*);
+        }
+
+        watch_shader(shader.watch_files, shader);
+    }
 
     if shader.program {
         glDeleteProgram(shader.program);
@@ -234,7 +257,7 @@ initialize_shader :: (shader: *Shader, dependencies: [$N] Any, dependency_names:
             output_name.count = min(name_bytes.count, output_name_length);
 
             if output_location >= active_output_count {
-                assert(false, tprint("Found shader output % that is at a unique location %. This isn't yet supported.", output_name, output_location));
+                assert(false, "Found shader output % that is at a unique location %. This isn't yet supported.", output_name, output_location);
                 continue;
             }
 
@@ -250,20 +273,20 @@ initialize_shader :: (shader: *Shader, dependencies: [$N] Any, dependency_names:
                 case GL_FLOAT_VEC4;
                     output_channels[output_location] = 4;
                 case;
-                    assert(false, tprint("Unknown shader output component type for %: %.\n", output_name, output_type));
+                    assert(false, "Unknown shader output component type for %: %.\n", output_name, output_type);
             }
         }
 
         return output_channels;
     }
 
-    if !validate_dependencies(shader.name, shader.vertex_parts, shader.fragment_parts, ..dependencies, dependency_names) {
+    if !validate_dependencies(shader.name, shader.vertex_parts, shader.fragment_parts, dependency_names) {
         return;
     }
 
     // resolve dependencies in place
-    resolved_vertex_parts := resolve_dependencies(shader.vertex_parts, ..dependencies, dependency_names,, allocator = temp);
-    resolved_fragment_parts := resolve_dependencies(shader.fragment_parts, ..dependencies, dependency_names,, allocator = temp);
+    resolved_vertex_parts := resolve_dependencies(shader.vertex_parts, resolved_dependencies, dependency_names,, allocator = temp);
+    resolved_fragment_parts := resolve_dependencies(shader.fragment_parts, resolved_dependencies, dependency_names,, allocator = temp);
 
     shader_v: u32;
     success_v := true;
@@ -295,7 +318,11 @@ initialize_shader :: (shader: *Shader, dependencies: [$N] Any, dependency_names:
 
         shader.program = 0;
 
-        assert(false, "Failure initializing shader.");
+        if !allow_failure {
+            assert(false, "Failure initializing shader.");
+        }
+
+        return;
     }
 
     if shader_v {
@@ -327,8 +354,8 @@ initialize_shader :: (shader: *Shader, dependencies: [$N] Any, dependency_names:
     }
 }
 
-validate_dependencies :: (name: string, vertex_parts: [] ResolvedShaderPart, fragment_parts: [] ResolvedShaderPart, dependencies: ..Any, dependency_names: [$N] string) -> bool {
-    found_dependencies: [N] bool;
+validate_dependencies :: (name: string, vertex_parts: [] ResolvedShaderPart, fragment_parts: [] ResolvedShaderPart, dependency_names: [] string) -> bool {
+    found_dependencies := NewArray(dependency_names.count, bool,, temp);
     
     for parts: [] ResolvedShaderPart.[vertex_parts, fragment_parts] {
         for part: parts {
@@ -363,7 +390,7 @@ validate_dependencies :: (name: string, vertex_parts: [] ResolvedShaderPart, fra
     return true;
 }
 
-resolve_dependencies :: (parts: [] ResolvedShaderPart, dependencies: ..Any, dependency_names: [$N] string) -> [] string {
+resolve_dependencies :: (parts: [] ResolvedShaderPart, resolved_dependencies: [] string, dependency_names: [] string) -> [] string {
     count := 0;
     for part: parts {
         count += part.sections.count;
@@ -383,7 +410,7 @@ resolve_dependencies :: (parts: [] ResolvedShaderPart, dependencies: ..Any, depe
                 dependency_found, dependency_index := array_find(dependency_names, part.injections[index]);
                 assert(dependency_found, "Missing shader dependency. This should have been caught earlier.\n");
 
-                shader_value := resolve_dependency_value(dependencies[dependency_index]);
+                shader_value := resolved_dependencies[dependency_index];
                 array_add(*resolved, shader_value);
             }
         }
@@ -398,8 +425,10 @@ resolve_dependency_value :: (value: Any) -> string {
     if type == {
         case .INTEGER;
             return tprint("%", value);
+
         case .FLOAT;
             return tprint("%", value);
+
         case .STRUCT;
             struct_type := (cast(*Type) *value.type).*;
             if struct_type == Vector2 {
@@ -415,6 +444,7 @@ resolve_dependency_value :: (value: Any) -> string {
                 assert(false, tprint("Unknown struct type for shader dependency. %\n", struct_type));
                 return "";
             }
+
         case .ARRAY;
             array_info := cast(*Type_Info_Array) value.type;
             element_size := array_info.element_type.runtime_size;
@@ -445,6 +475,7 @@ resolve_dependency_value :: (value: Any) -> string {
             }
 
             return builder_to_string(*builder);
+
         case;
             assert(false, tprint("Invalid dependency type of % %.\n", type, value));
             return tprint("%", value);
@@ -780,23 +811,23 @@ get_shader_replacement :: (source: *Shader) -> *Shader {
         }
     }
 
-    assert(!should_asset_without_replacement, "Did not find shader replacement for shader %.\n", source.name);
+    assert(!should_assert_without_replacement, "Did not find shader replacement for shader %.\n", source.name);
 
     return source;
 }
 
-should_asset_without_replacement: bool;
+should_assert_without_replacement: bool;
 
 set_should_assert_without_replacement :: (enabled: bool) {
-    should_asset_without_replacement = enabled;
+    should_assert_without_replacement = enabled;
 }
 
 use_shader :: (shader: *Shader) {
     shader = get_shader_replacement(shader);
     
-    old_should_asset_without_replacement := should_asset_without_replacement;
-    defer should_asset_without_replacement = old_should_asset_without_replacement;
-    should_asset_without_replacement = false;
+    old_should_assert_without_replacement := should_assert_without_replacement;
+    defer should_assert_without_replacement = old_should_assert_without_replacement;
+    should_assert_without_replacement = false;
 
     if !shader.program {
         assert(false, "You have to manually initialize shaders. %\n", shader.name);
@@ -846,6 +877,112 @@ use_shader :: (shader: *Shader) {
     koda.shader = shader.program;
 
     apply_uniforms(shader, shader.uniforms);
+}
+
+#if HOT_LOAD_SHADERS {
+    check_shader_watching :: () {
+        changed_files := get_changes(*watcher);
+
+        changed_shaders.count = 0;
+        for changed_file: changed_files {
+            affected_shaders, affected_shaders_found := table_find(*watch_files, changed_file);
+            if affected_shaders_found {
+                for affected_shader: affected_shaders {
+                    if !array_find(changed_shaders, affected_shader) {
+                        array_add(*changed_shaders, affected_shader);
+                    }
+                }
+            }
+        }
+
+        // we leak memory everywhere
+
+        for shader: changed_shaders {
+            external_shader := load_external_shader(shader.name, shader.watch_files);
+
+            print("Shader changed. %\n", shader.name);
+
+            initialize_shader(*external_shader, shader.last_dependencies, shader.last_dependency_names, allow_failure = true);
+
+            if !external_shader.program {
+                print("Could not compile shader from hot reload. %\n", shader.name);
+                continue;
+            }
+
+            print("Swapping shader. %\n", shader.name);
+            
+            shader.program = external_shader.program;
+
+            shader.vertex_parts = array_copy(external_shader.vertex_parts);
+            for *vertex_part, vertex_index: shader.vertex_parts {
+                vertex_part.sections = array_copy(external_shader.vertex_parts[vertex_index].sections);
+                vertex_part.injections = array_copy(external_shader.vertex_parts[vertex_index].injections);
+
+                for *section: vertex_part.sections {
+                    section.* = copy_string(section.*);
+                }
+                for *injections: vertex_part.injections {
+                    injections.* = copy_string(injections.*);
+                }
+            }
+
+            shader.fragment_parts = array_copy(external_shader.fragment_parts);
+            for *fragment_part, fragment_index: shader.fragment_parts {
+                fragment_part.sections = array_copy(external_shader.fragment_parts[fragment_index].sections);
+                fragment_part.injections = array_copy(external_shader.fragment_parts[fragment_index].injections);
+
+                for *section: fragment_part.sections {
+                    section.* = copy_string(section.*);
+                }
+                for *injections: fragment_part.injections {
+                    injections.* = copy_string(injections.*);
+                }
+            }
+
+            shader.output_channels = array_copy(external_shader.output_channels);
+
+            shader.uniform_locations = array_copy(external_shader.uniform_locations);
+
+            shader.has_vertex_shader = external_shader.has_vertex_shader;
+            shader.has_fragment_shader = external_shader.has_fragment_shader;
+        }
+    }
+
+    watch_shader :: (files: [] string, shader: *Shader) {
+        if shader.watching {
+            return;
+        }
+
+        success := true;
+
+        for file: files {
+            file_shaders := find_or_add(*watch_files, file);
+            if !array_find(file_shaders.*, shader) {
+                array_add(file_shaders, shader);
+            }
+
+            if !watch_file(*watcher, file) {
+                success = false;
+                assert(false, "Could not watch shader file. % %\n", shader.name, file);
+            }
+        }
+
+        if success {
+            shader.watching = true;
+        }
+    }
+} else {
+    check_shader_watching :: () #expand {}
+}
+
+#scope_file
+
+#if HOT_LOAD_SHADERS {
+    watcher: FileChangeWatcher;
+    watch_files: Table(string, [..] *Shader);
+    changed_shaders: [..] *Shader;
+
+    #import "File_Watcher";
 }
 
 #import "Basic";

@@ -1,0 +1,367 @@
+VERTEX STUFF
+[
+    {
+        [
+            "#version 330 core
+
+layout (location = 0) in vec3 aPos;
+
+uniform mat4 modelViewProjection; 
+uniform mat4 model;
+uniform mat4 view;
+uniform mat4 projection;
+
+uniform vec2 uAimPosition;
+
+out vec3 vPos;
+out vec3 vViewPos;
+flat out mat4 vInverseModel;
+flat out mat4 vInverseView;
+flat out mat4 vInverseProjection;
+flat out vec3 vCamera;
+flat out vec3 vBottomP;
+flat out vec3 vTopP;
+flat out vec3 xDirection; 
+flat out vec3 yDirection;
+flat out vec3 zDirection;
+flat out vec3 aimPosition;
+
+void main() {
+    vInverseModel = inverse(model);
+    // TODO better
+    vPos = vec3(model * vec4(aPos, 1.0));
+    vViewPos = vec3(view * model * vec4(aPos, 1.0));
+    vInverseView = inverse(view);
+    vInverseProjection = inverse(projection);
+    vCamera = vec3(vInverseView * vec4(0, 0, 0, 1));
+    vBottomP = vec3(model * vec4(0, -0.5, 0, 1));
+    vTopP = vec3(model * vec4(0, 0.5, 0, 1));
+    xDirection = normalize(vec3(view * vec4(1, 0, 0, 0)));
+    yDirection = normalize(vec3(view * vec4(0, 1, 0, 0)));
+    zDirection = normalize(vec3(view * vec4(0, 0, 1, 0)));
+    aimPosition = vec3(uAimPosition.x, 0, uAimPosition.y);
+
+    gl_Position = modelViewProjection * vec4(aPos, 1.0);
+}
+"
+        ],
+        []
+    }
+]
+
+
+FRAGMENT STUFF
+[
+    {
+        [
+            "    #version 330 core
+    #pragma STDGL warning(all)
+"
+        ],
+        []
+    },
+    {
+        [
+            "    uniform sampler2D uDepth;
+
+    uniform float uAimScale;
+    uniform float uAimOpacity;
+
+    in vec3 vPos;
+    in vec3 vViewPos;
+    flat in mat4 vInverseModel;
+    flat in mat4 vInverseView;
+    flat in mat4 vInverseProjection;
+    flat in vec3 vCamera;
+    flat in vec3 vBottomP;
+    flat in vec3 vTopP;
+    flat in vec3 xDirection;
+    flat in vec3 yDirection;
+    flat in vec3 zDirection;
+    flat in vec3 aimPosition;
+"
+        ],
+        []
+    },
+    {
+        [
+            "
+    // #ifndef reconstructViewPosition
+    // #define reconstructViewPosition(coord, depthSample, ipro) (vec3(ipro[0][0] * (coord.x * 2.0 - 1.0), ipro[1][1] * (coord.y * 2.0 - 1.0), ipro[3][2]) / (ipro[2][3] * (depthSample * 2.0 - 1.0)))
+    // #endif
+
+    vec3 reconstructViewPosition(const vec2 coord, const float depthSample, const mat4 ipro) {
+        vec4 clipSpacePosition = vec4(
+            coord * 2.0 - 1.0,
+            depthSample * 2.0 - 1.0,
+            1.0
+        );
+
+        vec4 viewPosition = ipro * clipSpacePosition;
+
+        return viewPosition.xyz / viewPosition.w;
+    }
+
+    vec3 reconstructWorldPosition(const vec2 coord, const float depthSample, const mat4 iview, const mat4 ipro) {
+        vec3 viewPosition = reconstructViewPosition(coord, depthSample, ipro);
+
+        vec4 worldPosition = iview * vec4(viewPosition, 1.0);
+
+        return worldPosition.xyz;
+    }
+
+    // vec3 reconstructViewPosition(const vec2 coord, const float depthSample, const mat4 ipro) {
+    //     vec3 clipSpace = vec3(coord, depthSample) * 2.0 - 1.0;
+
+    //     vec4 viewPosition = vec4(
+    //         ipro[0][0] * clipSpace.x,
+    //         ipro[1][1] * clipSpace.y,
+    //         ipro[3][2],
+    //         ipro[2][3] * clipSpace.z
+    //     );
+
+    //     return viewPosition.xyz / viewPosition.w;
+    // }
+
+    // vec3 reconstructWorldPosition(const vec2 coord, const float depthSample, const mat4 iview, const mat4 ipro) {
+    //     vec3 viewPosition = reconstructViewPosition(coord, depthSample, ipro);
+
+    //     vec4 worldPosition = iview * vec4(viewPosition, 1.0);
+
+    //     return worldPosition.xyz;
+    // }
+"
+        ],
+        []
+    },
+    {
+        [
+            "    #define CURRENT_MAP ",
+            "
+"
+        ],
+        [
+            "current_map"
+        ]
+    },
+    {
+        [
+            "    #if (CURRENT_MAP == 0)
+    const float iridescentDeltaOffsetHue = 25.0;
+    const vec3 iridescentColors[4] = vec3[4](
+        vec3(255.0 / 255.0, 120.0 / 255.0, 158.0 / 255.0),
+        vec3(191.0 / 255.0, 152.0 / 255.0, 255.0 / 255.0),
+        vec3(170.0 / 255.0, 254.0 / 255.0, 255.0 / 255.0),
+        vec3(170.0 / 255.0, 254.0 / 255.0, 255.0 / 255.0));
+    const float shadowStrength = 0.4;
+    const float ambientStrength = 0.0;
+    #endif
+"
+        ],
+        []
+    },
+    {
+        [
+            "    #if (CURRENT_MAP == 1)
+    const float iridescentDeltaOffsetHue = 25.0;
+    const vec3 iridescentColors[4] = vec3[4](
+        vec3(255.0 / 255.0, 120.0 / 255.0, 158.0 / 255.0),
+        vec3(191.0 / 255.0, 152.0 / 255.0, 255.0 / 255.0),
+        vec3(170.0 / 255.0, 254.0 / 255.0, 255.0 / 255.0),
+        vec3(170.0 / 255.0, 254.0 / 255.0, 255.0 / 255.0));
+    const float shadowStrength = 0.4;
+    const float ambientStrength = 0.0;
+    #endif
+"
+        ],
+        []
+    },
+    {
+        [
+            "    #if (CURRENT_MAP == 2)
+    const float iridescentDeltaOffsetHue = -25.0;
+    const vec3 iridescentColors[4] = vec3[4](
+        vec3(120.0 / 255.0, 255.0 / 255.0, 248.0 / 255.0),
+        vec3(255.0 / 255.0, 152.0 / 255.0, 217.0 / 255.0),
+        vec3(255.0 / 255.0, 191.0 / 255.0, 170.0 / 255.0),
+        vec3(255.0 / 255.0, 191.0 / 255.0, 170.0 / 255.0));
+    const float shadowStrength = 0.15;
+    const float ambientStrength = 0.0;
+    #endif
+"
+        ],
+        []
+    },
+    {
+        [
+            "    const vec3 lightDirs[3] = vec3[3](",
+            ");
+    const vec3 lightColors[3] = vec3[3](",
+            ");
+    const float lightIntensities[3] = float[3](",
+            ");
+    const float ambientIntensity = 0.2;
+    const vec3 ambientColor = lightColors[0] * lightIntensities[0] + lightColors[1] * lightIntensities[1] + lightColors[2] * lightIntensities[2];
+    const vec3 shadowLightForward = lightDirs[0];
+    const vec3 shadowLightColor = lightColors[0];
+    const vec3 shadowLightRight = cross(lightDirs[0], vec3(0, 1, 0));
+    const vec3 shadowLightUp = cross(shadowLightRight, lightDirs[0]);
+    // const vec3 shadowColor = vec3(22.0 / 255.0, 0.0 / 255.0, 6.0 / 255.0);
+    const vec3 shadowColor = vec3(0.0, 0.0, 0.0);
+"
+        ],
+        [
+            "light_dirs",
+            "light_colors",
+            "light_intensities"
+        ]
+    },
+    {
+        [
+            "    vec3 calculateColor(vec3 normal, vec3 diffuse, float shadow, vec3 lightDirs[3], vec3 lightColors[3], float lightIntensities[3], vec3 upDir) {
+        const vec3 ambient = ambientColor * ambientIntensity;
+
+        const float shadowStart = 0.48;
+        const float shadowEnd = 0.62;
+
+        float lightDirDot[3];
+        lightDirDot[0] = 0.5 - dot(normal, lightDirs[0]) * 0.5;
+        lightDirDot[1] = 0.5 - dot(normal, lightDirs[1]) * 0.5;
+        lightDirDot[2] = 0.5 - dot(normal, lightDirs[2]) * 0.5;
+
+        lightDirDot[0] = lightDirDot[0] * (1.0 - ambientStrength) + ambientStrength;
+        lightDirDot[1] = lightDirDot[1] * (1.0 - ambientStrength) + ambientStrength;
+        lightDirDot[2] = lightDirDot[2] * (1.0 - ambientStrength) + ambientStrength;
+
+        float strengths[3];
+        strengths[0] = lightDirDot[0] * lightDirDot[0] * lightIntensities[0];
+        strengths[1] = lightDirDot[1] * lightDirDot[1] * lightIntensities[1];
+        strengths[2] = lightDirDot[2] * lightDirDot[2] * lightIntensities[2];
+
+        vec3 finalColor = lightColors[0] * strengths[0];
+        finalColor += lightColors[1] * strengths[1];
+        finalColor += lightColors[2] * strengths[2];
+        finalColor /= (strengths[0] + strengths[1] + strengths[2]);
+
+        float accumulatedStrength = strengths[0] + strengths[1] + strengths[2];
+
+        float cellStrength = step(shadowEnd * shadowEnd + 0.04, strengths[0]);
+
+        float combinedStrength = accumulatedStrength * 0.75 + cellStrength * 0.25;
+
+        vec3 lightDiffuse = combinedStrength * finalColor;
+        vec3 result = (ambient + lightDiffuse) * diffuse * (shadow * shadowStrength + (1.0 - shadowStrength));
+
+        result += shadowColor * (1.0 - shadow) * shadowStrength;
+
+        return result;
+    }
+"
+        ],
+        []
+    },
+    {
+        [
+            "    
+    layout (location = 0) out vec4 Diffuse;
+
+    float calculateAimOpacity(const vec3 localPosition) {
+        float aa = 0.01 / uAimScale;
+
+        float maxRadius = 0.5 - aa;
+        float emptyScale = (uAimScale - 1.0) / uAimScale;
+        emptyScale *= 0.5;
+
+        float innerRadius = 0.275 + 0.225 * emptyScale;
+        innerRadius *= maxRadius * 2.0;
+        float radius = 0.425 + 0.075 * emptyScale;
+        radius *= maxRadius * 2.0;
+        float crossHalfWidth = 0.15;
+
+        vec2 worldAimOffset = localPosition.xz;
+        float aimLength = length(worldAimOffset);
+        // add the color to inside the outer circle
+        float opacity = smoothstep(radius + aa, radius, aimLength);
+        // add the horizontal cross
+        opacity += smoothstep(-crossHalfWidth, -crossHalfWidth + aa, worldAimOffset.x) * smoothstep(crossHalfWidth + aa, crossHalfWidth, worldAimOffset.x);
+        opacity += smoothstep(-crossHalfWidth, -crossHalfWidth + aa, worldAimOffset.y) * smoothstep(crossHalfWidth + aa, crossHalfWidth, worldAimOffset.y);
+        opacity *= smoothstep(maxRadius + aa, maxRadius, aimLength);
+        // subtract the color from inside the inner circle
+        opacity *= smoothstep(innerRadius, innerRadius + aa, aimLength);
+        opacity = clamp(opacity, 0.0, 1.0);
+        opacity *= uAimOpacity;
+
+        return opacity;
+    }
+
+    void main() {
+        vec2 screenSize = textureSize(uDepth, 0);
+        vec2 coord = gl_FragCoord.xy / screenSize;
+
+        vec3 position = reconstructWorldPosition(coord, texture(uDepth, coord).r, vInverseView, vInverseProjection);
+
+        vec3 delta = vPos - position;
+        float depth = -dot(delta, normalize(vPos - vCamera));
+
+        vec3 localSpace = vec3(vInverseModel * vec4(position, 1.0)) + 0.5;
+        // localSpace.y = 0.0;
+        // vec3 tex = localSpace;
+
+        // vec3 normal = vec3(0, 1, 0);
+
+        // vec3 normal = texture(uNormal, coord).rgb * 2.0 - 1.0;
+
+        if ((localSpace.x < 0.0 || localSpace.x > 1.0 || localSpace.z < 0.0 || localSpace.z > 1.0) && localSpace.y >= 0 && localSpace.y <= 1.0) {
+            discard;
+        } else if (localSpace.y < 0.0) {
+            // if its outside the bounds, we will calculate the intersection onto the bottom surface of the decal cube so it lifts off the ground
+            vec3 dir = position - vCamera;
+            float planeD = dot(vec3(0, 1, 0), vBottomP);
+
+            // simplified to...
+            // float t = (planeD - dot(vec3(0, 1, 0), vCamera)) / dot(vec3(0, 1, 0), dir);
+            float t = (planeD - vCamera.y) / dir.y;
+            vec3 planePoint = vCamera + dir * t;
+
+            position = planePoint;
+
+            // calculate the local space position, but explicitly set the local z value to 0.5 since thats the exact bottom
+            // and we calculated the intersection with the bottom plane
+            localSpace = vec3(vInverseModel * vec4(planePoint, 1.0)) + 0.5;
+            if (localSpace.x < 0.0 || localSpace.x > 1.0 || localSpace.z < 0.0 || localSpace.z > 1.0) {
+                discard;
+            }
+        } else if (localSpace.y > 1.0) {
+            // if its outside the bounds, we will calculate the intersection onto the bottom surface of the decal cube so it lifts off the ground
+            vec3 dir = position - vCamera;
+            float planeD = dot(vec3(0, 1, 0), vTopP);
+
+            // simplified to...
+            // float t = (planeD - dot(vec3(0, 1, 0), vCamera)) / dot(vec3(0, 1, 0), dir);
+            float t = (planeD - vCamera.y) / dir.y;
+            vec3 planePoint = vCamera + dir * t;
+
+            position = planePoint;
+
+            // calculate the local space position, but explicitly set the local z value to 0.5 since thats the exact bottom
+            // and we calculated the intersection with the bottom plane
+            localSpace = vec3(vInverseModel * vec4(planePoint, 1.0)) + 0.5;
+            if (localSpace.x < 0.0 || localSpace.x > 1.0 || localSpace.z < 0.0 || localSpace.z > 1.0) {
+                discard;
+            }
+        }
+
+        float opacity = calculateAimOpacity(localSpace - 0.5);
+
+        opacity *= step(-0.01, depth) * 0.75 + 0.25;
+
+        const vec3 diffuseColor = vec3(217.0 / 255.0, 217.0 / 255.0, 217.0 / 255.0);
+        vec3 color = calculateColor(vec3(0.0, 1.0, 0.0), diffuseColor, 1.0, lightDirs, lightColors, lightIntensities, vec3(0.0, 1.0, 0.0));
+
+        Diffuse = vec4(color, opacity); 
+    }
+"
+        ],
+        []
+    }
+]
