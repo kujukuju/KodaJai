@@ -45,6 +45,7 @@ load_external_shader :: (shader_name: string, dependencies: [] string) -> Shader
 
                 if inside_create_shader_block && s == "(" {
                     inside_create_shader_parameter_block = true;
+                    assert(last_ident == "create_shader" || last_ident == "create_prelim_shader", "Unknown function call in shader file. %\n", last_ident);
                 } else if inside_create_shader_parameter_block && s == ")" {
                     inside_create_shader_block = false;
                     inside_create_shader_parameter_block = false;
@@ -67,7 +68,7 @@ load_external_shader :: (shader_name: string, dependencies: [] string) -> Shader
                             create_shader_fragment_name = ident;
                         } else if inside_create_shader_parameter_block && create_shader_vertex_name && create_shader_fragment_name && ident != "name" {
                             assert(false, "Inside create shader parameter block and found an ident without being able to assign it to anywhere.\n");
-                        } else if ident == "create_shader" {
+                        } else if ident == "create_shader" || ident == "create_prelim_shader" {
                             assert(!already_established_shader, "Trying to create a shader twice in a single group of file dependencies.\n");
                             inside_create_shader_block = true;
                             already_established_shader = true;

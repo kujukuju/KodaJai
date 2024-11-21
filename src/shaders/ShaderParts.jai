@@ -1,4 +1,13 @@
 
+PreliminaryShader :: struct {
+    vertex_part: ShaderPart;
+    fragment_part: ShaderPart;
+    name: string;
+#if HOT_LOAD_SHADERS {
+    watch_files: [] string;
+}
+}
+
 ShaderPart :: struct {
     dependencies: [] ShaderPart;
     section: string;
@@ -32,42 +41,69 @@ get_location_name :: (location: Source_Code_Location) -> string {
     return name;
 }
 
-create_shader :: (vertex: string, fragment: string, name: string = "", location := #caller_location, $caller := #caller_code, $watch_files: bool = true) -> Shader {
-    return create_shader(.{.[], vertex}, .{.[], fragment}, name, location, caller, watch_files);
+create_prelim_shader :: (vertex: string, fragment: string, name: string = "", location := #caller_location, caller := #caller_code, watch_files: bool = true) -> PreliminaryShader {
+    return create_prelim_shader(.{.[], vertex}, .{.[], fragment}, name, location, caller, watch_files);
 }
 
-create_shader :: (vertex_part: ShaderPart, fragment: string, name: string = "", location := #caller_location, $caller := #caller_code, $watch_files: bool = true) -> Shader {
-    return create_shader(vertex_part, .{.[], fragment}, name, location, caller, watch_files);
+create_prelim_shader :: (vertex_part: ShaderPart, fragment: string, name: string = "", location := #caller_location, caller := #caller_code, watch_files: bool = true) -> PreliminaryShader {
+    return create_prelim_shader(vertex_part, .{.[], fragment}, name, location, caller, watch_files);
 }
 
-create_shader :: (vertex: string, fragment_part: ShaderPart, name: string = "", location := #caller_location, $caller := #caller_code, $watch_files: bool = true) -> Shader {
-    return create_shader(.{.[], vertex}, fragment_part, name, location, caller, watch_files);
+create_prelim_shader :: (vertex: string, fragment_part: ShaderPart, name: string = "", location := #caller_location, caller := #caller_code, watch_files: bool = true) -> PreliminaryShader {
+    return create_prelim_shader(.{.[], vertex}, fragment_part, name, location, caller, watch_files);
 }
 
-create_shader :: (vertex_part: ShaderPart, fragment_part: ShaderPart, name: string = "", location := #caller_location, $caller := #caller_code, $watch_files: bool = true) -> Shader {
+create_prelim_shader :: (vertex_part: ShaderPart, fragment_part: ShaderPart, name: string = "", location := #caller_location, caller := #caller_code, watch_files: bool = true) -> PreliminaryShader {
+    prelim: PreliminaryShader;
+    prelim.name = ifx name then name else get_location_name(location);
+    prelim.vertex_part = vertex_part;
+    prelim.fragment_part = fragment_part;
+    
+    #if HOT_LOAD_SHADERS {
+        if watch_files {
+            prelim.watch_files = get_watch_files(caller);
+        }
+    }
+
+    return prelim;
+}
+
+create_shader :: (prelim: PreliminaryShader) -> Shader {
     shader: Shader;
-    shader.name = ifx name then name else get_location_name(location);
+    shader.name = prelim.name;
+    shader.vertex_parts = flatten_resolve_dependencies(prelim.vertex_part);
+    shader.fragment_parts = flatten_resolve_dependencies(prelim.fragment_part);
+    #if HOT_LOAD_SHADERS {
+        shader.watch_files = prelim.watch_files;
+    }
+    return shader;
+}
+
+create_shader :: (vertex: string, fragment: string, name: string = "", location := #caller_location, caller := #caller_code, watch_files: bool = true) -> Shader {
+    return create_shader(.{.[], vertex}, .{.[], fragment}, ifx name then name else get_location_name(location), location, caller, watch_files);
+}
+
+create_shader :: (vertex_part: ShaderPart, fragment: string, name: string = "", location := #caller_location, caller := #caller_code, watch_files: bool = true) -> Shader {
+    return create_shader(vertex_part, .{.[], fragment}, ifx name then name else get_location_name(location), location, caller, watch_files);
+}
+
+create_shader :: (vertex: string, fragment_part: ShaderPart, name: string = "", location := #caller_location, caller := #caller_code, watch_files: bool = true) -> Shader {
+    return create_shader(.{.[], vertex}, fragment_part, ifx name then name else get_location_name(location), caller, watch_files);
+}
+
+create_shader :: (vertex_part: ShaderPart, fragment_part: ShaderPart, name: string = "", location := #caller_location, caller := #caller_code, watch_files: bool = true) -> Shader {
+    return create_shader(vertex_part, fragment_part, ifx name then name else get_location_name(location), caller, watch_files);
+}
+
+create_shader :: (vertex_part: ShaderPart, fragment_part: ShaderPart, name: string, caller: Code, watch_files: bool = true) -> Shader {
+    shader: Shader;
+    shader.name = name;
     shader.vertex_parts = flatten_resolve_dependencies(vertex_part);
     shader.fragment_parts = flatten_resolve_dependencies(fragment_part);
 
-    #if HOT_LOAD_SHADERS && watch_files {
-        shader.watch_files = get_watch_files(caller);
-        // dedupe
-        // I think an inner loop will work with an efficient remove since were starting at the next index
-        // and the count doesn't change until the end?
-        for watch_file: efficient_remove(*shader.watch_files) {
-            should_remove := false;
-
-            for other_index: it_index + 1..shader.watch_files.count - 1 {
-                if watch_file == shader.watch_files[other_index] {
-                    should_remove = true;
-                    break;
-                }
-            }
-
-            if should_remove {
-                remove;
-            }
+    #if HOT_LOAD_SHADERS {
+        if watch_files {
+            shader.watch_files = get_watch_files(caller);
         }
     }
 
@@ -180,6 +216,24 @@ get_watch_files :: (caller: Code) -> [] string {
         }
 
         get_watch_files(*watch_files, node);
+    }
+
+    // dedupe
+    // I think an inner loop will work with an efficient remove since were starting at the next index
+    // and the count doesn't change until the end?
+    for watch_file: efficient_remove(*watch_files) {
+        should_remove := false;
+
+        for other_index: it_index + 1..watch_files.count - 1 {
+            if watch_file == watch_files[other_index] {
+                should_remove = true;
+                break;
+            }
+        }
+
+        if should_remove {
+            remove;
+        }
     }
 
     return watch_files;
