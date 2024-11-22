@@ -41,7 +41,6 @@ load_external_shader :: (shader_name: string, dependencies: [] string) -> Shader
                 s: string;
                 s.count = 1;
                 s.data = data.data;
-                // print("%,%: '%'\n", token.l0, token.c0, s);
 
                 if inside_create_shader_block && s == "(" {
                     inside_create_shader_parameter_block = true;
@@ -55,10 +54,8 @@ load_external_shader :: (shader_name: string, dependencies: [] string) -> Shader
                     current_shader_part = null;
                 }
             } else {
-                // print("Found token: %\n", token.type);
                 if token.type == {
                     case .IDENT;
-                        // print("%,%: IDENT '%'\n", token.l0, token.c0, token.ident_value.name);
                         ident := token.ident_value.name;
                         defer last_ident = ident;
 
@@ -103,7 +100,6 @@ load_external_shader :: (shader_name: string, dependencies: [] string) -> Shader
                         inside_shader_part_dependencies = true;
 
                     case;
-                        // print("%,%: %\n", token.l0, token.c0, token.type);
                 }
             }
         }

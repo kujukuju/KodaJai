@@ -73,6 +73,8 @@ initialize_shader :: (shader: *Shader, dependencies: ..Any, $caller := #caller_c
         fixed_dependencies[index] = dependency;
     }
 
+    print("initializing shader with dependencies % %\n", fixed_dependencies, dependency_names);
+
     initialize_shader(shader, fixed_dependencies, dependency_names);
 }
 
@@ -109,6 +111,10 @@ initialize_shader :: (shader: *Shader, dependencies: [] Any, dependency_names: [
 
 initialize_shader :: (shader: *Shader, resolved_dependencies: [] string, dependency_names: [] string, allow_failure: bool = false) {
     assert(koda.initialized && koda.window, "You can only initialize shaders after koda has been initialized and a window has been created.\n");
+
+    if !shader.fragment_parts && !shader.vertex_parts {
+        return;
+    }
 
     #if HOT_LOAD_SHADERS {
         array_free(shader.last_dependencies);
@@ -279,6 +285,8 @@ initialize_shader :: (shader: *Shader, resolved_dependencies: [] string, depende
 
         return output_channels;
     }
+
+    print("parts %\n", shader.fragment_parts);
 
     if !validate_dependencies(shader.name, shader.vertex_parts, shader.fragment_parts, dependency_names) {
         return;
