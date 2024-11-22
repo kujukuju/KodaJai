@@ -73,8 +73,6 @@ initialize_shader :: (shader: *Shader, dependencies: ..Any, $caller := #caller_c
         fixed_dependencies[index] = dependency;
     }
 
-    print("initializing shader with dependencies % %\n", fixed_dependencies, dependency_names);
-
     initialize_shader(shader, fixed_dependencies, dependency_names);
 }
 
@@ -285,8 +283,6 @@ initialize_shader :: (shader: *Shader, resolved_dependencies: [] string, depende
 
         return output_channels;
     }
-
-    print("parts %\n", shader.fragment_parts);
 
     if !validate_dependencies(shader.name, shader.vertex_parts, shader.fragment_parts, dependency_names) {
         return;
