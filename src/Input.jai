@@ -143,6 +143,13 @@ Button :: enum {
 
 BUTTON_COUNT :: #run enum_count(Button);
 
+Trigger :: enum {
+    LEFT;
+    RIGHT;
+}
+
+TRIGGER_COUNT :: #run enum_count(Trigger);
+
 InputState :: enum_flags u8 {
     NONE :: 0x0;
     DOWN :: 0x1;
@@ -168,6 +175,10 @@ Input :: struct {
     controller_left_projected: Vector2;
     controller_right: Vector2;
     controller_right_projected: Vector2;
+    triggers: [2] float = .[-1, -1];
+    trigger_activations: [2] float;
+    trigger_deactivations: [2] float = .[-1, -1];
+    trigger_buttons: [2] InputState;
     buttons: [BUTTON_COUNT] InputState;
     released_buttons: [BUTTON_COUNT] bool;
     controller_left_trigger: float;
@@ -230,6 +241,30 @@ update_inputs :: ($update_features: InputFeature = .All) {
                     input.controller_active = true;
                 } else {
                     input.buttons[index] &= ~InputState.DOWN;
+                }
+            }
+
+            input.triggers[Trigger.LEFT] = state.axes[GLFW_GAMEPAD_AXIS_LEFT_TRIGGER];
+            input.triggers[Trigger.RIGHT] = state.axes[GLFW_GAMEPAD_AXIS_RIGHT_TRIGGER];
+
+            for i: 0..1 {
+                input.trigger_buttons[i] &= ~InputState.START;
+
+                if !input.trigger_buttons[i] && (input.triggers[i] > input.trigger_deactivations[i] + trigger_activation_distance || input.triggers[i] == 1) {
+                    // active for first time
+                    input.trigger_buttons[i] = InputState.START | InputState.DOWN;
+                    input.trigger_activations[i] = input.triggers[i];
+                    input.controller_active = true;
+                } else if input.trigger_buttons[i] && input.triggers[i] > input.trigger_activations[i] {
+                    // increase activation value
+                    input.trigger_activations[i] = input.triggers[i];
+                } else if input.trigger_buttons[i] && (input.triggers[i] < input.trigger_activations[i] - trigger_activation_distance || input.triggers[i] == -1) {
+                    // deactivate
+                    input.trigger_buttons[i] = InputState.NONE;
+                    input.trigger_deactivations[i] = input.triggers[i];
+                } else if !input.trigger_buttons[i] && input.triggers[i] < input.trigger_deactivations[i] {
+                    // decrease deactivation value
+                    input.trigger_deactivations[i] = input.triggers[i];
                 }
             }
         }
@@ -386,6 +421,14 @@ set_abort_shortcut :: (enabled: bool) {
     abort_shortcut = enabled;
 }
 
+get_trigger_activation_distance :: () -> float {
+    return trigger_activation_distance;
+}
+
+set_trigger_activation_distance :: (distance: float) {
+    trigger_activation_distance = distance;
+}
+
 #scope_module
 
 resolve_mouse_capture :: () {
@@ -429,6 +472,8 @@ mouse_position: [2] float64;
 accumulated_mouse: [2] float64;
 
 joystick_padding := 0.2;
+
+trigger_activation_distance: float = 0.2;
 
 abort_shortcut := false;
 

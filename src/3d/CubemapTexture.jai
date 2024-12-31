@@ -152,8 +152,8 @@ unload :: (texture: *CubemapTexture) {
     }
 }
 
-destroy :: (texture: CubemapTexture) {
-    if texture.data {
+destroy :: (texture: CubemapTexture, children: bool = true) {
+    if children && texture.data {
         free(texture.data);
     }
 

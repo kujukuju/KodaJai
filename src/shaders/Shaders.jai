@@ -42,6 +42,7 @@ initialize_shader :: (shader: *Shader) {
 
 // the dependency names must match what the resolved shader dependencies expect
 initialize_shader :: (shader: *Shader, dependencies: ..Any, $caller := #caller_code) {
+    // TODO this shouldn't be done this way I guess... I think it's causing the most significant slowdown
     dependency_count :: #run () -> int {
         nodes := compiler_get_nodes(caller);
         proc_call := cast(*Code_Procedure_Call) nodes;
@@ -152,7 +153,8 @@ initialize_shader :: (shader: *Shader, resolved_dependencies: [] string, depende
         }
         source_index_string.count = index;
 
-        source_index, source_index_found := parse_int(*source_index_string);
+        source_index_view := source_index_string;
+        source_index, source_index_found := parse_int(*source_index_view);
         if !source_index_found {
             return;
         }
@@ -171,7 +173,8 @@ initialize_shader :: (shader: *Shader, resolved_dependencies: [] string, depende
         }
         line_number_string.count = index;
 
-        line_number, line_number_found := parse_int(*line_number_string);
+        line_number_view := line_number_string;
+        line_number, line_number_found := parse_int(*line_number_view);
         if !line_number_found {
             return;
         }

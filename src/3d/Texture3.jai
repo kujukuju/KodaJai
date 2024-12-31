@@ -116,10 +116,11 @@ unload :: (texture: *Texture3) {
 
 // TODO add method to remove data if you'll never unload
 
-destroy :: (texture: Texture3) {
-    if texture.data {
+destroy :: (texture: Texture3, children: bool = true) {
+    if children && texture.data {
         free(texture.data);
     }
+    
     // delete data?
     if texture.buffer {
         release_texture_slot(texture.buffer);

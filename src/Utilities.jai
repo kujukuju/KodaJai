@@ -148,19 +148,23 @@ create_orthographic_matrix :: (left: float, right: float, bottom: float, top: fl
 }
 
 open_url :: (path: string) {
-    HWND :: *void;
-    LPCWSTR :: *u16;
-    HINSTANCE :: *void;
-    SW_SHOWNORMAL :: 1;
+    #if OS == .WINDOWS {
+        HWND :: *void;
+        LPCWSTR :: *u16;
+        HINSTANCE :: *void;
+        SW_SHOWNORMAL :: 1;
 
-    shell32 :: #system_library "shell32";
-    ShellExecuteW :: (hwnd: HWND, lpOperation: LPCWSTR, lpFile: LPCWSTR, lpParameters: LPCWSTR, lpDirectory: LPCWSTR, nShowCmd: s32) -> HINSTANCE #foreign shell32;
-    path_string := NewArray(path.count + 1, u16,, allocator = temp);
-    for i: 0..path.count - 1 {
-        path_string[i] = path[i];
+        shell32 :: #system_library "shell32";
+        ShellExecuteW :: (hwnd: HWND, lpOperation: LPCWSTR, lpFile: LPCWSTR, lpParameters: LPCWSTR, lpDirectory: LPCWSTR, nShowCmd: s32) -> HINSTANCE #foreign shell32;
+        path_string := NewArray(path.count + 1, u16,, allocator = temp);
+        for i: 0..path.count - 1 {
+            path_string[i] = path[i];
+        }
+
+        ShellExecuteW(null, null, path_string.data, null, null, SW_SHOWNORMAL);
+    } else {
+        assert(false, "Cannot open url on linux...\n");
     }
-
-    ShellExecuteW(null, null, path_string.data, null, null, SW_SHOWNORMAL);
 }
 
 print_caller_trace :: () #expand {

@@ -83,10 +83,10 @@ create_font :: (bytes: [] u8, pixel_height: int, character_set: [] u32 = .[], sh
         found_characters.allocator = temp;
 
         gindex: u32;
-        charcode := FT_Get_First_Char(ft_face, *gindex);
+        charcode := cast(u32) FT_Get_First_Char(ft_face, *gindex);
         while gindex {
             array_add(*found_characters, charcode);
-            charcode = FT_Get_Next_Char(ft_face, charcode, *gindex);
+            charcode = cast(u32) FT_Get_Next_Char(ft_face, charcode, *gindex);
         }
 
         requested_characters = found_characters;

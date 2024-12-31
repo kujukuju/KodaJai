@@ -317,6 +317,15 @@ trail_particle_system_has_trail :: (system: *TrailParticleSystem($PG, $PC, $upda
     return array_find(system.particle_ids, id);
 }
 
+trail_particle_system_clear :: (system: *TrailParticleSystem) {
+    system.particles_gpu.count = 0;
+    system.particles_cpu.count = 0;
+    system.particle_trails.count = 0;
+    system.particle_ids.count = 0;
+    system.particles_remove.count = 0;
+    system.temp_buffer.count = 0;
+}
+
 #scope_file
 
 // trail [3] is

@@ -278,7 +278,7 @@ calculate_aabb :: (model: InstancedModel(ModelMatrixGpu)) -> AABB3 {
 }
 
 InstancedModelVertices :: struct {
-    geometry: Geometry;
+    geometry: *Geometry;
     instances: [] Matrix4;
 }
 
@@ -293,7 +293,7 @@ get_vertices :: (model: InstancedModel(ModelMatrixGpu)) -> InstancedModelVertice
     return InstancedModelVertices.{model.geometry, matrices};
 }
 
-get_vertices :: (geometry: Geometry, instances: [] Matrix4) -> InstancedModelVertices {
+get_vertices :: (geometry: *Geometry, instances: [] Matrix4) -> InstancedModelVertices {
     assert(geometry.attributes.count > 0);
     assert(geometry.attributes[0] == .Position);
 

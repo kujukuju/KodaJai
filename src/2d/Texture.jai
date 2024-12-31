@@ -120,8 +120,8 @@ unload :: (texture: *Texture) {
     }
 }
 
-destroy :: (texture: Texture) {
-    if texture.data {
+destroy :: (texture: Texture, children: bool = true) {
+    if children && texture.data {
         free(texture.data);
     }
     
