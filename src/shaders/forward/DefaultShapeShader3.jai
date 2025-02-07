@@ -20,7 +20,7 @@ DEFAULT_SHAPE_FRAGMENT_SHADER3 :: #string DONE
 #version 330 core
 out vec4 FragColor;
 
-uniform vec4 uTint;
+uniform vec4 uTint = vec4(1.0, 1.0, 1.0, 1.0);
 
 void main() {
     FragColor = uTint;

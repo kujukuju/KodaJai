@@ -1,3 +1,4 @@
+
 create_cube :: (half: Vector3, double_sided: bool = false, with_normals: bool = false, with_texcoords: bool = false, with_unwrapped_texcoords: bool = false, should_upload: bool = true) -> *Geometry {
     geometry := New(Geometry);
 
@@ -209,6 +210,62 @@ create_cube :: (half: Vector3, double_sided: bool = false, with_normals: bool = 
     if with_texcoords || with_unwrapped_texcoords {
         add_attribute(geometry, .Texcoord);
     }
+
+    if should_upload {
+        upload(geometry);
+    }
+
+    return geometry;
+}
+
+create_cube_lines :: (half: Vector3, should_upload: bool = true) -> *Geometry {
+    geometry := New(Geometry);
+
+    vertices: [8] Vector3;
+    // top front left
+    vertices[0] = .{-half.x, half.y, -half.z};
+    // bottom front left
+    vertices[1] = .{-half.x, -half.y, -half.z};
+    // bottom back left
+    vertices[2] = .{-half.x, -half.y, half.z};
+    // top back left
+    vertices[3] = .{-half.x, half.y, half.z};
+    // top front right
+    vertices[4] = .{half.x, half.y, -half.z};
+    // bottom front right
+    vertices[5] = .{half.x, -half.y, -half.z};
+    // bottom back right
+    vertices[6] = .{half.x, -half.y, half.z};
+    // top back right
+    vertices[7] = .{half.x, half.y, half.z};
+
+    indices: [24] u32 : .[
+        // top
+        0, 3,
+        3, 7,
+        7, 4,
+        4, 0,
+        // bottom
+        1, 2,
+        2, 6,
+        6, 5,
+        5, 1,
+        // sides
+        0, 1,
+        3, 2,
+        7, 6,
+        4, 5,
+    ];
+
+    for vertex: vertices {
+        array_add(*geometry.vertices, vertex.x, vertex.y, vertex.z);
+    }
+
+    for index: indices {
+        array_add(*geometry.indices, index);
+    }
+
+    add_attribute(geometry, .Position);
 
     if should_upload {
         upload(geometry);

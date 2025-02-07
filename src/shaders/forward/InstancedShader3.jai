@@ -3,7 +3,7 @@ instanced_shader3 := #run create_shader(INSTANCED_VERTEX_SHADER3, INSTANCED_FRAG
 
 #scope_module
 
-INSTANCED_VERTEX_SHADER3 :: #string DONE
+INSTANCED_VERTEX_SHADER3 :: #string ___glsl
 #version 330 core
 layout (location = 0) in vec3 aPos;
 layout (location = 1) in vec3 aNorm;
@@ -27,12 +27,12 @@ void main() {
 
     gl_Position = projection * view * vec4(pos, 1.0);
 }
-DONE
+___glsl
 
-INSTANCED_FRAGMENT_SHADER3 :: #string DONE
+INSTANCED_FRAGMENT_SHADER3 :: #string ___glsl
 #version 330 core
 out vec4 FragColor;
-  
+
 uniform sampler2D uTexture0;
 uniform vec4 uTint;
 
@@ -55,4 +55,4 @@ void main() {
     FragColor = uTint;
     // FragColor = vec4(result, 1.0);
 }
-DONE
+___glsl

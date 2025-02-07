@@ -159,7 +159,7 @@ destroy_window :: () {
 
 register_program_exit :: () {
     generic_close_callback :: () #c_call {
-        new_context: Context;
+        new_context: #Context;
         push_context new_context {
             set_accurate_sleep(false);
             request_exit();
@@ -224,10 +224,10 @@ set_viewport :: (width: int, height: int) {
     if !width && !height {
         return;
     }
-    
+
     koda.width = width;
     koda.height = height;
-    
+
     glViewport(0, 0, xx width, xx height);
 }
 
@@ -248,7 +248,7 @@ error_check_gl :: ($full_stack := false) -> bool #expand {
     return errored;
 }
 
-koda_should_exit :: () -> bool {
+koda_should_exit :: (swap_buffer_hook: () = null) -> bool {
     if glfwWindowShouldClose(koda.window) == GLFW_TRUE {
         return true;
     }
@@ -260,6 +260,7 @@ koda_should_exit :: () -> bool {
     // don't swap buffers when entering the loop since you might have drawn to it already
     if koda.time_tracker.last_loop_time > 0 {
         swap_buffers();
+        if swap_buffer_hook then swap_buffer_hook();
     }
 
     time := seconds_since_init();
@@ -297,7 +298,7 @@ koda_should_exit :: () -> bool {
 
     tick_frame_tracker(*koda.frame_tracker, time);
     koda.time_tracker.last_loop_time = time;
-    
+
     // TODO is this the right place for this?
     glfwPollEvents();
 
@@ -467,7 +468,7 @@ set_mouse_capture :: (capture: bool) {
         if capture {
             mouse_currently_captured = true;
         }
-        
+
         mouse_capture = capture;
     }
 
@@ -1017,14 +1018,14 @@ set_scissor_test :: (enabled: bool, top_left: Point2, dimensions: Point2) {
 set_scissor_test_scope :: (enabled: bool) #expand {
     old_enabled := get_scissor_test();
     `defer set_scissor_test(old_enabled);
-    
+
     set_scissor_test(enabled);
 }
 
 set_scissor_test_scope :: (enabled: bool, top_left: Point2, dimensions: Point2) #expand {
     old_enabled, old_top_left, old_dimensions := get_scissor_test();
     `defer set_scissor_test(old_enabled, old_top_left, old_dimensions);
-    
+
     set_scissor_test(enabled, top_left, dimensions);
 }
 
@@ -1147,21 +1148,21 @@ window_focused: bool;
 
 error_callback :: (error: s32, description: *u8) #c_call {
     // TODO print color
-    new_context: Context;
+    new_context: #Context;
     push_context new_context {
         print("GLFW error: % %\n", error, to_string(description));
     }
 }
 
 size_callback :: (window: *GLFWwindow, width: s32, height: s32) #c_call {
-    new_context: Context;
+    new_context: #Context;
     push_context new_context {
         set_viewport(width, height);
     }
 }
 
 focus_callback :: (window: *GLFWwindow, focused: s32) #c_call {
-    new_context: Context;
+    new_context: #Context;
     push_context new_context {
         window_focused = !!focused;
     }

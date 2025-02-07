@@ -210,7 +210,7 @@ get_instances :: (model: *InstancedModel(ModelMatrixGpu)) -> [] Matrix4 {
 
 set_instances :: (model: *InstancedModel($T), instances: [] T) {
     assert(model.dynamic, "You cannot set instances of a non-dynamically created instanced model.\n");
-    
+
     model.particle_vbo_count = instances.count;
     if model.particle_vbo_allocated >= instances.count {
         glBindBuffer(GL_ARRAY_BUFFER, model.particle_vbo);
@@ -218,7 +218,7 @@ set_instances :: (model: *InstancedModel($T), instances: [] T) {
     } else {
         model.particle_vbo_allocated = instances.count;
         glBindBuffer(GL_ARRAY_BUFFER, model.particle_vbo);
-        glBufferData(GL_ARRAY_BUFFER, instances.count * size_of(T), instances.data, GL_DYNAMIC_DRAW);  
+        glBufferData(GL_ARRAY_BUFFER, instances.count * size_of(T), instances.data, GL_DYNAMIC_DRAW);
     }
 }
 
@@ -316,7 +316,7 @@ for_expansion :: (wrapper: InstancedModelVertices, body: Code, flags: For_Flags)
             position := Vector3.{geometry.vertices[i * stride], geometry.vertices[i * stride + 1], geometry.vertices[i * stride + 2]};
             `it := transform_point(transform, position);
             `it_index := geometry_vertex_count * instance_index + i;
-        
+
             #insert body;
         }
     }
@@ -363,7 +363,7 @@ for_expansion :: (wrapper: InstancedModelTriangles, body: Code, flags: For_Flags
             };
             `it := triangle;
             `it_index := triangle_count * instance_index + i;
-            
+
             #insert body;
         }
     }
@@ -377,7 +377,7 @@ draw :: (model: *InstancedModel, projection: Matrix4, shader: *Shader = null) {
     if model.particle_vbo_count == 0 {
         return;
     }
-    
+
     if !shader {
         if model.shader {
             shader = model.shader;
@@ -402,7 +402,7 @@ draw :: (model: *InstancedModel, projection: Matrix4, shader: *Shader = null) {
     view := koda.view;
     set(*uniforms, "projection", projection);
     set(*uniforms, "view", view);
-    
+
     apply_uniforms(shader, uniforms);
 
     glBindVertexArray(model.vao);
@@ -470,9 +470,9 @@ get_attributes_from_struct :: (gpu: Type) -> [] Attribute {
             array_add(*attributes, ..get_attributes_from_struct((cast(*Type) *member.type).*));
             continue;
         }
-        
+
         assert(is_integer_or_float(member.type), "Only allowed to have a gpu struct of integers and floats. %\n", member.type.*);
-        
+
         member_stride := member.type.runtime_size;
 
         is_integer := member.type.type == .INTEGER;

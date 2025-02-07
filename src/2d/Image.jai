@@ -27,7 +27,7 @@ create_image :: (width: int, height: int, format: PixelFormat) -> Image {
     image.width = width;
     image.height = height;
     image.format = format;
-    
+
     stride := get_stride(format);
     image.pixels = NewArray(width * height * stride, u8);
 
@@ -44,13 +44,13 @@ create_image :: (bytes: [] u8, width: int, height: int, format: PixelFormat, reu
     if bytes.count != width * height * get_stride(format) {
         return .{};
     }
-    
+
     if reuse_memory {
         image.pixels = bytes;
     } else {
         image.pixels = array_copy(bytes);
     }
-    
+
     return image;
 }
 
@@ -71,10 +71,10 @@ create_image :: (bytes: [] u8) -> Image {
 
     image.pixels = NewArray(width * height * comp, u8);
     memcpy(image.pixels.data, stbi_data, image.pixels.count);
-    
+
     image.width = width;
     image.height = height;
-    
+
     if comp == 1 {
         image.format = .R8;
     } else if comp == 2 {
@@ -96,7 +96,7 @@ create_image :: (image: Image, position: Point2, size: Point2) -> Image {
 
     stride := get_stride(image.format);
     new.pixels = NewArray(new.width * new.height * stride, u8, false);
-    
+
     copy_width := min(new.width, image.width - position.x);
     copy_height := min(new.height, image.height - position.y);
     extra_row_pixels := new.width - copy_width;
@@ -153,7 +153,7 @@ get_png_bytes :: (image: Image) -> [] u8 {
     written: [] u8;
 
     write_func :: (cont: *void, data: *void, size: s32) #c_call {
-        empty: Context;
+        empty: #Context;
         push_context empty {
             print("%\n", size);
             written := cast(*[] u8) cont;
@@ -196,7 +196,7 @@ resize_image :: (image: *Image, size: Point2) {
 
     image.width = size.x;
     image.height = size.y;
-    
+
     stride := get_stride(image.format);
     image.pixels = NewArray(image.height * image.width * stride, u8, false);
 
@@ -226,7 +226,7 @@ resize_image_lock_ratio :: (image: *Image, size: Point2) {
 
     image.width = size.x;
     image.height = size.y;
-    
+
     stride := get_stride(image.format);
     image.pixels = NewArray(image.height * image.width * stride, u8, false);
 
@@ -289,7 +289,7 @@ clear_image :: (image: *Image, color: Color) {
 
     stride := get_stride(image.format);
     pixels := image.width * image.height;
-    
+
     // TODO test speed of memcpy vs writing 4 bytes
     for index: 0..pixels - 1 {
         memcpy(image.pixels.data + index * stride, bytes.data, stride);
@@ -303,7 +303,7 @@ draw_pixel :: (image: *Image, point: Point2, color: Color) {
 
     stride := get_stride(image.format);
     index := (point.y * image.width + point.x) * stride;
-    
+
     if is_float(image.format) {
         assert(image.format == .R32F || image.format == .RG32F || image.format == .RGB32F || image.format == .RGBA32F);
 
@@ -527,7 +527,7 @@ draw :: (destination: *Image, source: Image, position: Point2) {
 
     //         dest_color := color(dest_color_bytes[0], dest_color_bytes[1], dest_color_bytes[2], dest_color_bytes[3]);
     //         source_color := color(source_color_bytes[0], source_color_bytes[1], source_color_bytes[2], source_color_bytes[3]);
-            
+
     //         // TODO premultiply for easy math I guess
     //         // dest_percent := dest_color.a / (dest_color.a + source_color.a);
     //         // source_percent := source_color.a / (dest_color.a + source_color.a);

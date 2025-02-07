@@ -254,7 +254,7 @@ get :: (uniforms: *ShaderUniforms, name: FixedString(UNIFORM_LENGTH)) -> *Shader
             return uniform;
         }
     }
-    
+
     return null;
 }
 
@@ -265,7 +265,7 @@ get :: (uniforms: *ShaderUniforms, name: string) -> *ShaderUniform {
             return uniform;
         }
     }
-    
+
     return null;
 }
 
@@ -518,7 +518,7 @@ create_uniform :: (name: FixedString(UNIFORM_LENGTH), value: [] [2] s64) -> Shad
         uniform.int2n[i][0] = xx value[i][0];
         uniform.int2n[i][1] = xx value[i][1];
     }
-    
+
     return uniform;
 }
 
