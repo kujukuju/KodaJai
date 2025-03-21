@@ -54,12 +54,13 @@ create_model :: (geometry: *Geometry, texture: Texture, should_upload: bool = tr
     if should_upload {
         upload(model);
     }
-    
+
     return model;
 }
 
 load_model :: (path: string, should_upload: bool = true) -> *Model, bool {
     models, instances, success := load_models(path, should_upload);
+    assert(success, "Could not load model.\n");
     defer array_free(models);
     defer array_free(instances);
     if !success {
@@ -74,6 +75,7 @@ load_model :: (path: string, should_upload: bool = true) -> *Model, bool {
 
 load_models :: (path: string, should_upload: bool = true) -> [..] *Model, [..] *InstancedModel(ModelMatrixGpu), bool #must /* temporary #must since I added a return */ {
     file, success := read_entire_file(path);
+    assert(success, "Could not load model.\n");
     defer free(file);
     if !success {
         empty_models: [..] *Model;
@@ -259,7 +261,7 @@ for_expansion :: (wrapper: ModelTriangles, body: Code, flags: For_Flags) #expand
         };
         `it := triangle;
         `it_index := i;
-        
+
         #insert body;
     }
 }
@@ -348,7 +350,7 @@ merge_by_material_id :: (models: [] *Model, should_upload: bool = true) -> [..] 
 
             index_offset := cast(u32) (geometry.vertices.count / stride);
             vertex_count := model.geometry.vertices.count / stride;
-            
+
             offset := 0;
             for i: 0..vertex_count - 1 {
                 for attribute: model.geometry.attributes {
@@ -409,13 +411,59 @@ merge_by_material_id :: (models: [] *Model, should_upload: bool = true) -> [..] 
     return merged;
 }
 
+bake_transforms :: (model: *Model) {
+    assert(model.geometry.attributes.count >= 2 && model.geometry.attributes[0] == .Position && model.geometry.attributes[1] == .Normal);
+
+    stride := get_attribute_stride(model.geometry);
+
+    transform := get_transform(model);
+    geometry := model.geometry;
+
+    // TODO technically you need to use the transposed inverted matrix for normal transforming...
+
+    vertex_count := geometry.vertices.count / stride;
+    for i: 0..vertex_count - 1 {
+        position := Vector3.{geometry.vertices[i * stride], geometry.vertices[i * stride + 1], geometry.vertices[i * stride + 2]};
+        position = transform_point(transform, position);
+        geometry.vertices[i * stride + 0] = position.x;
+        geometry.vertices[i * stride + 1] = position.y;
+        geometry.vertices[i * stride + 2] = position.z;
+
+        normal := Vector3.{geometry.vertices[i * stride + 3], geometry.vertices[i * stride + 4], geometry.vertices[i * stride + 5]};
+        normal = transform_vector(transform, normal);
+        geometry.vertices[i * stride + 3] = normal.x;
+        geometry.vertices[i * stride + 4] = normal.y;
+        geometry.vertices[i * stride + 5] = normal.z;
+    }
+
+    model.position = .{};
+    model.rotation = .{};
+    model.scale = .{1, 1, 1};
+}
+
+bake_scale :: (model: *Model) {
+    stride := get_attribute_stride(model.geometry);
+    geometry := model.geometry;
+
+    vertex_count := geometry.vertices.count / stride;
+    for i: 0..vertex_count - 1 {
+        position := Vector3.{geometry.vertices[i * stride + 0], geometry.vertices[i * stride + 1], geometry.vertices[i * stride + 2]};
+        position *= model.scale;
+        geometry.vertices[i * stride + 0] = position.x;
+        geometry.vertices[i * stride + 1] = position.y;
+        geometry.vertices[i * stride + 2] = position.z;
+    }
+
+    model.scale = .{1, 1, 1};
+}
+
 draw :: (model: Model, transform: Matrix4 = Matrix4Identity, shader: *Shader = null) {
     draw(model, transform, get_perspective_matrix(), shader);
 }
 
 draw :: (model: Model, transform: Matrix4 = Matrix4Identity, projection: Matrix4, shader: *Shader = null) {
     assert(koda.can_render, "Cannot currently make any draw calls.\n");
-    
+
     if !model.visible {
         return;
     }
@@ -452,7 +500,7 @@ draw :: (model: Model, transform: Matrix4 = Matrix4Identity, projection: Matrix4
     set(*uniforms, "projection", projection);
     set(*uniforms, "model", model_mat);
     set(*uniforms, "view", view);
-    
+
     apply_uniforms(shader, uniforms);
 
     glBindVertexArray(model.geometry.vao_);
@@ -648,7 +696,7 @@ load_model_gltf_data :: (json: GltfJson, binary: [] u8, should_upload: bool) -> 
             assert(geometry_index_found);
 
             if geometry_instance_counts[geometry_index] <= 1 {
-                continue;   
+                continue;
             }
 
             desired_instance_count := geometry_instance_counts[geometry_index];
@@ -668,7 +716,7 @@ load_model_gltf_data :: (json: GltfJson, binary: [] u8, should_upload: bool) -> 
 
     array_reserve(*models, model_count);
     array_reserve(*instances, instance_count);
-    
+
     for geometry, index: geometries {
         if geometry_instance_counts[index] > 1 {
             instance_index := instance_lookup[index];
@@ -745,7 +793,7 @@ load_model_gltf_data :: (json: GltfJson, binary: [] u8, should_upload: bool) -> 
 
             if mesh.extras {
                 assert(mesh.extras.type == .Object);
-                
+
                 for entry: mesh.extras.object {
                     array_add(properties, get_property_entry(mesh.name, entry));
                 }
@@ -761,7 +809,7 @@ load_model_gltf_data :: (json: GltfJson, binary: [] u8, should_upload: bool) -> 
                     assert(material.extras.type == .Object);
 
                     name := ifx material.name then material.name.* else "";
-                    
+
                     for entry: material.extras.object {
                         array_add(material_properties, get_property_entry(name, entry));
                     }
@@ -778,7 +826,7 @@ load_model_gltf_data :: (json: GltfJson, binary: [] u8, should_upload: bool) -> 
 
                 texture_name := material.name;
                 assert(!!texture_name, "I thought materials always had to have a name...");
-                
+
                 texture_index := material.pbrMetallicRoughness.baseColorTexture.index;
 
                 texture, found := table_find(*textures, texture_index);
@@ -825,7 +873,7 @@ load_model_gltf_data :: (json: GltfJson, binary: [] u8, should_upload: bool) -> 
 
                 texture_name := material.name;
                 assert(!!texture_name, "I thought materials always had to have a name...");
-                
+
                 texture_index := material.normalTexture.index;
 
                 texture, found := table_find(*textures, texture_index);
@@ -836,7 +884,7 @@ load_model_gltf_data :: (json: GltfJson, binary: [] u8, should_upload: bool) -> 
                     }
                     table_set(*textures, texture_index, texture);
                 }
-                
+
                 assert(!has_uniform(uniforms.*, "uNormal0"), "Cannot already have a normal texture.");
                 set(uniforms, "uNormal0", texture);
             }
@@ -851,7 +899,7 @@ load_model_gltf_data :: (json: GltfJson, binary: [] u8, should_upload: bool) -> 
 
                 texture_name := material.name;
                 assert(!!texture_name, "I thought materials always had to have a name...");
-                
+
                 texture_index := material.emissiveTexture.index;
 
                 texture, found := table_find(*textures, texture_index);
@@ -862,7 +910,7 @@ load_model_gltf_data :: (json: GltfJson, binary: [] u8, should_upload: bool) -> 
                     }
                     table_set(*textures, texture_index, texture);
                 }
-                
+
                 assert(!has_uniform(uniforms.*, "uEmissive0"), "Cannot already have an emissive texture.");
                 set(uniforms, "uEmissive0", texture);
             }

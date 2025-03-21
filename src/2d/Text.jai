@@ -47,7 +47,7 @@ buffer_text :: (content: string, font: *Font, transform: Matrix3, anchor: Vector
 
         set_view(font.buffer_view);
         flush_text(font);
-        
+
         set_view(old_view);
         begin_buffer_text(font);
     }
@@ -63,7 +63,7 @@ buffer_text :: (content: string, font: *Font, transform: Matrix3, anchor: Vector
             if !found {
                 continue;
             }
-            
+
             maximum_bearing_x = max(maximum_bearing_x, character.bearing.x);
         }
 
@@ -96,7 +96,7 @@ buffer_text :: (content: string, font: *Font, transform: Matrix3, anchor: Vector
         // if !PRODUCTION then print("Warning: Your font blur + padding can't be larger than 16 * your scale.\n");
         real_blur = 16 - real_padding;
     }
-    
+
     advance_y := 0;
 
     char: u32;
@@ -189,7 +189,7 @@ get_aabb :: (content: string, font: *Font, scale: float) -> AABB2 {
 
     aabb: AABB2;
     set_aabb := false;
-    
+
     advance_y := 0;
 
     char: u32;
@@ -237,6 +237,11 @@ get_aabb :: (content: string, font: *Font, scale: float) -> AABB2 {
     return aabb;
 }
 
+get_fixed_line_height :: (content: string, font: *Font, scale: float) -> float {
+    aabb := get_aabb(content, font, scale);
+    return aabb.upper.y - aabb.lower.y;
+}
+
 get_unicode_char :: (content: string, index: int) -> character: u32, index: int {
     if content[index] & 0b11111000 == 0b11110000 {
         if index + 3 >= content.count {
@@ -252,7 +257,7 @@ get_unicode_char :: (content: string, index: int) -> character: u32, index: int 
         if index + 2 >= content.count {
             return 0, index + 2;
         }
-        
+
         char: u32 = (content[index] & 0b00001111) << 12;
         char |= (content[index + 1] & 0b00111111) << 6;
         char |= content[index + 2] & 0b00111111;
@@ -261,7 +266,7 @@ get_unicode_char :: (content: string, index: int) -> character: u32, index: int 
         if index + 1 >= content.count {
             return 0, index + 1;
         }
-        
+
         char: u32 = (content[index] & 0b00011111) << 6;
         char |= content[index + 1] & 0b00111111;
         return char, index + 2;

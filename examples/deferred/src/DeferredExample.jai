@@ -51,7 +51,7 @@ main :: () {
     set(*point_light_shader.uniforms, "uAmbientIntensity", 0.5);
 
     should_bake_material_color_textures = true;
-    
+
     // models = load_models("low_poly_medieval_tavern_reexported.glb");
     models = load_models("low_poly_medieval_tavern_reexported_with_goblin.glb");
 
@@ -68,24 +68,24 @@ main :: () {
 
         update_inputs();
 
-        speed := ifx input.keys[Key.LEFT_SHIFT] then 0.001 else 0.1;
+        speed := ifx input.keys[KodaKey.LEFT_SHIFT] then 0.001 else 0.1;
 
-        if input.keys[Key.A] {
+        if input.keys[KodaKey.A] {
             camera.position -= get_right_vector(camera) * speed;
         }
-        if input.keys[Key.D] {
+        if input.keys[KodaKey.D] {
             camera.position += get_right_vector(camera) * speed;
         }
-        if input.keys[Key.W] {
+        if input.keys[KodaKey.W] {
             camera.position += get_forward_vector(camera) * speed;
         }
-        if input.keys[Key.S] {
+        if input.keys[KodaKey.S] {
             camera.position -= get_forward_vector(camera) * speed;
         }
-        if input.keys[Key.SPACE] {
+        if input.keys[KodaKey.SPACE] {
             camera.position += get_up_vector(camera) * speed;
         }
-        if input.keys[Key.LEFT_CONTROL] {
+        if input.keys[KodaKey.LEFT_CONTROL] {
             camera.position -= get_up_vector(camera) * speed;
         }
 
@@ -93,7 +93,7 @@ main :: () {
         if input.mouse_right {
             yaw_quaternion: Quaternion;
             set_from_axis_and_angle(*yaw_quaternion, .{0, 1, 0}, xx input.mouse_delta_x / 4000.0);
-            
+
             pitch_quaternion: Quaternion;
             set_from_axis_and_angle(*pitch_quaternion, .{1, 0, 0}, xx input.mouse_delta_y / 4000.0);
 

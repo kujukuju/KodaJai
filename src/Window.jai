@@ -116,6 +116,9 @@ create_window :: (title: *u8, width: s32, height: s32, multisample: int = 0) {
     glfwSetWindowFocusCallback(koda.window, focus_callback);
     window_focused = true;
 
+
+    glfwSetCharCallback(koda.window, char_input_callback);
+
     // cursor := glfwCreateStandardCursor(GLFW_ARROW_CURSOR);
     // glfwSetCursor(koda.window, null);
 
@@ -248,7 +251,7 @@ error_check_gl :: ($full_stack := false) -> bool #expand {
     return errored;
 }
 
-koda_should_exit :: (swap_buffer_hook: () = null) -> bool {
+koda_should_exit :: (swap_buffer_hook: () = null, swap_buffer_hook_render: () = null) -> bool {
     if glfwWindowShouldClose(koda.window) == GLFW_TRUE {
         return true;
     }
@@ -260,7 +263,9 @@ koda_should_exit :: (swap_buffer_hook: () = null) -> bool {
     // don't swap buffers when entering the loop since you might have drawn to it already
     if koda.time_tracker.last_loop_time > 0 {
         swap_buffers();
-        if swap_buffer_hook then swap_buffer_hook();
+        if swap_buffer_hook {
+            swap_buffer_hook();
+        }
     }
 
     time := seconds_since_init();
@@ -286,7 +291,9 @@ koda_should_exit :: (swap_buffer_hook: () = null) -> bool {
                     defer set_accurate_sleep(false);
 
                     actual_sleep_time := max(desired_sleep_time - time_slice_ms, 0);
-                    sleep_milliseconds(cast(s32) actual_sleep_time);
+                    if actual_sleep_time > 0 {
+                        sleep_milliseconds(cast(s32) actual_sleep_time);
+                    }
                 }
 
                 time = seconds_since_init();

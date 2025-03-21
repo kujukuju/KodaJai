@@ -141,11 +141,11 @@ draw_rect :: (top_left: Vector2, dimensions: Vector2, color: Color = .{1, 1, 1, 
     defer destroy(uniforms);
 
     set(*uniforms, "uTexture", white_texture);
-    
+
     set(*uniforms, "projection", projection);
     set(*uniforms, "model", model);
     set(*uniforms, "view", view);
-    
+
     set(*uniforms, "uTint", color);
     set(*uniforms, "uFrame", Vector4.{0, 0, 1, 1});
 
@@ -237,11 +237,11 @@ draw_polygon :: (points: [] Vector2, color: Color = .{1, 1, 1, 1}, border: Color
     defer destroy(uniforms);
 
     set(*uniforms, "uTexture", cast(u32) 0);
-    
+
     set(*uniforms, "projection", projection);
     set(*uniforms, "model", model);
     set(*uniforms, "view", view);
-    
+
     set(*uniforms, "uTint", color);
     set(*uniforms, "uFrame", Vector4.{0, 0, 1, 1});
 
@@ -276,6 +276,10 @@ draw_concave_polygon :: (polygon: [] Vector2, color: Color = .{1, 1, 1, 1}, bord
     }
 }
 
+draw_circle :: (center: Vector2, radius: float, color: Color = .{1, 1, 1, 1}, border: Color = .{1, 1, 1, 0}) {
+    draw_ellipse(center, radius * 2.0, radius * 2.0, color, border);
+}
+
 draw_ellipse :: (center: Vector2, width: float, height: float, color: Color = .{1, 1, 1, 1}, border: Color = .{1, 1, 1, 0}) {
     draw_ellipse(center, xy(width, height), color, border);
 }
@@ -302,7 +306,7 @@ draw_ellipse :: (center: Vector2, dimensions: Vector2, color: Color = .{1, 1, 1,
 
     // uniforms: ShaderUniforms;
     // defer destroy(uniforms);
-    
+
     // set(*uniforms, "uTint", color);
     // set(*uniforms, "uBorderTint", border);
     // set(*uniforms, "uFrame", Vector4.{0, 0, 1, 1});
@@ -361,11 +365,11 @@ draw_circles :: (positions: [] Vector2, radius: float, color: Color = .{1, 1, 1,
 
     uniforms: ShaderUniforms;
     defer destroy(uniforms);
-    
+
     set(*uniforms, "projection", projection);
     set(*uniforms, "model", model);
     set(*uniforms, "view", view);
-    
+
     set(*uniforms, "uTint", color);
 
     // TODO use attributes or whatever instead of looping this shader 1000 times

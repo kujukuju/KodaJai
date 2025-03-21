@@ -28,11 +28,13 @@
 #load "src/3d/AnimatedModel.jai";
 #load "src/3d/Animation.jai";
 #load "src/3d/Camera3.jai";
+#load "src/3d/CapsuleGeometry.jai";
 #load "src/3d/Container3.jai";
 #load "src/3d/CubeGeometry.jai";
 #load "src/3d/CubeMap.jai";
 #load "src/3d/CubemapTexture.jai";
 #load "src/3d/CustomDataLoader.jai";
+#load "src/3d/CylinderGeometry.jai";
 #load "src/3d/DecalMath.jai";
 #load "src/3d/DrawCallContainer.jai";
 #load "src/3d/Geometry.jai";
@@ -66,6 +68,7 @@
 #load "src/parallel/ParallelMergeSort.jai";
 
 #load "src/shaders/forward/BlurShader.jai";
+#load "src/shaders/forward/CapsuleLineShader3.jai";
 #load "src/shaders/forward/CubemapShader.jai";
 #load "src/shaders/forward/DefaultEllipseShader.jai";
 #load "src/shaders/forward/DefaultInstancedShader3.jai";
@@ -74,11 +77,13 @@
 #load "src/shaders/forward/DefaultShader.jai";
 #load "src/shaders/forward/DefaultShader3.jai";
 #load "src/shaders/forward/DefaultShaderColors3.jai";
+#load "src/shaders/forward/DefaultShapeColorShader3.jai";
 #load "src/shaders/forward/DefaultShapeShader3.jai";
 #load "src/shaders/forward/FlatGridShader3.jai";
 #load "src/shaders/forward/FontParticleShader.jai";
 #load "src/shaders/forward/FontShader.jai";
 #load "src/shaders/forward/InfiniteGridShader3.jai";
+#load "src/shaders/forward/InstancedCapsuleLineShader3.jai";
 #load "src/shaders/forward/InstancedShader2.jai";
 #load "src/shaders/forward/InstancedShader3.jai";
 #load "src/shaders/forward/OcclusionShader3.jai";

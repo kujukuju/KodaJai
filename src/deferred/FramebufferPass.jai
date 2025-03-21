@@ -196,7 +196,7 @@ framebuffer_resize :: (pass: *FramebufferPass($count, $depth, $drawable, $multis
         assert(false, "Passed invalid number of textures to resize a framebuffer pass.\n");
         return;
     }
-    
+
     for i: 0..textures.count - 1 {
         assert(textures[i].width == width && textures[i].height == height, "Your framebuffer textures must be matching dimensions per pass.\n");
     }
@@ -366,7 +366,7 @@ draw :: (pass: FramebufferPass($count, $depth, $drawable)) {
 
     // draw quad
     use_shader(pass.shader);
-    
+
     apply_uniforms(pass.shader, pass.uniforms);
 
     glBindVertexArray(pass.vao);

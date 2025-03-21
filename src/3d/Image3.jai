@@ -28,7 +28,7 @@ create_image3 :: (width: int, height: int, depth: int, format: PixelFormat) -> I
     image.height = height;
     image.depth = depth;
     image.format = format;
-    
+
     stride := get_stride(format);
     image.pixels = NewArray(width * height * depth * stride, u8);
 
@@ -66,19 +66,6 @@ create_image3 :: (image: Image3) -> Image3 {
     return copy;
 }
 
-create_image3 :: (bytes: [] u8, width: int, height: int, depth: int, format: PixelFormat) -> Image3 {
-    image: Image3;
-    image.width = width;
-    image.height = height;
-    image.depth = depth;
-    image.format = format;
-
-    assert(bytes.count == width * height * depth * get_stride(format), "Incorrect image data.\n");
-    image.pixels = array_copy(bytes);
-    
-    return image;
-}
-
 create_image3 :: (bytes: [] u8, width: int, height: int, depth: int, format: PixelFormat, reuse_memory: bool = false) -> Image3 {
     image: Image3;
     image.width = width;
@@ -96,7 +83,7 @@ create_image3 :: (bytes: [] u8, width: int, height: int, depth: int, format: Pix
     } else {
         image.pixels = array_copy(bytes);
     }
-    
+
     return image;
 }
 
@@ -108,7 +95,7 @@ create_image3 :: (bytes: [] u8) -> Image3 {
         destroy(image);
         return .{};
     }
-    
+
     image3: Image3;
     image3.width = image.width;
     image3.height = image.width;
@@ -148,7 +135,7 @@ clear_image :: (image: *Image3, color: Color) {
 
     stride := get_stride(image.format);
     pixels := image.width * image.height * image.depth;
-    
+
     // TODO test speed of memcpy vs writing 4 bytes
     for index: 0..pixels - 1 {
         memcpy(image.pixels.data + index * stride, bytes.data, stride);
@@ -162,7 +149,7 @@ draw_pixel :: (image: *Image3, point: Point3, color: Color) {
 
     stride := get_stride(image.format);
     index := (point.x + point.y * image.width + point.z * image.width * image.height) * stride;
-    
+
     if is_float(image.format) {
         assert(image.format == .R32F || image.format == .RG32F || image.format == .RGB32F || image.format == .RGBA32F);
 
@@ -184,7 +171,7 @@ convert_format :: (image: *$T, desired_format: PixelFormat, $channels: ColorChan
     assert(
         image.format == .R8 ||
         image.format == .R32F ||
-        image.format == .RG8 || 
+        image.format == .RG8 ||
         image.format == .RG32F ||
         image.format == .RGB8 ||
         image.format == .RGB32F ||

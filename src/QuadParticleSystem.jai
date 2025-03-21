@@ -207,12 +207,12 @@ quad_particle_system_render :: (system: *QuadParticleSystem($PG, $PC, $update_fu
 
     uniforms: ShaderUniforms;
     defer destroy(uniforms);
-    
+
     view := koda.view;
-    
+
     set(*uniforms, "projection", projection);
     set(*uniforms, "view", view);
-    
+
     apply_uniforms(system.shader, uniforms);
 
     depth_func := get_depth_func();

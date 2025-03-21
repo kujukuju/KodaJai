@@ -41,6 +41,117 @@ draw_line :: (p1: Vector3, p2: Vector3, width: float = 1.0, color: Color = .{1, 
     glDrawArrays(GL_LINES, 0, xx vertices.count);
 }
 
+draw_line_mesh :: (p1: Vector3, p2: Vector3, radius: float, color: Color = .{1, 1, 1, 1}) {
+    if !capsule {
+        load_capsule();
+    }
+
+    center := p1 / 2.0 + p2 / 2.0;
+    delta := p2 - p1;
+    half_length := distance(p1, p2) / 2.0;
+
+    up_pitch_angle := PI / 2.0 - atan2(delta.y, length(Vector2.{delta.x, delta.z}));
+    up_yaw_angle := PI / 2 - atan2(delta.z, delta.x);
+
+    pitch_rotation := make_rotation_quaternion(.{1, 0, 0}, up_pitch_angle);
+    yaw_rotation := make_rotation_quaternion(.{0, 1, 0}, up_yaw_angle);
+
+    rotation := yaw_rotation * pitch_rotation;
+
+    use_shader(*capsule_line_shader3);
+
+    model := Matrix4Identity;
+    model = translate(model, center);
+    model = rotate(model, rotation);
+    projection := get_perspective_matrix();
+    view := koda.view;
+
+    uniforms: ShaderUniforms;
+    defer destroy(uniforms);
+
+    set(*uniforms, "projection", projection);
+    set(*uniforms, "model", model);
+    set(*uniforms, "view", view);
+
+    set(*uniforms, "uHalfLength", half_length);
+    set(*uniforms, "uRadius", radius);
+    set(*uniforms, "uTint", color);
+
+    apply_uniforms(*capsule_line_shader3, uniforms);
+
+    glBindVertexArray(capsule.vao_);
+    glDrawElements(GL_TRIANGLES, xx capsule.indices.count, GL_UNSIGNED_INT, xx 0);
+    glBindVertexArray(0);
+}
+
+LineGpu :: struct {
+    m1: Vector4;
+    m2: Vector4;
+    m3: Vector4;
+    m4: Vector4;
+    half_length: float;
+    radius: float;
+#place m1;
+    model: Matrix4 = ---;
+}
+instanced_lines: *InstancedModel(LineGpu);
+
+get_lines_mesh_count :: () -> int {
+    if !instanced_lines return 0;
+    return instanced_lines.particle_vbo_count;
+}
+
+set_lines_mesh :: (lines: [] Vector3, radii: [] float) {
+    if !instanced_lines {
+        instanced_lines = create_instanced_model(LineGpu, create_capsule(1, 1, should_upload = false));
+        instanced_lines.shader = *instanced_capsule_line_shader3;
+    }
+
+    instances := NewArray(lines.count / 2, LineGpu,, temp);
+
+    for i: 0..lines.count / 2 - 1 {
+        p1 := lines[i * 2 + 0];
+        p2 := lines[i * 2 + 1];
+
+        center := p1 / 2.0 + p2 / 2.0;
+        delta := p2 - p1;
+        half_length := distance(p1, p2) / 2.0;
+
+        up_pitch_angle := PI / 2.0 - atan2(delta.y, length(Vector2.{delta.x, delta.z}));
+        up_yaw_angle := PI / 2 - atan2(delta.z, delta.x);
+
+        pitch_rotation := make_rotation_quaternion(.{1, 0, 0}, up_pitch_angle);
+        yaw_rotation := make_rotation_quaternion(.{0, 1, 0}, up_yaw_angle);
+
+        rotation := yaw_rotation * pitch_rotation;
+
+        model := Matrix4Identity;
+        model = translate(model, center);
+        model = rotate(model, rotation);
+
+        instances[i].model = model;
+        instances[i].half_length = half_length;
+        instances[i].radius = radii[i];
+    }
+
+    set_instances(instanced_lines, instances);
+}
+
+draw_lines_mesh :: (color: Color = .{1, 1, 1, 1}) {
+    if !instanced_lines {
+        return;
+    }
+
+    set(*instanced_lines.uniforms, "uTint", color);
+
+    draw(instanced_lines);
+}
+
+draw_lines_mesh :: (lines: [] Vector3, radii: [] float, color: Color = .{1, 1, 1, 1}) {
+    set_lines_mesh(lines, radii);
+    draw_lines_mesh(color);
+}
+
 draw_square :: (center: Vector3, up: Vector3, half_dimensions: Vector2, color: Color = .{1, 1, 1, 1}, border_width: float = 1.0, border_color: Color = .{0, 0, 0, 0}) {
     if !square_loaded {
         load_square();
@@ -213,25 +324,41 @@ draw_triangle :: (p1: Vector3, p2: Vector3, p3: Vector3, color: Color = .{1, 1, 
     glDrawArrays(GL_TRIANGLES, 0, xx vertices.count);
 }
 
-draw_triangles :: (vertices: [] Vector3, color: Color = .{1, 1, 1, 1}, model: Matrix4 = Matrix4Identity) {
-    vao: GLuint;
-    glGenVertexArrays(1, *vao);
-    defer glDeleteVertexArrays(1, *vao);
-    glBindVertexArray(vao);
+triangles_vao: u32;
+triangles_buffer: u32;
+triangles_vertices_count: u32;
+
+get_triangles_vertices_count :: () -> int {
+    return triangles_vertices_count;
+}
+
+set_triangles :: (vertices: [] Vector3) {
+    if !triangles_vao {
+        glGenVertexArrays(1, *triangles_vao);
+    }
+
+    glBindVertexArray(triangles_vao);
     defer glBindVertexArray(0);
 
-    buffer_id: GLuint;
-    glGenBuffers(1, *buffer_id);
-    defer glDeleteBuffers(1, *buffer_id);
+    if !triangles_buffer {
+        glGenBuffers(1, *triangles_buffer);
+    }
 
-    glBindBuffer(GL_ARRAY_BUFFER, buffer_id);
+    glBindBuffer(GL_ARRAY_BUFFER, triangles_buffer);
     glBufferData(GL_ARRAY_BUFFER, size_of(Vector3) * vertices.count, vertices.data, GL_DYNAMIC_DRAW);
 
     glEnableVertexAttribArray(0);
     defer glDisableVertexAttribArray(0);
     glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, size_of(Vector3), null);
 
+    triangles_vertices_count = cast(u32) vertices.count;
+}
+
+draw_triangles :: (color: Color = .{1, 1, 1, 1}, model: Matrix4 = Matrix4Identity) {
     use_shader(*default_shape_shader3);
+
+    glBindVertexArray(triangles_vao);
+    defer glBindVertexArray(0);
 
     projection := get_perspective_matrix();
     view := koda.view;
@@ -246,7 +373,85 @@ draw_triangles :: (vertices: [] Vector3, color: Color = .{1, 1, 1, 1}, model: Ma
 
     apply_uniforms(*default_shape_shader3, uniforms);
 
-    glDrawArrays(GL_TRIANGLES, 0, xx vertices.count);
+    glDrawArrays(GL_TRIANGLES, 0, triangles_vertices_count);
+}
+
+draw_triangles :: (vertices: [] Vector3, color: Color = .{1, 1, 1, 1}, model: Matrix4 = Matrix4Identity) {
+    set_triangles(vertices);
+    draw_triangles(color, model);
+}
+
+triangles_colors_vao: u32;
+triangles_colors_buffer: u32;
+triangles_colors_vertices_count: u32;
+
+get_triangles_colors_vertices_count :: () -> int {
+    return triangles_colors_vertices_count;
+}
+
+set_triangles_colors :: (vertices: [] Vector3, colors: [] Vector3) {
+    assert(vertices.count == colors.count);
+
+    if !triangles_colors_vao {
+        glGenVertexArrays(1, *triangles_colors_vao);
+    }
+
+    glBindVertexArray(triangles_colors_vao);
+    defer glBindVertexArray(0);
+
+    if !triangles_colors_buffer {
+        glGenBuffers(1, *triangles_colors_buffer);
+    }
+
+    glBindBuffer(GL_ARRAY_BUFFER, triangles_colors_buffer);
+    glBufferData(GL_ARRAY_BUFFER, size_of(Vector3) * 2 * vertices.count, null, GL_DYNAMIC_DRAW);
+    glBufferSubData(GL_ARRAY_BUFFER, 0, size_of(Vector3) * vertices.count, vertices.data);
+    glBufferSubData(GL_ARRAY_BUFFER, size_of(Vector3) * vertices.count, size_of(Vector3) * colors.count, colors.data);
+
+    glEnableVertexAttribArray(0);
+    defer glDisableVertexAttribArray(0);
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, size_of(Vector3), null);
+    glEnableVertexAttribArray(1);
+    defer glDisableVertexAttribArray(1);
+    glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, size_of(Vector3), cast(*void) (size_of(Vector3) * vertices.count));
+
+    triangles_colors_vertices_count = cast(u32) vertices.count;
+}
+
+draw_triangles_colors :: (color: Color = .{1, 1, 1, 1}, model: Matrix4 = Matrix4Identity) {
+    if triangles_colors_vertices_count == 0 {
+        return;
+    }
+
+    use_shader(*default_shape_color_shader3);
+
+    glBindVertexArray(triangles_colors_vao);
+    defer glBindVertexArray(0);
+
+    glEnableVertexAttribArray(0);
+    defer glDisableVertexAttribArray(0);
+    glEnableVertexAttribArray(1);
+    defer glDisableVertexAttribArray(1);
+
+    projection := get_perspective_matrix();
+    view := koda.view;
+
+    uniforms: ShaderUniforms;
+    defer destroy(uniforms);
+
+    set(*uniforms, "model", model);
+    set(*uniforms, "projection", projection);
+    set(*uniforms, "view", view);
+    set(*uniforms, "uTint", color);
+
+    apply_uniforms(*default_shape_color_shader3, uniforms);
+
+    glDrawArrays(GL_TRIANGLES, 0, triangles_colors_vertices_count);
+}
+
+draw_triangles_colors :: (vertices: [] Vector3, colors: [] Vector3, color: Color = .{1, 1, 1, 1}, model: Matrix4 = Matrix4Identity) {
+    set_triangles_colors(vertices, colors);
+    draw_triangles_colors(color, model);
 }
 
 draw_cube :: (lower: Vector3, upper: Vector3, color: Color = .{1, 1, 1, 1}, border: Color = .{0, 0, 0, 0}) {
@@ -580,6 +785,14 @@ load_cube :: () {
     cube = create_cube(.{1, 1, 1});
 }
 
+load_capsule :: () {
+    if capsule {
+        return;
+    }
+
+    capsule = create_capsule(1, 1);
+}
+
 sphere: *Geometry;
 sphere_loaded: bool;
 torus: *Geometry;
@@ -591,3 +804,4 @@ center_grid: *Geometry;
 grid_loaded: bool;
 cube: *Geometry;
 cube_loaded: bool;
+capsule: *Geometry;

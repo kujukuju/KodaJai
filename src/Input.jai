@@ -1,4 +1,4 @@
-Key :: enum {
+KodaKey :: enum {
     SPACE;
     APOSTROPHE;
     COMMA;
@@ -121,9 +121,9 @@ Key :: enum {
     MENU;
 }
 
-KEY_COUNT :: #run enum_count(Key);
+KODA_KEY_COUNT :: #run enum_count(KodaKey);
 
-Button :: enum {
+KodaButton :: enum {
     A;
     B;
     X;
@@ -141,16 +141,16 @@ Button :: enum {
     DPAD_LEFT;
 }
 
-BUTTON_COUNT :: #run enum_count(Button);
+KODA_BUTTON_COUNT :: #run enum_count(KodaButton);
 
-Trigger :: enum {
+KodaTrigger :: enum {
     LEFT;
     RIGHT;
 }
 
-TRIGGER_COUNT :: #run enum_count(Trigger);
+KODA_TRIGGER_COUNT :: #run enum_count(KodaTrigger);
 
-InputState :: enum_flags u8 {
+KodaInputState :: enum_flags u8 {
     NONE :: 0x0;
     DOWN :: 0x1;
     START :: 0x2;
@@ -168,8 +168,8 @@ InputFeature :: enum u32 {
 }
 
 Input :: struct {
-    keys: [KEY_COUNT] InputState;
-    released_keys: [KEY_COUNT] bool;
+    keys: [KODA_KEY_COUNT] KodaInputState;
+    released_keys: [KODA_KEY_COUNT] bool;
     controller_active: bool;
     controller_left: Vector2;
     controller_left_projected: Vector2;
@@ -178,31 +178,38 @@ Input :: struct {
     triggers: [2] float = .[-1, -1];
     trigger_activations: [2] float;
     trigger_deactivations: [2] float = .[-1, -1];
-    trigger_buttons: [2] InputState;
-    buttons: [BUTTON_COUNT] InputState;
-    released_buttons: [BUTTON_COUNT] bool;
+    trigger_buttons: [2] KodaInputState;
+    buttons: [KODA_BUTTON_COUNT] KodaInputState;
+    released_buttons: [KODA_BUTTON_COUNT] bool;
     controller_left_trigger: float;
     controller_right_trigger: float;
-    mouse_left: InputState;
+    mouse_left: KodaInputState;
     released_mouse_left: bool;
     mouse_left_start: Vector2;
     mouse_left_drag: Vector2;
-    mouse_right: InputState;
+    mouse_right: KodaInputState;
     released_mouse_right: bool;
     mouse_right_start: Vector2;
     mouse_right_drag: Vector2;
-    mouse_middle: InputState;
+    mouse_middle: KodaInputState;
     released_mouse_middle: bool;
     mouse_middle_start: Vector2;
     mouse_middle_drag: Vector2;
+    mouse_buttons: [GLFW_MOUSE_BUTTON_LAST + 1] KodaInputState;
     mouse: Vector2;
     mouse_delta_x: float64;
     mouse_delta_y: float64;
     scroll_delta_x: float64;
     scroll_delta_y: float64;
+    char_input: bool;
+    char_input_buffer: [8] u32;
+    char_input_back_buffer: [8] u32;
+    char_input_keys: [KODA_KEY_COUNT] KodaInputState;
 }
 
-input: Input;
+get_input :: () -> Input {
+    return input;
+}
 
 update_inputs :: ($update_features: InputFeature = .All) {
     // TODO should this be called here?
@@ -224,35 +231,35 @@ update_inputs :: ($update_features: InputFeature = .All) {
         }
 
         #if update_features & .ControllerButtons {
-            for index: 0..BUTTON_COUNT - 1 {
+            for index: 0..KODA_BUTTON_COUNT - 1 {
                 button_down := cast(bool) (state.buttons[index] & GLFW_PRESS);
                 input.released_buttons[index] = input.buttons[index] && !button_down;
 
                 // clear the start value
-                input.buttons[index] &= ~InputState.START;
+                input.buttons[index] &= ~KodaInputState.START;
 
                 // set the start value if this is a new input
                 if button_down & !input.buttons[index] {
-                    input.buttons[index] |= InputState.START;
+                    input.buttons[index] |= KodaInputState.START;
                 }
-                
+
                 if button_down {
-                    input.buttons[index] |= InputState.DOWN;
+                    input.buttons[index] |= KodaInputState.DOWN;
                     input.controller_active = true;
                 } else {
-                    input.buttons[index] &= ~InputState.DOWN;
+                    input.buttons[index] &= ~KodaInputState.DOWN;
                 }
             }
 
-            input.triggers[Trigger.LEFT] = state.axes[GLFW_GAMEPAD_AXIS_LEFT_TRIGGER];
-            input.triggers[Trigger.RIGHT] = state.axes[GLFW_GAMEPAD_AXIS_RIGHT_TRIGGER];
+            input.triggers[KodaTrigger.LEFT] = state.axes[GLFW_GAMEPAD_AXIS_LEFT_TRIGGER];
+            input.triggers[KodaTrigger.RIGHT] = state.axes[GLFW_GAMEPAD_AXIS_RIGHT_TRIGGER];
 
             for i: 0..1 {
-                input.trigger_buttons[i] &= ~InputState.START;
+                input.trigger_buttons[i] &= ~KodaInputState.START;
 
                 if !input.trigger_buttons[i] && (input.triggers[i] > input.trigger_deactivations[i] + trigger_activation_distance || input.triggers[i] == 1) {
                     // active for first time
-                    input.trigger_buttons[i] = InputState.START | InputState.DOWN;
+                    input.trigger_buttons[i] = KodaInputState.START | KodaInputState.DOWN;
                     input.trigger_activations[i] = input.triggers[i];
                     input.controller_active = true;
                 } else if input.trigger_buttons[i] && input.triggers[i] > input.trigger_activations[i] {
@@ -260,7 +267,7 @@ update_inputs :: ($update_features: InputFeature = .All) {
                     input.trigger_activations[i] = input.triggers[i];
                 } else if input.trigger_buttons[i] && (input.triggers[i] < input.trigger_activations[i] - trigger_activation_distance || input.triggers[i] == -1) {
                     // deactivate
-                    input.trigger_buttons[i] = InputState.NONE;
+                    input.trigger_buttons[i] = KodaInputState.NONE;
                     input.trigger_deactivations[i] = input.triggers[i];
                 } else if !input.trigger_buttons[i] && input.triggers[i] < input.trigger_deactivations[i] {
                     // decrease deactivation value
@@ -320,79 +327,124 @@ update_inputs :: ($update_features: InputFeature = .All) {
 
     // TODO probably need a more generic way to clear all inputs when not captured
     #if update_features & .MouseButtons {
-        input.mouse_left &= ~InputState.START;
+        input.mouse_left &= ~KodaInputState.START;
         mouse_left := glfwGetMouseButton(koda.window, GLFW_MOUSE_BUTTON_LEFT);
         input.released_mouse_left = input.mouse_left && !mouse_left;
         if mouse_left && !input.mouse_left {
             input.controller_active = false;
-            input.mouse_left |= InputState.START;
+            input.mouse_left |= KodaInputState.START;
             input.mouse_left_start = input.mouse;
             input.mouse_left_drag = .{};
         }
         if mouse_left {
-            input.mouse_left |= InputState.DOWN;
+            input.mouse_left |= KodaInputState.DOWN;
             input.mouse_left_drag += Vector2.{xx input.mouse_delta_x, xx input.mouse_delta_y};
         } else {
-            input.mouse_left &= ~InputState.DOWN;
+            input.mouse_left &= ~KodaInputState.DOWN;
         }
 
-        input.mouse_right &= ~InputState.START;
+        input.mouse_right &= ~KodaInputState.START;
         mouse_right := glfwGetMouseButton(koda.window, GLFW_MOUSE_BUTTON_RIGHT);
         input.released_mouse_right = input.mouse_right && !mouse_right;
         if mouse_right && !input.mouse_right {
             input.controller_active = false;
-            input.mouse_right |= InputState.START;
+            input.mouse_right |= KodaInputState.START;
             input.mouse_right_start = input.mouse;
             input.mouse_right_drag = .{};
         }
         if mouse_right {
-            input.mouse_right |= InputState.DOWN;
+            input.mouse_right |= KodaInputState.DOWN;
             input.mouse_right_drag += Vector2.{xx input.mouse_delta_x, xx input.mouse_delta_y};
         } else {
-            input.mouse_right &= ~InputState.DOWN;
+            input.mouse_right &= ~KodaInputState.DOWN;
         }
 
-        input.mouse_middle &= ~InputState.START;
+        input.mouse_middle &= ~KodaInputState.START;
         mouse_middle := glfwGetMouseButton(koda.window, GLFW_MOUSE_BUTTON_MIDDLE);
         input.released_mouse_middle = input.mouse_middle && !mouse_middle;
         if mouse_middle && !input.mouse_middle {
             input.controller_active = false;
-            input.mouse_middle |= InputState.START;
+            input.mouse_middle |= KodaInputState.START;
             input.mouse_middle_start = input.mouse;
             input.mouse_middle_drag = .{};
         }
         if mouse_middle {
-            input.mouse_middle |= InputState.DOWN;
+            input.mouse_middle |= KodaInputState.DOWN;
             input.mouse_middle_drag += Vector2.{xx input.mouse_delta_x, xx input.mouse_delta_y};
         } else {
-            input.mouse_middle &= ~InputState.DOWN;
+            input.mouse_middle &= ~KodaInputState.DOWN;
+        }
+
+        for i: 0..GLFW_MOUSE_BUTTON_LAST {
+            if input.mouse_buttons[i] {
+                input.mouse_buttons[i] &= ~KodaInputState.START;
+            }
+
+            button_state := glfwGetMouseButton(koda.window, cast(s32) i);
+            if button_state && !input.mouse_buttons[i] {
+                input.mouse_buttons[i] |= KodaInputState.START;
+            }
+
+            if button_state {
+                input.mouse_buttons[i] |= KodaInputState.DOWN;
+            } else {
+                input.mouse_buttons[i] &= ~KodaInputState.DOWN;
+            }
         }
     }
 
     #if update_features & .Keys {
+        input.char_input_buffer, input.char_input_back_buffer = input.char_input_back_buffer, input.char_input_buffer;
+        memset(input.char_input_back_buffer.data, 0, size_of(type_of(input.char_input_back_buffer)));
+
+        // normal keys
         for key_code, index: glfw_key_map {
             key_value := glfwGetKey(koda.window, key_code);
-            key_down: bool = cast(bool) (key_value & GLFW_PRESS);
-            input.released_keys[index] = input.keys[index] && !key_down;
+            key_down := cast(bool) (key_value & GLFW_PRESS);
+            key_up := !key_down;
+            key_down = key_down && !input.char_input;
+            input.released_keys[index] = input.keys[index] && key_up;
 
             // clear the start value
-            input.keys[index] &= ~InputState.START;
+            input.keys[index] &= ~KodaInputState.START;
 
             // set the start value if this is a new input
             if key_down & !input.keys[index] {
-                input.keys[index] |= InputState.START;
+                input.keys[index] |= KodaInputState.START;
             }
-            
+
             if key_down {
-                input.keys[index] |= InputState.DOWN;
+                input.keys[index] |= KodaInputState.DOWN;
                 input.controller_active = false;
-            } else {
-                input.keys[index] &= ~InputState.DOWN;
+            } else if key_up {
+                input.keys[index] &= ~KodaInputState.DOWN;
+            }
+        }
+
+        // char input keys
+        for key_code, index: glfw_key_map {
+            key_value := glfwGetKey(koda.window, key_code);
+            key_down := cast(bool) (key_value & GLFW_PRESS);
+            key_up := !key_down;
+            key_down = key_down && input.char_input;
+
+            // clear the start value
+            input.char_input_keys[index] &= ~KodaInputState.START;
+
+            // set the start value if this is a new input
+            if key_down & !input.char_input_keys[index] {
+                input.char_input_keys[index] |= KodaInputState.START;
+            }
+
+            if key_down {
+                input.char_input_keys[index] |= KodaInputState.DOWN;
+            } else if key_up {
+                input.char_input_keys[index] &= ~KodaInputState.DOWN;
             }
         }
     }
 
-    // if mouse_currently_captured && input.keys[Key.ESCAPE] {
+    // if mouse_currently_captured && input.keys[KodaKey.ESCAPE] {
     //     mouse_currently_captured = false;
     //     resolve_mouse_capture();
     // } else if !mouse_currently_captured && (input.mouse_left || input.mouse_right) {
@@ -400,7 +452,7 @@ update_inputs :: ($update_features: InputFeature = .All) {
     //     resolve_mouse_capture();
     // }
 
-    if abort_shortcut && input.keys[Key.LEFT_CONTROL] && (input.keys[Key.C] & InputState.START) {
+    if abort_shortcut && input.keys[KodaKey.LEFT_CONTROL] && (input.keys[KodaKey.C] & KodaInputState.START) {
         glfwSetWindowShouldClose(koda.window, GLFW_TRUE);
     }
 }
@@ -429,7 +481,13 @@ set_trigger_activation_distance :: (distance: float) {
     trigger_activation_distance = distance;
 }
 
+set_char_input :: (char_input: bool) {
+    input.char_input = char_input;
+}
+
 #scope_module
+
+input: Input;
 
 resolve_mouse_capture :: () {
     if mouse_capture && mouse_currently_captured {
@@ -462,6 +520,19 @@ mouse_callback :: (window: *GLFWwindow, x: float64, y: float64) #c_call {
     mouse_position[1] = y;
 }
 
+char_input_callback :: (window: *GLFWwindow, codepoint: u32) -> void #c_call {
+    if !input.char_input {
+        return;
+    }
+
+    for i: 0..input.char_input_back_buffer.count - 1 {
+        if input.char_input_back_buffer[i] == 0 {
+            input.char_input_back_buffer[i] = codepoint;
+            break;
+        }
+    }
+}
+
 #scope_file
 
 raw_mouse_x: float64 = 0.0;
@@ -477,7 +548,7 @@ trigger_activation_distance: float = 0.2;
 
 abort_shortcut := false;
 
-glfw_key_map: [KEY_COUNT] s32 = .[
+glfw_key_map: [KODA_KEY_COUNT] s32 = .[
     GLFW_KEY_SPACE,
     GLFW_KEY_APOSTROPHE,
     GLFW_KEY_COMMA,

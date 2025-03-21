@@ -138,6 +138,7 @@ create_geometry :: (geometries: [] *Geometry, should_upload: bool = true) -> *Ge
 
 load_geometry :: (path: string, should_upload: bool = true) -> *Geometry, bool {
     geometries, success := load_geometries(path, false);
+    assert(success, "Could not load geometry.\n");
     defer array_free(geometries);
     if !success {
         return null, false;
@@ -163,6 +164,7 @@ load_geometry :: (path: string, should_upload: bool = true) -> *Geometry, bool {
 
 load_geometries :: (path: string, should_upload: bool = true) -> [..] *Geometry, bool {
     file, success := read_entire_file(path);
+    assert(success, "Could not load geometry.\n");
     defer free(file);
     if !success {
         empty: [..] *Geometry;
@@ -262,7 +264,7 @@ upload :: (geometry: *Geometry) {
     }
 
     glBindBuffer(GL_ARRAY_BUFFER, geometry.vbo_);
-    glBufferData(GL_ARRAY_BUFFER, geometry.vertices.allocated * size_of(float32), geometry.vertices.data, GL_STATIC_DRAW);  
+    glBufferData(GL_ARRAY_BUFFER, geometry.vertices.allocated * size_of(float32), geometry.vertices.data, GL_STATIC_DRAW);
 
     glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, geometry.ebo_);
     glBufferData(GL_ELEMENT_ARRAY_BUFFER, geometry.indices.allocated * size_of(u32), geometry.indices.data, GL_STATIC_DRAW);
@@ -307,7 +309,7 @@ upload_append :: (geometry: *Geometry, float_count: int, index_count: int) {
         byte_offset := float_offset * size_of(float32);
         glBufferSubData(GL_ARRAY_BUFFER, byte_offset, byte_size, geometry.vertices.data + float_offset);
     } else {
-        glBufferData(GL_ARRAY_BUFFER, geometry.vertices.allocated * size_of(float32), geometry.vertices.data, GL_STATIC_DRAW);  
+        glBufferData(GL_ARRAY_BUFFER, geometry.vertices.allocated * size_of(float32), geometry.vertices.data, GL_STATIC_DRAW);
     }
 
     glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, geometry.ebo_);
@@ -332,7 +334,7 @@ unload :: (geometry: *Geometry) {
     glDeleteBuffers(1, *geometry.ebo_);
     glDeleteBuffers(1, *geometry.vbo_);
     glDeleteVertexArrays(1, *geometry.vao_);
-    
+
     geometry.ebo_ = 0;
     geometry.vbo_ = 0;
     geometry.vao_ = 0;
@@ -476,7 +478,7 @@ rotate_vertices :: (geometry: *Geometry, axis: Vector3, radians: float) {
 get_indices :: (geometry: Geometry, $T: Type = int) -> [..] T {
     indices: [..] T;
     indices.allocator = temp;
-    
+
     array_reserve(*indices, geometry.indices.count);
 
     for index: geometry.indices {
@@ -1047,7 +1049,7 @@ load_geometry_gltf_data :: (
                 index_accessor := accessors[index_accessor_index];
                 assert(index_accessor.type == "SCALAR", "The indices access must be a scalar type.");
                 component_type := index_accessor.component_type;
-                
+
                 // this seems bad
                 if #complete component_type == {
                     case .S8;

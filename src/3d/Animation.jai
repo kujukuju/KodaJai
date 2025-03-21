@@ -579,7 +579,7 @@ get_joint_index :: (animations: ModelAnimations, name: string) -> int {
     for i: 0..animations.joint_indices.count - 1 {
         real_index := animations.joint_indices[i];
         bone := animations.bone_hierarchy[real_index];
-        
+
         if bone.name == name {
             return i;
         }
@@ -684,7 +684,7 @@ get_joints :: (animations: ModelAnimations, mix: [] AnimationMix, joints: *[] Ma
                     current[bone_index].translation = lerp(current[bone_index].translation, translation, percentage_new);
                     current[bone_index].rotation = quat_slerp(current[bone_index].rotation, rotation, percentage_new);
                     current[bone_index].scale = lerp(current[bone_index].scale, scale, percentage_new);
-                    
+
                     current_weights[bone_index] = lerp(current_weights[bone_index], bone_weight, percentage_new);
                 }
             } else {
@@ -709,7 +709,7 @@ get_joints :: (animations: ModelAnimations, mix: [] AnimationMix, joints: *[] Ma
                     current[bone_index].translation = lerp(current[bone_index].translation, translation, percentage_new);
                     current[bone_index].rotation = quat_slerp(current[bone_index].rotation, rotation, percentage_new);
                     current[bone_index].scale = lerp(current[bone_index].scale, scale, percentage_new);
-                    
+
                     current_weights[bone_index] = lerp(current_weights[bone_index], bone_weight, percentage_new);
                 }
             }
@@ -972,7 +972,7 @@ create_bone_weights :: (animations: ModelAnimations, bone_weights: [] AnimationP
 
 remap_for_joints :: (animations: ModelAnimations, joints: *[] $T) {
     assert(joints.count >= animations.joint_indices.count);
-    
+
     original := array_copy(joints.*,, allocator = temp);
 
     for i: 0..animations.joint_indices.count - 1 {
@@ -1068,7 +1068,7 @@ load_animation_gltf_data :: (animations: *ModelAnimations, json: GltfJson, binar
         animations.inverse_binds.count = skin_joints.count;
 
         if json.skins && json.skins.count > 0 && json.skins.data[0].inverseBindMatrices {
-            assert(json.skins.count == 1, "Not sure how to handle multiple skins.");
+            // assert(json.skins.count == 1, "Not sure how to handle multiple skins.");
 
             matrix_accessor := get_accessor_view(accessors[<< json.skins.data[0].inverseBindMatrices], "MAT4");
             assert(matrix_accessor.count == skin_joints.count, "I think you must have the same number of inverse binds as inner joints.");
@@ -1269,14 +1269,14 @@ calculate_bone_weights :: (animations: ModelAnimations, animation: *Animation) {
         frames := animation.frames[i];
         for frame_index: 0..frames.count - 2 {
             current_frame := frames[frame_index];
-            
+
             current_translation := current_frame.translation;
             current_rotation := current_frame.rotation;
             current_scale := current_frame.scale;
 
             next_frame_index := frame_index + 1;
             next_frame := frames[next_frame_index];
-            
+
             next_translation := next_frame.translation;
             next_rotation := next_frame.rotation;
             next_scale := next_frame.scale;
@@ -1357,7 +1357,7 @@ get_interpolated_components :: (frames: [..] AnimationFrame, frame: float, loopi
 
             i -= 1;
         }
-    
+
         starting_frame := frames[starting_index];
         ending_frame := frames[ending_index];
 
@@ -1402,15 +1402,30 @@ precursory_animation_code :: (json: GltfJson, binary: [] u8) -> int, [..] [] u8,
             array_add(*skin_joints, i);
         }
     } else {
-        assert(json.skins.count == 1, "I'm not sure how to handle multiple skins.");
+        // assert(json.skins.count == 1, "I'm not sure how to handle multiple skins.");
 
-        array_reserve(*skin_joints, json.skins.data[0].joints.count);
-        for joint_index: json.skins.data[0].joints {
-            array_add(*skin_joints, joint_index);
+        joint_count := 0;
+        for skin: json.skins.* {
+            joint_count += skin.joints.count;
         }
-        
-        if json.skins.data[0].skeleton {
-            skeleton_root_index := << json.skins.data[0].skeleton;
+
+        array_reserve(*skin_joints, joint_count);
+        for skin: json.skins.* {
+            for joint_index: skin.joints {
+                if !array_find(skin_joints, joint_index) {
+                    array_add(*skin_joints, joint_index);
+                }
+            }
+        }
+        // for joint_index: json.skins.data[0].joints {
+        //     array_add(*skin_joints, joint_index);
+        // }
+
+        if json.skins.*[0].skeleton {
+            skeleton_root_index := json.skins.*[0].skeleton.*;
+            for skin: json.skins.* {
+                assert(skin.skeleton && skeleton_root_index == skin.skeleton.*, "Different skins have different skeletons.\n");
+            }
             assert(skeleton_root_index == skin_joints[0], "I'm not sure what it means if the skeleton root is different from the first skin joint.");
         }
     }

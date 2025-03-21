@@ -12,19 +12,19 @@ get_transform :: (using camera: Camera3) -> Matrix4 {
 }
 
 get_forward_vector :: (using camera: Camera3) -> Vector3 {
-    forward := rotate(Vector3.{0, 0, -1}, conjugate(rotation));
+    forward := normalize(rotate(Vector3.{0, 0, -1}, conjugate(rotation)));
 
     return forward;
 }
 
 get_up_vector :: (using camera: Camera3) -> Vector3 {
-    up := rotate(Vector3.{0, 1, 0}, conjugate(rotation));
+    up := normalize(rotate(Vector3.{0, 1, 0}, conjugate(rotation)));
 
     return up;
 }
 
 get_right_vector :: (using camera: Camera3) -> Vector3 {
-    right := rotate(Vector3.{1, 0, 0}, conjugate(rotation));
+    right := normalize(rotate(Vector3.{1, 0, 0}, conjugate(rotation)));
 
     return right;
 }

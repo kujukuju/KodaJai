@@ -85,7 +85,7 @@ draw :: (animated: AnimatedModel, joints: [] Matrix4, transform: Matrix4 = Matri
 
     uniforms: ShaderUniforms;
     defer destroy(uniforms);
-    
+
     model_view := view * model_mat;
     model_view_projection := projection * model_view;
     set(*uniforms, "modelViewProjection", model_view_projection);
@@ -95,7 +95,7 @@ draw :: (animated: AnimatedModel, joints: [] Matrix4, transform: Matrix4 = Matri
     set(*uniforms, "view", view);
 
     set(*uniforms, "uJoints", joints);
-    
+
     apply_uniforms(shader, uniforms);
 
     glBindVertexArray(animated.model.geometry.vao_);
