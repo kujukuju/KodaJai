@@ -48,7 +48,7 @@ initialize_shader :: (shader: *Shader, dependencies: ..Any, $caller := #caller_c
         proc_call := cast(*Code_Procedure_Call) nodes;
         proc_args := proc_call.arguments_unsorted;
         assert(proc_args.count >= 1);
-        
+
         return proc_args.count - 1;
     }();
     dependency_names :: #run () -> [dependency_count] string {
@@ -68,7 +68,7 @@ initialize_shader :: (shader: *Shader, dependencies: ..Any, $caller := #caller_c
         return names;
     }();
     assert(dependencies.count == dependency_names.count, "Dependency count doesn't match shader initialization dependencies. Maybe the syntax changed?\n");
-    
+
     fixed_dependencies: [dependency_count] Any;
     for dependency, index: dependencies {
         fixed_dependencies[index] = dependency;
@@ -84,7 +84,7 @@ initialize_shader :: (shader: *Shader, named_dependencies: ..ShaderDependency, $
         proc_call := cast(*Code_Procedure_Call) nodes;
         proc_args := proc_call.arguments_unsorted;
         assert(proc_args.count >= 1);
-        
+
         return proc_args.count - 1;
     }();
 
@@ -142,7 +142,7 @@ initialize_shader :: (shader: *Shader, resolved_dependencies: [] string, depende
         source_index_string: string;
         source_index_string.data = message.data;
         source_index_string.count = message.count;
-        
+
         if source_index_string[0] == #char "\0" {
             return;
         }
@@ -363,7 +363,7 @@ initialize_shader :: (shader: *Shader, resolved_dependencies: [] string, depende
 
 validate_dependencies :: (name: string, vertex_parts: [] ResolvedShaderPart, fragment_parts: [] ResolvedShaderPart, dependency_names: [] string) -> bool {
     found_dependencies := NewArray(dependency_names.count, bool,, temp);
-    
+
     for parts: [] ResolvedShaderPart.[vertex_parts, fragment_parts] {
         for part: parts {
             for injection: part.injections {
@@ -541,14 +541,14 @@ get_uniform_locations :: (shader_name: string, program: u32) -> [] UniformLocati
         name_string.data = name_buffer.data;
         name_string.count = length;
 
-        if ends_with(name_string, "[0]") { 
+        if ends_with(name_string, "[0]") {
             name_string.count -= 3;
         }
         assert(length <= UNIFORM_LENGTH, "Shader has a uniform with too long of a name. %\n", name_string);
 
         if array_find(built_ins, name_string) {
             uniforms.count -= 1;
-            
+
             continue;
         }
 
@@ -831,7 +831,7 @@ set_should_assert_without_replacement :: (enabled: bool) {
 
 use_shader :: (shader: *Shader) {
     shader = get_shader_replacement(shader);
-    
+
     old_should_assert_without_replacement := should_assert_without_replacement;
     defer should_assert_without_replacement = old_should_assert_without_replacement;
     should_assert_without_replacement = false;
@@ -869,7 +869,7 @@ use_shader :: (shader: *Shader) {
     for i: 0..koda.texture_expirations.count - 1 {
         koda.texture_expirations[i] += 1;
     }
-    
+
     if koda.shader == shader.program {
         apply_uniforms(shader, shader.uniforms);
         return;
@@ -917,7 +917,7 @@ use_shader :: (shader: *Shader) {
             }
 
             print("Swapping shader. %\n", shader.name);
-            
+
             shader.program = external_shader.program;
 
             shader.vertex_parts = array_copy(external_shader.vertex_parts);

@@ -49,7 +49,7 @@ perf_tracker_output_file := "";
 #if PERF_TRACKER_ENABLED {
     perf_track :: ($name: string, $gpu: bool = true) #expand {
         #run tracker_allocated += 1;
-        
+
         tracker_info := get_or_add_tracker(name);
         assert(!tracker_info.currently_tracking, tprint("Tried to track the same call inside itself. %\n", name));
         tracker_info.currently_tracking = true;
@@ -165,7 +165,7 @@ perf_tracker_output_file := "";
             }
             tracker.average_cpu_time = cpu_total / max(tracker.cpu_times.count, 1);
             tracker.average_gpu_time = gpu_total / max(tracker.gpu_times.count, 1);
-            
+
             tracker.cpu_times.count = 0;
             tracker.gpu_times.count = 0;
         }
@@ -307,7 +307,7 @@ perf_tracker_finish :: (tracker_index: int, builder: *String_Builder, gpu: bool)
     // // this marks where every next indentation might be so it can be drawn to
     // for next_tracker_index: tracker_index + 1..trackers.count - 1 {
     //     next_indent := trackers[next_tracker_index].indent;
-        
+
     //     if next_indent <= 0 {
     //         continue;
     //     }
@@ -317,7 +317,7 @@ perf_tracker_finish :: (tracker_index: int, builder: *String_Builder, gpu: bool)
     //         if tracker_continue_depths.allocated <= next_indent {
     //             array_reserve(*tracker_continue_depths, next_indent + 1);
     //         }
-            
+
     //         tracker_continue_depths.count = next_indent + 1;
     //     }
 

@@ -58,7 +58,7 @@ upload :: (texture: *Texture) {
     if texture.buffer {
         return;
     }
-    
+
     wrap_format := get_gl_format(texture.wrap);
     interp_min_format := get_gl_min_format(texture.interp);
     interp_mag_format := get_gl_mag_format(texture.interp);
@@ -71,7 +71,7 @@ upload :: (texture: *Texture) {
 
     glGenTextures(1, *texture.buffer);
     glBindTextureTemporary(texture_type, texture.buffer);
-    glTexParameteri(texture_type, GL_TEXTURE_WRAP_S, wrap_format);	
+    glTexParameteri(texture_type, GL_TEXTURE_WRAP_S, wrap_format);
     glTexParameteri(texture_type, GL_TEXTURE_WRAP_T, wrap_format);
     glTexParameteri(texture_type, GL_TEXTURE_MIN_FILTER, interp_min_format);
     glTexParameteri(texture_type, GL_TEXTURE_MAG_FILTER, interp_mag_format);
@@ -106,7 +106,7 @@ upload :: (texture: *Texture) {
     } else {
         glTexImage2D(GL_TEXTURE_2D, 0, gl_internal_format, xx texture.width, xx texture.height, 0, gl_format, gl_type, texture.data);
     }
-    
+
     if has_mipmap {
         glGenerateMipmap(GL_TEXTURE_2D);
     }
@@ -124,7 +124,7 @@ destroy :: (texture: Texture, children: bool = true) {
     if children && texture.data {
         free(texture.data);
     }
-    
+
     if texture.buffer {
         release_texture_slot(texture.buffer);
         glDeleteTextures(1, *texture.buffer);
@@ -204,7 +204,7 @@ scale_data :: (data: Texture, width: s32, height: s32, preserve_ratio: bool = tr
 update_texture :: (texture: *Texture, image: Image) {
     assert(texture.width == image.width && texture.height == image.height, "Dimensions must match.");
     assert(texture.format == image.format, "Formats must match.");
-    
+
     glTextureSubImage2D(texture.buffer, 0, 0, 0, xx texture.width, xx texture.height, get_gl_format(texture.format), GL_UNSIGNED_BYTE, image.pixels.data);
 }
 
