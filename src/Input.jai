@@ -490,12 +490,18 @@ set_char_input :: (char_input: bool) {
 input: Input;
 
 resolve_mouse_capture :: () {
-    if mouse_capture && mouse_currently_captured {
+    if mouse_capture {
         glfwSetInputMode(koda.window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
         // glfwSetInputMode(koda.window, GLFW_STICKY_MOUSE_BUTTONS, GLFW_TRUE);
         // glfwSetInputMode(koda.window, GLFW_STICKY_KEYS, GLFW_TRUE);
         if glfwRawMouseMotionSupported() {
             glfwSetInputMode(koda.window, GLFW_RAW_MOUSE_MOTION, GLFW_TRUE);
+        }
+    } else if mouse_boundary_enabled {
+        glfwSetInputMode(koda.window, GLFW_CURSOR, GLFW_CURSOR_CAPTURED);
+
+        if glfwRawMouseMotionSupported() {
+            glfwSetInputMode(koda.window, GLFW_RAW_MOUSE_MOTION, GLFW_FALSE);
         }
     } else {
         glfwSetInputMode(koda.window, GLFW_CURSOR, GLFW_CURSOR_NORMAL);

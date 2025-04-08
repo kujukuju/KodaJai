@@ -111,6 +111,7 @@ create_window :: (title: *u8, width: s32, height: s32, multisample: int = 0) {
 
     glfwSetInputMode(koda.window, GLFW_STICKY_MOUSE_BUTTONS, GLFW_TRUE);
     glfwSetInputMode(koda.window, GLFW_STICKY_KEYS, GLFW_TRUE);
+    glfwSetInputMode(koda.window, GLFW_CURSOR, GLFW_CURSOR_NORMAL);
     glfwSetScrollCallback(koda.window, scroll_callback);
     glfwSetWindowSizeCallback(koda.window, size_callback);
     glfwSetWindowFocusCallback(koda.window, focus_callback);
@@ -309,6 +310,19 @@ koda_should_exit :: (swap_buffer_hook: () = null, swap_buffer_hook_render: () = 
     // TODO is this the right place for this?
     glfwPollEvents();
 
+    // if mouse_boundary_enabled {
+    //     mouse_x: float64;
+    //     mouse_y: float64;
+    //     glfwGetCursorPos(koda.window, *mouse_x, *mouse_y);
+
+    //     if mouse_x < 0 || mouse_x > cast(float64) koda.width - 1 || mouse_y < 0 || mouse_y > cast(float64) koda.height - 1 {
+    //         clamped_x := clamp(mouse_x, 0, cast(float64) koda.width - 1);
+    //         clamped_y := clamp(mouse_y, 0, cast(float64) koda.height - 1);
+
+    //         glfwSetCursorPos(koda.window, clamped_x, clamped_y);
+    //     }
+    // }
+
     return false;
 }
 
@@ -471,13 +485,24 @@ get_mouse_capture :: () -> bool {
 }
 
 set_mouse_capture :: (capture: bool) {
-    if mouse_capture != capture {
-        if capture {
-            mouse_currently_captured = true;
-        }
+    // if mouse_capture != capture {
+    //     // if capture {
+    //     //     mouse_currently_captured = true;
+    //     // }
 
-        mouse_capture = capture;
-    }
+    // }
+
+    mouse_capture = capture;
+
+    resolve_mouse_capture();
+}
+
+get_mouse_boundary :: () -> bool {
+    return mouse_boundary_enabled;
+}
+
+set_mouse_boundary :: (enabled: bool) {
+    mouse_boundary_enabled = enabled;
 
     resolve_mouse_capture();
 }
@@ -1141,7 +1166,8 @@ monitor_width: int;
 monitor_height: int;
 
 mouse_capture: bool;
-mouse_currently_captured: bool;
+
+mouse_boundary_enabled: bool;
 
 accurate_sleep: bool;
 
