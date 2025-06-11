@@ -174,13 +174,13 @@ remap_animations :: (animations: *ModelAnimations, source: ModelAnimations, root
     target_to_source_indices: Table(int, int);
     target_to_source_indices.allocator = temp;
     for pair: real_remap {
-        target_index, has_target_index := table_find(*target_name_indices, pair[1]);
+        has_target_index, target_index := table_find_new(*target_name_indices, pair[1]);
         if !has_target_index {
             print("Target bone does not exist %\n", pair[1]);
         }
         assert(has_target_index, "If you specified a target bone to map it must exist.");
 
-        source_index, has_source_index := table_find(*source_name_indices, pair[0]);
+        has_source_index, source_index := table_find_new(*source_name_indices, pair[0]);
         if !has_source_index {
             print("Source bone does not exist %\n", pair[0]);
         }
@@ -190,7 +190,7 @@ remap_animations :: (animations: *ModelAnimations, source: ModelAnimations, root
     }
 
     // find the root most pair bone
-    current_root_target_index, has_target_index := table_find(*target_name_indices, real_remap[0][1]);
+    has_target_index, current_root_target_index := table_find_new(*target_name_indices, real_remap[0][1]);
     assert(has_target_index);
     best_root_target_index := current_root_target_index;
     while animations.bone_hierarchy[current_root_target_index].parent != current_root_target_index {
@@ -202,13 +202,13 @@ remap_animations :: (animations: *ModelAnimations, source: ModelAnimations, root
         }
     }
 
-    best_root_source_index, has_best_root_source_index := table_find(*target_to_source_indices, best_root_target_index);
+    has_best_root_source_index, best_root_source_index := table_find_new(*target_to_source_indices, best_root_target_index);
     assert(has_best_root_source_index);
 
     root_target_bind := animations.bone_hierarchy[best_root_target_index].transform;
     root_source_bind := source.bone_hierarchy[best_root_source_index].transform;
 
-    root_target_bind_to_source_bind := root_source_bind * inverse(root_target_bind);
+    root_target_bind_to_source_bind := root_source_bind * unsafe_inverse(root_target_bind);
 
     // if I really want to be particular I can either ensure that every bone resolves to the same parent
     // or I can use the parent most parent for each bones relative offset correction
@@ -219,7 +219,7 @@ remap_animations :: (animations: *ModelAnimations, source: ModelAnimations, root
                 continue;
             }
 
-            map_index, has_map_index := table_find(*target_to_source_indices, index);
+            has_map_index, map_index := table_find_new(*target_to_source_indices, index);
             if !has_map_index {
                 print("Warning. The target has a bone that wasn't mapped: % %\n", index, joint.name);
             }
@@ -261,7 +261,7 @@ remap_animations :: (animations: *ModelAnimations, source: ModelAnimations, root
     local_target_inverse_binds.allocator = temp;
     array_resize(*local_target_inverse_binds, animations.bone_hierarchy.count);
     for joint, index: animations.bone_hierarchy {
-        local_target_inverse_binds[index] = inverse(joint.transform);
+        local_target_inverse_binds[index] = unsafe_inverse(joint.transform);
     }
 
     local_source_binds: [..] Matrix4;
@@ -275,7 +275,7 @@ remap_animations :: (animations: *ModelAnimations, source: ModelAnimations, root
     local_source_inverse_binds.allocator = temp;
     array_resize(*local_source_inverse_binds, source.bone_hierarchy.count);
     for joint, index: source.bone_hierarchy {
-        local_source_inverse_binds[index] = inverse(joint.transform);
+        local_source_inverse_binds[index] = unsafe_inverse(joint.transform);
     }
 
     node_count := animations.bone_hierarchy.count;
@@ -299,7 +299,7 @@ remap_animations :: (animations: *ModelAnimations, source: ModelAnimations, root
 
         array_resize(*animation.bone_weights, node_count);
         for joint_index: 0..node_count - 1 {
-            source_joint_index, has_source_index := table_find(*target_to_source_indices, joint_index);
+            has_source_index, source_joint_index := table_find_new(*target_to_source_indices, joint_index);
             if has_source_index {
                 animation.bone_weights[joint_index] = source_animation.bone_weights[source_joint_index];
             }
@@ -313,7 +313,7 @@ remap_animations :: (animations: *ModelAnimations, source: ModelAnimations, root
         for joint_index: 0..animation.frames.count - 1 {
             // we only apply the frames if they exist because otherwise the data will
             // get pulled from the bind pose in the hierarchy
-            source_joint_index, has_source_index := table_find(*target_to_source_indices, joint_index);
+            has_source_index, source_joint_index := table_find_new(*target_to_source_indices, joint_index);
             is_valid_target_index := table_contains(*valid_target_indices, joint_index);
             if has_source_index && source_animation.frames[source_joint_index].count > 0 {
                 array_copy(*animation.frames[joint_index], source_animation.frames[source_joint_index]);
@@ -364,7 +364,7 @@ remap_animations :: (animations: *ModelAnimations, source: ModelAnimations, root
                     // root_target_bind_to_source_bind
 
                     // target_bind_to_source_bind := local_source_bind * local_target_inverse_bind;
-                    target_bind_to_source_bind := local_source_bind * inverse(local_accumulated_target_bind);
+                    target_bind_to_source_bind := local_source_bind * unsafe_inverse(local_accumulated_target_bind);
 
                     source_bind_to_source_frame := source_frame_transform * local_source_inverse_bind;
 
@@ -405,7 +405,7 @@ remap_animations :: (animations: *ModelAnimations, source: ModelAnimations, root
                 }
 
                 // target_bind_to_source_bind := local_source_bind * local_target_inverse_bind;
-                target_bind_to_source_bind := local_source_bind * inverse(local_accumulated_target_bind);
+                target_bind_to_source_bind := local_source_bind * unsafe_inverse(local_accumulated_target_bind);
 
                 target_frame := target_bind_to_source_bind * local_target_bind;
 
@@ -610,7 +610,7 @@ get_joints :: (animations: ModelAnimations, mix: [] AnimationMix, $count: int, l
 } @thread
 
 get_joints :: (animations: ModelAnimations, mix: [] AnimationMix, joints: *[] Matrix4, looping: bool = true)  {
-    assert(joints.count >= animations.joint_indices.count);
+    assert(joints.count >= animations.joint_indices.count, "Not enough joints. % %\n", joints.count, animations.joint_indices.count);
     assert(animations.animations.count > 0);
     assert(mix.count > 0);
     // assert(mix[0].weight == 1, "The way this animation mixing works it doesn't make sense to start with anything other than 1.");
@@ -1079,7 +1079,7 @@ load_animation_gltf_data :: (animations: *ModelAnimations, json: GltfJson, binar
         } else {
             for i: 0..skin_joints.count - 1 {
                 node := json.nodes[skin_joints[i]];
-                animations.inverse_binds[i] = inverse(get_transform(node));
+                animations.inverse_binds[i] = unsafe_inverse(get_transform(node));
             }
         }
     }
@@ -1093,7 +1093,7 @@ load_animation_gltf_data :: (animations: *ModelAnimations, json: GltfJson, binar
 
             animation := array_add(*animations.animations);
             // animation.world = world_transform;
-            // animation.inverse_world = inverse(world_transform);
+            // animation.inverse_world = unsafe_inverse(world_transform);
 
             if name_override {
                 animation.name = copy_string(name_override);

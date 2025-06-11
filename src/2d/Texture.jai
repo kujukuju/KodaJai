@@ -268,6 +268,7 @@ draw :: (texture: Texture, position: Vector2, anchor: Vector2 = .{}) {
     static_sprite.rotation = 0;
     static_sprite.anchor = anchor;
     static_sprite.tint = .{1, 1, 1, 1};
+    static_sprite.shader = *default_shader;
 
     draw(static_sprite);
 }
@@ -280,6 +281,7 @@ draw :: (texture: Texture, position: Vector2, size: Vector2, anchor: Vector2 = .
     static_sprite.rotation = 0;
     static_sprite.anchor = anchor;
     static_sprite.tint = .{1, 1, 1, 1};
+    static_sprite.shader = *default_shader;
 
     draw(static_sprite);
 }
@@ -292,6 +294,7 @@ draw :: (texture: Texture, position: Vector2, rotation: float = 0, scale: Vector
     static_sprite.rotation = rotation;
     static_sprite.anchor = anchor;
     static_sprite.tint = .{1, 1, 1, 1};
+    static_sprite.shader = *default_shader;
 
     draw(static_sprite);
 }

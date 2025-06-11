@@ -58,7 +58,7 @@ create_prelim_shader :: (vertex_part: ShaderPart, fragment_part: ShaderPart, nam
     prelim.name = ifx name then name else get_location_name(location);
     prelim.vertex_part = vertex_part;
     prelim.fragment_part = fragment_part;
-    
+
     #if HOT_LOAD_SHADERS {
         if watch_files {
             prelim.watch_files = get_watch_files(caller);

@@ -1,12 +1,12 @@
 
 SsaoPass :: struct {
-    using #as pass: FramebufferPass(1, false, true);
+    using #as pass: FramebufferPass(1, .None, true);
 
     pass.initializer = (pass: *FramebufferPass(count, depth, drawable)) {
         MAX_KERNEL_SIZE :: 64;
         kernel: [MAX_KERNEL_SIZE] Vector3;
-        
-        for i: 0..kernel.count - 1 {  
+
+        for i: 0..kernel.count - 1 {
             sample: Vector3;
             sample.x = 2.0 * random_get_zero_to_one() - 1.0;
             sample.y = 2.0 * random_get_zero_to_one() - 1.0;
@@ -16,9 +16,9 @@ SsaoPass :: struct {
             sample *= random_get_zero_to_one();
 
             // acceleration function so more points are located closer to the origin
-            scale := cast(float) i / MAX_KERNEL_SIZE;      
+            scale := cast(float) i / MAX_KERNEL_SIZE;
             sample *= (0.1 + 0.9 * scale * scale);
-            
+
             kernel[i] = sample;
         }
         set(*pass.uniforms, "uKernel", kernel);

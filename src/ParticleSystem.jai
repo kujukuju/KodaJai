@@ -33,7 +33,7 @@ particle_system_create :: (shader: *Shader, $PG: Type, $PC: Type, $update_functi
 
 struct_has_valid_destroy :: (struct_info: *Type_Info_Struct) -> bool {
     assert(struct_info.type == .STRUCT);
-    
+
     for member: struct_info.members {
         if member.name == "destroy" && member.offset_in_bytes == 0 {
             return true;
@@ -89,7 +89,7 @@ particle_system_init :: (system: *ParticleSystem($PG, $PC, $update_function, $so
     glBindVertexArray(system.vao);
 
     glBindBuffer(GL_ARRAY_BUFFER, system.vbo);
-    glBufferData(GL_ARRAY_BUFFER, geometry_vertices.count * size_of(float32), geometry_vertices.data, GL_STATIC_DRAW);  
+    glBufferData(GL_ARRAY_BUFFER, geometry_vertices.count * size_of(float32), geometry_vertices.data, GL_STATIC_DRAW);
 
     glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, system.ebo);
     glBufferData(GL_ELEMENT_ARRAY_BUFFER, geometry_indices.count * size_of(u32), geometry_indices.data, GL_STATIC_DRAW);
@@ -128,6 +128,11 @@ particle_system_update_and_render :: (system: *ParticleSystem($PG, $PC, $update_
 }
 
 particle_system_update_and_render :: (system: *ParticleSystem($PG, $PC, $update_function, $sort), time: float64, projection: Matrix4) {
+    particle_system_update(system, time);
+    particle_system_render(system, time, projection);
+}
+
+particle_system_update :: (system: *ParticleSystem($PG, $PC, $update_function, $sort), time: float64) {
     dt := cast(float) max(time - system.last_render_time, 0);
     system.last_render_time = time;
 
@@ -190,7 +195,7 @@ particle_system_update_and_render :: (system: *ParticleSystem($PG, $PC, $update_
         p := Vector4.{0, 0, 0, 1};
         for particle, index: system.particles_gpu {
             p.xyz = particle.position;
-            
+
             w := view._41 * p.x + view._42 * p.y + view._43 * p.z + view._44 * p.w;
             z := view._31 * p.x + view._32 * p.y + view._33 * p.z + view._34 * p.w;
             system.depth_values[index] = .{z / w, cast(s32) index};
@@ -231,10 +236,8 @@ particle_system_update_and_render :: (system: *ParticleSystem($PG, $PC, $update_
     } else {
         system.particle_vbo_allocated = system.particles_gpu.allocated;
         glBindBuffer(GL_ARRAY_BUFFER, system.particle_vbo);
-        glBufferData(GL_ARRAY_BUFFER, system.particles_gpu.allocated * size_of(PG), system.particles_gpu.data, GL_DYNAMIC_DRAW);  
+        glBufferData(GL_ARRAY_BUFFER, system.particles_gpu.allocated * size_of(PG), system.particles_gpu.data, GL_DYNAMIC_DRAW);
     }
-
-    particle_system_render(system, time, projection);
 }
 
 particle_system_render :: (system: *ParticleSystem($PG, $PC, $update_function, $sort), time: float64) {
@@ -255,12 +258,12 @@ particle_system_render :: (system: *ParticleSystem($PG, $PC, $update_function, $
 
     uniforms: ShaderUniforms;
     defer destroy(uniforms);
-    
+
     view := koda.view;
-    
+
     set(*uniforms, "projection", projection);
     set(*uniforms, "view", view);
-    
+
     apply_uniforms(system.shader, uniforms);
 
     depth_func := get_depth_func();
@@ -284,7 +287,7 @@ particle_system_add_particle :: (system: *ParticleSystem($PG, $PC, $update_funct
     #if limit {
         if system.particles_gpu.count >= limit {
             system.limit_replace_index = system.limit_replace_index % limit;
-            
+
             system.particles_gpu[system.limit_replace_index] = particle_gpu;
             system.particles_cpu[system.limit_replace_index] = particle_cpu;
 
@@ -315,7 +318,7 @@ particle_system_add_particles :: (system: *ParticleSystem($PG, $PC, $update_func
 
 particle_system_add_particles :: (system: *ParticleSystem($PG, $PC, $update_function, $sort), particles_gpu: [] PG, particles_cpu: [] PC, $limit: int = 0) {
     assert(particles_gpu.count == particles_cpu.count, "You must have the same amount of gpu and cpu particles.");
-    
+
     // TODO now that I'm passing in arrays of gpu and cpu separately I can do this way more efficiently
 
     #if limit {
@@ -459,7 +462,7 @@ particle_quick_sort :: (array1: [] $T, array2: [] $O, f: (T, T) -> $R) {
             i += 1;
             j -= 1;
         }
-        
+
         quicksort_helper(a, b, i, f);
         quicksort_helper(a + i, b + i, n - i, f);
     }

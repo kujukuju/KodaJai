@@ -87,7 +87,7 @@ load_lights_gltf_data :: (json: GltfJson) -> [..] DirectionalLight, [..] PointLi
         lights = json.extensions.KHR_lights_punctual.lights;
     } else {
         print("no extension\n");
-        return dirs, points, false; 
+        return dirs, points, false;
     }
 
     for node: json.nodes {
@@ -130,7 +130,7 @@ load_lights_gltf_data :: (json: GltfJson) -> [..] DirectionalLight, [..] PointLi
                     transform := make_translation_matrix4(translation);
                     transform = rotate(transform, rotation);
                     transform = scale(transform, scaled);
-                    transform = transpose(inverse(transform));
+                    transform = transpose(unsafe_inverse(transform));
 
                     directional := DirectionalLight.{
                         dir = normalize(transform_vector(transform, .{0, 0, -1})),

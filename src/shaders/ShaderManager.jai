@@ -57,5 +57,5 @@ remove_default_shader :: (shader: *Shader) {
             array_ordered_remove_by_index(*default_shaders, shader_index);
             break;
         }
-    } 
+    }
 }

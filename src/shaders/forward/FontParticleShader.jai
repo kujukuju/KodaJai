@@ -16,7 +16,7 @@ layout (location = 6) in vec3 aParticleTransform2;
 layout (location = 7) in vec3 aParticleTransform3;
 layout (location = 8) in vec4 aParticleTint;
 layout (location = 9) in float aParticlePadding;
-layout (location = 10) in float aParticleScale;
+layout (location = 10) in vec2 aParticleScale;
 layout (location = 11) in float aParticleBlur;
 layout (location = 12) in float aParticleRotation;
 layout (location = 13) in vec3 aParticleWorldPosition;
@@ -26,7 +26,7 @@ flat out float vIndex;
 flat out vec2 vTexSize;
 flat out vec4 vTint;
 flat out float vPadding;
-flat out float vScale;
+flat out vec2 vScale;
 flat out float vBlur;
 
 uniform mat4 projection;
@@ -82,7 +82,7 @@ flat in float vIndex;
 flat in vec2 vTexSize;
 flat in vec4 vTint;
 flat in float vPadding;
-flat in float vScale;
+flat in vec2 vScale;
 flat in float vBlur;
 
 uniform sampler2DArray uTexture;
@@ -94,18 +94,18 @@ void main() {
     float fScale = 4.0 / (length(fwidth(vTexCoord.xy)) * length(vec2(textureSize(uTexture, 0).xy)));
 
     // TODO implement smdb w/e sdf
-    float sdf;
-    if (fScale < 1.5) {
-        sdf = texture(uTexture, vec3(coord, vIndex)).r;
-    } else {
-        vec2 pixelSize = 1.0 / vec2(textureSize(uTexture, 0).xy) * vScale;
-        sdf = texture(uTexture, vec3(coord, vIndex)).r / 5.0 +
-            texture(uTexture, vec3(coord + vec2(-0.25, -0.25) * pixelSize, vIndex)).r / 5.0 +
-            texture(uTexture, vec3(coord + vec2(0.25, -0.25) * pixelSize, vIndex)).r / 5.0 + 
-            texture(uTexture, vec3(coord + vec2(-0.25, 0.25) * pixelSize, vIndex)).r / 5.0 + 
-            texture(uTexture, vec3(coord + vec2(0.25, 0.25) * pixelSize, vIndex)).r / 5.0;
-    }
-    
+    float sdf = texture(uTexture, vec3(coord, vIndex)).r;
+    // if (fScale < 1.5) {
+    //     sdf = texture(uTexture, vec3(coord, vIndex)).r;
+    // } else {
+    //     vec2 pixelSize = 1.0 / vec2(textureSize(uTexture, 0).xy) * vScale;
+    //     sdf = texture(uTexture, vec3(coord, vIndex)).r / 5.0 +
+    //         texture(uTexture, vec3(coord + vec2(-0.25, -0.25) * pixelSize, vIndex)).r / 5.0 +
+    //         texture(uTexture, vec3(coord + vec2(0.25, -0.25) * pixelSize, vIndex)).r / 5.0 +
+    //         texture(uTexture, vec3(coord + vec2(-0.25, 0.25) * pixelSize, vIndex)).r / 5.0 +
+    //         texture(uTexture, vec3(coord + vec2(0.25, 0.25) * pixelSize, vIndex)).r / 5.0;
+    // }
+
     // sdf = sdf - 128.0 / 255.0;
     // it seems to change 16 / 255 per pixel
 

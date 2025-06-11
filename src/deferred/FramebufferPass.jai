@@ -1,5 +1,12 @@
 
-FramebufferPass :: struct (count: int, depth: bool, drawable: bool, multisample: int = 0) {
+FrameBufferDepthType :: enum {
+    None :: 0;
+    Depth;
+    Stencil;
+    DepthStencil;
+}
+
+FramebufferPass :: struct (count: int, depth: FrameBufferDepthType, drawable: bool, multisample: int = 0) {
     framebuffer: u32;
     // the output textures
     textures: [count] Texture;
@@ -154,7 +161,7 @@ framebuffer_destroy :: (pass: *FramebufferPass($count, $depth, $drawable, $multi
     }
 }
 
-framebuffer_create_textures :: ($count: int, $depth: bool, width: int, height: int, channels: ..PixelFormat) -> [count + cast(int) depth] Texture {
+framebuffer_create_textures :: ($count: int, $depth: FrameBufferDepthType, width: int, height: int, channels: ..PixelFormat) -> [count + cast(int) depth] Texture {
     required_count :: count + #ifx depth then 1 else 0;
     if required_count != channels.count {
         assert(false, "Passed invalid number of channels to initialize a framebuffer pass.\n");
@@ -241,8 +248,16 @@ framebuffer_bind_textures :: (pass: *FramebufferPass($count, $depth, $drawable, 
         glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0 + cast(u32) index, GL_TEXTURE_2D, pass.textures[index].buffer, 0);
     }
 
-    #if depth {
-        glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D, pass.depth_texture.buffer, 0);
+    #if #complete depth == {
+        case .None;
+        case .Depth;
+            glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D, pass.depth_texture.buffer, 0);
+        case .Stencil;
+            // assert(pass.depth_texture.format == .Stencil);
+            assert(false, "Just stencil format isn't supported and depth + stencil must be bound as depth + stencil.\n");
+            glFramebufferTexture2D(GL_FRAMEBUFFER, GL_STENCIL_ATTACHMENT, GL_TEXTURE_2D, pass.depth_texture.buffer, 0);
+        case .DepthStencil;
+            glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_STENCIL_ATTACHMENT, GL_TEXTURE_2D, pass.depth_texture.buffer, 0);
     }
 
     #if count > 0 {

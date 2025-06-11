@@ -128,8 +128,8 @@ get_orthographic_matrix :: () -> Matrix4 {
     matrix.coef[2][2]  = 1.0 / (z_far - z_near);
     matrix.coef[2][3] = -z_near / (z_far - z_near);
     return matrix;
-    
-    // return orthographic_projection_matrix(0.0, xx koda.width, 0.0, xx koda.height, 1.0, -1.0); 
+
+    // return orthographic_projection_matrix(0.0, xx koda.width, 0.0, xx koda.height, 1.0, -1.0);
 }
 
 create_orthographic_matrix :: (left: float, right: float, bottom: float, top: float, near: float, far: float) -> Matrix4 {
@@ -139,7 +139,7 @@ create_orthographic_matrix :: (left: float, right: float, bottom: float, top: fl
     ortho._22 = 2.0 / (top - bottom);
     ortho._33 = 2.0 / (far - near);
     ortho._44 = 1.0;
-    
+
     ortho._14 = -(right + left) / (right - left);
     ortho._24 = -(top + bottom) / (top - bottom);
     ortho._34 = -(far + near) / (far - near);
@@ -169,7 +169,12 @@ open_url :: (path: string) {
 
 print_caller_trace :: () #expand {
     node := context.stack_trace;
-    if node && node.info then print("% at %:%\n", node.info.name, node.info.location.fully_pathed_filename, node.line_number);
+    count := 0;
+    while node && count < 2 {
+        if node && node.info then print("% at %:%\n", node.info.name, node.info.location.fully_pathed_filename, node.line_number);
+        node = node.next;
+        count += 1;
+    }
 }
 
 print_stack_trace :: () #expand {
@@ -180,10 +185,15 @@ print_stack_trace :: () #expand {
         // the start of the procedure. That may be useful in some cases, but often
         // what we really want is the line number of the procedure call, which is
         // stored in node.line_number. That's what we print in this case.
-        
+
         if node.info print("% at %:%\n", node.info.name, node.info.location.fully_pathed_filename, node.line_number);
         node = node.next;
     }
+}
+
+unsafe_inverse :: (m: Matrix4) -> Matrix4 {
+    _, inv := inverse(m);
+    return inv;
 }
 
 #scope_module
@@ -314,7 +324,7 @@ for_expansion :: (wrapper: EfficientRemove($T), body: Code, flags: For_Flags) #e
 //                 `first_valid = it;
 //             }
 //             print("Valid %.\n", it);
-            
+
 //             if it % 2 {
 //                 continue;
 //             }

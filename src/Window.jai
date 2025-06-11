@@ -1,17 +1,19 @@
 
-#program_export "NvOptimusEnablement"
-NvOptimusEnablement: u32 = 1;
+#if ALLOW_EXPORTS {
+    #program_export "NvOptimusEnablement"
+    NvOptimusEnablement: u32 = 1;
 
-#program_export "AmdPowerXpressRequestHighPerformance"
-AmdPowerXpressRequestHighPerformance: s32 = 1;
+    #program_export "AmdPowerXpressRequestHighPerformance"
+    AmdPowerXpressRequestHighPerformance: s32 = 1;
 
-// this was found online as something that disables nahimic and sonar
-// which reportedly cause problems with opengl
-// I haven't experienced these problems and it kind of seems like a crazy
-// conspiracy theory to me but I can't imagine how adding this function export
-// would hurt anything in any way so here we are
-#program_export "NoHotPatch"
-NoHotPatch :: () #c_call {}
+    // this was found online as something that disables nahimic and sonar
+    // which reportedly cause problems with opengl
+    // I haven't experienced these problems and it kind of seems like a crazy
+    // conspiracy theory to me but I can't imagine how adding this function export
+    // would hurt anything in any way so here we are
+    #program_export "NoHotPatch"
+    NoHotPatch :: () #c_call {}
+}
 
 koda_init :: () {
     glfwSetErrorCallback(error_callback);
@@ -236,6 +238,10 @@ set_viewport :: (width: int, height: int) {
 }
 
 error_check_gl :: ($full_stack := false) -> bool #expand {
+    #if PRODUCTION {
+        return;
+    }
+
     errored := false;
     err := glGetError();
     while err != GL_NO_ERROR {
@@ -263,10 +269,10 @@ koda_should_exit :: (swap_buffer_hook: () = null, swap_buffer_hook_render: () = 
 
     // don't swap buffers when entering the loop since you might have drawn to it already
     if koda.time_tracker.last_loop_time > 0 {
-        swap_buffers();
         if swap_buffer_hook {
             swap_buffer_hook();
         }
+        swap_buffers();
     }
 
     time := seconds_since_init();
@@ -284,6 +290,18 @@ koda_should_exit :: (swap_buffer_hook: () = null, swap_buffer_hook_render: () = 
             time = seconds_since_init();
             last_tick_duration := (time - last_loop_time) * 1000.0;
             desired_sleep_time := max(desired_tick_duration - last_tick_duration, 0);
+
+            if locked_frames {
+                if !locked_frames_start {
+                    locked_frames_start = time;
+                }
+
+                locked_frames_count += 1;
+
+                delta := time * 1000.0 - locked_frames_start * 1000.0;
+                desired_frame_delta := locked_frames_count * desired_tick_duration;
+                desired_sleep_time = max(desired_frame_delta - delta, 0);
+            }
 
             while desired_sleep_time > 0 {
                 can_reliably_sleep := desired_sleep_time >= cast(float64) time_slice_ms;
@@ -339,6 +357,16 @@ swap_buffers :: () {
     if koda.width != width || koda.height != height {
         set_viewport(koda.width, koda.height);
     }
+}
+
+get_locked_frames :: () -> bool {
+    return locked_frames;
+}
+
+set_locked_frames :: (locked: bool) {
+    locked_frames = locked;
+    locked_frames_start = 0;
+    locked_frames_count = 0;
 }
 
 can_vsync_wait :: () -> bool {
@@ -1131,6 +1159,8 @@ clear :: (color: Color, depth: float, mask: ClearMask = .All) {
     real_mask := convert_clear_mask(mask);
     glClearColor(color.r, color.g, color.b, color.a);
     glClearDepth(depth);
+    glStencilMask(0xFF);
+    defer glStencilMask(0x00);
     if mask {
         glClear(real_mask);
     }
@@ -1172,6 +1202,10 @@ mouse_boundary_enabled: bool;
 accurate_sleep: bool;
 
 vsync_enabled: bool;
+
+locked_frames: bool;
+locked_frames_start: float64;
+locked_frames_count: int;
 
 #scope_file
 

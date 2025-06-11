@@ -73,7 +73,7 @@ load_model :: (path: string, should_upload: bool = true) -> *Model, bool {
     return models[0], true;
 }
 
-load_models :: (path: string, should_upload: bool = true) -> [..] *Model, [..] *InstancedModel(ModelMatrixGpu), bool #must /* temporary #must since I added a return */ {
+load_models :: (path: string, should_upload: bool = true) -> [..] *Model, [..] *InstancedModel(ModelMatrixGpu), bool {
     file, success := read_entire_file(path);
     assert(success, "Could not load model.\n");
     defer free(file);
@@ -287,7 +287,7 @@ merge_by_material_id :: (models: [] *Model, should_upload: bool = true) -> [..] 
     merged: [..] *Model;
 
     for material_id: material_ids {
-        models, found := table_find(*material_models, material_id);
+        found, models := table_find_new(*material_models, material_id);
         if !found {
             continue;
         }
@@ -346,7 +346,7 @@ merge_by_material_id :: (models: [] *Model, should_upload: bool = true) -> [..] 
 
         for model: models {
             transform := get_transform(model);
-            normal_transform := transpose(inverse(transform));
+            normal_transform := transpose(unsafe_inverse(transform));
 
             index_offset := cast(u32) (geometry.vertices.count / stride);
             vertex_count := model.geometry.vertices.count / stride;
@@ -600,7 +600,7 @@ load_model_gltf_data :: (json: GltfJson, binary: [] u8, should_upload: bool) -> 
                 continue;
             }
 
-            geometry_index, geometry_index_found := table_find(*primitive_to_geometry, primitive);
+            geometry_index_found, geometry_index := table_find_new(*primitive_to_geometry, primitive);
             assert(geometry_index_found);
 
             geometry_instance_counts[geometry_index] += 1;
@@ -652,7 +652,7 @@ load_model_gltf_data :: (json: GltfJson, binary: [] u8, should_upload: bool) -> 
                 continue;
             }
 
-            geometry_index, geometry_index_found := table_find(*primitive_to_geometry, primitive);
+            geometry_index_found, geometry_index := table_find_new(*primitive_to_geometry, primitive);
             assert(geometry_index_found);
 
             if geometry_instance_counts[geometry_index] != 1 {
@@ -692,7 +692,7 @@ load_model_gltf_data :: (json: GltfJson, binary: [] u8, should_upload: bool) -> 
                 continue;
             }
 
-            geometry_index, geometry_index_found := table_find(*primitive_to_geometry, primitive);
+            geometry_index_found, geometry_index := table_find_new(*primitive_to_geometry, primitive);
             assert(geometry_index_found);
 
             if geometry_instance_counts[geometry_index] <= 1 {
@@ -760,7 +760,7 @@ load_model_gltf_data :: (json: GltfJson, binary: [] u8, should_upload: bool) -> 
                 continue;
             }
 
-            geometry_index, geometry_index_found := table_find(*primitive_to_geometry, primitive);
+            geometry_index_found, geometry_index := table_find_new(*primitive_to_geometry, primitive);
             assert(geometry_index_found);
 
             instance_count := geometry_instance_counts[geometry_index];
@@ -829,7 +829,7 @@ load_model_gltf_data :: (json: GltfJson, binary: [] u8, should_upload: bool) -> 
 
                 texture_index := material.pbrMetallicRoughness.baseColorTexture.index;
 
-                texture, found := table_find(*textures, texture_index);
+                found, texture := table_find_new(*textures, texture_index);
                 if !found {
                     texture = get_texture(json, bufferviews, texture_index, should_upload);
                     if material.name {
@@ -876,7 +876,7 @@ load_model_gltf_data :: (json: GltfJson, binary: [] u8, should_upload: bool) -> 
 
                 texture_index := material.normalTexture.index;
 
-                texture, found := table_find(*textures, texture_index);
+                found, texture := table_find_new(*textures, texture_index);
                 if !found {
                     texture = get_texture(json, bufferviews, texture_index, should_upload);
                     if material.name {
@@ -902,7 +902,7 @@ load_model_gltf_data :: (json: GltfJson, binary: [] u8, should_upload: bool) -> 
 
                 texture_index := material.emissiveTexture.index;
 
-                texture, found := table_find(*textures, texture_index);
+                found, texture := table_find_new(*textures, texture_index);
                 if !found {
                     texture = get_texture(json, bufferviews, texture_index, should_upload);
                     if material.name {

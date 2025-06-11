@@ -18,7 +18,7 @@ uniform vec4 uFrame;
 
 void main() {
     gl_Position = projection * view * model * vec4(aPos, 0.0, 1.0);
-    
+
     vTexCoord = aTexCoord * uFrame.zw + uFrame.xy;
 }
 ___glsl
@@ -26,7 +26,7 @@ ___glsl
 ROUNDED_RECT_FRAGMENT_SHADER :: #string ___glsl
 #version 330 core
 out vec4 FragColor;
-  
+
 in vec2 vTexCoord;
 
 uniform sampler2D uTexture;
@@ -56,6 +56,6 @@ void main() {
 
     float alpha = topLeftAlpha * bottomLeftAlpha * bottomRightAlpha * topRightAlpha;
 
-    FragColor = vec4(uTint.rgb, uTint.a * alpha) * uTint;
+    FragColor = vec4(uTint.rgb, uTint.a * alpha);
 }
 ___glsl

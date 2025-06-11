@@ -186,7 +186,7 @@ initialize_shader :: (shader: *Shader, resolved_dependencies: [] string, depende
         }
     }
 
-    make_shader_object :: (name: string, sections: [] string, shader_type: GLenum) -> GLuint, bool #must {
+    make_shader_object :: (name: string, sections: [] string, shader_type: GLenum) -> GLuint, bool {
         shader_object := glCreateShader(shader_type);
 
         source_strings := NewArray(sections.count, *u8,, allocator = temp);
@@ -463,7 +463,7 @@ resolve_dependency_value :: (value: Any) -> string {
                 array_data = cast(*u8) value.value_pointer;
                 array_count = array_info.array_count;
             } else {
-                assert(false, "Non-fixed arrays not currently supported although it would be easy.\n");
+                assert(false, "Non-fixed arrays not currently supported although it would be easy. %\n", value);
             }
 
             builder: String_Builder;
@@ -692,7 +692,7 @@ apply_uniforms :: (shader: *Shader, uniforms: ShaderUniforms, printing: bool = f
         location: s32 = -1;
         for uniform_location: shader.uniform_locations {
             if uniform_location.name == uniform.name {
-                assert(uniform_location.type == uniform.type, "Trying to assign a texture uniform to a slot with a different type. %: %: % != %\n", shader.name, to_string(*uniform.name), uniform_location.type, uniform.type);
+                assert(uniform_location.type == uniform.type, "Trying to assign a texture uniform to a slot with a different type. %: %: % (expected) != % (given)\n", shader.name, to_string(*uniform.name), uniform_location.type, uniform.type);
                 location = uniform_location.location;
                 break;
             }
@@ -892,7 +892,7 @@ use_shader :: (shader: *Shader) {
 
         changed_shaders.count = 0;
         for changed_file: changed_files {
-            affected_shaders, affected_shaders_found := table_find(*watch_files, changed_file);
+            affected_shaders_found, affected_shaders := table_find_new(*watch_files, changed_file);
             if affected_shaders_found {
                 for affected_shader: affected_shaders {
                     if !array_find(changed_shaders, affected_shader) {

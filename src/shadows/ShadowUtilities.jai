@@ -21,17 +21,17 @@ calculate_directional_shadow_matrices :: (
     shadow_forward := normalize(forward);
 
     view := koda.view;
-    
+
     view_ident := view;
     view_ident._14 = 0;
     view_ident._24 = 0;
     view_ident._34 = 0;
-    view_ident_inv := inverse(view_ident);
+    view_ident_inv := unsafe_inverse(view_ident);
 
     projection := get_perspective_matrix();
-    projection_inv := inverse(projection);
+    projection_inv := unsafe_inverse(projection);
 
-    camera_position := transform_point(inverse(view), .{0, 0, 0});
+    camera_position := transform_point(unsafe_inverse(view), .{0, 0, 0});
     camera_forward := transform_vector(view_ident_inv, .{0, 0, -1});
     camera_forward = normalize(camera_forward);
 
@@ -66,10 +66,10 @@ calculate_directional_shadow_matrices :: (
 
     frustum_points := Vector3.[
         forward_point,
-        top_left_point, 
-        top_right_point, 
-        bottom_left_point, 
-        bottom_right_point, 
+        top_left_point,
+        top_right_point,
+        bottom_left_point,
+        bottom_right_point,
         near_top_left_point,
         near_top_right_point,
         near_bottom_left_point,
@@ -132,7 +132,7 @@ calculate_directional_shadow_matrices :: (
     ortho_start := ortho_center - shadow_forward * ortho_depth / 2.0;
 
     origin_backwards_depth := dot(ortho_start, -shadow_forward);
-    
+
     pixel_snapping := shadow_texture_dimensions != .{0, 0};
     if pixel_snapping && fixed_shadow_direction && fixed_view_direction {
         // actually we do nothing because in this situation we'll perfectly clamp to the frustum and the above calculations are highly accurate now

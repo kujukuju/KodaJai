@@ -1,5 +1,9 @@
 
-draw_text :: (content: string, font: *Font, position: Vector2, anchor: Vector2 = .{0, 0}, scale: float = 1.0, tint: Color = .{1, 1, 1, 1}, padding: float = 0.0, blur: float = 0.0, rotation: float = 0.0, world_position: Vector3 = .{}, fixed_height_string: string = "", fixed_width_string: string = "") {
+draw_text :: (content: string, font: *Font, position: Vector2, anchor: Vector2 = .{0, 0}, scale: float = 1, tint: Color = .{1, 1, 1, 1}, padding: float = 0.0, blur: float = 0.0, rotation: float = 0.0, world_position: Vector3 = .{}, fixed_height_string: string = "", fixed_width_string: string = "") {
+    draw_text(content, font, position, anchor, .{scale, scale}, tint, padding, blur, rotation, world_position, fixed_height_string, fixed_width_string);
+}
+
+draw_text :: (content: string, font: *Font, position: Vector2, anchor: Vector2 = .{0, 0}, scale: Vector2 = .{1, 1}, tint: Color = .{1, 1, 1, 1}, padding: float = 0.0, blur: float = 0.0, rotation: float = 0.0, world_position: Vector3 = .{}, fixed_height_string: string = "", fixed_width_string: string = "") {
     assert(!font.buffer_required, "Cannot draw text when doing a text buffer.\n");
 
     begin_buffer_text(font);
@@ -7,11 +11,11 @@ draw_text :: (content: string, font: *Font, position: Vector2, anchor: Vector2 =
     flush_text(font);
 }
 
-// draw_text :: (content: string, font: *Font, transform: Matrix3, anchor: Vector2, scale: float, tint: Color, padding: float, blur: float, fixed_height_string: string = "") {
-//     // draw_text(content, font, )
-// }
-
 draw_text :: (content: string, font: *Font, transform: Matrix3, anchor: Vector2, scale: float, tint: Color, padding: float, blur: float, rotation: float, world_position: Vector3, fixed_height_string: string = "", fixed_width_string: string = "") {
+    draw_text(content, font, transform, anchor, .{scale, scale}, tint, padding, blur, rotation, world_position, fixed_height_string, fixed_width_string);
+}
+
+draw_text :: (content: string, font: *Font, transform: Matrix3, anchor: Vector2, scale: Vector2, tint: Color, padding: float, blur: float, rotation: float, world_position: Vector3, fixed_height_string: string = "", fixed_width_string: string = "") {
     assert(!font.buffer_required, "Cannot draw text when doing a text buffer.\n");
 
     begin_buffer_text(font);
@@ -25,13 +29,21 @@ begin_buffer_text :: (font: *Font) {
     font.buffer_view = koda.view;
 }
 
-buffer_text :: (content: string, font: *Font, position: Vector2, anchor: Vector2 = .{0, 0}, scale: float = 1.0, tint: Color = .{1, 1, 1, 1}, padding: float = 0.0, blur: float = 0.0, rotation: float = 0.0, world_position: Vector3 = .{}, fixed_height_string: string = "", fixed_width_string: string = "") {
+buffer_text :: (content: string, font: *Font, position: Vector2, anchor: Vector2 = .{0, 0}, scale: float = 1, tint: Color = .{1, 1, 1, 1}, padding: float = 0.0, blur: float = 0.0, rotation: float = 0.0, world_position: Vector3 = .{}, fixed_height_string: string = "", fixed_width_string: string = "") {
+    buffer_text(content, font, position, anchor, .{scale, scale}, tint, padding, blur, rotation, world_position, fixed_height_string, fixed_width_string);
+}
+
+buffer_text :: (content: string, font: *Font, position: Vector2, anchor: Vector2 = .{0, 0}, scale: Vector2 = .{1, 1}, tint: Color = .{1, 1, 1, 1}, padding: float = 0.0, blur: float = 0.0, rotation: float = 0.0, world_position: Vector3 = .{}, fixed_height_string: string = "", fixed_width_string: string = "") {
     translation := make_translation_matrix3(position);
 
     buffer_text(content, font, translation, anchor, scale, tint, padding, blur, rotation, world_position, fixed_height_string, fixed_width_string);
 }
 
 buffer_text :: (content: string, font: *Font, transform: Matrix3, anchor: Vector2, scale: float, tint: Color, padding: float, blur: float, rotation: float, world_position: Vector3, fixed_height_string: string = "", fixed_width_string: string = "") {
+    buffer_text(content, font, transform, anchor, .{scale, scale}, tint, padding, blur, rotation, world_position, fixed_height_string, fixed_width_string);
+}
+
+buffer_text :: (content: string, font: *Font, transform: Matrix3, anchor: Vector2, scale: Vector2, tint: Color, padding: float, blur: float, rotation: float, world_position: Vector3, fixed_height_string: string = "", fixed_width_string: string = "") {
     assert(font.buffer_required, "You should call buffer text after calling begin buffer text.\n");
     if !font.buffer_required {
         return;
@@ -59,7 +71,7 @@ buffer_text :: (content: string, font: *Font, transform: Matrix3, anchor: Vector
         index: int;
         while index < fixed_width_string.count {
             char, index = get_unicode_char(fixed_width_string, index);
-            character, found := table_find(*font.characters, char);
+            found, character := table_find_new(*font.characters, char);
             if !found {
                 continue;
             }
@@ -68,7 +80,7 @@ buffer_text :: (content: string, font: *Font, transform: Matrix3, anchor: Vector
         }
 
         char = get_unicode_char(content, 0);
-        character, found := table_find(*font.characters, char);
+        found, character := table_find_new(*font.characters, char);
         if found {
             offset_x = character.bearing.x - maximum_bearing_x;
         }
@@ -82,16 +94,16 @@ buffer_text :: (content: string, font: *Font, transform: Matrix3, anchor: Vector
     }
     dimensions := aabb.upper - aabb.lower;
 
-    x := -dimensions.x * anchor.x - aabb.lower.x + offset_x * scale;
+    x := -dimensions.x * anchor.x - aabb.lower.x + offset_x * scale.x;
     y := -dimensions.y * anchor.y - aabb.lower.y;
 
-    real_padding := padding / scale;
+    real_padding := padding / min(scale.x, scale.y);
     if real_padding > 16 {
         // if !PRODUCTION then print("Warning: Your font padding can't be larger than 16 * your scale.\n");
         real_padding = 16;
     }
 
-    real_blur := blur / scale;
+    real_blur := blur / min(scale.x, scale.y);
     if real_blur + real_padding > 16 {
         // if !PRODUCTION then print("Warning: Your font blur + padding can't be larger than 16 * your scale.\n");
         real_blur = 16 - real_padding;
@@ -105,22 +117,22 @@ buffer_text :: (content: string, font: *Font, transform: Matrix3, anchor: Vector
         char, index = get_unicode_char(content, index);
         if char == #char "\n" {
             x = -dimensions.x * anchor.x - aabb.lower.x;
-            y += advance_y * scale;
+            y += advance_y * scale.y;
             advance_y = font.max_height / 2;
             continue;
         }
 
-        character, found := table_find(*font.characters, char);
+        found, character := table_find_new(*font.characters, char);
         if !found {
             print("Character out of bounds. %\n", char);
             continue;
         }
 
-        xpos := x + character.bearing.x * scale;
-        ypos := y - character.bearing.y * scale + font.max_height * scale;
+        xpos := x + character.bearing.x * scale.x;
+        ypos := y - character.bearing.y * scale.y + font.max_height * scale.y;
 
-        w := character.width * scale;
-        h := character.height * scale;
+        w := character.width * scale.x;
+        h := character.height * scale.y;
 
         gpu: FontParticleGpu;
         gpu.position = .{xpos, ypos};
@@ -139,7 +151,7 @@ buffer_text :: (content: string, font: *Font, transform: Matrix3, anchor: Vector
 
         // now advance cursors for next glyph (note that advance is number of 1/64 pixels)
         // bitshift by 6 to get value in pixels (2^6 = 64)
-        x += (character.advance.x >> 6) * scale;
+        x += (character.advance.x >> 6) * scale.x;
         advance_y = max(advance_y, character.height);
     }
 }
@@ -159,7 +171,11 @@ flush_text :: (font: *Font, projection: Matrix4) {
     particle_system_clear(*font.font_system);
 }
 
-get_aabb :: (content: string, font: *Font, position: Vector2 = .{0, 0}, anchor: Vector2 = .{0, 0}, scale: float = 1.0, fixed_height_string: string = "") -> AABB2 {
+get_position_aabb :: (content: string, font: *Font, position: Vector2, anchor: Vector2 = .{0, 0}, scale: float = 1, fixed_height_string: string = "") -> AABB2 {
+    return get_position_aabb(content, font, position, anchor, .{scale, scale}, fixed_height_string);
+}
+
+get_position_aabb :: (content: string, font: *Font, position: Vector2, anchor: Vector2 = .{0, 0}, scale: Vector2 = .{1, 1}, fixed_height_string: string = "") -> AABB2 {
     aabb := get_aabb(content, font, scale);
 
     clip_offset := aabb.lower;
@@ -179,7 +195,11 @@ get_aabb :: (content: string, font: *Font, position: Vector2 = .{0, 0}, anchor: 
     return aabb;
 }
 
-get_aabb :: (content: string, font: *Font, scale: float) -> AABB2 {
+get_aabb :: (content: string, font: *Font, scale: float = 1) -> AABB2 {
+    return get_aabb(content, font, scale = .{scale, scale});
+}
+
+get_aabb :: (content: string, font: *Font, scale: Vector2 = .{1, 1}) -> AABB2 {
     if !content {
         return .{};
     }
@@ -198,22 +218,22 @@ get_aabb :: (content: string, font: *Font, scale: float) -> AABB2 {
         char, index = get_unicode_char(content, index);
         if char == #char "\n" {
             x = 0;
-            y += advance_y * scale;
+            y += advance_y * scale.y;
             advance_y = 0;
             continue;
         }
 
-        character, found := table_find(*font.characters, char);
+        found, character := table_find_new(*font.characters, char);
         if !found {
             print("Character out of bounds. %\n", char);
             continue;
         }
 
-        xpos := x + character.bearing.x * scale;
-        ypos := y - character.bearing.y * scale + font.max_height * scale;
+        xpos := x + character.bearing.x * scale.x;
+        ypos := y - character.bearing.y * scale.y + font.max_height * scale.y;
 
-        w := character.width * scale;
-        h := character.height * scale;
+        w := character.width * scale.x;
+        h := character.height * scale.y;
 
         p1 := Vector2.{xpos, ypos};
         p2 := Vector2.{xpos + w, ypos + h};
@@ -230,7 +250,7 @@ get_aabb :: (content: string, font: *Font, scale: float) -> AABB2 {
 
         // now advance cursors for next glyph (note that advance is number of 1/64 pixels)
         // bitshift by 6 to get value in pixels (2^6 = 64)
-        x += (character.advance.x >> 6) * scale;
+        x += (character.advance.x >> 6) * scale.x;
         advance_y = max(advance_y, character.height);
     }
 
@@ -238,6 +258,10 @@ get_aabb :: (content: string, font: *Font, scale: float) -> AABB2 {
 }
 
 get_fixed_line_height :: (content: string, font: *Font, scale: float) -> float {
+    return get_fixed_line_height(content, font, .{scale, scale});
+}
+
+get_fixed_line_height :: (content: string, font: *Font, scale: Vector2) -> float {
     aabb := get_aabb(content, font, scale);
     return aabb.upper.y - aabb.lower.y;
 }

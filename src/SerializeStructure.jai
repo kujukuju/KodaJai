@@ -41,7 +41,7 @@ read_serialized :: (serialized_path: string, hash_files: [$N] string, data: *$T,
                 // data_bytes: [] u8;
                 // data_bytes.data = file_bytes.data + size_of(SerializedStructureHash);
                 // data_bytes.count = file_bytes.count - size_of(SerializedStructureHash);
-                
+
                 serialized: SerializeStructure(T);
                 serializer_read(file_bytes, *serialized, 0, reuse_memory);
                 data.* = serialized.data;
@@ -132,7 +132,7 @@ get_hash_from_files :: (hash_files: [$N] string) -> u32, s64, bool {
         hash_file_bytes: [] u8;
         hash_file_bytes.data = hash_data.data;
         hash_file_bytes.count = hash_data.count;
-        
+
         cache_hash ^= get_hash(hash_file_bytes);
         cache_size ^= hash_file_bytes.count;
     }

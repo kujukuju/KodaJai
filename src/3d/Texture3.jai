@@ -60,7 +60,7 @@ upload :: (texture: *Texture3) {
         print("Warning: Trying to upload a texture3 that's already uploaded.\n", true);
         return;
     }
-    
+
     wrap_formats: [3] s32;
     wrap_formats[0] = get_gl_format(texture.wrap[0]);
     wrap_formats[1] = get_gl_format(texture.wrap[1]);
@@ -100,7 +100,7 @@ upload :: (texture: *Texture3) {
     gl_type := get_gl_type(texture.format);
 
     glTexImage3D(GL_TEXTURE_3D, 0, gl_internal_format, xx texture.width, xx texture.height, xx texture.depth, 0, gl_format, gl_type, texture.data);
-    
+
     if has_mipmap {
         glGenerateMipmap(GL_TEXTURE_3D);
     }
@@ -120,7 +120,7 @@ destroy :: (texture: Texture3, children: bool = true) {
     if children && texture.data {
         free(texture.data);
     }
-    
+
     // delete data?
     if texture.buffer {
         release_texture_slot(texture.buffer);
@@ -135,7 +135,7 @@ get_bytes :: (texture: Texture3) -> int {
 update_texture :: (texture: *Texture3, image: Image3) {
     assert(texture.width == image.width && texture.height == image.height && texture.depth == image.depth, "Dimensions must match.");
     assert(texture.format == image.format, "Formats must match.");
-    
+
     update_texture(texture, image.pixels);
 }
 

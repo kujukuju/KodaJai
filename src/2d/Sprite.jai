@@ -143,7 +143,7 @@ draw :: (sprite: Sprite) {
     defer destroy(uniforms);
 
     set(*uniforms, "uTexture", sprite.texture);
-    
+
     model_view := view * model;
     model_view_projection := projection * model_view;
     set(*uniforms, "modelViewProjection", model_view_projection);
@@ -151,7 +151,7 @@ draw :: (sprite: Sprite) {
     set(*uniforms, "projection", projection);
     set(*uniforms, "model", model);
     set(*uniforms, "view", view);
-    
+
     set(*uniforms, "uTint", sprite.tint * sprite.alpha);
     set(*uniforms, "uFrame", sprite.texture_frame);
 

@@ -1,5 +1,5 @@
 
-#module_parameters () (PRODUCTION := false, WASM := false, VALIDATE_SERIALIZED := true, NO_GRAPHICS := false, HOT_LOAD_SHADERS := false);
+#module_parameters () (PRODUCTION := false, WASM := false, VALIDATE_SERIALIZED := true, NO_GRAPHICS := false, HOT_LOAD_SHADERS := false, ALLOW_EXPORTS := true);
 
 #if WASM {
     core_count :: 8;
@@ -112,6 +112,7 @@
 #load "src/shadows/ShadowUtilities.jai";
 
 #load "src/utilities/BoundingShapes.jai";
+// #load "src/utilities/Context.jai";
 
 #load "src/CircleAllocator.jai";
 #load "src/Color.jai";

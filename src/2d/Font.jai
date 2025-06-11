@@ -21,11 +21,11 @@ FontParticleGpu :: struct {
     transform3: Vector3;
     tint: Vector4;
     padding: float;
-    scale: float;
+    scale: Vector2;
     blur: float;
     rotation: float;
     world_position: Vector3;
-    
+
 #place transform1;
     transform: Matrix3 = ---;
 }
@@ -120,7 +120,7 @@ create_font :: (bytes: [] u8, pixel_height: int, character_set: [] u32 = .[], sh
             continue;
         }
 
-        // load character glyph 
+        // load character glyph
         error := FT_Load_Char(ft_face, character, FT_LOAD_DEFAULT);
         if error {
             print_stack_trace();
@@ -174,7 +174,7 @@ load_font :: (path: string, pixel_height: int, character_set: [] u32 = .[], shou
     byte_view: [] u8;
     byte_view.data = file.data;
     byte_view.count = file.count;
-    
+
     font, created := create_font(byte_view, pixel_height, character_set, should_upload);
     return font, created;
 }

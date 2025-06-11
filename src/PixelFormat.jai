@@ -20,6 +20,7 @@ PixelFormat :: enum {
     Depth24;
     Depth32;
     Depth32F;
+    Depth24Stencil8;
     // CompressedBC7;
 };
 
@@ -95,6 +96,8 @@ get_stride :: (format: PixelFormat) -> int {
             return 4;
         case .Depth32F;
             return 4;
+        case .Depth24Stencil8;
+            return 4;
     }
 }
 
@@ -139,6 +142,8 @@ get_component_count :: (format: PixelFormat) -> int {
         case .Depth32;
             return 1;
         case .Depth32F;
+            return 1;
+        case .Depth24Stencil8;
             return 1;
     }
 }
@@ -185,6 +190,8 @@ get_gl_format :: (format: PixelFormat) -> u32 {
             return GL_DEPTH_COMPONENT;
         case .Depth32F;
             return GL_DEPTH_COMPONENT;
+        case .Depth24Stencil8;
+            return GL_DEPTH_STENCIL;
     }
 }
 
@@ -230,6 +237,8 @@ get_gl_internal_format :: (format: PixelFormat) -> s32 {
             return GL_DEPTH_COMPONENT32;
         case .Depth32F;
             return GL_DEPTH_COMPONENT32F;
+        case .Depth24Stencil8;
+            return GL_DEPTH24_STENCIL8;
     }
 }
 
@@ -271,11 +280,15 @@ get_gl_type :: (format: PixelFormat) -> u32 {
             return GL_UNSIGNED_SHORT;
         case .Depth24;
             // the way I'm handling this is inherently flawed and the pixel format shouldn't correspond to the gl type so there's no good answer here
-            return GL_FLOAT;
+            return GL_UNSIGNED_INT ;
         case .Depth32;
+            // not recommended to use depth32 integer
             return GL_UNSIGNED_INT;
         case .Depth32F;
             return GL_FLOAT;
+        case .Depth24Stencil8;
+            // huh
+            return GL_UNSIGNED_INT_24_8;
     }
 }
 
@@ -321,6 +334,8 @@ is_float :: (format: PixelFormat) -> bool {
             return false;
         case .Depth32F;
             return true;
+        case .Depth24Stencil8;
+            return false;
     }
 }
 
@@ -365,6 +380,8 @@ is_depth :: (format: PixelFormat) -> bool {
         case .Depth32;
             return true;
         case .Depth32F;
+            return true;
+        case .Depth24Stencil8;
             return true;
     }
 }

@@ -9,7 +9,7 @@ get_decal_vertices :: (vertices: *[..] float32, indices: *[..] u32, triangle: [3
 }
 
 get_decal_vertices :: (vertices: *[..] float32, indices: *[..] u32, triangle: [3] Vector3, normals: [3] Vector3, colors: [3] Vector4, uv_range: [2] Vector2, transform: Matrix4) {
-    inverted_transform := inverse(decal_transform);
+    inverted_transform := unsafe_inverse(decal_transform);
 
     inline get_decal_vertices(vertices, indices, triangle, normals, colors, uv_range, transform, inverted_transform);
 }
@@ -54,7 +54,7 @@ get_decal_vertices :: (vertices: *[..] float32, indices: *[..] u32, world_triang
     // if you re enter the cube from being outside, you have to add in all intersections of the cube along the way between the lines?
 
     // so actually I think you just want to clip all existing triangles to each of the 6 planes
-    
+
     // and as a pre pass it might be more optimal to start by clipping each triangle using each of the 12 edges?
     // because this will potentially result in fewer total triangles, but I think its more expensive
 

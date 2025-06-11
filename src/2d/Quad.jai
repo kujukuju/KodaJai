@@ -93,7 +93,7 @@ draw :: (quad: Quad) {
 
     uniforms: ShaderUniforms;
     defer destroy(uniforms);
-    
+
     model_view := view * model;
     model_view_projection := projection * model_view;
     set(*uniforms, "modelViewProjection", model_view_projection);
