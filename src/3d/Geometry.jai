@@ -546,6 +546,37 @@ copy_vertices :: (geometry: Geometry, $preserve_faces: bool = false) -> [] Vecto
     return vertices;
 }
 
+get_attribute :: (geometry: *Geometry, vertex_index: int, $attribute: Attribute, $attribute_stride: int = 0) -> [attribute_stride] float #modify {
+    attribute_stride = get_attribute_stride(attribute);
+    return true;
+} {
+    #assert attribute_stride != 0 "Cannot have attribute stride of 0.\n";
+
+    stride := get_attribute_stride(geometry);
+
+    attribute_offset := 0;
+    for current: geometry.attributes {
+        if current == attribute {
+            break;
+        }
+
+        attribute_offset += get_attribute_stride(current);
+    }
+
+    float_view: [] float;
+    float_view.data = geometry.vertices.data + vertex_index * stride + attribute_offset;
+    float_view.count = attribute_stride;
+
+    output: [attribute_stride] float;
+    memcpy(output.data, float_view.data, attribute_stride * size_of(float));
+
+    return output;
+
+    // for i: 0..float_view.count - 1 {
+    //     output[i] = float_view[i];
+    // }
+}
+
 get_attribute_stride :: (geometry: Geometry) -> int {
     return get_attribute_stride(geometry.attributes);
 }
