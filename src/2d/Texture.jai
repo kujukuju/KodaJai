@@ -260,27 +260,27 @@ create_image_from_data :: (texture: Texture) -> Image {
     return create_image(byte_view, texture.width, texture.height, texture.format);
 }
 
-draw :: (texture: Texture, position: Vector2, anchor: Vector2 = .{}) {
+draw :: (texture: Texture, position: Vector2, anchor: Vector2 = .{}, tint: Color = .{1, 1, 1, 1}) {
     static_sprite.texture = texture;
     static_sprite.width = xx texture.width;
     static_sprite.height = xx texture.height;
     static_sprite.position = position;
     static_sprite.rotation = 0;
     static_sprite.anchor = anchor;
-    static_sprite.tint = .{1, 1, 1, 1};
+    static_sprite.tint = tint;
     static_sprite.shader = *default_shader;
 
     draw(static_sprite);
 }
 
-draw :: (texture: Texture, position: Vector2, size: Vector2, anchor: Vector2 = .{}) {
+draw :: (texture: Texture, position: Vector2, size: Vector2, anchor: Vector2 = .{}, tint: Color = .{1, 1, 1, 1}) {
     static_sprite.texture = texture;
     static_sprite.width = size.x;
     static_sprite.height = size.y;
     static_sprite.position = position;
     static_sprite.rotation = 0;
     static_sprite.anchor = anchor;
-    static_sprite.tint = .{1, 1, 1, 1};
+    static_sprite.tint = tint;
     static_sprite.shader = *default_shader;
 
     draw(static_sprite);

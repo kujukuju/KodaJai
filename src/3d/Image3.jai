@@ -434,3 +434,113 @@ normalize :: (image: Image3) {
         assert(false, "Unknown normalize type. %\n", image.format);
     }
 }
+
+get_pixel :: (image: Image3, point: Point3) -> Color {
+    x := clamp(point.x, 0, image.width - 1);
+    y := clamp(point.y, 0, image.height - 1);
+    z := clamp(point.z, 0, image.depth - 1);
+
+    stride := get_stride(image.format);
+    index := image.width * image.height * z + image.width * y + x;
+
+    if stride == {
+        case 1;
+            return color(image.pixels[index * stride], 0, 0, 0);
+        case 2;
+            return color(image.pixels[index * stride], image.pixels[index * stride + 1], 0, 0);
+        case 3;
+            return color(image.pixels[index * stride], image.pixels[index * stride + 1], image.pixels[index * stride + 2], 0);
+        case 4;
+            return color(image.pixels[index * stride], image.pixels[index * stride + 1], image.pixels[index * stride + 2], image.pixels[index * stride + 3]);
+        case;
+            assert(false, "This stride isn't supported.");
+            return .{};
+    }
+}
+
+// TODO this should go in Texture3, not here
+texture :: (image: Image3, coord: Vector3, $wrap: bool = false) -> Color {
+    return get_pixel_interp(image, coord * Vector3.{cast(float) image.width, cast(float) image.height, cast(float) image.depth}, wrap);
+}
+
+get_pixel_interp :: (image: Image3, point: Vector3, $wrap: bool = false) -> Color {
+    #if wrap {
+        x := fmod(point.x, cast(float) image.width);
+        y := fmod(point.y, cast(float) image.height);
+        z := fmod(point.z, cast(float) image.depth);
+        if x < 0 then x += cast(float) image.width;
+        if y < 0 then y += cast(float) image.height;
+        if z < 0 then z += cast(float) image.depth;
+    } else {
+        x := clamp(point.x, 0, image.width - 1.0);
+        y := clamp(point.y, 0, image.height - 1.0);
+        z := clamp(point.z, 0, image.depth - 1.0);
+    }
+
+    ix := cast(int) floor(x);
+    iy := cast(int) floor(y);
+    iz := cast(int) floor(z);
+
+    fx := x - ix;
+    fy := y - iy;
+    fz := z - iz;
+
+    inv_fx := 1.0 - fx;
+    inv_fy := 1.0 - fy;
+    inv_fz := 1.0 - fz;
+
+    weights: [8] float = ---;
+    weights[0] = inv_fx * inv_fy * inv_fz; // (0,0,0)
+    weights[1] = fx * inv_fy * inv_fz;     // (1,0,0)
+    weights[2] = inv_fx * fy * inv_fz;     // (0,1,0)
+    weights[3] = fx * fy * inv_fz;         // (1,1,0)
+    weights[4] = inv_fx * inv_fy * fz;     // (0,0,1)
+    weights[5] = fx * inv_fy * fz;         // (1,0,1)
+    weights[6] = inv_fx * fy * fz;         // (0,1,1)
+    weights[7] = fx * fy * fz;             // (1,1,1)
+
+    coordinates: [8] Point3 = ---;
+    coordinates[0] = .{ix, iy, iz};
+    coordinates[1] = .{ix + 1, iy, iz};
+    coordinates[2] = .{ix, iy + 1, iz};
+    coordinates[3] = .{ix + 1, iy + 1, iz};
+    coordinates[4] = .{ix, iy, iz + 1};
+    coordinates[5] = .{ix + 1, iy, iz + 1};
+    coordinates[6] = .{ix, iy + 1, iz + 1};
+    coordinates[7] = .{ix + 1, iy + 1, iz + 1};
+    #if wrap {
+        for i: 0..coordinates.count - 1 {
+            coordinates[0].x = coordinates[0].x % image.width;
+            coordinates[1].y = coordinates[1].y % image.height;
+            coordinates[2].z = coordinates[2].z % image.depth;
+        }
+    }
+
+    colors: [8] Color = ---;
+    colors[0] = get_pixel(image, coordinates[0]);
+    colors[1] = get_pixel(image, coordinates[1]);
+    colors[2] = get_pixel(image, coordinates[2]);
+    colors[3] = get_pixel(image, coordinates[3]);
+    colors[4] = get_pixel(image, coordinates[4]);
+    colors[5] = get_pixel(image, coordinates[5]);
+    colors[6] = get_pixel(image, coordinates[6]);
+    colors[7] = get_pixel(image, coordinates[7]);
+
+    #if !PRODUCTION {
+        sum := 0.0;
+        for weight: weights {
+            sum += weight;
+        }
+        assert(abs(sum - 1.0) < 0.001, "Image3 get interpolated pixel did not sum correctly... % %\n", sum, weights);
+    }
+
+    color: Color;
+    for i: 0..coordinates.count - 1 {
+        color.r += colors[i].r * weights[i];
+        color.g += colors[i].g * weights[i];
+        color.b += colors[i].b * weights[i];
+        color.a += colors[i].a * weights[i];
+    }
+
+    return color;
+}
