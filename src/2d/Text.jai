@@ -43,7 +43,7 @@ buffer_text :: (content: string, font: *Font, transform: Matrix3, anchor: Vector
     buffer_text(content, font, transform, anchor, .{scale, scale}, tint, padding, blur, rotation, world_position, fixed_height_string, fixed_width_string);
 }
 
-buffer_text :: (content: string, font: *Font, transform: Matrix3, anchor: Vector2, scale: Vector2, tint: Color, padding: float, blur: float, rotation: float, world_position: Vector3, fixed_height_string: string = "", fixed_width_string: string = "") {
+buffer_text :: (content: string, font: *Font, transform: Matrix3, anchor: Vector2, scale: Vector2, tint: Color, padding: float, blur: float, rotation: float, world_position: Vector3, fixed_height_string: string = "", fixed_width_string: string = "", is_3d: bool = false) {
     assert(font.buffer_required, "You should call buffer text after calling begin buffer text.\n");
     if !font.buffer_required {
         return;
@@ -96,6 +96,9 @@ buffer_text :: (content: string, font: *Font, transform: Matrix3, anchor: Vector
 
     x := -dimensions.x * anchor.x - aabb.lower.x + offset_x * scale.x;
     y := -dimensions.y * anchor.y - aabb.lower.y;
+    if is_3d {
+        y = dimensions.y * anchor.y + aabb.lower.y;
+    }
 
     real_padding := padding / min(scale.x, scale.y);
     if real_padding > 16 {
@@ -130,6 +133,9 @@ buffer_text :: (content: string, font: *Font, transform: Matrix3, anchor: Vector
 
         xpos := x + character.bearing.x * scale.x;
         ypos := y - character.bearing.y * scale.y + font.max_height * scale.y;
+        if is_3d {
+            ypos = y - font.max_height * scale.y;
+        }
 
         w := character.width * scale.x;
         h := character.height * scale.y;

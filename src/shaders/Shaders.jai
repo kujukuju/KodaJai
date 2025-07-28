@@ -322,6 +322,9 @@ initialize_shader :: (shader: *Shader, resolved_dependencies: [] string, depende
     if !success_v || !success_f || !shader.program {
         glDeleteProgram(shader.program);
         print("Failure initalizing shader.\n");
+        if allow_failure {
+            print("But allowing shader failure.\n");
+        }
 
         shader.program = 0;
 

@@ -239,7 +239,7 @@ set_viewport :: (width: int, height: int) {
 
 error_check_gl :: ($full_stack := false) -> bool #expand {
     #if PRODUCTION {
-        return;
+        return false;
     }
 
     errored := false;

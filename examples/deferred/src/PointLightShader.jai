@@ -62,7 +62,7 @@ vec4 calcLightInternal(vec3 baseColor, float ambientIntensity, float diffuseInte
 
         // vec3 vertexToEye = normalize(vCamera - position);
         // vec3 lightReflect = normalize(reflect(direction, normal));
-        // float specularFactor = dot(vertexToEye, lightReflect);        
+        // float specularFactor = dot(vertexToEye, lightReflect);
         // if (specularFactor > 0.0) {
         //     specularFactor = pow(specularFactor, uSpecularPower);
         //     const float matSpecularIntensity = 0.0;
@@ -93,8 +93,8 @@ void main() {
 
 	vec3 position = texture(uPosition, coord).xyz;
 	vec3 diffuse = texture(uDiffuse, coord).xyz;
-	vec3 normal = texture(uNormal, coord).xyz * 2.0 - 1.0;
-	normal = normalize(normal);
+	vec3 rawNormal = texture(uNormal, coord);
+	vec3 normal = normalize(rawNormal.xyz * 2.0 - 1.0);
 
     FragColor = vec4(diffuse, 1.0) * calculateLight(position, normal);
     // FragColor = vec4(1.0);

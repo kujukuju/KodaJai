@@ -59,7 +59,7 @@ get_property_entry :: (name: string, object: JsonObjectEntry) -> [2] string {
         found_type: string;
         found_name: string;
         for entry: object.value.object {
-            assert(entry.value.type == .String, "Found a custom data entry of type Data that didn't contain a string. % %\n", name, entry.value.type);
+            assert(entry.value.type == .String, "Found a custom data entry of type Data that didn't contain a string. % % %\n", name, object.name, entry.value.type);
             if entry.value.type == .String && entry.name == "type" {
                 found_type = entry.value.str;
             }

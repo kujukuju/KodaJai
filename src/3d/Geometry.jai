@@ -1134,8 +1134,8 @@ load_geometry_gltf_data :: (
             } else {
                 array_reserve(*geometry.indices, vertex_count);
                 geometry.indices.count = vertex_count;
-                for index: 0..cast(u32) vertex_count - 1 {
-                    array_add(*geometry.indices, index);
+                for index: 0..vertex_count - 1 {
+                    array_add(*geometry.indices, cast(u32) index);
                 }
             }
 

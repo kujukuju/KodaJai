@@ -36,7 +36,7 @@ parallel_merge_sort_initialize :: (thread_count: int = 0) {
             parent_index = parent_index,
         };
     }
-    
+
     work_dependency_finish_count = NewArray(division_count * 2 - 1, u8);
 
     for i: 0..semaphores.count - 1 {
@@ -67,7 +67,7 @@ get_child_indices :: (row: int, index: int) -> int, int, int, int {
 
 get_row_and_index :: (flat_index: int) -> int, int {
     index := work_count - flat_index - 1;
-    
+
     row := 0;
     while intpow(2, row) * 2 - 1 <= index {
         row += 1;
@@ -134,7 +134,7 @@ parallel_merge_sort :: (input: [] $T, $compare: (a: T, b: T) -> $N) {
                 input_right: [] T;
                 input_right.data = input_data + start_right;
                 input_right.count = end_right - start_right;
-                
+
                 buffer: [] T;
                 buffer.data = merge_buffer_data + start_left;
                 buffer.count = end_right - start_left;

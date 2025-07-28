@@ -19,31 +19,26 @@ create_plane :: (half_width: float, half_height: float, double_sided: bool = fal
     vertices[2] = Vector3.{half_width, 0.0, half_height};
     vertices[3] = Vector3.{half_width, 0.0, -half_height};
 
-    array_add(*geometry.vertices, vertices[0].x, vertices[0].y, vertices[0].z);
-    array_add(*geometry.vertices, vertices[1].x, vertices[1].y, vertices[1].z);
-    array_add(*geometry.vertices, vertices[2].x, vertices[2].y, vertices[2].z);
-    array_add(*geometry.vertices, vertices[3].x, vertices[3].y, vertices[3].z);
+    array_add(*geometry.vertices, ..vertices[0].component);
+    if with_texcoords then array_add(*geometry.vertices, 0.0, 0.0);
+    if with_normals then array_add(*geometry.vertices, 0.0, 1.0, 0.0);
+    array_add(*geometry.vertices, ..vertices[1].component);
+    if with_texcoords then array_add(*geometry.vertices, 0.0, 1.0);
+    if with_normals then array_add(*geometry.vertices, 0.0, 1.0, 0.0);
+    array_add(*geometry.vertices, ..vertices[2].component);
+    if with_texcoords then array_add(*geometry.vertices, 1.0, 1.0);
+    if with_normals then array_add(*geometry.vertices, 0.0, 1.0, 0.0);
+    array_add(*geometry.vertices, ..vertices[3].component);
+    if with_texcoords then array_add(*geometry.vertices, 1.0, 0.0);
+    if with_normals then array_add(*geometry.vertices, 0.0, 1.0, 0.0);
 
-    if with_normals {
-        array_add(*geometry.vertices, 0.0, 1.0, 0.0);
-        array_add(*geometry.vertices, 0.0, 1.0, 0.0);
-        array_add(*geometry.vertices, 0.0, 1.0, 0.0);
-        array_add(*geometry.vertices, 0.0, 1.0, 0.0);
-    }
-
-    if with_texcoords {
-        array_add(*geometry.vertices, 0.0, 0.0);
-        array_add(*geometry.vertices, 0.0, 1.0);
-        array_add(*geometry.vertices, 1.0, 1.0);
-        array_add(*geometry.vertices, 1.0, 0.0);
-    }
-
-    if with_normals {
+    if double_sided {
+        assert(false);
         array_add(*geometry.vertices, vertices[0].x, vertices[0].y, vertices[0].z);
         array_add(*geometry.vertices, vertices[1].x, vertices[1].y, vertices[1].z);
         array_add(*geometry.vertices, vertices[2].x, vertices[2].y, vertices[2].z);
         array_add(*geometry.vertices, vertices[3].x, vertices[3].y, vertices[3].z);
-        
+
         array_add(*geometry.vertices, 0.0, -1.0, 0.0);
         array_add(*geometry.vertices, 0.0, -1.0, 0.0);
         array_add(*geometry.vertices, 0.0, -1.0, 0.0);

@@ -198,7 +198,7 @@ static_sprite: Sprite;
 #import "ContiguousJsonJai"(ASM = !WASM);
 #import "FixedStringJai";
 #import "JaiBoundingTree";
-#import "JaiSerializer";
+// #import "JaiSerializer";
 #import "BlockAllocatorJai";
 #import "JaiMath";
 

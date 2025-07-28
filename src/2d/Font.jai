@@ -8,7 +8,7 @@ Font :: struct {
     max_height: int;
     buffer_required: bool;
     buffer_view: Matrix4;
-    font_system: ParticleSystem(FontParticleGpu, FontParticleCpu, sort = false); @serializer(skip)
+    font_system: ParticleSystem(FontParticleGpu, FontParticleCpu, sort = false); @serializer_skip
 }
 
 FontParticleGpu :: struct {

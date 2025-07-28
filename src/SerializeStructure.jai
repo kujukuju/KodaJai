@@ -9,6 +9,22 @@ SerializedStructureHash :: struct {
     size: s64;
 }
 
+#assert size_of(SerializedStructureHash) == 12;
+#assert size_of(SerializeStructure([1024] u8)) == 12 + 1024;
+
+get_new_file_hash :: (info: *TypeInfo, files: [$N] string) -> u64 {
+    hash := FNV_64_OFFSET_BIAS;
+    hash = fnv1a_hash(cast(u64) files.count, hash);
+    for file: files {
+        modtime, size := file_modtime_and_size(file);
+        modtime_ms := to_milliseconds(modtime);
+        hash = fnv1a_hash(cast(u64) modtime_ms, hash);
+        hash = fnv1a_hash(cast(u64) size, hash);
+    }
+    hash = KodaSerializer.serializer_get_hash(info, hash);
+    return hash;
+}
+
 // if you reuse memory you can basically never free it because itll be offset by the hash value
 // checks the hash files against the saved hash to see whether or not the serialized file needs to be updated
 read_serialized :: (serialized_path: string, hash_files: [$N] string, data: *$T, $reuse_memory: bool = false) -> bool, *void {
@@ -21,10 +37,22 @@ read_serialized :: (serialized_path: string, hash_files: [$N] string, data: *$T,
         memory: *void = file.data;
     }
 
-    if success {
+    if success
         file_bytes: [] u8;
         file_bytes.data = file.data;
         file_bytes.count = file.count;
+
+        {
+            new_hash := get_new_file_hash(type_info(T), hash_files);
+            new_file_bytes := array_copy(file_bytes);
+            defer array_free(new_file_bytes);
+            offset_file_bytes := new_file_bytes;
+            offset_file_bytes.data += 4;
+            offset_file_bytes.count -= 4;
+            memcpy(offset_file_bytes.data, *new_hash, 8);
+            success := write_entire_file(serialized_path, offset_file_bytes.data, offset_file_bytes.count);
+            assert(success);
+        }
 
         if file_bytes.count < size_of(SerializedStructureHash) {
             return false, memory;

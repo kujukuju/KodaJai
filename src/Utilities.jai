@@ -149,6 +149,8 @@ create_orthographic_matrix :: (left: float, right: float, bottom: float, top: fl
 
 open_url :: (path: string) {
     #if OS == .WINDOWS {
+        #import "Windows_Utf8";
+
         HWND :: *void;
         LPCWSTR :: *u16;
         HINSTANCE :: *void;
@@ -156,12 +158,9 @@ open_url :: (path: string) {
 
         shell32 :: #system_library "shell32";
         ShellExecuteW :: (hwnd: HWND, lpOperation: LPCWSTR, lpFile: LPCWSTR, lpParameters: LPCWSTR, lpDirectory: LPCWSTR, nShowCmd: s32) -> HINSTANCE #foreign shell32;
-        path_string := NewArray(path.count + 1, u16,, allocator = temp);
-        for i: 0..path.count - 1 {
-            path_string[i] = path[i];
-        }
+        path_string := utf8_to_wide(path,, temp);
 
-        ShellExecuteW(null, null, path_string.data, null, null, SW_SHOWNORMAL);
+        ShellExecuteW(null, null, path_string, null, null, SW_SHOWNORMAL);
     } else {
         assert(false, "Cannot open url on linux...\n");
     }

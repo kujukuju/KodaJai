@@ -376,6 +376,15 @@ draw_triangles :: (color: Color = .{1, 1, 1, 1}, model: Matrix4 = Matrix4Identit
     glDrawArrays(GL_TRIANGLES, 0, triangles_vertices_count);
 }
 
+draw_triangles :: (vertices: [] Vector3, indices: [] $T/int, color: Color = .{1, 1, 1, 1}, model: Matrix4 = Matrix4Identity) {
+    triangles := NewArray(indices.count, Vector3,, temp);
+    for index: indices {
+        triangles[it_index] = vertices[index];
+    }
+
+    draw_triangles(triangles, color, model);
+}
+
 draw_triangles :: (vertices: [] Vector3, color: Color = .{1, 1, 1, 1}, model: Matrix4 = Matrix4Identity) {
     set_triangles(vertices);
     draw_triangles(color, model);
@@ -447,6 +456,15 @@ draw_triangles_colors :: (color: Color = .{1, 1, 1, 1}, model: Matrix4 = Matrix4
     apply_uniforms(*default_shape_color_shader3, uniforms);
 
     glDrawArrays(GL_TRIANGLES, 0, triangles_colors_vertices_count);
+}
+
+draw_triangles_colors :: (vertices: [] Vector3, indices: [] $T/int, colors: [] Vector3, color: Color = .{1, 1, 1, 1}, model: Matrix4 = Matrix4Identity) {
+    triangles := NewArray(indices.count, Vector3,, temp);
+    for index: indices {
+        triangles[it_index] = vertices[index];
+    }
+
+    draw_triangles_colors(triangles, colors, color, model);
 }
 
 draw_triangles_colors :: (vertices: [] Vector3, colors: [] Vector3, color: Color = .{1, 1, 1, 1}, model: Matrix4 = Matrix4Identity) {
