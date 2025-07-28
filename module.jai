@@ -132,7 +132,6 @@
 #load "src/Point4.jai";
 #load "src/QuadParticleSystem.jai";
 #load "src/Renderable.jai";
-#load "src/SerializeStructure.jai";
 #load "src/ShaderUniforms.jai";
 #load "src/StorageFormat.jai";
 #load "src/SwapBuffer.jai";
@@ -198,7 +197,7 @@ static_sprite: Sprite;
 #import "ContiguousJsonJai"(ASM = !WASM);
 #import "FixedStringJai";
 #import "JaiBoundingTree";
-// #import "JaiSerializer";
+#import "KodaSerializer";
 #import "BlockAllocatorJai";
 #import "JaiMath";
 

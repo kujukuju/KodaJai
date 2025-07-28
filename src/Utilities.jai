@@ -25,15 +25,27 @@ get_default_font :: () -> *Font {
         font := create_font(file_bytes, 14, character_set, false);
 
         serialized_path := tprint("%/assets/TriplexSansBoldSerialized.font", #filepath);
-        write_serialized(serialized_path, .[], font, reuse_memory = false);
+        serialized_bytes := serializer_write(font);
+        write_entire_file(serialized_path, serialized_bytes.data, serialized_bytes.count);
+    };
+
+    serialized_file :: #run -> string {
+        serialized_path := tprint("%/assets/TriplexSansBoldSerialized.font", #filepath);
+        serialized_file, serialized_file_success := read_entire_file(serialized_path);
+        assert(serialized_file_success, "Could not read font file. %\n", serialized_path);
+        return read_entire_file(serialized_file);
     };
 
     if !default_font_loaded {
         default_font_loaded = true;
 
-        serialized_path := tprint("%/assets/TriplexSansBoldSerialized.font", #filepath);
-        success := read_serialized(serialized_path, .[], *default_font, reuse_memory = false);
-        assert(success, "Could not load default font.\n");
+        serialized_bytes: [] u8;
+        serialized_bytes.data = serialized_file.data;
+        serialized_bytes.count = serialized_file.count;
+
+        font_success, font_data := serializer_read(*Font, serialized_bytes);
+        assert(font_success, "Could not read default font.\n");
+        default_font = serializer_hydrate(font_data);
 
         upload(default_font);
     }
