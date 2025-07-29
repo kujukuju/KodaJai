@@ -244,10 +244,6 @@ copy :: (uniforms: ShaderUniforms) -> ShaderUniforms {
     return copied;
 }
 
-// operator == :: (a: ShaderUniforms, b: ShaderUniforms) -> bool {
-//     return a.uniforms.data == b.uniforms.data;
-// }
-
 get :: (uniforms: *ShaderUniforms, name: FixedString(UNIFORM_LENGTH)) -> *ShaderUniform {
     for *uniform: uniforms {
         if uniform.name == name {
@@ -294,7 +290,8 @@ set :: (uniforms: *ShaderUniforms, created: ShaderUniform) {
 
 set :: (uniforms: *ShaderUniforms, name: string, value: $T) {
     assert(name.count <= UNIFORM_LENGTH, "Cannot have uniforms with more than % characters.\n", UNIFORM_LENGTH);
-    set(uniforms, create_fixed_string(name, UNIFORM_LENGTH), value);
+    created := create_uniform(create_fixed_string(name, UNIFORM_LENGTH), value);
+    set(uniforms, created);
 }
 
 set :: (uniforms: *ShaderUniforms, name: FixedString(UNIFORM_LENGTH), value: $T) {
@@ -310,10 +307,6 @@ has_uniform :: (uniforms: ShaderUniforms, name: string) -> bool {
     }
 
     return false;
-}
-
-create_uniform :: (name: string, value: $T) -> ShaderUniform {
-    return create_uniform(create_fixed_string(name, UNIFORM_LENGTH), value);
 }
 
 create_uniform :: (name: FixedString(UNIFORM_LENGTH), value: float) -> ShaderUniform {
@@ -955,8 +948,8 @@ destroy :: (uniform: ShaderUniform) {
 #scope_file
 
 array_copy_memory :: (arr: [] $T, $N: Type) -> [] N {
-    SIZE_T :: #run size_of(T);
-    #run assert(#run size_of(T) == size_of(N), "The types must be the same size.");
+    SIZE_T :: size_of(T);
+    #assert size_of(T) == size_of(N) "The types must be the same size.";
 
     copied := NewArray(arr.count, N, initialized = false);
     memcpy(copied.data, arr.data, arr.count * SIZE_T);
