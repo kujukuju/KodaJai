@@ -1,5 +1,5 @@
 
-PERF_TRACKER_ENABLED :: true;
+PERF_TRACKER_ENABLED :: false;
 perf_tracker_output_file := "";
 
 // loop

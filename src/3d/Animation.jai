@@ -13,7 +13,7 @@ ModelAnimations :: struct {
 }
 
 Animation :: struct {
-    name: string;
+    name: FixedString(128);
     // the indices are the bone indices, the inner indices are for the animation frames
     frames: [..][..] AnimationFrame;
     // these are the relevancy weights for a given animation
@@ -22,7 +22,7 @@ Animation :: struct {
 }
 
 AnimationJoint :: struct {
-    name: string;
+    name: FixedString(128);
     transform: Matrix4 = Matrix4Identity;
     translation: Vector3 = .{0, 0, 0};
     rotation: Quaternion = .{0, 0, 0, 1};
@@ -141,8 +141,8 @@ remap_animations :: (animations: *ModelAnimations, source: ModelAnimations, root
             for source_bone: source.bone_hierarchy {
                 if target_bone.name == source_bone.name {
                     entry: [2] string;
-                    entry[0] = source_bone.name;
-                    entry[1] = target_bone.name;
+                    entry[0] = alloc_string(source_bone.name,, temp);
+                    entry[1] = alloc_string(target_bone.name,, temp);
                     array_add(*found_remap, entry);
                     break;
                 }
@@ -152,7 +152,7 @@ remap_animations :: (animations: *ModelAnimations, source: ModelAnimations, root
         real_remap = found_remap;
     }
 
-    target_name_indices: Table(string, int);
+    target_name_indices: Table(FixedString(128), int);
     target_name_indices.allocator = temp;
     for joint, index: animations.bone_hierarchy {
         if !joint.name {
@@ -162,7 +162,7 @@ remap_animations :: (animations: *ModelAnimations, source: ModelAnimations, root
         table_set(*target_name_indices, joint.name, index);
     }
 
-    source_name_indices: Table(string, int);
+    source_name_indices: Table(FixedString(128), int);
     source_name_indices.allocator = temp;
     for joint, index: source.bone_hierarchy {
         if !joint.name {
@@ -176,13 +176,13 @@ remap_animations :: (animations: *ModelAnimations, source: ModelAnimations, root
     target_to_source_indices: Table(int, int);
     target_to_source_indices.allocator = temp;
     for pair: real_remap {
-        has_target_index, target_index := table_find_new(*target_name_indices, pair[1]);
+        has_target_index, target_index := table_find_new(*target_name_indices, create_fixed_string(pair[1], 128));
         if !has_target_index {
             print("Target bone does not exist %\n", pair[1]);
         }
         assert(has_target_index, "If you specified a target bone to map it must exist.");
 
-        has_source_index, source_index := table_find_new(*source_name_indices, pair[0]);
+        has_source_index, source_index := table_find_new(*source_name_indices, create_fixed_string(pair[0], 128));
         if !has_source_index {
             print("Source bone does not exist %\n", pair[0]);
         }
@@ -192,7 +192,7 @@ remap_animations :: (animations: *ModelAnimations, source: ModelAnimations, root
     }
 
     // find the root most pair bone
-    has_target_index, current_root_target_index := table_find_new(*target_name_indices, real_remap[0][1]);
+    has_target_index, current_root_target_index := table_find_new(*target_name_indices, create_fixed_string(real_remap[0][1], 128));
     assert(has_target_index);
     best_root_target_index := current_root_target_index;
     while animations.bone_hierarchy[current_root_target_index].parent != current_root_target_index {
@@ -296,7 +296,7 @@ remap_animations :: (animations: *ModelAnimations, source: ModelAnimations, root
         source_animation := source.animations[animation_index];
         array_copy(*animation.bone_weights, source_animation.bone_weights);
 
-        animation.name = copy_string(source_animation.name);
+        animation.name = source_animation.name;
         animation.max_frame = source_animation.max_frame;
 
         array_resize(*animation.bone_weights, node_count);
@@ -470,9 +470,8 @@ generate_final_frame :: (animation: *Animation) {
 rename_animations :: (animations: *ModelAnimations, name_overrides: [] [2] string) {
     for name_override: name_overrides {
         for *animation: animations.animations {
-            if animation.name == name_override[0] {
-                free(animation.name);
-                animation.name = copy_string(name_override[1]);
+            if animation.name == create_fixed_string(name_override[0], 128) {
+                animation.name = create_fixed_string(name_override[1], 128);
                 continue name_override;
             }
         }
@@ -569,7 +568,6 @@ destroy :: (animations: ModelAnimations) {
 }
 
 destroy :: (animation: Animation) {
-    free(animation.name);
     for frame: animation.frames {
         array_free(frame);
     }
@@ -1030,7 +1028,7 @@ load_animation_gltf_data :: (animations: *ModelAnimations, json: GltfJson, binar
             node := json.nodes[node_index];
 
             if node.name {
-                animations.bone_hierarchy[bone_index].name = copy_string(<< node.name);
+                animations.bone_hierarchy[bone_index].name = create_fixed_string(node.name.*, 128);
             }
 
             animations.bone_hierarchy[bone_index].transform = get_transform(node);
@@ -1098,9 +1096,9 @@ load_animation_gltf_data :: (animations: *ModelAnimations, json: GltfJson, binar
             // animation.inverse_world = unsafe_inverse(world_transform);
 
             if name_override {
-                animation.name = copy_string(name_override);
+                animation.name = create_fixed_string(name_override, 128);
             } else if current_animation.name && current_animation.name.count > 0 {
-                animation.name = copy_string(<< current_animation.name);
+                animation.name = create_fixed_string(current_animation.name.*, 128);
             }
 
             // the animation samplers inputs are times
