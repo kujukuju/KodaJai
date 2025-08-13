@@ -1,15 +1,4 @@
 
-
-
-
-
-
-
-
-
-
-
-
 AnimatedModel :: struct {
     model: *Model;
     animations: ModelAnimations;

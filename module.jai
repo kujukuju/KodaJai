@@ -24,6 +24,7 @@
 #load "src/2d/Text.jai";
 #load "src/2d/Texture.jai";
 #load "src/2d/TextureArray.jai";
+#load "src/2d/VideoFrames.jai";
 
 #load "src/3d/AnimatedModel.jai";
 #load "src/3d/Animation.jai";

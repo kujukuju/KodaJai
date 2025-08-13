@@ -3,7 +3,6 @@ get_aabb :: (models: [] *Model) -> AABB2 {
     aabb: AABB2;
     aabb_set := false;
     for model: models {
-        print("model %\n", model);
         for vertex: get_vertices(model) {
             if !aabb_set {
                 aabb_set = true;
@@ -235,6 +234,7 @@ create_sdf_image :: (models: [] *Model, pixel_units: float) -> Image3, AABB3, Ve
                     for model: query(*model_tree, query_aabb) {
                         nearest_distance_squared := FLOAT32_MAX;
                         nearest_triangle: Triangle3;
+                        inside := true;
                         for triangle: get_triangles(model) {
                             point := nearest_point(triangle, position);
 
@@ -243,14 +243,18 @@ create_sdf_image :: (models: [] *Model, pixel_units: float) -> Image3, AABB3, Ve
                                 nearest_distance_squared = current_distance_squared;
                                 nearest_triangle = triangle;
                             }
+
+                            normal := get_normal(triangle);
+                            last_inside := inside;
+                            inside = inside && dot(normal, position - point) < 0.1;
                         }
 
                         if nearest_distance_squared < FLOAT32_MAX {
-                            normal := get_normal(nearest_triangle);
-                            outside := dot(normal, position - nearest_triangle.a) > 0.00001;
+                            // nearest_triangle_64 := create_triangle3_64(nearest_triangle);
+                            // normal := get_normal(nearest_triangle_64);
 
                             sdf_distance := sqrt(nearest_distance_squared);
-                            sdf_distance *= ifx outside then 1 else -1;
+                            sdf_distance *= ifx inside then -1 else 1;
 
                             if sdf_distance < smallest_sdf_distance {
                                 smallest_sdf_distance = sdf_distance;
@@ -281,7 +285,7 @@ detect_convex_hull :: (vertices: [] Vector3, indices: [] $I) -> bool {
     // 1. each edge must have 2 triangles
     // 2. the dot product of the normal of each 2 adjacent triangles must be negative (pointing away from each other)
 
-    EPSILON :: 0.0001;
+    EPSILON :: 0.01;
 
     Edge :: struct {
         v1: Vector3;
@@ -327,7 +331,7 @@ detect_convex_hull :: (vertices: [] Vector3, indices: [] $I) -> bool {
     index := 0;
     while index < indices.count {
         defer index += 3;
-        
+
         a := vertices[indices[index]];
         b := vertices[indices[index + 1]];
         c := vertices[indices[index + 2]];
@@ -397,6 +401,7 @@ detect_convex_hull :: (vertices: [] Vector3, indices: [] $I) -> bool {
         // or not
 
         if dot(triangle2.a - triangle2.c, normal1) < -EPSILON {
+            print("returning false %\n", dot(triangle2.a - triangle2.c, normal1));
             return false;
         }
     }

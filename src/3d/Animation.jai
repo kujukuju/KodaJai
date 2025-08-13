@@ -1,6 +1,4 @@
 
-// TODO don't use strings here, use fixed strings... millions of allocations
-
 ModelAnimations :: struct {
     // the entire traversed hierarchy of all the bones, some of which aren't included in the skin calculations
     bone_hierarchy: [..] AnimationJoint;

@@ -137,7 +137,9 @@ get_orthographic_matrix :: () -> Matrix4 {
     matrix.coef[0][3] = -(right + left) / (right - left);
     matrix.coef[1][1] = 2.0 / (top - bottom);
     matrix.coef[1][3] = -(top + bottom) / (top - bottom);
-    matrix.coef[2][2]  = 1.0 / (z_far - z_near);
+    // TODO this is different than the below function
+    matrix.coef[2][2] = 1.0 / (z_far - z_near);
+    // TODO this is different than the below function
     matrix.coef[2][3] = -z_near / (z_far - z_near);
     return matrix;
 
@@ -149,11 +151,13 @@ create_orthographic_matrix :: (left: float, right: float, bottom: float, top: fl
 
     ortho._11 = 2.0 / (right - left);
     ortho._22 = 2.0 / (top - bottom);
+    // TODO this is different than the above function
     ortho._33 = 2.0 / (far - near);
     ortho._44 = 1.0;
 
     ortho._14 = -(right + left) / (right - left);
     ortho._24 = -(top + bottom) / (top - bottom);
+    // TODO this is different than the above function
     ortho._34 = -(far + near) / (far - near);
 
     return ortho;

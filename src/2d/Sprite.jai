@@ -152,7 +152,10 @@ draw :: (sprite: Sprite) {
     set(*uniforms, "model", model);
     set(*uniforms, "view", view);
 
-    set(*uniforms, "uTint", sprite.tint * sprite.alpha);
+    tint := sprite.tint;
+    tint.a *= sprite.alpha;
+
+    set(*uniforms, "uTint", tint);
     set(*uniforms, "uFrame", sprite.texture_frame);
 
     apply_uniforms(shader, uniforms);
