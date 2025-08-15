@@ -201,6 +201,7 @@ static_sprite: Sprite;
 #import "KodaSerializer";
 #import "BlockAllocatorJai";
 #import "JaiMath";
+#import "lz4";
 
 #if WASM {
     parallel_init :: () {}

@@ -8,7 +8,7 @@ TextureArray :: struct {
     wrap: [2] TextureWrap;
     interp: TextureInterp;
     border_color: Color;
-    data: *u8; @serializer(skip)
+    data: *u8; @serializer_skip
 }
 
 load_texture_array :: (path: string, wrap: TextureWrap = .Clamp, interp: TextureInterp = .Linear, should_upload: bool = true) -> TextureArray {
@@ -59,7 +59,7 @@ upload :: (texture: *TextureArray) {
         print("Warning: Trying to upload a texture array that's already uploaded.\n", true);
         return;
     }
-    
+
     wrap_formats: [2] s32;
     wrap_formats[0] = get_gl_format(texture.wrap[0]);
     wrap_formats[1] = get_gl_format(texture.wrap[1]);
@@ -97,7 +97,7 @@ upload :: (texture: *TextureArray) {
     gl_type := get_gl_type(texture.format);
 
     glTexImage3D(GL_TEXTURE_2D_ARRAY, 0, gl_internal_format, xx texture.width, xx texture.height, xx texture.depth, 0, gl_format, gl_type, texture.data);
-    
+
     if has_mipmap {
         glGenerateMipmap(GL_TEXTURE_2D_ARRAY);
     }
@@ -126,7 +126,7 @@ get_bytes :: (texture: TextureArray) -> int {
 update_texture :: (texture: *TextureArray, image: Image3) {
     assert(texture.width == image.width && texture.height == image.height && texture.depth == image.depth, "Dimensions must match.");
     assert(texture.format == image.format, "Formats must match.");
-    
+
     update_texture(texture, image.pixels);
 }
 
