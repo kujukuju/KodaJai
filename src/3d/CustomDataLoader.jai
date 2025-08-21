@@ -47,6 +47,13 @@ load_custom_data :: (path: string) -> [..] CustomData, bool {
     }
 }
 
+is_valid_property :: (object: JsonObjectEntry) -> bool {
+    if object.name == "hops" || object.name == "zen_uv" {
+        return false;
+    }
+    return true;
+}
+
 get_property_entry :: (name: string, object: JsonObjectEntry) -> [2] string {
     property: [2] string;
     property[0] = copy_string(object.name);

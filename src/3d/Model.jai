@@ -795,7 +795,9 @@ load_model_gltf_data :: (json: GltfJson, binary: [] u8, should_upload: bool) -> 
                 assert(mesh.extras.type == .Object);
 
                 for entry: mesh.extras.object {
-                    array_add(properties, get_property_entry(mesh.name, entry));
+                    if is_valid_property(entry) {
+                        array_add(properties, get_property_entry(mesh.name, entry));
+                    }
                 }
             }
 
@@ -811,7 +813,9 @@ load_model_gltf_data :: (json: GltfJson, binary: [] u8, should_upload: bool) -> 
                     name := ifx material.name then material.name.* else "";
 
                     for entry: material.extras.object {
-                        array_add(material_properties, get_property_entry(name, entry));
+                        if is_valid_property(entry) {
+                            array_add(material_properties, get_property_entry(name, entry));
+                        }
                     }
                 }
             }
