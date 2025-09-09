@@ -477,7 +477,7 @@ rename_animations :: (animations: *ModelAnimations, name_overrides: [] [2] strin
         print("Could not find name override for souce name %.\n", name_override[0]);
         print("Available names are:\n");
         for animation: animations.animations {
-            print("\t%\n", animation.name);
+            print("\t%\n", to_string(*animation.name));
         }
         assert(false, "Could not find name override.");
     }

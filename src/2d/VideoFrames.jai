@@ -3,8 +3,8 @@ VideoFrames :: struct {
     width: int;
     height: int;
     frames: [] u8;
+    frame_indices: [] int;
     frame_count: int;
-    buffer: [] u8; @serializer_skip
     uncompressed: [2] [] u8; @serializer_skip
     uncompressed_index: int; @serializer_skip
     frame: int; @serializer_skip
@@ -12,7 +12,7 @@ VideoFrames :: struct {
 }
 
 destroy_allocated :: (video_frames: VideoFrames) {
-    for uncompressed {
+    for video_frames.uncompressed {
         if it.count {
             array_free(it);
         }
@@ -59,6 +59,7 @@ generate_video :: (path: string) -> VideoFrames {
     frame_delta := NewArray(frame_byte_count, u8,, temp);
 
     compressed: [..] u8;
+    compressed_indices: [..] int;
 
     encoder := LZ4_createStreamHC();
     defer LZ4_freeStreamHC(encoder);
@@ -77,6 +78,7 @@ generate_video :: (path: string) -> VideoFrames {
             frame_delta[i] = current_frame[i] ^ last_frame[i];
         }
 
+        array_add(*compressed_indices, compressed.count);
         compress_block(encoder, frame_delta, *compressed);
     }
 
@@ -86,20 +88,19 @@ generate_video :: (path: string) -> VideoFrames {
     video_frames.width = width;
     video_frames.height = height;
     video_frames.frames = compressed;
+    video_frames.frame_indices = compressed_indices;
     video_frames.frame_count = frame_count;
 
     return video_frames;
 }
 
 get_frame_and_increment :: (video_frame: *VideoFrames) -> [] u8 {
-    if video_frame.frame >= video_frame.frames.count {
+    if video_frame.frame >= video_frame.frame_indices.count {
         return video_frame.uncompressed[video_frame.uncompressed_index];
     }
 
     if !video_frame.decoder {
         video_frame.decoder = LZ4_createStreamDecode();
-
-        video_frame.buffer = NewArray(video_frame.width * video_frame.height * 3, u8);
 
         for i: 0..video_frame.uncompressed.count - 1 {
             video_frame.uncompressed[i] = NewArray(video_frame.width * video_frame.height * 3, u8);
@@ -107,7 +108,6 @@ get_frame_and_increment :: (video_frame: *VideoFrames) -> [] u8 {
     }
 
     if video_frame.frame == 0 {
-        memset(video_frame.buffer.data, 0, video_frame.buffer.count);
         for i: 0..video_frame.uncompressed.count - 1 {
             memset(video_frame.uncompressed[i].data, 0, video_frame.uncompressed[i].count);
         }
@@ -118,23 +118,53 @@ get_frame_and_increment :: (video_frame: *VideoFrames) -> [] u8 {
 
     last_frame := video_frame.uncompressed[video_frame.uncompressed_index];
 
-    uncompress_block(video_frame.decoder, video_frame.frames[video_frame.frame], out_frame);
+    compressed_block: [] u8;
+    compressed_block.data = video_frame.frames.data + video_frame.frame_indices[video_frame.frame];
+    if video_frame.frame == video_frame.frame_indices.count - 1 {
+        compressed_block.count = video_frame.frames.count - video_frame.frame_indices[video_frame.frame];
+    } else {
+        compressed_block.count = video_frame.frame_indices[video_frame.frame + 1] - video_frame.frame_indices[video_frame.frame];
+    }
+
+    uncompress_block(video_frame.decoder, compressed_block, out_frame);
     video_frame.frame += 1;
 
-    for i: 0..out_frame.count - 1 {
-        out_frame[i] = out_frame[i] ^ last_frame[i];
-    }
+    chunk_size :: 128;
+    assert(out_frame.count % chunk_size == 0);
+    chunk_count := out_frame.count / chunk_size;
+    parallel_for(0, chunk_count, (i: int, thread: int, using data: struct {
+        out_frame: [] u8;
+        last_frame: [] u8;
+    }) {
+        out_chunk: [chunk_size] u8 = ---;
+        last_chunk: [chunk_size] u8 = ---;
+
+        memcpy(out_chunk.data, out_frame.data + i * chunk_size, chunk_size);
+        memcpy(last_chunk.data, last_frame.data + i * chunk_size, chunk_size);
+
+        for a: 0..chunk_size - 1 {
+            out_chunk.data[a] = out_chunk.data[a] ^ last_chunk.data[a];
+        }
+        memcpy(out_frame.data + i * chunk_size, out_chunk.data, chunk_size);
+    }, .{
+        out_frame,
+        last_frame,
+    });
+
+    return out_frame;
 }
 
 #scope_file
 
-compress_block :: (encoder: *LZ4_streamHC_t, uncompressed: [] u8, out: *[..] u8) {
+compress_block :: (encoder: *LZ4_streamHC_t, uncompressed: [] u8, out: *[..] u8) -> int {
     required_size := LZ4_compressBound(cast(s32) uncompressed.count);
     array_reserve(out, out.count + required_size);
 
-    written  := LZ4_compress_HC_continue(encoder, uncompressed.data, out.data + out.count, cast(s32) uncompressed.count, cast(s32) required_size);
+    written := LZ4_compress_HC_continue(encoder, uncompressed.data, out.data + out.count, cast(s32) uncompressed.count, cast(s32) required_size);
     assert(written > 0 && written <= required_size);
     out.count += written;
+
+    return written;
 }
 
 uncompress_block :: (decoder: *LZ4_streamDecode_t, compressed: [] u8, out: [] u8) {

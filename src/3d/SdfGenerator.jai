@@ -231,6 +231,7 @@ create_sdf_image :: (models: [] *Model, pixel_units: float) -> Image3, AABB3, Ve
                     query_aabb.lower -= radius;
                     query_aabb.upper += radius;
 
+                    // for model: models {
                     for model: query(*model_tree, query_aabb) {
                         nearest_distance_squared := FLOAT32_MAX;
                         nearest_triangle: Triangle3;
@@ -244,9 +245,8 @@ create_sdf_image :: (models: [] *Model, pixel_units: float) -> Image3, AABB3, Ve
                                 nearest_triangle = triangle;
                             }
 
-                            normal := get_normal(triangle);
-                            last_inside := inside;
-                            inside = inside && dot(normal, position - point) < 0.1;
+                            normal_ish := cross(triangle.b - triangle.a, triangle.c - triangle.a);
+                            inside = inside && dot(normal_ish, position - triangle.a) < 0.1;
                         }
 
                         if nearest_distance_squared < FLOAT32_MAX {
@@ -284,6 +284,7 @@ create_sdf_image :: (models: [] *Model, pixel_units: float) -> Image3, AABB3, Ve
 detect_convex_hull :: (vertices: [] Vector3, indices: [] $I) -> bool {
     // 1. each edge must have 2 triangles
     // 2. the dot product of the normal of each 2 adjacent triangles must be negative (pointing away from each other)
+    // TODO I THINK I MEANT CROSS PRODUCT???
 
     EPSILON :: 0.01;
 
@@ -385,26 +386,28 @@ detect_convex_hull :: (vertices: [] Vector3, indices: [] $I) -> bool {
         }
     }
 
-    for edge_info: edge_triangles {
-        if edge_info.edge_triangle_bits != 0x3 {
-            print("Not convex due to edge triangle count.\n");
-            return false;
-        }
+    // for edge_info: edge_triangles {
+    //     if edge_info.edge_triangle_bits != 0x3 {
+    //         print("Not convex due to edge triangle count.\n");
+    //         return false;
+    //     }
 
-        triangle1 := edge_info.edge_triangles[0];
-        normal1 := cross(triangle1.b - triangle1.a, triangle1.c - triangle1.a);
+    //     triangle1 := edge_info.edge_triangles[0];
+    //     normal1 := cross(triangle1.b - triangle1.a, triangle1.c - triangle1.a);
 
-        triangle2 := edge_info.edge_triangles[1];
+    //     triangle2 := edge_info.edge_triangles[1];
 
-        // a and b are both part of the testing line, so we'll check that both are satisfied
-        // to hopefully prevent floating point issues
-        // or not
+    //     // a and b are both part of the testing line, so we'll check that both are satisfied
+    //     // to hopefully prevent floating point issues
+    //     // or not
 
-        if dot(triangle2.a - triangle2.c, normal1) < -EPSILON {
-            print("returning false %\n", dot(triangle2.a - triangle2.c, normal1));
-            return false;
-        }
-    }
+    //     if dot(triangle2.a - triangle2.c, normal1) < -EPSILON {
+    //         print("returning false1 %\n", triangle1);
+    //         print("returning false2 %\n", triangle2);
+    //         print("returning false % %: %\n", triangle2.a - triangle2.c, normal1, dot(triangle2.a - triangle2.c, normal1));
+    //         return false;
+    //     }
+    // }
 
     return true;
 }

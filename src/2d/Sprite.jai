@@ -17,6 +17,10 @@ Sprite :: struct {
     ebo_: GLuint;
 }
 
+operator ! :: (sprite: Sprite) -> bool {
+    return !sprite.vao_;
+}
+
 create_sprite :: (texture: Texture) -> Sprite {
     return create_sprite(texture, xx texture.width, xx texture.height);
 }
