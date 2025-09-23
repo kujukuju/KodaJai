@@ -261,6 +261,7 @@ upload :: (geometry: *Geometry) {
 
     if geometry.vertices.count != geometry.vertices.allocated || geometry.indices.count != geometry.indices.allocated {
         print("Warning: Uploaded a geometry to the gpu with additional allocated buffer space. % > % ... % > %\n", geometry.vertices.allocated, geometry.vertices.count, geometry.indices.allocated, geometry.indices.count);
+        // print("Warning: We now just fall back to using the count instead of the allocated since the allocated is fake.\n");
     }
 
     glBindBuffer(GL_ARRAY_BUFFER, geometry.vbo_);
