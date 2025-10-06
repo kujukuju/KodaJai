@@ -1,5 +1,5 @@
 
-#module_parameters () (PRODUCTION := false, WASM := false, VALIDATE_SERIALIZED := true, NO_GRAPHICS := false, HOT_LOAD_SHADERS := false, ALLOW_EXPORTS := true);
+#module_parameters () (PRODUCTION := false, WASM := false, VALIDATE_SERIALIZED := true, NO_GRAPHICS := false, HOT_LOAD_SHADERS := false, ALLOW_EXPORTS := true, DEFAULT_CONTEXT_COPY_NAMES: [$N] string = .[]);
 
 #if WASM {
     core_count :: 8;
@@ -203,26 +203,26 @@ static_sprite: Sprite;
 #import "JaiMath";
 #import "lz4_static";
 
-#if WASM {
-    parallel_init :: () {}
-    parallel_for :: (start: int, end_exclusive: int, $callback: (i: int, thread: int, data: $T), data: T, thread_count: int = 0) {
-        for i: start..end_exclusive {
-            callback(i, 0, data);
-        }
-    }
+// #if WASM {
+//     parallel_init :: () {}
+//     parallel_for :: (start: int, end_exclusive: int, $callback: (i: int, thread: int, data: $T), data: T, thread_count: int = 0) {
+//         for i: start..end_exclusive {
+//             callback(i, 0, data);
+//         }
+//     }
 
-    Mutex :: struct {}
-    lock :: (m: *Mutex) {}
-    unlock :: (m: *Mutex) {}
-    init :: (m: *Mutex) {}
+//     Mutex :: struct {}
+//     lock :: (m: *Mutex) {}
+//     unlock :: (m: *Mutex) {}
+//     init :: (m: *Mutex) {}
 
-    c_alloc :: (size : u64) -> *void #foreign "malloc";
-    c_free :: (memory: *void) #foreign "free";
+//     c_alloc :: (size : u64) -> *void #foreign "malloc";
+//     c_free :: (memory: *void) #foreign "free";
 
-    exit :: (sig: int) #foreign;
-} else {
+//     exit :: (sig: int) #foreign;
+// } else {
     #import "Thread";
-    #import "JaiParallel";
+    #import "JaiParallel"(DEFAULT_CONTEXT_COPY_NAMES);
 
     c_alloc :: (size : u64) -> *void #foreign crt "malloc";
     c_free :: (memory: *void) #foreign crt "free";
@@ -232,5 +232,5 @@ static_sprite: Sprite;
     } else #if OS == .LINUX {
         crt :: #system_library "libc";
     }
-}
+// }
 

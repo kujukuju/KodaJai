@@ -19,6 +19,10 @@ koda_init :: () {
     glfwSetErrorCallback(error_callback);
     if !glfwInit() {
         print("Exited because glfw could not initialize.\n");
+        #if OS == .WINDOWS {
+            Windows :: #import "Windows";
+            Windows.MessageBoxA(null, "Could not initialize glfw. Update your graphics drivers!", "Fat Goblins | OpenGL Error", Windows.MB_OK | Windows.MB_ICONERROR);
+        }
         exit(-1);
     }
 
@@ -90,6 +94,11 @@ create_window :: (title: *u8, width: s32, height: s32, multisample: int = 0) {
     if !koda.window {
         glfwTerminate();
         print("Cannot create window.\n");
+        #if OS == .WINDOWS {
+            Windows :: #import "Windows";
+            Windows.MessageBoxA(null, "Could not create window. Update your graphics drivers!" , "Fat Goblins | OpenGL Error", Windows.MB_OK | Windows.MB_ICONERROR);
+        }
+        exit(-1);
         return;
     }
 

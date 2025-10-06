@@ -153,7 +153,7 @@ buffer_text :: (content: string, font: *Font, transform: Matrix3, anchor: Vector
         gpu.rotation = rotation;
         gpu.world_position = world_position;
 
-        particle_system_add_particle(*font.font_system, gpu, .{});
+        array_add(*font.font_instances, gpu);
 
         // now advance cursors for next glyph (note that advance is number of 1/64 pixels)
         // bitshift by 6 to get value in pixels (2^6 = 64)
@@ -173,8 +173,10 @@ flush_text :: (font: *Font, projection: Matrix4) {
     set_depth_test_scope(false);
     set_cull_face_scope(false);
 
-    particle_system_update_and_render(*font.font_system, 0, projection);
-    particle_system_clear(*font.font_system);
+    set_instances(font.font_system, font.font_instances);
+    font.font_instances.count = 0;
+
+    draw(font.font_system, projection);
 }
 
 get_position_aabb :: (content: string, font: *Font, position: Vector2, anchor: Vector2 = .{0, 0}, scale: float = 1, fixed_height_string: string = "") -> AABB2 {

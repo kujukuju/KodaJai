@@ -1,6 +1,5 @@
 
 Font :: struct {
-    // TODO instead of a table I could use a binary searchable array
     characters: Table(u32, CharacterInfo);
     texture: TextureArray;
     image: Image3;
@@ -8,7 +7,8 @@ Font :: struct {
     max_height: int;
     buffer_required: bool;
     buffer_view: Matrix4;
-    font_system: ParticleSystem(FontParticleGpu, FontParticleCpu, sort = false); @serializer_skip
+    font_system: *InstancedModel(FontParticleGpu); @serializer_skip
+    font_instances: [..] FontParticleGpu; @serializer_skip
 }
 
 FontParticleGpu :: struct {
@@ -268,7 +268,9 @@ upload :: (font: *Font, clear_image: bool = true) {
         ], .[.Position]);
     }
 
-    particle_system_init(*font.font_system, *font_particle_shader, font_system_geometry);
+    font.font_system = create_instanced_model(FontParticleGpu, font_system_geometry);
+    font.font_system.shader = *font_particle_shader;
+    font.font_system.cull_face = false;
     set(*font.font_system.uniforms, "uTexture", font.texture);
 }
 
