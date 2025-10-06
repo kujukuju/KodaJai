@@ -23,6 +23,22 @@ load_texture_array :: (path: string, wrap: [2] TextureWrap, interp: TextureInter
     return create_texture_array(load_image3(path), wrap, interp, should_upload);
 }
 
+create_texture_array :: (width: int, height: int, depth: int, format: PixelFormat, wrap: TextureWrap = .Clamp, interp: TextureInterp = .Linear, should_upload: bool = true) -> TextureArray {
+    texture: TextureArray;
+    texture.width = xx width;
+    texture.height = xx height;
+    texture.depth = xx depth;
+    texture.format = format;
+    texture.wrap = .[wrap, wrap];
+    texture.interp = interp;
+
+    if should_upload {
+        upload(*texture);
+    }
+
+    return texture;
+}
+
 create_texture_array :: (image: Image3, wrap: TextureWrap = .Clamp, interp: TextureInterp = .Linear, should_upload: bool = true) -> TextureArray {
     wrap_array: [2] TextureWrap;
     wrap_array[0] = wrap;
@@ -139,6 +155,17 @@ update_texture :: (texture: *TextureArray, bytes: [] u8) {
     gl_type := get_gl_type(texture.format);
 
     glTextureSubImage3D(texture.buffer, 0, 0, 0, 0, xx texture.width, xx texture.height, xx depth, gl_format, gl_type, bytes.data);
+}
+
+update_texture_layer :: (texture: *TextureArray, layer: int, bytes: [] u8) {
+    // TODO can upload this in parallel of it helps
+    stride := get_stride(texture.format);
+    assert(bytes.count == texture.width * texture.height * stride, "Incorrect texture layer byte count.\n");
+
+    gl_format := get_gl_format(texture.format);
+    gl_type := get_gl_type(texture.format);
+
+    glTextureSubImage3D(texture.buffer, 0, 0, 0, xx layer, xx texture.width, xx texture.height, 1, gl_format, gl_type, bytes.data);
 }
 
 convert_format :: (texture: *TextureArray, desired_format: PixelFormat) {

@@ -23,12 +23,6 @@ draw_text :: (content: string, font: *Font, transform: Matrix3, anchor: Vector2,
     flush_text(font);
 }
 
-begin_buffer_text :: (font: *Font) {
-    assert(!font.buffer_required, "You cannot call begin buffer text twice in a row.\n");
-    font.buffer_required = true;
-    font.buffer_view = koda.view;
-}
-
 buffer_text :: (content: string, font: *Font, position: Vector2, anchor: Vector2 = .{0, 0}, scale: float = 1, tint: Color = .{1, 1, 1, 1}, padding: float = 0.0, blur: float = 0.0, rotation: float = 0.0, world_position: Vector3 = .{}, fixed_height_string: string = "", fixed_width_string: string = "") {
     buffer_text(content, font, position, anchor, .{scale, scale}, tint, padding, blur, rotation, world_position, fixed_height_string, fixed_width_string);
 }
@@ -125,26 +119,38 @@ buffer_text :: (content: string, font: *Font, transform: Matrix3, anchor: Vector
             continue;
         }
 
-        found, character := table_find_new(*font.characters, char);
+        found, info := table_find_new(*font.characters, char);
         if !found {
             print("Character out of bounds. %\n", char);
             continue;
         }
 
-        xpos := x + character.bearing.x * scale.x;
-        ypos := y - character.bearing.y * scale.y + font.max_height * scale.y;
+        uploaded, layer := upload_character(font, char);
+        if !uploaded {
+            flush_text(font);
+            begin_buffer_text(font);
+
+            uploaded, layer = upload_character(font, char);
+            assert(uploaded, "Could not upload font character in a completely new set.\n");
+            if !uploaded {
+                return;
+            }
+        }
+
+        xpos := x + info.bearing.x * scale.x;
+        ypos := y - info.bearing.y * scale.y + font.max_height * scale.y;
         if is_3d {
             ypos = y - font.max_height * scale.y;
         }
 
-        w := character.width * scale.x;
-        h := character.height * scale.y;
+        w := info.width * scale.x;
+        h := info.height * scale.y;
 
         gpu: FontParticleGpu;
         gpu.position = .{xpos, ypos};
         gpu.size = .{w, h};
-        gpu.texSize = .{cast(float) character.width / font.max_width, cast(float) character.height / font.max_height};
-        gpu.index = cast(float) character.index;
+        gpu.texSize = .{cast(float) info.width / font.max_width, cast(float) info.height / font.max_height};
+        gpu.index = cast(float) layer;
         gpu.transform = transform;
         gpu.tint = tint.rgba;
         gpu.padding = real_padding;
@@ -157,26 +163,9 @@ buffer_text :: (content: string, font: *Font, transform: Matrix3, anchor: Vector
 
         // now advance cursors for next glyph (note that advance is number of 1/64 pixels)
         // bitshift by 6 to get value in pixels (2^6 = 64)
-        x += (character.advance.x >> 6) * scale.x;
-        advance_y = max(advance_y, character.height);
+        x += (info.advance.x >> 6) * scale.x;
+        advance_y = max(advance_y, info.height);
     }
-}
-
-flush_text :: (font: *Font) {
-    projection := orthographic_projection_matrix(0, xx koda.width, xx koda.height, 0, -1.0, 1.0);
-    flush_text(font, projection);
-}
-
-flush_text :: (font: *Font, projection: Matrix4) {
-    font.buffer_required = false;
-
-    set_depth_test_scope(false);
-    set_cull_face_scope(false);
-
-    set_instances(font.font_system, font.font_instances);
-    font.font_instances.count = 0;
-
-    draw(font.font_system, projection);
 }
 
 get_position_aabb :: (content: string, font: *Font, position: Vector2, anchor: Vector2 = .{0, 0}, scale: float = 1, fixed_height_string: string = "") -> AABB2 {
