@@ -13,8 +13,8 @@ Font :: struct {
     glyph_data: [..] u8;
     // dictionary: [] u8;
     // compressed_glyph_data: [] u8;
-    loaded_characters: [loaded_char_count] RecentCharacter;
-    frame: u32;
+    loaded_characters: [loaded_char_count] RecentCharacter; @serializer_skip
+    frame: u32; @serializer_skip
 }
 
 FontParticleGpu :: struct {
@@ -176,6 +176,12 @@ load_characters :: (font: *Font, bytes: [] u8, pixel_height: int, character_set:
         return false;
     }
 
+    error = FT_Select_Charmap(ft_face, .UNICODE);
+    assert(!error, "Could not set character map to unicode. %\n", error);
+    if error {
+        return false;
+    }
+
     image_width := font.max_width;
     image_height := font.max_height;
     glyph_bytes := image_width * image_height;
@@ -191,7 +197,6 @@ load_characters :: (font: *Font, bytes: [] u8, pixel_height: int, character_set:
         next_glyph: [] u8;
         next_glyph.data = `glyph_data.data + `glyph_data.count;
         next_glyph.count = `glyph_bytes;
-
         memset(next_glyph.data, 0, next_glyph.count);
 
         data_index := `glyph_data.count;
@@ -219,7 +224,9 @@ load_characters :: (font: *Font, bytes: [] u8, pixel_height: int, character_set:
             return false;
         }
 
-        existing_info_found, existing_info := table_find_new(*font.characters, character);
+        if table_contains(*font.characters, character) {
+            continue;
+        }
 
         glyph_width := cast(int) ft_face.glyph.bitmap.width;
         glyph_height := cast(int) ft_face.glyph.bitmap.rows;
@@ -228,20 +235,14 @@ load_characters :: (font: *Font, bytes: [] u8, pixel_height: int, character_set:
         assert(glyph_height <= image_height, "Your glyph cannot be larger than the max height.\n");
         assert(glyph_pixel_mode == .GRAY, "Glyph must be mono. %\n", glyph_pixel_mode);
 
-        next_glyph: [] u8;
-        data_index: int;
-        if existing_info_found {
-            next_glyph.data = glyph_data.data + existing_info.data_index;
-            next_glyph.count = glyph_bytes;
-            data_index = existing_info.data_index;
-        } else {
-            next_glyph, data_index = alloc_next_gylph();
-        }
+        next_glyph, data_index := alloc_next_gylph();
 
+        src := ft_face.glyph.bitmap.buffer;
         for y: 0..glyph_height - 1 {
             dest := next_glyph.data + y * image_width;
-            src := ft_face.glyph.bitmap.buffer + y * glyph_width;
             memcpy(dest, src, glyph_width);
+
+            src += ft_face.glyph.bitmap.pitch;
         }
 
         info: CharacterInfo;
@@ -278,6 +279,12 @@ load_font :: (paths: [] string, pixel_height: int, character_set: [] u32 = .[], 
         array_add(*file_bytes, bytes);
     }
 
+    defer {
+        for bytes: file_bytes {
+            array_free(bytes);
+        }
+    }
+
     character_sets: [..] [] u32;
     character_sets.allocator = temp;
     for bytes: file_bytes {
@@ -285,12 +292,6 @@ load_font :: (paths: [] string, pixel_height: int, character_set: [] u32 = .[], 
             array_add(*character_sets, character_set);
         } else {
             array_add(*character_sets, get_character_set(bytes,, temp));
-        }
-    }
-
-    defer {
-        for bytes: file_bytes {
-            array_free(bytes);
         }
     }
 
@@ -303,6 +304,10 @@ load_font :: (paths: [] string, pixel_height: int, character_set: [] u32 = .[], 
         font.max_width = max(font.max_width, width);
         font.max_height = max(font.max_height, height);
     }
+
+    // without this, probably related to pixelstore, there is texture (but not image) striding issues
+    font.max_width = (font.max_width + 7) / 8 * 8;
+    font.max_height = (font.max_height + 7) / 8 * 8;
 
     print("Done loading character bounds.\n");
 
@@ -325,7 +330,7 @@ load_font :: (paths: [] string, pixel_height: int, character_set: [] u32 = .[], 
         image.depth = font.glyph_data.count / (font.max_width * font.max_height);
 
         image.format = .R8;
-        save_image(image, tprint("%.%.debug.png", paths[paths.count - 1], pixel_height));
+        save_image(image, tprint("%.%.debug.png", paths[0], pixel_height));
     }
 
     if should_upload {
@@ -382,8 +387,6 @@ upload_character :: (font: *Font, character: u32) -> bool, layer: int {
 
         return true, oldest_index;
     }
-
-    assert(false, "This shouldn't happen until it's chinsese or japanese.\n");
 
     return false, 0;
 }

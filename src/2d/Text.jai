@@ -264,41 +264,55 @@ get_fixed_line_height :: (content: string, font: *Font, scale: Vector2) -> float
 }
 
 get_unicode_char :: (content: string, index: int) -> character: u32, index: int {
-    if content[index] & 0b11111000 == 0b11110000 {
-        if index + 3 >= content.count {
-            return 0, index + 3;
-        }
-
-        char: u32 = (content[index] & 0b00000111) << 18;
-        char |= (content[index + 1] & 0b00111111) << 12;
-        char |= (content[index + 2] & 0b00111111) << 6;
-        char |= content[index + 3] & 0b00111111;
-        return char, index + 4;
-    } else if content[index] & 0b11110000 == 0b11100000 {
-        if index + 2 >= content.count {
-            return 0, index + 2;
-        }
-
-        char: u32 = (content[index] & 0b00001111) << 12;
-        char |= (content[index + 1] & 0b00111111) << 6;
-        char |= content[index + 2] & 0b00111111;
-        return char, index + 3;
-    } else if content[index] & 0b11100000 == 0b11000000 {
-        if index + 1 >= content.count {
-            return 0, index + 1;
-        }
-
-        char: u32 = (content[index] & 0b00011111) << 6;
-        char |= content[index + 1] & 0b00111111;
-        return char, index + 2;
-    } else if content[index] & 0b11000000 == 0b10000000 {
-        // you're in the middle of a unicode string
+    remaining := content;
+    code, bytes, result := character_utf8_to_utf32(content.data + index, content.count - index);
+    if result != .CONVERSION_OK {
         return 0, index + 1;
-    } else {
-        if index >= content.count {
-            return 0, index;
-        }
-
-        return content[index], index + 1;
     }
+
+    return code, index + bytes;
 }
+
+// get_unicode_char :: (content: string, index: int) -> character: u32, index: int {
+//     if content[index] & 0b11111000 == 0b11110000 {
+//         if index + 3 >= content.count {
+//             return 0, index + 3;
+//         }
+
+//         char: u32 = (content[index] & 0b00000111) << 18;
+//         char |= (content[index + 1] & 0b00111111) << 12;
+//         char |= (content[index + 2] & 0b00111111) << 6;
+//         char |= content[index + 3] & 0b00111111;
+//         return char, index + 4;
+//     } else if content[index] & 0b11110000 == 0b11100000 {
+//         if index + 2 >= content.count {
+//             return 0, index + 2;
+//         }
+
+//         char: u32 = (content[index] & 0b00001111) << 12;
+//         char |= (content[index + 1] & 0b00111111) << 6;
+//         char |= content[index + 2] & 0b00111111;
+//         return char, index + 3;
+//     } else if content[index] & 0b11100000 == 0b11000000 {
+//         if index + 1 >= content.count {
+//             return 0, index + 1;
+//         }
+
+//         char: u32 = (content[index] & 0b00011111) << 6;
+//         char |= content[index + 1] & 0b00111111;
+//         return char, index + 2;
+//     } else if content[index] & 0b11000000 == 0b10000000 {
+//         // you're in the middle of a unicode string
+//         return 0, index + 1;
+//     } else {
+//         if index >= content.count {
+//             return 0, index;
+//         }
+
+//         return content[index], index + 1;
+//     }
+// }
+
+#scope_file
+
+#import "Unicode";
