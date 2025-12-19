@@ -287,7 +287,7 @@ merge_by_material_id :: (models: [] *Model, should_upload: bool = true) -> [..] 
     merged: [..] *Model;
 
     for material_id: material_ids {
-        found, models := table_find_new(*material_models, material_id);
+        found, models := table_find(*material_models, material_id);
         if !found {
             continue;
         }
@@ -600,7 +600,7 @@ load_model_gltf_data :: (json: GltfJson, binary: [] u8, should_upload: bool) -> 
                 continue;
             }
 
-            geometry_index_found, geometry_index := table_find_new(*primitive_to_geometry, primitive);
+            geometry_index_found, geometry_index := table_find(*primitive_to_geometry, primitive);
             assert(geometry_index_found);
 
             geometry_instance_counts[geometry_index] += 1;
@@ -652,7 +652,7 @@ load_model_gltf_data :: (json: GltfJson, binary: [] u8, should_upload: bool) -> 
                 continue;
             }
 
-            geometry_index_found, geometry_index := table_find_new(*primitive_to_geometry, primitive);
+            geometry_index_found, geometry_index := table_find(*primitive_to_geometry, primitive);
             assert(geometry_index_found);
 
             if geometry_instance_counts[geometry_index] != 1 {
@@ -692,7 +692,7 @@ load_model_gltf_data :: (json: GltfJson, binary: [] u8, should_upload: bool) -> 
                 continue;
             }
 
-            geometry_index_found, geometry_index := table_find_new(*primitive_to_geometry, primitive);
+            geometry_index_found, geometry_index := table_find(*primitive_to_geometry, primitive);
             assert(geometry_index_found);
 
             if geometry_instance_counts[geometry_index] <= 1 {
@@ -760,7 +760,7 @@ load_model_gltf_data :: (json: GltfJson, binary: [] u8, should_upload: bool) -> 
                 continue;
             }
 
-            geometry_index_found, geometry_index := table_find_new(*primitive_to_geometry, primitive);
+            geometry_index_found, geometry_index := table_find(*primitive_to_geometry, primitive);
             assert(geometry_index_found);
 
             instance_count := geometry_instance_counts[geometry_index];
@@ -833,7 +833,7 @@ load_model_gltf_data :: (json: GltfJson, binary: [] u8, should_upload: bool) -> 
 
                 texture_index := material.pbrMetallicRoughness.baseColorTexture.index;
 
-                found, texture := table_find_new(*textures, texture_index);
+                found, texture := table_find(*textures, texture_index);
                 if !found {
                     texture = get_texture(json, bufferviews, texture_index, should_upload);
                     if material.name {
@@ -880,7 +880,7 @@ load_model_gltf_data :: (json: GltfJson, binary: [] u8, should_upload: bool) -> 
 
                 texture_index := material.normalTexture.index;
 
-                found, texture := table_find_new(*textures, texture_index);
+                found, texture := table_find(*textures, texture_index);
                 if !found {
                     texture = get_texture(json, bufferviews, texture_index, should_upload);
                     if material.name {
@@ -906,7 +906,7 @@ load_model_gltf_data :: (json: GltfJson, binary: [] u8, should_upload: bool) -> 
 
                 texture_index := material.emissiveTexture.index;
 
-                found, texture := table_find_new(*textures, texture_index);
+                found, texture := table_find(*textures, texture_index);
                 if !found {
                     texture = get_texture(json, bufferviews, texture_index, should_upload);
                     if material.name {

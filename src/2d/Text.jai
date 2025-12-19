@@ -65,7 +65,7 @@ buffer_text :: (content: string, font: *Font, transform: Matrix3, anchor: Vector
         index: int;
         while index < fixed_width_string.count {
             char, index = get_unicode_char(fixed_width_string, index);
-            found, character := table_find_new(*font.characters, char);
+            found, character := table_find(*font.characters, char);
             if !found {
                 continue;
             }
@@ -74,7 +74,7 @@ buffer_text :: (content: string, font: *Font, transform: Matrix3, anchor: Vector
         }
 
         char = get_unicode_char(content, 0);
-        found, character := table_find_new(*font.characters, char);
+        found, character := table_find(*font.characters, char);
         if found {
             offset_x = character.bearing.x - maximum_bearing_x;
         }
@@ -119,9 +119,11 @@ buffer_text :: (content: string, font: *Font, transform: Matrix3, anchor: Vector
             continue;
         }
 
-        found, info := table_find_new(*font.characters, char);
+        found, info := table_find(*font.characters, char);
         if !found {
-            print("Character out of bounds. %\n", char);
+            if !PRODUCTION && char != 0 {
+                print("Character out of bounds. %\n", char);
+            }
             continue;
         }
 
@@ -220,9 +222,11 @@ get_aabb :: (content: string, font: *Font, scale: Vector2 = .{1, 1}) -> AABB2 {
             continue;
         }
 
-        found, character := table_find_new(*font.characters, char);
+        found, character := table_find(*font.characters, char);
         if !found {
-            print("Character out of bounds. %\n", char);
+            if !PRODUCTION && char != 0 {
+                print("Character out of bounds. %\n", char);
+            }
             continue;
         }
 

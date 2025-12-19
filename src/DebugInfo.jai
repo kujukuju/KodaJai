@@ -30,7 +30,7 @@ get_graphics_info :: (include_system_info: bool = true) -> string {
     append(*builder, tprint("Context Flags: %\n", context_flags));
     append(*builder, tprint("Profile Mask : %\n", profile_mask));
     append(*builder, "\n");
-    
+
     // GL_RED_BITS :: 0x0D52;
     // GL_GREEN_BITS :: 0x0D53;
     // GL_BLUE_BITS :: 0x0D54;

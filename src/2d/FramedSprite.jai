@@ -43,7 +43,7 @@ add_animation :: (framed: *FramedSprite, name: string, start: int, end: int, loo
 }
 
 goto_animation :: (framed: *FramedSprite, name: string, frame: int) {
-    animation, exists := find_animation(<< framed, name);
+    animation, exists := find_animation(framed.*, name);
     if !exists {
         return;
     }
@@ -65,7 +65,7 @@ step_animation :: (framed: *FramedSprite, name: string) {
 }
 
 step_animation :: (framed: *FramedSprite, name: string, frames: float) {
-    animation, exists := find_animation(<< framed, name);
+    animation, exists := find_animation(framed.*, name);
     if !exists {
         return;
     }

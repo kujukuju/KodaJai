@@ -174,13 +174,13 @@ remap_animations :: (animations: *ModelAnimations, source: ModelAnimations, root
     target_to_source_indices: Table(int, int);
     target_to_source_indices.allocator = temp;
     for pair: real_remap {
-        has_target_index, target_index := table_find_new(*target_name_indices, create_fixed_string(pair[1], 128));
+        has_target_index, target_index := table_find(*target_name_indices, create_fixed_string(pair[1], 128));
         if !has_target_index {
             print("Target bone does not exist %\n", pair[1]);
         }
         assert(has_target_index, "If you specified a target bone to map it must exist.");
 
-        has_source_index, source_index := table_find_new(*source_name_indices, create_fixed_string(pair[0], 128));
+        has_source_index, source_index := table_find(*source_name_indices, create_fixed_string(pair[0], 128));
         if !has_source_index {
             print("Source bone does not exist %\n", pair[0]);
         }
@@ -190,7 +190,7 @@ remap_animations :: (animations: *ModelAnimations, source: ModelAnimations, root
     }
 
     // find the root most pair bone
-    has_target_index, current_root_target_index := table_find_new(*target_name_indices, create_fixed_string(real_remap[0][1], 128));
+    has_target_index, current_root_target_index := table_find(*target_name_indices, create_fixed_string(real_remap[0][1], 128));
     assert(has_target_index);
     best_root_target_index := current_root_target_index;
     while animations.bone_hierarchy[current_root_target_index].parent != current_root_target_index {
@@ -202,7 +202,7 @@ remap_animations :: (animations: *ModelAnimations, source: ModelAnimations, root
         }
     }
 
-    has_best_root_source_index, best_root_source_index := table_find_new(*target_to_source_indices, best_root_target_index);
+    has_best_root_source_index, best_root_source_index := table_find(*target_to_source_indices, best_root_target_index);
     assert(has_best_root_source_index);
 
     root_target_bind := animations.bone_hierarchy[best_root_target_index].transform;
@@ -219,7 +219,7 @@ remap_animations :: (animations: *ModelAnimations, source: ModelAnimations, root
                 continue;
             }
 
-            has_map_index, map_index := table_find_new(*target_to_source_indices, index);
+            has_map_index, map_index := table_find(*target_to_source_indices, index);
             if !has_map_index {
                 print("Warning. The target has a bone that wasn't mapped: % %\n", index, joint.name);
             }
@@ -299,7 +299,7 @@ remap_animations :: (animations: *ModelAnimations, source: ModelAnimations, root
 
         array_resize(*animation.bone_weights, node_count);
         for joint_index: 0..node_count - 1 {
-            has_source_index, source_joint_index := table_find_new(*target_to_source_indices, joint_index);
+            has_source_index, source_joint_index := table_find(*target_to_source_indices, joint_index);
             if has_source_index {
                 animation.bone_weights[joint_index] = source_animation.bone_weights[source_joint_index];
             }
@@ -313,7 +313,7 @@ remap_animations :: (animations: *ModelAnimations, source: ModelAnimations, root
         for joint_index: 0..animation.frames.count - 1 {
             // we only apply the frames if they exist because otherwise the data will
             // get pulled from the bind pose in the hierarchy
-            has_source_index, source_joint_index := table_find_new(*target_to_source_indices, joint_index);
+            has_source_index, source_joint_index := table_find(*target_to_source_indices, joint_index);
             is_valid_target_index := table_contains(*valid_target_indices, joint_index);
             if has_source_index && source_animation.frames[source_joint_index].count > 0 {
                 array_copy(*animation.frames[joint_index], source_animation.frames[source_joint_index]);
@@ -1022,7 +1022,7 @@ load_animation_gltf_data :: (animations: *ModelAnimations, json: GltfJson, binar
         array_resize(*animations.bone_hierarchy, node_count);
 
         for bone_index: 0..node_count - 1 {
-            node_index := << table_find_pointer(*bone_to_node_remap, bone_index);
+            node_index := table_find_pointer(*bone_to_node_remap, bone_index).*;
             node := json.nodes[node_index];
 
             if node.name {
@@ -1041,7 +1041,7 @@ load_animation_gltf_data :: (animations: *ModelAnimations, json: GltfJson, binar
             if node.children {
                 for i: 0..node.children.count - 1 {
                     child_node_index := node.children.data[i];
-                    child_bone_index := << table_find_pointer(*node_to_bone_remap, child_node_index);
+                    child_bone_index := table_find_pointer(*node_to_bone_remap, child_node_index).*;
 
                     assert(animations.bone_hierarchy[child_bone_index].parent == 0, "Attempting to double set a childs parent.");
                     animations.bone_hierarchy[child_bone_index].parent = bone_index;
@@ -1056,7 +1056,7 @@ load_animation_gltf_data :: (animations: *ModelAnimations, json: GltfJson, binar
         animations.joint_indices.count = skin_joints.count;
 
         for i: 0..skin_joints.count - 1 {
-            animations.joint_indices[i] = << table_find_pointer(*node_to_bone_remap, skin_joints[i]);
+            animations.joint_indices[i] = table_find_pointer(*node_to_bone_remap, skin_joints[i]).*;
         }
     }
 
@@ -1068,7 +1068,7 @@ load_animation_gltf_data :: (animations: *ModelAnimations, json: GltfJson, binar
         if json.skins && json.skins.count > 0 && json.skins.data[0].inverseBindMatrices {
             // assert(json.skins.count == 1, "Not sure how to handle multiple skins.");
 
-            matrix_accessor := get_accessor_view(accessors[<< json.skins.data[0].inverseBindMatrices], "MAT4");
+            matrix_accessor := get_accessor_view(accessors[json.skins.data[0].inverseBindMatrices.*], "MAT4");
             assert(matrix_accessor.count == skin_joints.count, "I think you must have the same number of inverse binds as inner joints.");
 
             for i: 0..matrix_accessor.count - 1 {
@@ -1111,7 +1111,7 @@ load_animation_gltf_data :: (animations: *ModelAnimations, json: GltfJson, binar
                 assert(!!channel.target.node, "I'm not sure what it would mean for a channel target to not have a node (hierarchy index).");
 
                 sampler_index := channel.sampler;
-                node_index := << channel.target.node;
+                node_index := channel.target.node.*;
 
                 if !table_find_pointer(*node_to_bone_remap, node_index) {
                     // TODO I'm not sure if this is right, but some transformations seem to be on node 1 while the skeleton starts on node 2
@@ -1121,7 +1121,7 @@ load_animation_gltf_data :: (animations: *ModelAnimations, json: GltfJson, binar
                     continue;
                 }
 
-                bone_index := << table_find_pointer(*node_to_bone_remap, node_index);
+                bone_index := table_find_pointer(*node_to_bone_remap, node_index).*;
 
                 sampler := current_animation.samplers[sampler_index];
                 time_view := get_accessor_view(accessors[sampler.input], "SCALAR");
@@ -1458,7 +1458,7 @@ precursory_animation_code :: (json: GltfJson, binary: [] u8) -> int, [..] [] u8,
         array_unordered_remove_by_index(*search_queue, 0);
 
         if children_pointer {
-            children := << children_pointer;
+            children := children_pointer.*;
             array_add(*search_queue, ..children);
         }
 

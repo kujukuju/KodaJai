@@ -91,8 +91,7 @@ LineGpu :: struct {
     m4: Vector4;
     half_length: float;
     radius: float;
-#place m1;
-    model: Matrix4 = ---;
+#overlay (m1) model: Matrix4 = ---;
 }
 instanced_lines: *InstancedModel(LineGpu);
 

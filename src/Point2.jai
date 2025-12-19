@@ -1,8 +1,7 @@
 Point2 :: struct {
     x, y: int;
 
-#place x;
-    component: [2] int = ---;
+#overlay (x) component: [2] int = ---;
 }
 
 operator == :: (a: Point2, b: Point2) -> bool {

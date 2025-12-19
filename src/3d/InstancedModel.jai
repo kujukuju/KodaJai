@@ -4,8 +4,7 @@ ModelMatrixGpu :: struct {
     m2: Vector4;
     m3: Vector4;
     m4: Vector4;
-#place m1;
-    model: Matrix4 = ---;
+#overlay (m1) model: Matrix4 = ---;
 }
 
 InstancedModel :: struct (T: Type = ModelMatrixGpu) {

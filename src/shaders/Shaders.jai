@@ -895,7 +895,7 @@ use_shader :: (shader: *Shader) {
 
         changed_shaders.count = 0;
         for changed_file: changed_files {
-            affected_shaders_found, affected_shaders := table_find_new(*watch_files, changed_file);
+            affected_shaders_found, affected_shaders := table_find(*watch_files, changed_file);
             if affected_shaders_found {
                 for affected_shader: affected_shaders {
                     if !array_find(changed_shaders, affected_shader) {

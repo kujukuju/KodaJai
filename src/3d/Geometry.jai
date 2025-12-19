@@ -1077,7 +1077,7 @@ load_geometry_gltf_data :: (
             }
 
             if primitive.indices {
-                index_accessor_index := << primitive.indices;
+                index_accessor_index := primitive.indices.*;
                 index_accessor := accessors[index_accessor_index];
                 assert(index_accessor.type == "SCALAR", "The indices access must be a scalar type.");
                 component_type := index_accessor.component_type;
@@ -1089,7 +1089,7 @@ load_geometry_gltf_data :: (
                         array_reserve(*geometry.indices, index_count);
                         index_data := cast(*s8) index_accessor.view.data;
                         for 0..index_count - 1 {
-                            index := cast(u32) << (index_data + it);
+                            index := cast(u32) (index_data + it).*;
                             array_add(*geometry.indices, index);
                         }
 
@@ -1098,7 +1098,7 @@ load_geometry_gltf_data :: (
                         array_reserve(*geometry.indices, index_count);
                         index_data := cast(*u8) index_accessor.view.data;
                         for 0..index_count - 1 {
-                            index := cast(u32) << (index_data + it);
+                            index := cast(u32) (index_data + it).*;
                             array_add(*geometry.indices, index);
                         }
 
@@ -1107,7 +1107,7 @@ load_geometry_gltf_data :: (
                         array_reserve(*geometry.indices, index_count);
                         index_data := cast(*s16) index_accessor.view.data;
                         for 0..index_count - 1 {
-                            index := cast(u32) << (index_data + it);
+                            index := cast(u32) (index_data + it).*;
                             array_add(*geometry.indices, index);
                         }
 
@@ -1116,7 +1116,7 @@ load_geometry_gltf_data :: (
                         array_reserve(*geometry.indices, index_count);
                         index_data := cast(*u16) index_accessor.view.data;
                         for 0..index_count - 1 {
-                            index := cast(u32) << (index_data + it);
+                            index := cast(u32) (index_data + it).*;
                             array_add(*geometry.indices, index);
                         }
 
@@ -1125,7 +1125,7 @@ load_geometry_gltf_data :: (
                         array_reserve(*geometry.indices, index_count);
                         index_data := cast(*u32) index_accessor.view.data;
                         for 0..index_count - 1 {
-                            index := cast(u32) << (index_data + it);
+                            index := cast(u32) (index_data + it).*;
                             array_add(*geometry.indices, index);
                         }
 

@@ -155,17 +155,14 @@ get_png_bytes :: (image: Image) -> [] u8 {
     write_func :: (cont: *void, data: *void, size: s32) #c_call {
         empty: #Context;
         push_context empty {
-            print("%\n", size);
             written := cast(*[] u8) cont;
 
             allocated := NewArray(size, u8);
             memcpy(allocated.data, data, size);
 
-            << written = allocated;
+            written.* = allocated;
         }
     }
-
-    print("writing % %\n", image.width, image.height);
 
     stbi_write_png_to_func(write_func, *written, xx image.width, xx image.height, xx comp, image.pixels.data, xx (image.width * comp));
 

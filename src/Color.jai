@@ -3,22 +3,15 @@
 Color :: struct {
     r, g, b, a: float;
 
-#place r;
-    rg: Vector2 = ---;
-#place r;
-    rgb: Vector3 = ---;
-#place r;
-    rgba: Vector4 = ---;
-#place r;
-    component: [4] float = ---;
+#overlay (r) rg: Vector2 = ---;
+#overlay (r) rgb: Vector3 = ---;
+#overlay (r) rgba: Vector4 = ---;
+#overlay (r) component: [4] float = ---;
 
-#place g;
-    gb: Vector2 = ---;
-#place g;
-    gba: Vector3 = ---;
+#overlay (g) gb: Vector2 = ---;
+#overlay (g) gba: Vector3 = ---;
 
-#place b;
-    ba: Vector2 = ---;
+#overlay (b) ba: Vector2 = ---;
 }
 
 operator == :: (a: Color, b: Color) -> bool {

@@ -247,7 +247,7 @@ load_glb :: (file: string) -> GltfJson, [] u8, *u8, bool {
     }
 
     gltf_header := cast(*GltfHeader) file.data;
-    
+
     if gltf_header.magic != 0x46546C67 {
         print("1\n");
         return .{}, .[], null, false;
@@ -290,7 +290,7 @@ load_glb :: (file: string) -> GltfJson, [] u8, *u8, bool {
         print("Could not parse gltf json.\n");
         return .{}, .[], null, false;
     }
-    
+
     if !binary {
         print("No glb buffer found.\n");
         print_stack_trace();
@@ -338,7 +338,7 @@ load_gltf :: (file: string, path: string) -> GltfJson, [] u8, *u8, bool {
         return .{}, .[], null, false;
     }
 
-    binary_file_path := sprint("%/%", root_path, << json.buffers[0].uri);
+    binary_file_path := sprint("%/%", root_path, json.buffers[0].uri.*);
     defer free(binary_file_path);
     binary_file, binary_success := read_entire_file(binary_file_path);
     if !binary_success {
@@ -390,7 +390,7 @@ get_accessors :: (json: GltfJson, bufferviews: [..] [] u8) -> [..] GltfAccessorI
         current := array_add(*accessors);
         current.type = accessor.type;
         current.component_type = accessor.componentType;
-        current.view.data = bufferviews[<< accessor.bufferView].data + accessor.byteOffset;
+        current.view.data = bufferviews[accessor.bufferView.*].data + accessor.byteOffset;
 
         if accessor.type == "SCALAR" {
             current.stride = get_gltf_stride(current.component_type);
@@ -413,10 +413,10 @@ get_accessors :: (json: GltfJson, bufferviews: [..] [] u8) -> [..] GltfAccessorI
         }
 
         if accessor.min {
-            current.min = << accessor.min;
+            current.min = accessor.min.*;
         }
         if accessor.max {
-            current.max = << accessor.max;
+            current.max = accessor.max.*;
         }
     }
 
@@ -505,7 +505,7 @@ get_texture :: (json: GltfJson, bufferviews: [..] [] u8, texture_index: int, sho
     wrap: TextureWrap = .Clamp;
     interp: TextureInterp = .Linear;
     if sampler {
-        texture_sampler := json.samplers[<< sampler];
+        texture_sampler := json.samplers[sampler.*];
         assert(texture_sampler.wrapS == texture_sampler.wrapT, "Different horizontal and vertical wrap functions are not currently supported.\n");
         if texture_sampler.wrapS == {
             case 0x812f;
@@ -549,7 +549,7 @@ get_texture :: (json: GltfJson, bufferviews: [..] [] u8, texture_index: int, sho
         }
     }
 
-    json_image := json.images[<< source];
+    json_image := json.images[source.*];
 
     texture: Texture;
     if json_image.uri {
@@ -596,7 +596,7 @@ get_transform :: (node: GltfJson.GltfJsonNode) -> Matrix4 {
     node_matrix: Matrix4 = ---;
 
     if node.matrix {
-        node_matrix.floats = << node.matrix;
+        node_matrix.floats = node.matrix.*;
         node_matrix = transpose(node_matrix);
     } else {
         node_translation: Vector3 = ---;

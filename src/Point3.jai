@@ -1,13 +1,10 @@
 Point3 :: struct {
     x, y, z: int;
 
-#place x;
-    xy: Point2 = ---;
-#place y;
-    yz: Point2 = ---;
+#overlay (x) xy: Point2 = ---;
+#overlay (y) yz: Point2 = ---;
 
-#place x;
-    component: [3] int = ---;
+#overlay (x) component: [3] int = ---;
 }
 
 operator == :: (a: Point3, b: Point3) -> bool {

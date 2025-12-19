@@ -110,7 +110,7 @@ load_external_shader :: (shader_name: string, dependencies: [] string) -> Shader
         shader_part.dependencies = NewArray(intermediary.dependency_names.count, ShaderPart,, temp);
 
         for dependency_name: intermediary.dependency_names {
-            found, intermediary_dependency := table_find_new(shader_parts, dependency_name);
+            found, intermediary_dependency := table_find(shader_parts, dependency_name);
             assert(found, "Could not find required intermediary part. %\n", dependency_name);
             if !found {
                 continue;
@@ -126,23 +126,23 @@ load_external_shader :: (shader_name: string, dependencies: [] string) -> Shader
     shader: Shader;
 
     if table_contains(*shader_literals, create_shader_vertex_name) && table_contains(*shader_literals, create_shader_fragment_name) {
-        vert_found, vert_part := table_find_new(*shader_literals, create_shader_vertex_name);
-        frag_found, frag_part := table_find_new(*shader_literals, create_shader_fragment_name);
+        vert_found, vert_part := table_find(*shader_literals, create_shader_vertex_name);
+        frag_found, frag_part := table_find(*shader_literals, create_shader_fragment_name);
 
         shader = create_shader(vert_part, frag_part, watch_files = false);
     } else if table_contains(*shader_literals, create_shader_vertex_name) && table_contains(*shader_parts, create_shader_fragment_name) {
-        vert_found, vert_part := table_find_new(*shader_literals, create_shader_vertex_name);
-        frag_found, frag_part := table_find_new(*shader_parts, create_shader_fragment_name);
+        vert_found, vert_part := table_find(*shader_literals, create_shader_vertex_name);
+        frag_found, frag_part := table_find(*shader_parts, create_shader_fragment_name);
 
         shader = create_shader(vert_part, reconstruct_shader_part(frag_part, *shader_parts), watch_files = false);
     } else if table_contains(*shader_parts, create_shader_vertex_name) && table_contains(*shader_literals, create_shader_fragment_name) {
-        vert_found, vert_part := table_find_new(*shader_parts, create_shader_vertex_name);
-        frag_found, frag_part := table_find_new(*shader_literals, create_shader_fragment_name);
+        vert_found, vert_part := table_find(*shader_parts, create_shader_vertex_name);
+        frag_found, frag_part := table_find(*shader_literals, create_shader_fragment_name);
 
         shader = create_shader(reconstruct_shader_part(vert_part, *shader_parts), frag_part, watch_files = false);
     } else if table_contains(*shader_parts, create_shader_vertex_name) && table_contains(*shader_parts, create_shader_fragment_name) {
-        vert_found, vert_part := table_find_new(*shader_parts, create_shader_vertex_name);
-        frag_found, frag_part := table_find_new(*shader_parts, create_shader_fragment_name);
+        vert_found, vert_part := table_find(*shader_parts, create_shader_vertex_name);
+        frag_found, frag_part := table_find(*shader_parts, create_shader_fragment_name);
 
         shader = create_shader(reconstruct_shader_part(vert_part, *shader_parts), reconstruct_shader_part(frag_part, *shader_parts), watch_files = false);
     } else {
@@ -164,12 +164,12 @@ load_external_shader :: (shader_name: string, dependencies: [] string) -> Shader
     //     array_ordered_remove_by_index(*name_dependencies, 0);
 
     //     if table_contains(*shader_literals, dependency) {
-    //         literal_found, literal := table_find_new(*shader_literals, dependency);
+    //         literal_found, literal := table_find(*shader_literals, dependency);
     //         print("\n%\n", literal);
     //     }
 
     //     if table_contains(*shader_parts, dependency) {
-    //         part_found, part := table_find_new(*shader_parts, dependency);
+    //         part_found, part := table_find(*shader_parts, dependency);
 
     //         print("\n%\n", part.section);
 

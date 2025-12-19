@@ -32,8 +32,7 @@ FontParticleGpu :: struct {
     rotation: float;
     world_position: Vector3;
 
-#place transform1;
-    transform: Matrix3 = ---;
+#overlay (transform1) transform: Matrix3 = ---;
 }
 
 RecentCharacter :: struct {
@@ -75,7 +74,7 @@ flush_text :: (font: *Font, projection: Matrix4) {
 }
 
 get_character_bounds :: (bytes: [] u8, pixel_height: int, character_set: [] u32) -> int, int {
-    #import "freetype-2.12.1";
+    #import "freetype";
 
     ft_font: FT_Library;
     error := FT_Init_FreeType(*ft_font);
@@ -116,7 +115,7 @@ get_character_bounds :: (bytes: [] u8, pixel_height: int, character_set: [] u32)
 }
 
 get_character_set :: (bytes: [] u8) -> [] u32 {
-    #import "freetype-2.12.1";
+    #import "freetype";
 
     ft_font: FT_Library;
     error := FT_Init_FreeType(*ft_font);
@@ -147,7 +146,7 @@ get_character_set :: (bytes: [] u8) -> [] u32 {
 }
 
 load_characters :: (font: *Font, bytes: [] u8, pixel_height: int, character_set: [] u32) -> bool {
-    #import "freetype-2.12.1";
+    #import "freetype";
 
     print("Warning! Calling create_font! This should never happen during a normal run.\n");
     print_stack_trace();
@@ -322,16 +321,16 @@ load_font :: (paths: [] string, pixel_height: int, character_set: [] u32 = .[], 
 
     print("Done loading character image data.\n");
 
-    {
-        image: Image3;
-        image.pixels = font.glyph_data;
-        image.width = font.max_width;
-        image.height = font.max_height;
-        image.depth = font.glyph_data.count / (font.max_width * font.max_height);
+    // {
+    //     image: Image3;
+    //     image.pixels = font.glyph_data;
+    //     image.width = font.max_width;
+    //     image.height = font.max_height;
+    //     image.depth = font.glyph_data.count / (font.max_width * font.max_height);
 
-        image.format = .R8;
-        save_image(image, tprint("%.%.debug.png", paths[0], pixel_height));
-    }
+    //     image.format = .R8;
+    //     save_image(image, tprint("%.%.debug.png", paths[0], pixel_height));
+    // }
 
     if should_upload {
         upload(font);
@@ -341,7 +340,7 @@ load_font :: (paths: [] string, pixel_height: int, character_set: [] u32 = .[], 
 }
 
 get_character_byte_view :: (font: *Font, character: u32) -> bool, [] u8 {
-    found, info := table_find_new(*font.characters, character);
+    found, info := table_find(*font.characters, character);
     if !found {
         return false, .[];
     }

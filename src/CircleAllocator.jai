@@ -38,15 +38,15 @@ for_expansion :: (allocator: *CircleAllocator($T), body: Code, flags: For_Flags)
 
             `it := allocator.allocated[it_index];
         }
-        
+
         #insert body;
 
         // TODO this kind of completely removes the purpose and validity of count, which already seems to be useless tbh
         #if flags & .POINTER {
             allocator.active[it_index] = ifx it == null then false else true;
-            allocator.allocated[it_index] = << it;
+            allocator.allocated[it_index] = it.*;
         }
-        
+
         it_index += 1;
     }
 }

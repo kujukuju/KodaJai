@@ -278,6 +278,140 @@ create_sdf_image :: (models: [] *Model, pixel_units: float) -> Image3, AABB3, Ve
     return image, aabb, Vector3.{width_units, height_units, depth_units};
 }
 
+create_concave_sdf_image :: (models: [] *Model, pixel_units: float) -> Image3, AABB3, Vector3 {
+    // validity check
+    for model: models {
+        geometry := model.geometry;
+
+        assert(geometry.attributes.count == 1, "Sdf models must have only one position attribute.\n");
+        assert(geometry.attributes[0] == .Position, "Sdf models must have a position attribute.\n");
+    }
+
+    // calculate aabb
+    aabb: AABB3;
+    aabb_set := false;
+    for model: models {
+        for vertex: get_vertices(model) {
+            if !aabb_set {
+                aabb_set = true;
+
+                aabb.lower = vertex;
+                aabb.upper = vertex;
+            } else {
+                aabb.lower = min(aabb.lower, vertex);
+                aabb.upper = max(aabb.upper, vertex);
+            }
+        }
+    }
+
+    dimensions := aabb.upper - aabb.lower;
+    width := cast(int) round(dimensions.x / pixel_units);
+    height := cast(int) round(dimensions.y / pixel_units);
+    depth := cast(int) round(dimensions.z / pixel_units);
+
+    // the number of units actually inside a given pixel after rounding
+    width_units := dimensions.x / width;
+    height_units := dimensions.y / height;
+    depth_units := dimensions.z / depth;
+
+    width += 2;
+    height += 2;
+    depth += 2;
+
+    aabb.lower.x -= width_units;
+    aabb.lower.y -= height_units;
+    aabb.lower.z -= depth_units;
+    aabb.upper.x += width_units;
+    aabb.upper.y += height_units;
+    aabb.upper.z += depth_units;
+    dimensions = aabb.upper - aabb.lower;
+
+    assert(abs(width_units - dimensions.x / width) < 0.00001);
+    assert(abs(height_units - dimensions.y / height) < 0.00001);
+    assert(abs(depth_units - dimensions.z / depth) < 0.00001);
+
+    model_tree := create_bounding_tree(*Model);
+    defer free_bounding_tree(model_tree);
+    for model: models {
+        world_aabb := get_aabb(model);
+
+        create_proxy(*model_tree, world_aabb, model);
+    }
+
+    image := create_image3(width, height, depth, .R8);
+
+    parallel_for(0, image.depth, (z: int, thread: int, using data: struct {
+        image: *Image3;
+        aabb: AABB3;
+        width_units: float;
+        height_units: float;
+        depth_units: float;
+        pixel_units: float;
+        models: [] *Model;
+    }) {
+        if thread == 0 {
+            print("Sdf gen progress: %/%\n", z, image.depth - 1);
+        }
+
+        for y: 0..image.height - 1 {
+            for x: 0..image.width - 1 {
+                index := x + y * image.width + z * image.width * image.height;
+
+                position := aabb.lower;
+                position += Vector3.{x + 0.5, y + 0.5, z + 0.5} * Vector3.{width_units, height_units, depth_units};
+
+                smallest_sdf_distance := FLOAT32_MAX;
+                while smallest_sdf_distance == FLOAT32_MAX {
+                    for model: models {
+                        nearest_distance_squared := FLOAT32_MAX;
+                        nearest_triangle_point: Vector3;
+                        nearest_triangle: Triangle3;
+                        for triangle: get_triangles(model) {
+                            point := nearest_point(triangle, position);
+
+                            current_distance_squared := distance_squared(point, position);
+                            if current_distance_squared < nearest_distance_squared {
+                                nearest_distance_squared = current_distance_squared;
+                                nearest_triangle_point = point;
+                                nearest_triangle = triangle;
+                            }
+                        }
+
+                        assert(nearest_distance_squared < FLOAT32_MAX, "Could not find a nearest triangle somehow...\n");
+
+                        normal_ish := cross(nearest_triangle.b - nearest_triangle.a, nearest_triangle.c - nearest_triangle.a);
+                        inside := dot(position - nearest_triangle_point, normal_ish) <= 0;
+
+                        sdf_distance := sqrt(nearest_distance_squared);
+                        sdf_distance *= ifx inside then -1 else 1;
+
+                        if sdf_distance < smallest_sdf_distance {
+                            smallest_sdf_distance = sdf_distance;
+                        }
+                    }
+                }
+
+                // the sdf byte value goes between [-pixel_units, pixel_units] from [0, 255]
+                byte_sdf_distance := (smallest_sdf_distance + pixel_units) / (pixel_units * 2);
+                byte_sdf_distance = clamp(byte_sdf_distance, 0, 1);
+                byte_sdf_distance = min(byte_sdf_distance * 256, 255);
+
+                image.pixels[index] = cast(u8) byte_sdf_distance;
+            }
+        }
+    }, .{
+        *image,
+        aabb,
+        width_units,
+        height_units,
+        depth_units,
+        pixel_units,
+        models,
+    });
+
+    return image, aabb, Vector3.{width_units, height_units, depth_units};
+}
+
 #scope_file
 
 // copied from koda physics

@@ -94,6 +94,10 @@ upload :: (texture: *Texture) {
     else if two_divisible then pixel_store = 2;
     else pixel_store = 1;
 
+    if is_amd_gpu() {
+        pixel_store = 1;
+    }
+
     glPixelStorei(GL_PACK_ALIGNMENT, pixel_store);
     glPixelStorei(GL_UNPACK_ALIGNMENT, pixel_store);
 
