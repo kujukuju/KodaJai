@@ -12,6 +12,10 @@ create_framed_sprite :: (sprite: AnimatedSprite) -> FramedSprite {
     return framed;
 }
 
+set_scale :: (sprite: *FramedSprite, scale: float) {
+    set_scale(*sprite.animated_sprite, scale);
+}
+
 draw :: (framed: FramedSprite, position: Vector2) {
     // TODO don't do it this way?
     // TODO this doesnt allocate memory... right?
@@ -97,7 +101,6 @@ step_animation :: (framed: *FramedSprite, name: string, frames: float) {
     if !animation.loop {
         framed.frame = min(framed.frame, animation.end);
     }
-    print("frame is %\n", framed.frame);
 }
 
 get_current_animation_name :: (framed: FramedSprite) -> string {

@@ -21,7 +21,7 @@ uniform vec4 uFrame;
 
 void main() {
     gl_Position = projection * view * model * vec4(aPos, 0.0, 1.0);
-    
+
     vTexCoord = aTexCoord * uFrame.zw + uFrame.xy;
 }
 ___glsl
@@ -29,7 +29,7 @@ ___glsl
 DEFAULT_ELLIPSE_FRAGMENT_SHADER :: #string ___glsl
 #version 330 core
 out vec4 FragColor;
-  
+
 in vec2 vTexCoord;
 
 uniform vec4 uTint;
@@ -41,12 +41,18 @@ void main() {
     // can use that one function to get the pixel density and scale appropriately instead of hard edges
 
     const float edgeWidth = 2.0;
+    const float borderWidth = 2.0;
+
+    float pixel = length(fwidth(vTexCoord));
+    float edge = pixel * edgeWidth;
 
     float color = smoothstep(1.0, 1.0 - length(fwidth(vTexCoord)) * edgeWidth, distance);
-    float border = smoothstep(1.0 - length(fwidth(vTexCoord)) * edgeWidth * 3.0, 1.0 - length(fwidth(vTexCoord)) * edgeWidth * 2.0, distance);
+    float border = smoothstep(1.0 - edge * 2.0, 1.0 - edge * 3.0, distance);
+    border *= smoothstep(1.0 - edge * 3.0, 1.0 - edge * 2.0, distance + borderWidth * pixel);
+    border *= uBorderTint.a;
 
     vec4 finalColor = uTint * color;
-    // finalColor = finalColor * (1.0 - border) + uBorderTint * border;
+    finalColor = finalColor * (1.0 - border) + uBorderTint * border;
     finalColor.rgb /= finalColor.a;
 
     FragColor = finalColor;

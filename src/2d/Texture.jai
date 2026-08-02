@@ -290,14 +290,14 @@ draw :: (texture: Texture, position: Vector2, size: Vector2, anchor: Vector2 = .
     draw(static_sprite);
 }
 
-draw :: (texture: Texture, position: Vector2, rotation: float = 0, scale: Vector2 = .{1, 1}, anchor: Vector2 = .{}) {
+draw :: (texture: Texture, position: Vector2, rotation: float = 0, scale: Vector2 = .{1, 1}, anchor: Vector2 = .{}, tint: Color = .{1, 1, 1, 1}) {
     static_sprite.texture = texture;
     static_sprite.width = texture.width * scale.x;
     static_sprite.height = texture.height * scale.y;
     static_sprite.position = position;
     static_sprite.rotation = rotation;
     static_sprite.anchor = anchor;
-    static_sprite.tint = .{1, 1, 1, 1};
+    static_sprite.tint = tint;
     static_sprite.shader = *default_shader;
 
     draw(static_sprite);

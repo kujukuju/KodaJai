@@ -63,7 +63,7 @@ draw_line :: (x1: float, y1: float, x2: float, y2: float, width: float = 1.0, co
     uniforms: ShaderUniforms;
     defer destroy(uniforms);
 
-    set(*uniforms, "uTexture", cast(u32) 0);
+    set(*uniforms, "uTexture", white_texture);
 
     set(*uniforms, "projection", projection);
     set(*uniforms, "model", model);
@@ -236,7 +236,7 @@ draw_polygon :: (points: [] Vector2, color: Color = .{1, 1, 1, 1}, border: Color
     uniforms: ShaderUniforms;
     defer destroy(uniforms);
 
-    set(*uniforms, "uTexture", cast(u32) 0);
+    set(*uniforms, "uTexture", white_texture);
 
     set(*uniforms, "projection", projection);
     set(*uniforms, "model", model);

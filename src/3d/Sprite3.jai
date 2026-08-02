@@ -144,7 +144,7 @@ draw :: (sprite: Sprite3, transform: Matrix4 = Matrix4Identity, projection: Matr
     defer destroy(uniforms);
 
     set(*uniforms, "uTexture", sprite.texture);
-    
+
     model_view := view * model;
     model_view_projection := projection * model_view;
     set(*uniforms, "modelViewProjection", model_view_projection);
@@ -152,7 +152,7 @@ draw :: (sprite: Sprite3, transform: Matrix4 = Matrix4Identity, projection: Matr
     set(*uniforms, "projection", projection);
     set(*uniforms, "model", model);
     set(*uniforms, "view", view);
-    
+
     set(*uniforms, "uTint", sprite.tint * sprite.alpha);
     set(*uniforms, "uFrame", sprite.texture_frame);
 

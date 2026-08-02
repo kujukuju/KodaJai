@@ -18,7 +18,7 @@ watch_file :: (watcher: *FileChangeWatcher, file: string) -> bool {
             assert(false, "Could not initialize file change watcher.\n");
         }
     }
-    
+
     if !watcher.initialized {
         return false;
     }

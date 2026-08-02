@@ -21,7 +21,17 @@ create_animated_sprite :: (sprite: Sprite, columns: int, frame_count: int, frame
     animated.frame_count = frame_count;
     animated.frame = frame;
 
+    set_scale(*animated, 1.0);
+
     return animated;
+}
+
+set_scale :: (sprite: *AnimatedSprite, scale: float) {
+    columns := sprite.columns;
+    rows := (sprite.frame_count - 1) / sprite.columns + 1;
+
+    sprite.sprite.width = sprite.sprite.texture.width / columns * scale;
+    sprite.sprite.height = sprite.sprite.texture.height / rows * scale;
 }
 
 draw :: (sprite: AnimatedSprite, position: Vector2) {

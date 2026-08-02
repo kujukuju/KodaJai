@@ -258,6 +258,7 @@ load_characters :: (font: *Font, bytes: [] u8, pixel_height: int, character_set:
 
 load_font :: (path: string, pixel_height: int, character_set: [] u32 = .[], should_upload: bool = true) -> *Font, bool {
     font, success := load_font(.[path], pixel_height, character_set, should_upload);
+    return font, success;
 }
 
 load_font :: (paths: [] string, pixel_height: int, character_set: [] u32 = .[], should_upload: bool = true) -> *Font, bool {

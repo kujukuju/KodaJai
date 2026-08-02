@@ -21,8 +21,16 @@ get_default_font :: () -> *Font {
         file_bytes.data = TriplexSansBold.data;
         file_bytes.count = TriplexSansBold.count;
 
-        character_set :: #run create_character_set(.[0, 255]);
-        font := create_font(file_bytes, 14, character_set, false);
+        character_set := get_character_set(file_bytes);
+
+        font := New(Font);
+        width, height := get_character_bounds(file_bytes, 14, character_set);
+        font.max_width = max(font.max_width, width);
+        font.max_height = max(font.max_height, height);
+        font.max_width = (font.max_width + 7) / 8 * 8;
+        font.max_height = (font.max_height + 7) / 8 * 8;
+
+        load_characters(font, file_bytes, 14, character_set);
 
         serialized_path := tprint("%/assets/TriplexSansBoldSerialized.font", #filepath);
         serialized_bytes := serializer_write(font);
