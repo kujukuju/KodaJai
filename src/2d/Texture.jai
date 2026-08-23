@@ -209,7 +209,12 @@ update_texture :: (texture: *Texture, image: Image) {
     assert(texture.width == image.width && texture.height == image.height, "Dimensions must match.");
     assert(texture.format == image.format, "Formats must match.");
 
-    glTextureSubImage2D(texture.buffer, 0, 0, 0, xx texture.width, xx texture.height, get_gl_format(texture.format), GL_UNSIGNED_BYTE, image.pixels.data);
+    #if OS == .MACOS {
+        glBindTextureTemporary(GL_TEXTURE_2D, texture.buffer);
+        glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, xx texture.width, xx texture.height, get_gl_format(texture.format), GL_UNSIGNED_BYTE, image.pixels.data);
+    } else {
+        glTextureSubImage2D(texture.buffer, 0, 0, 0, xx texture.width, xx texture.height, get_gl_format(texture.format), GL_UNSIGNED_BYTE, image.pixels.data);
+    }
 }
 
 // convert_format :: (texture: *Texture, desired_format: PixelFormat) {

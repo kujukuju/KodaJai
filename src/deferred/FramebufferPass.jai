@@ -117,8 +117,10 @@ init_framebuffer_pass_buffers :: (pass: *FramebufferPass($count, $depth, $drawab
         glGenBuffers(1, *pass.vbo);
         glBindBuffer(GL_ARRAY_BUFFER, pass.vbo);
         glBufferData(GL_ARRAY_BUFFER, size_of(type_of(vertices)), vertices.data, GL_STATIC_DRAW);
-        if pass.name {
-            glObjectLabel(GL_BUFFER, pass.vbo, cast(u32) pass.name.count, pass.name.data);
+        #if OS != .MACOS {
+            if pass.name {
+                glObjectLabel(GL_BUFFER, pass.vbo, cast(u32) pass.name.count, pass.name.data);
+            }
         }
 
         glGenVertexArrays(1, *pass.vao);
@@ -240,8 +242,10 @@ framebuffer_resize :: (pass: *FramebufferPass($count, $depth, $drawable, $multis
 
 framebuffer_bind_textures :: (pass: *FramebufferPass($count, $depth, $drawable, $multisample)) {
     glBindFramebuffer(GL_DRAW_FRAMEBUFFER, pass.framebuffer);
-    if pass.name {
-        glObjectLabel(GL_FRAMEBUFFER, pass.framebuffer, cast(u32) pass.name.count, pass.name.data);
+    #if OS != .MACOS {
+        if pass.name {
+            glObjectLabel(GL_FRAMEBUFFER, pass.framebuffer, cast(u32) pass.name.count, pass.name.data);
+        }
     }
 
     for index: 0..count - 1 {
@@ -376,8 +380,10 @@ draw :: (pass: FramebufferPass($count, $depth, $drawable)) {
         return;
     }
 
-    glPushDebugGroup(GL_DEBUG_SOURCE_APPLICATION, 0, cast(u32) pass.name.count, pass.name.data);
-    defer glPopDebugGroup();
+    #if OS != .MACOS {
+        glPushDebugGroup(GL_DEBUG_SOURCE_APPLICATION, 0, cast(u32) pass.name.count, pass.name.data);
+        defer glPopDebugGroup();
+    }
 
     // draw quad
     use_shader(pass.shader);

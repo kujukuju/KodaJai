@@ -131,7 +131,15 @@ create_image :: (texture: Texture) -> Image {
     new.pixels = NewArray(new.width * new.height * stride, u8, false);
 
     glBindTextureTemporary(GL_TEXTURE_2D, texture.buffer);
-    glGetTextureImage(texture.buffer, 0, gl_format, gl_type, xx new.pixels.count, new.pixels.data);
+    #if OS == .MACOS {
+        last_pack_alignment: s32;
+        glGetIntegerv(GL_PACK_ALIGNMENT, *last_pack_alignment);
+        defer glPixelStorei(GL_PACK_ALIGNMENT, last_pack_alignment);
+        glPixelStorei(GL_PACK_ALIGNMENT, 1);
+        glGetTexImage(GL_TEXTURE_2D, 0, gl_format, gl_type, new.pixels.data);
+    } else {
+        glGetTextureImage(texture.buffer, 0, gl_format, gl_type, xx new.pixels.count, new.pixels.data);
+    }
 
     return new;
 }

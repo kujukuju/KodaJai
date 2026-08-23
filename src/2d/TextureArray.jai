@@ -154,7 +154,12 @@ update_texture :: (texture: *TextureArray, bytes: [] u8) {
     gl_format := get_gl_format(texture.format);
     gl_type := get_gl_type(texture.format);
 
-    glTextureSubImage3D(texture.buffer, 0, 0, 0, 0, xx texture.width, xx texture.height, xx depth, gl_format, gl_type, bytes.data);
+    #if OS == .MACOS {
+        glBindTextureTemporary(GL_TEXTURE_2D_ARRAY, texture.buffer);
+        glTexSubImage3D(GL_TEXTURE_2D_ARRAY, 0, 0, 0, 0, xx texture.width, xx texture.height, xx depth, gl_format, gl_type, bytes.data);
+    } else {
+        glTextureSubImage3D(texture.buffer, 0, 0, 0, 0, xx texture.width, xx texture.height, xx depth, gl_format, gl_type, bytes.data);
+    }
 }
 
 update_texture_layer :: (texture: *TextureArray, layer: int, bytes: [] u8) {
@@ -165,7 +170,12 @@ update_texture_layer :: (texture: *TextureArray, layer: int, bytes: [] u8) {
     gl_format := get_gl_format(texture.format);
     gl_type := get_gl_type(texture.format);
 
-    glTextureSubImage3D(texture.buffer, 0, 0, 0, xx layer, xx texture.width, xx texture.height, 1, gl_format, gl_type, bytes.data);
+    #if OS == .MACOS {
+        glBindTextureTemporary(GL_TEXTURE_2D_ARRAY, texture.buffer);
+        glTexSubImage3D(GL_TEXTURE_2D_ARRAY, 0, 0, 0, xx layer, xx texture.width, xx texture.height, 1, gl_format, gl_type, bytes.data);
+    } else {
+        glTextureSubImage3D(texture.buffer, 0, 0, 0, xx layer, xx texture.width, xx texture.height, 1, gl_format, gl_type, bytes.data);
+    }
 }
 
 convert_format :: (texture: *TextureArray, desired_format: PixelFormat) {

@@ -23,6 +23,7 @@ UniformLocation :: struct {
     name: FixedString(UNIFORM_LENGTH);
     type: ShaderUniformType;
     location: s32;
+    count: s32;
 }
 
 ShaderDependency :: struct {
@@ -347,7 +348,10 @@ initialize_shader :: (shader: *Shader, resolved_dependencies: [] string, depende
     glGetProgramiv(shader.program, GL_LINK_STATUS, *success);
 
     if shader.output_channels then array_free(shader.output_channels);
-    shader.output_channels = get_output_channels(shader.program);
+    shader.output_channels = .[];
+    #if OS != .MACOS {
+        shader.output_channels = get_output_channels(shader.program);
+    }
 
     if shader.uniform_locations then array_free(shader.uniform_locations);
     shader.uniform_locations = get_uniform_locations(shader.name, shader.program);
@@ -544,7 +548,8 @@ get_uniform_locations :: (shader_name: string, program: u32) -> [] UniformLocati
         name_string.data = name_buffer.data;
         name_string.count = length;
 
-        if ends_with(name_string, "[0]") {
+        is_array := ends_with(name_string, "[0]");
+        if is_array {
             name_string.count -= 3;
         }
         assert(length <= UNIFORM_LENGTH, "Shader has a uniform with too long of a name. %\n", name_string);
@@ -556,8 +561,9 @@ get_uniform_locations :: (shader_name: string, program: u32) -> [] UniformLocati
         }
 
         uniforms[array_index].name = create_fixed_string(name_string, UNIFORM_LENGTH);
-        uniforms[array_index].type = get_uniform_type(type, size);
+        uniforms[array_index].type = get_uniform_type(type, size, is_array);
         uniforms[array_index].location = glGetUniformLocation(program, to_c_string(*uniforms[array_index].name));
+        uniforms[array_index].count = size;
         assert(uniforms[array_index].location >= 0, "Could not find valid location for shader uniform. %: %\n", shader_name, name_string);
 
         array_index += 1;
@@ -675,10 +681,10 @@ glBindTextureTemporary :: (texture_type: u32, buffer: u32) #expand {
     glGetIntegerv(GL_TEXTURE_BINDING_3D, *last_3d_texture);
     glGetIntegerv(GL_TEXTURE_BINDING_CUBE_MAP, *last_cube_map_texture);
     glGetIntegerv(GL_TEXTURE_BINDING_2D_ARRAY, *last_array_texture);
-    `defer if last_2d_texture then glBindTexture(GL_TEXTURE_2D, cast(u32) last_2d_texture);
-    `defer if last_3d_texture then glBindTexture(GL_TEXTURE_3D, cast(u32) last_3d_texture);
-    `defer if last_cube_map_texture then glBindTexture(GL_TEXTURE_CUBE_MAP, cast(u32) last_cube_map_texture);
-    `defer if last_array_texture then glBindTexture(GL_TEXTURE_2D_ARRAY, cast(u32) last_array_texture);
+    `defer glBindTexture(GL_TEXTURE_2D, cast(u32) last_2d_texture);
+    `defer glBindTexture(GL_TEXTURE_3D, cast(u32) last_3d_texture);
+    `defer glBindTexture(GL_TEXTURE_CUBE_MAP, cast(u32) last_cube_map_texture);
+    `defer glBindTexture(GL_TEXTURE_2D_ARRAY, cast(u32) last_array_texture);
 
     glBindTexture(texture_type, buffer);
 }
@@ -693,10 +699,12 @@ apply_uniforms :: (shader: *Shader, uniforms: ShaderUniforms, printing: bool = f
 
     for *uniform: uniforms {
         location: s32 = -1;
+        active_count: s32 = 1;
         for uniform_location: shader.uniform_locations {
             if uniform_location.name == uniform.name {
                 assert(uniform_location.type == uniform.type, "Trying to assign a texture uniform to a slot with a different type. %: %: % (expected) != % (given)\n", shader.name, to_string(*uniform.name), uniform_location.type, uniform.type);
                 location = uniform_location.location;
+                active_count = uniform_location.count;
                 break;
             }
         }
@@ -709,63 +717,63 @@ apply_uniforms :: (shader: *Shader, uniforms: ShaderUniforms, printing: bool = f
             case .Float1;
                 glUniform1f(location, uniform.float1);
             case .Float1N;
-                glUniform1fv(location, xx uniform.float1n.count, uniform.float1n.data);
+                glUniform1fv(location, cast(GLsizei) min(cast(int) active_count, uniform.float1n.count), uniform.float1n.data);
             case .Float2;
                 glUniform2f(location, uniform.float2[0], uniform.float2[1]);
             case .Float2N;
-                glUniform2fv(location, xx uniform.float2n.count, cast(*float) uniform.float2n.data);
+                glUniform2fv(location, cast(GLsizei) min(cast(int) active_count, uniform.float2n.count), cast(*float) uniform.float2n.data);
             case .Float3;
                 glUniform3f(location, uniform.float3[0], uniform.float3[1], uniform.float3[2]);
             case .Float3N;
-                glUniform3fv(location, xx uniform.float3n.count, cast(*float) uniform.float3n.data);
+                glUniform3fv(location, cast(GLsizei) min(cast(int) active_count, uniform.float3n.count), cast(*float) uniform.float3n.data);
             case .Float4;
                 glUniform4f(location, uniform.float4[0], uniform.float4[1], uniform.float4[2], uniform.float4[3]);
             case .Float4N;
-                glUniform4fv(location, xx uniform.float4n.count, cast(*float) uniform.float4n.data);
+                glUniform4fv(location, cast(GLsizei) min(cast(int) active_count, uniform.float4n.count), cast(*float) uniform.float4n.data);
             case .Int1;
                 glUniform1i(location, uniform.int1);
             case .Int1N;
-                glUniform1iv(location, xx uniform.int1n.count, uniform.int1n.data);
+                glUniform1iv(location, cast(GLsizei) min(cast(int) active_count, uniform.int1n.count), uniform.int1n.data);
             case .Int2;
                 glUniform2i(location, uniform.int2[0], uniform.int2[1]);
             case .Int2N;
-                glUniform2iv(location, xx uniform.int2n.count, cast(*s32) uniform.int2n.data);
+                glUniform2iv(location, cast(GLsizei) min(cast(int) active_count, uniform.int2n.count), cast(*s32) uniform.int2n.data);
             case .Int3;
                 glUniform3i(location, uniform.int3[0], uniform.int3[1], uniform.int3[2]);
             case .Int3N;
-                glUniform3iv(location, xx uniform.int3n.count, cast(*s32) uniform.int3n.data);
+                glUniform3iv(location, cast(GLsizei) min(cast(int) active_count, uniform.int3n.count), cast(*s32) uniform.int3n.data);
             case .Int4;
                 glUniform4i(location, uniform.int4[0], uniform.int4[1], uniform.int4[2], uniform.int4[3]);
             case .Int4N;
-                glUniform4iv(location, xx uniform.int4n.count, cast(*s32) uniform.int4n.data);
+                glUniform4iv(location, cast(GLsizei) min(cast(int) active_count, uniform.int4n.count), cast(*s32) uniform.int4n.data);
             case .UInt1;
                 glUniform1ui(location, uniform.uint1);
             case .UInt1N;
-                glUniform1uiv(location, xx uniform.uint1n.count, uniform.uint1n.data);
+                glUniform1uiv(location, cast(GLsizei) min(cast(int) active_count, uniform.uint1n.count), uniform.uint1n.data);
             case .UInt2;
                 glUniform2ui(location, uniform.uint2[0], uniform.uint2[1]);
             case .UInt2N;
-                glUniform2uiv(location, xx uniform.uint2n.count, cast(*u32) uniform.uint2n.data);
+                glUniform2uiv(location, cast(GLsizei) min(cast(int) active_count, uniform.uint2n.count), cast(*u32) uniform.uint2n.data);
             case .UInt3;
                 glUniform3ui(location, uniform.uint3[0], uniform.uint3[1], uniform.uint3[2]);
             case .UInt3N;
-                glUniform3uiv(location, xx uniform.uint3n.count, cast(*u32) uniform.uint3n.data);
+                glUniform3uiv(location, cast(GLsizei) min(cast(int) active_count, uniform.uint3n.count), cast(*u32) uniform.uint3n.data);
             case .UInt4;
                 glUniform4ui(location, uniform.uint4[0], uniform.uint4[1], uniform.uint4[2], uniform.uint4[3]);
             case .UInt4N;
-                glUniform4uiv(location, xx uniform.uint4n.count, cast(*u32) uniform.uint4n.data);
+                glUniform4uiv(location, cast(GLsizei) min(cast(int) active_count, uniform.uint4n.count), cast(*u32) uniform.uint4n.data);
             case .Mat2;
                 glUniformMatrix2fv(location, 1, true, cast(*float) uniform.mat2.data);
             case .Mat2N;
-                glUniformMatrix2fv(location, xx uniform.mat2n.count, true, cast(*float) uniform.mat2n.data);
+                glUniformMatrix2fv(location, cast(GLsizei) min(cast(int) active_count, uniform.mat2n.count), true, cast(*float) uniform.mat2n.data);
             case .Mat3;
                 glUniformMatrix3fv(location, 1, true, cast(*float) uniform.mat3.data);
             case .Mat3N;
-                glUniformMatrix3fv(location, xx uniform.mat3n.count, true, cast(*float) uniform.mat3n.data);
+                glUniformMatrix3fv(location, cast(GLsizei) min(cast(int) active_count, uniform.mat3n.count), true, cast(*float) uniform.mat3n.data);
             case .Mat4;
                 glUniformMatrix4fv(location, 1, true, cast(*float) uniform.mat4.data);
             case .Mat4N;
-                glUniformMatrix4fv(location, xx uniform.mat4n.count, true, cast(*float) uniform.mat4n.data);
+                glUniformMatrix4fv(location, cast(GLsizei) min(cast(int) active_count, uniform.mat4n.count), true, cast(*float) uniform.mat4n.data);
             case .Texture; #through;
             case .ShadowTexture;
                 texture_slot, already_bound := claim_texture_slot(uniform.texture.buffer, get_bytes(uniform.texture));
@@ -852,18 +860,20 @@ use_shader :: (shader: *Shader) {
         }
     }
 
-    // we only validate information about the fragment output channels if there is a fragment shader
-    if shader.has_fragment_shader && get_color_write() {
-        if shader.output_channels.count != koda.active_pass_channels.count {
-            assert(false, "Using shader % with % output channels inside a render pass with % output channels.\n", shader.name, shader.output_channels.count, koda.active_pass_channels.count);
-            return;
-        }
-
-        for i: 0..shader.output_channels.count - 1 {
-            channel_component_count := get_component_count(koda.active_pass_channels[i]);
-            if shader.output_channels[i] != channel_component_count {
-                assert(false, "Using shader % where output channel % has % components inside a render pass where output channel % has % components.\n", shader.name, i, shader.output_channels[i], i, channel_component_count);
+    #if OS != .MACOS {
+        // we only validate information about the fragment output channels if there is a fragment shader
+        if shader.has_fragment_shader && get_color_write() {
+            if shader.output_channels.count != koda.active_pass_channels.count {
+                assert(false, "Using shader % with % output channels inside a render pass with % output channels.\n", shader.name, shader.output_channels.count, koda.active_pass_channels.count);
                 return;
+            }
+
+            for i: 0..shader.output_channels.count - 1 {
+                channel_component_count := get_component_count(koda.active_pass_channels[i]);
+                if shader.output_channels[i] != channel_component_count {
+                    assert(false, "Using shader % where output channel % has % components inside a render pass where output channel % has % components.\n", shader.name, i, shader.output_channels[i], i, channel_component_count);
+                    return;
+                }
             }
         }
     }

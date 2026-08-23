@@ -126,17 +126,21 @@ get_graphics_info :: (include_system_info: bool = true) -> string {
             append(*builder, tprint("  Work Area Position        : %, %\n", work_area_x, work_area_y));
             append(*builder, tprint("  Work Area Size            : %x%\n", work_area_width, work_area_height));
 
-            current_mode := glfwGetVideoMode(monitor);
-            append(*builder, tprint("  Monitor Video Mode        :\n"));
-            append(*builder, tprint("    Resolution  : %x%\n", current_mode.width, current_mode.height));
-            append(*builder, tprint("    Refresh Rate: % Hz\n", current_mode.refreshRate));
-            append(*builder, tprint("    Color Depth : R% G% B%\n", current_mode.redBits, current_mode.greenBits, current_mode.blueBits));
+            #if OS == .MACOS {
+                append(*builder, "  Monitor Video Modes       : unavailable\n");
+            } else {
+                current_mode := glfwGetVideoMode(monitor);
+                append(*builder, tprint("  Monitor Video Mode        :\n"));
+                append(*builder, tprint("    Resolution  : %x%\n", current_mode.width, current_mode.height));
+                append(*builder, tprint("    Refresh Rate: % Hz\n", current_mode.refreshRate));
+                append(*builder, tprint("    Color Depth : R% G% B%\n", current_mode.redBits, current_mode.greenBits, current_mode.blueBits));
 
-            mode_count: s32;
-            modes := glfwGetVideoModes(monitor, *mode_count);
-            append(*builder, tprint("  Supported Video Modes     : %\n", mode_count));
-            for a: 0..mode_count - 1 {
-                append(*builder, tprint("    %x% @ %Hz (R% G% B%)\n", modes[a].width, modes[a].height, modes[a].refreshRate, modes[a].redBits, modes[a].greenBits, modes[a].blueBits));
+                mode_count: s32;
+                modes := glfwGetVideoModes(monitor, *mode_count);
+                append(*builder, tprint("  Supported Video Modes     : %\n", mode_count));
+                for a: 0..mode_count - 1 {
+                    append(*builder, tprint("    %x% @ %Hz (R% G% B%)\n", modes[a].width, modes[a].height, modes[a].refreshRate, modes[a].redBits, modes[a].greenBits, modes[a].blueBits));
+                }
             }
 
             gamma_ramp := glfwGetGammaRamp(monitor);

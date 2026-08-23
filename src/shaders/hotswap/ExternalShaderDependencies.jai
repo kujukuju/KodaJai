@@ -22,6 +22,7 @@ UniformLocation :: struct {
     name: FixedString(UNIFORM_LENGTH);
     type: ShaderUniformType;
     location: s32;
+    count: s32;
 }
 
 ShaderDependency :: struct {

@@ -42,31 +42,37 @@ create_window :: (title: *u8, width: s32, height: s32, multisample: int = 0) {
         return;
     }
 
-    if !width || !height {
-        width = 1920;
-        height = 1080;
-
-        monitor := glfwGetPrimaryMonitor();
-        video_mode := glfwGetVideoMode(monitor);
-        if video_mode {
-            if video_mode.height <= 900 || video_mode.width <= 1600 {
-                width = 1366;
-                height = 768;
-            } else if video_mode.height <= 1080 || video_mode.width <= 1920 {
-                width = 1600;
-                height = 900;
+    monitor_width = 1920;
+    monitor_height = 1080;
+    monitor := glfwGetPrimaryMonitor();
+    if monitor {
+        #if OS == .MACOS {
+            work_width: s32;
+            work_height: s32;
+            glfwGetMonitorWorkarea(monitor, null, null, *work_width, *work_height);
+            if work_width > 0 && work_height > 0 {
+                monitor_width = work_width;
+                monitor_height = work_height;
+            }
+        } else {
+            video_mode := glfwGetVideoMode(monitor);
+            if video_mode {
+                monitor_width = video_mode.width;
+                monitor_height = video_mode.height;
             }
         }
     }
 
-    monitor_width = width;
-    monitor_height = height;
-    monitor := glfwGetPrimaryMonitor();
-    if monitor {
-        video_mode := glfwGetVideoMode(monitor);
-        if video_mode {
-            monitor_width = video_mode.width;
-            monitor_height = video_mode.height;
+    if !width || !height {
+        width = 1920;
+        height = 1080;
+
+        if monitor_height <= 900 || monitor_width <= 1600 {
+            width = 1366;
+            height = 768;
+        } else if monitor_height <= 1080 || monitor_width <= 1920 {
+            width = 1600;
+            height = 900;
         }
     }
 
@@ -77,6 +83,8 @@ create_window :: (title: *u8, width: s32, height: s32, multisample: int = 0) {
 
     #if OS == .MACOS {
         glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GLFW_TRUE);
+        // Koda uses one size for window-space input, UI, render textures, and the screen viewport.
+        glfwWindowHint(GLFW_SCALE_FRAMEBUFFER, GLFW_FALSE);
     }
 
     glfwWindowHint(GLFW_CLIENT_API, GLFW_OPENGL_API);
@@ -105,7 +113,7 @@ create_window :: (title: *u8, width: s32, height: s32, multisample: int = 0) {
     glfwSetWindowPos(koda.window, cast(s32) (monitor_width - width) / 2, cast(s32) (monitor_height - height) / 2);
 
     glfwMakeContextCurrent(koda.window);
-    gl_load(*gl, glfwGetProcAddress);
+    gl_load(*gl, cast(GetProcAddressFunction) glfwGetProcAddress);
 
     renderer := glGetString(GL_RENDERER);
     vendor := glGetString(GL_VENDOR);
@@ -399,14 +407,18 @@ vsync_wait :: () {
 }
 
 get_vsync_rate :: () -> int {
-    monitor := glfwGetPrimaryMonitor();
-    video_mode := glfwGetVideoMode(monitor);
-
-    if !video_mode {
+    #if OS == .MACOS {
         return 0;
-    }
+    } else {
+        monitor := glfwGetPrimaryMonitor();
+        video_mode := glfwGetVideoMode(monitor);
 
-    return video_mode.refreshRate;
+        if !video_mode {
+            return 0;
+        }
+
+        return video_mode.refreshRate;
+    }
 }
 
 get_fullscreen :: () -> bool, bool {
@@ -419,45 +431,72 @@ set_fullscreen :: (fullscreen: bool, borderless: bool, width: int = 0, height: i
     assert(!fullscreen || !borderless, "You cannot have fullscreen and borderless enabled.\n");
 
     monitor := glfwGetPrimaryMonitor();
-    video_mode := glfwGetVideoMode(monitor);
-
-    if !video_mode {
+    if !monitor {
         return;
     }
 
-    if borderless {
-        glfwWindowHint(GLFW_RED_BITS, video_mode.redBits);
-        glfwWindowHint(GLFW_GREEN_BITS, video_mode.greenBits);
-        glfwWindowHint(GLFW_BLUE_BITS, video_mode.blueBits);
-        glfwWindowHint(GLFW_REFRESH_RATE, video_mode.refreshRate);
+    monitor_x: s32;
+    monitor_y: s32;
+    monitor_width: s32;
+    monitor_height: s32;
+    refresh_rate: s32 = GLFW_DONT_CARE;
+
+    #if OS == .MACOS {
+        glfwGetMonitorWorkarea(monitor, *monitor_x, *monitor_y, *monitor_width, *monitor_height);
+        if monitor_width <= 0 || monitor_height <= 0 {
+            return;
+        }
+    } else {
+        video_mode := glfwGetVideoMode(monitor);
+        if !video_mode {
+            return;
+        }
+
+        monitor_width = video_mode.width;
+        monitor_height = video_mode.height;
+        refresh_rate = video_mode.refreshRate;
+
+        if borderless {
+            glfwWindowHint(GLFW_RED_BITS, video_mode.redBits);
+            glfwWindowHint(GLFW_GREEN_BITS, video_mode.greenBits);
+            glfwWindowHint(GLFW_BLUE_BITS, video_mode.blueBits);
+            glfwWindowHint(GLFW_REFRESH_RATE, video_mode.refreshRate);
+        }
     }
 
-    if fullscreen {
-        if !width then width = video_mode.width;
-        if !height then height = video_mode.height;
+    window_x := monitor_x + cast(s32) (monitor_width - width) / 2;
+    window_y := monitor_y + cast(s32) (monitor_height - height) / 2;
 
-        // TODO why isn't monitor being used???
-        // TODO use GLFW_DONT_CARE for refresh rate
+    if fullscreen {
+        if !width then width = monitor_width;
+        if !height then height = monitor_height;
+
         set_window_size(width, height);
         glfwSetWindowAttrib(koda.window, GLFW_DECORATED, GLFW_FALSE);
-        glfwSetWindowMonitor(koda.window, monitor, 0, 0, cast(s32) width, cast(s32) height, video_mode.refreshRate);
+        glfwSetWindowMonitor(koda.window, monitor, monitor_x, monitor_y, cast(s32) width, cast(s32) height, refresh_rate);
         set_vsync(get_vsync());
     } else if borderless {
-        if !width then width = video_mode.width;
-        if !height then height = video_mode.height;
+        if !width then width = monitor_width;
+        if !height then height = monitor_height;
+
+        window_x = monitor_x + cast(s32) (monitor_width - width) / 2;
+        window_y = monitor_y + cast(s32) (monitor_height - height) / 2;
 
         set_window_size(width, height);
         glfwSetWindowAttrib(koda.window, GLFW_DECORATED, GLFW_FALSE);
-        glfwSetWindowMonitor(koda.window, null, cast(s32) (video_mode.width - width) / 2, cast(s32) (video_mode.height - height) / 2, cast(s32) width, cast(s32) height, GLFW_DONT_CARE);
-        glfwSetWindowPos(koda.window, cast(s32) (video_mode.width - width) / 2, cast(s32) (video_mode.height - height) / 2);
+        glfwSetWindowMonitor(koda.window, null, window_x, window_y, cast(s32) width, cast(s32) height, GLFW_DONT_CARE);
+        glfwSetWindowPos(koda.window, window_x, window_y);
         set_vsync(get_vsync());
     } else if !borderless {
         if !width then width = koda.width;
         if !height then height = koda.height;
 
+        window_x = monitor_x + cast(s32) (monitor_width - width) / 2;
+        window_y = monitor_y + cast(s32) (monitor_height - height) / 2;
+
         glfwSetWindowAttrib(koda.window, GLFW_DECORATED, GLFW_TRUE);
-        glfwSetWindowMonitor(koda.window, null, cast(s32) (video_mode.width - width) / 2, cast(s32) (video_mode.height - height) / 2, cast(s32) width, cast(s32) height, GLFW_DONT_CARE);
-        glfwSetWindowPos(koda.window, cast(s32) (video_mode.width - width) / 2, cast(s32) (video_mode.height - height) / 2);
+        glfwSetWindowMonitor(koda.window, null, window_x, window_y, cast(s32) width, cast(s32) height, GLFW_DONT_CARE);
+        glfwSetWindowPos(koda.window, window_x, window_y);
         glfwSetWindowAttrib(koda.window, GLFW_DECORATED, GLFW_TRUE);
         set_window_size(width, height);
         set_vsync(get_vsync());
@@ -1247,4 +1286,8 @@ focus_callback :: (window: *GLFWwindow, focused: s32) #c_call {
 time_slice_ms :: 2;
 
 MINIMUM_GL_MAJOR_VERSION: s32 : 4;
-MINIMUM_GL_MINOR_VERSION: s32 : 4;
+#if OS == .MACOS {
+    MINIMUM_GL_MINOR_VERSION: s32 : 1;
+} else {
+    MINIMUM_GL_MINOR_VERSION: s32 : 4;
+}

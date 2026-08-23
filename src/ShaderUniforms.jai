@@ -141,8 +141,8 @@ equals :: (a: ShaderUniforms, b: ShaderUniforms) -> bool {
     return true;
 }
 
-get_uniform_type :: (type: u32, size: int) -> ShaderUniformType {
-    if size == 1 {
+get_uniform_type :: (type: u32, size: int, is_array: bool = false) -> ShaderUniformType {
+    if size == 1 && !is_array {
         if type == {
             case GL_FLOAT;
                 return .Float1;

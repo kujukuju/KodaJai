@@ -230,7 +230,7 @@ static_sprite: Sprite;
 
     #if OS == .WINDOWS {
         crt :: #system_library "msvcrt";
-    } else #if OS == .LINUX {
+    } else #if OS == .LINUX || OS == .MACOS {
         crt :: #system_library "libc";
     }
 // }
