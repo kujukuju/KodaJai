@@ -131,6 +131,9 @@ create_window :: (title: *u8, width: s32, height: s32, multisample: int = 0) {
     glfwSetInputMode(koda.window, GLFW_STICKY_MOUSE_BUTTONS, GLFW_TRUE);
     glfwSetInputMode(koda.window, GLFW_STICKY_KEYS, GLFW_TRUE);
     glfwSetInputMode(koda.window, GLFW_CURSOR, GLFW_CURSOR_NORMAL);
+    initialize_mouse_position(koda.window);
+    glfwSetMouseButtonCallback(koda.window, mouse_button_callback);
+    glfwSetCursorPosCallback(koda.window, mouse_callback);
     glfwSetScrollCallback(koda.window, scroll_callback);
     glfwSetWindowSizeCallback(koda.window, size_callback);
     glfwSetWindowFocusCallback(koda.window, focus_callback);
@@ -1102,7 +1105,17 @@ get_scissor_test :: () -> bool, Point2, Point2 {
     box: [4] s32;
     glGetIntegerv(GL_SCISSOR_BOX, box.data);
 
-    return enabled, .{box[0], koda.height - box[1] - box[3]}, .{box[2], box[3]};
+    logical_size := get_orthographic_size();
+    if koda.width <= 0 || koda.height <= 0 || logical_size.x <= 0 || logical_size.y <= 0 {
+        return enabled, .{}, .{};
+    }
+
+    physical_top_left := Point2.{box[0], koda.height - box[1] - box[3]};
+    physical_bottom_right := physical_top_left + Point2.{box[2], box[3]};
+
+    top_left := Point2.{physical_top_left.x * logical_size.x / koda.width, physical_top_left.y * logical_size.y / koda.height};
+    bottom_right := Point2.{physical_bottom_right.x * logical_size.x / koda.width, physical_bottom_right.y * logical_size.y / koda.height};
+    return enabled, top_left, bottom_right - top_left;
 }
 
 set_scissor_test :: (enabled: bool) {
@@ -1120,7 +1133,18 @@ set_scissor_test :: (enabled: bool, top_left: Point2, dimensions: Point2) {
         glDisable(GL_SCISSOR_TEST);
     }
 
-    glScissor(cast(s32) top_left.x, cast(s32) (koda.height - top_left.y - dimensions.y), cast(u32) dimensions.x, cast(u32) dimensions.y);
+    logical_size := get_orthographic_size();
+    if koda.width <= 0 || koda.height <= 0 || logical_size.x <= 0 || logical_size.y <= 0 {
+        glScissor(0, 0, 0, 0);
+        return;
+    }
+
+    bottom_right := top_left + dimensions;
+    physical_top_left := Point2.{top_left.x * koda.width / logical_size.x, top_left.y * koda.height / logical_size.y};
+    physical_bottom_right := Point2.{bottom_right.x * koda.width / logical_size.x, bottom_right.y * koda.height / logical_size.y};
+    physical_dimensions := physical_bottom_right - physical_top_left;
+
+    glScissor(cast(s32) physical_top_left.x, cast(s32) (koda.height - physical_bottom_right.y), cast(u32) physical_dimensions.x, cast(u32) physical_dimensions.y);
 }
 
 set_scissor_test_scope :: (enabled: bool) #expand {
@@ -1131,8 +1155,13 @@ set_scissor_test_scope :: (enabled: bool) #expand {
 }
 
 set_scissor_test_scope :: (enabled: bool, top_left: Point2, dimensions: Point2) #expand {
-    old_enabled, old_top_left, old_dimensions := get_scissor_test();
-    `defer set_scissor_test(old_enabled, old_top_left, old_dimensions);
+    old_enabled := glIsEnabled(GL_SCISSOR_TEST);
+    old_box: [4] s32;
+    glGetIntegerv(GL_SCISSOR_BOX, old_box.data);
+    `defer {
+        set_scissor_test(old_enabled);
+        glScissor(old_box[0], old_box[1], cast(u32) old_box[2], cast(u32) old_box[3]);
+    };
 
     set_scissor_test(enabled, top_left, dimensions);
 }
@@ -1280,6 +1309,9 @@ focus_callback :: (window: *GLFWwindow, focused: s32) #c_call {
     new_context: #Context;
     push_context new_context {
         window_focused = !!focused;
+        if !window_focused {
+            invalidate_mouse_position();
+        }
     }
 }
 

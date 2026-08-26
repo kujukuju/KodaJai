@@ -157,6 +157,7 @@ koda: struct {
     window: *GLFWwindow;
     width: int;
     height: int;
+    orthographic_size_override: Point2;
     frame_tracker: FrameTracker;
     time_tracker: TimeTracker;
     render_flipped: bool;

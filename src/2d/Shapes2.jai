@@ -133,7 +133,7 @@ draw_rect :: (top_left: Vector2, dimensions: Vector2, color: Color = .{1, 1, 1, 
 
     use_shader(*default_shader);
 
-    projection := orthographic_projection_matrix(0.0, xx koda.width, xx koda.height, 0.0, -1.0, 1.0);
+    projection := get_orthographic_matrix();
     model := Matrix4_Identity;
     view := koda.view;
 

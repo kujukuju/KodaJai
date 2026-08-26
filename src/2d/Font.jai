@@ -57,7 +57,7 @@ begin_buffer_text :: (font: *Font) {
 }
 
 flush_text :: (font: *Font) {
-    projection := orthographic_projection_matrix(0, xx koda.width, xx koda.height, 0, -1.0, 1.0);
+    projection := get_orthographic_matrix();
     flush_text(font, projection);
 }
 

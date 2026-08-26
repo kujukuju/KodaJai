@@ -187,6 +187,9 @@ Input :: struct {
     released_mouse_left: bool;
     mouse_left_start: Vector2;
     mouse_left_drag: Vector2;
+    mouse_left_maximum_drag_distance_squared: float;
+    released_mouse_left_maximum_drag_distance_squared: float;
+    mouse_left_release_tracked: bool;
     mouse_right: KodaInputState;
     released_mouse_right: bool;
     mouse_right_start: Vector2;
@@ -209,6 +212,14 @@ Input :: struct {
 
 get_input :: () -> Input {
     return input;
+}
+
+mouse_left_clicked :: (maximum_drag_distance: float) -> bool {
+    if !input.released_mouse_left || !input.mouse_left_release_tracked {
+        return false;
+    }
+
+    return input.released_mouse_left_maximum_drag_distance_squared <= maximum_drag_distance * maximum_drag_distance;
 }
 
 update_inputs :: ($update_features: InputFeature = .All) {
@@ -333,7 +344,6 @@ update_inputs :: ($update_features: InputFeature = .All) {
         if mouse_left && !input.mouse_left {
             input.controller_active = false;
             input.mouse_left |= KodaInputState.START;
-            input.mouse_left_start = input.mouse;
             input.mouse_left_drag = .{};
         }
         if mouse_left {
@@ -489,6 +499,18 @@ set_char_input :: (char_input: bool) {
 
 input: Input;
 
+initialize_mouse_position :: (window: *GLFWwindow) {
+    glfwGetCursorPos(window, *raw_mouse_x, *raw_mouse_y);
+    mouse_position[0] = raw_mouse_x;
+    mouse_position[1] = raw_mouse_y;
+    mouse_position_valid = true;
+    input.mouse = xy(xx raw_mouse_x, xx raw_mouse_y);
+}
+
+invalidate_mouse_position :: () {
+    mouse_position_valid = false;
+}
+
 resolve_mouse_capture :: () {
     if mouse_capture {
         glfwSetInputMode(koda.window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
@@ -498,7 +520,12 @@ resolve_mouse_capture :: () {
             glfwSetInputMode(koda.window, GLFW_RAW_MOUSE_MOTION, GLFW_TRUE);
         }
     } else if mouse_boundary_enabled {
-        glfwSetInputMode(koda.window, GLFW_CURSOR, GLFW_CURSOR_CAPTURED);
+        #if OS == .MACOS {
+            // GLFW's Cocoa backend does not implement visible cursor confinement.
+            glfwSetInputMode(koda.window, GLFW_CURSOR, GLFW_CURSOR_NORMAL);
+        } else {
+            glfwSetInputMode(koda.window, GLFW_CURSOR, GLFW_CURSOR_CAPTURED);
+        }
 
         if glfwRawMouseMotionSupported() {
             glfwSetInputMode(koda.window, GLFW_RAW_MOUSE_MOTION, GLFW_FALSE);
@@ -518,12 +545,43 @@ scroll_callback :: (window: *GLFWwindow, x_offset: float64, y_offset: float64) #
     accumulated_scroll[1] += y_offset;
 }
 
-// I wonder if this would be more accurate?
+mouse_button_callback :: (window: *GLFWwindow, button: s32, action: s32, mods: s32) #c_call {
+    if button != GLFW_MOUSE_BUTTON_LEFT {
+        return;
+    }
+
+    new_context: #Context;
+    push_context new_context {
+        current_mouse_position := Vector2.{xx mouse_position[0], xx mouse_position[1]};
+
+        if action == GLFW_PRESS {
+            mouse_left_tracking = mouse_position_valid && get_focused();
+            input.mouse_left_start = current_mouse_position;
+            input.mouse_left_maximum_drag_distance_squared = 0;
+        } else if action == GLFW_RELEASE {
+            drag_delta := current_mouse_position - input.mouse_left_start;
+            input.mouse_left_maximum_drag_distance_squared = max(input.mouse_left_maximum_drag_distance_squared, length_squared(drag_delta));
+            input.released_mouse_left_maximum_drag_distance_squared = input.mouse_left_maximum_drag_distance_squared;
+            input.mouse_left_release_tracked = mouse_left_tracking && get_focused();
+            mouse_left_tracking = false;
+        }
+    }
+}
+
 mouse_callback :: (window: *GLFWwindow, x: float64, y: float64) #c_call {
-    accumulated_mouse[0] = x - mouse_position[0];
-    accumulated_mouse[1] = y - mouse_position[1];
-    mouse_position[0] = x;
-    mouse_position[1] = y;
+    new_context: #Context;
+    push_context new_context {
+        accumulated_mouse[0] = x - mouse_position[0];
+        accumulated_mouse[1] = y - mouse_position[1];
+        mouse_position[0] = x;
+        mouse_position[1] = y;
+        mouse_position_valid = true;
+
+        if mouse_left_tracking {
+            drag_delta := Vector2.{xx x, xx y} - input.mouse_left_start;
+            input.mouse_left_maximum_drag_distance_squared = max(input.mouse_left_maximum_drag_distance_squared, length_squared(drag_delta));
+        }
+    }
 }
 
 char_input_callback :: (window: *GLFWwindow, codepoint: u32) -> void #c_call {
@@ -547,6 +605,8 @@ raw_mouse_y: float64 = 0.0;
 accumulated_scroll: [2] float64;
 mouse_position: [2] float64;
 accumulated_mouse: [2] float64;
+mouse_position_valid: bool;
+mouse_left_tracking: bool;
 
 joystick_padding := 0.2;
 

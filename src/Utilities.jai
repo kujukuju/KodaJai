@@ -132,11 +132,31 @@ calculate_perspective_matrix :: (fovy: float = 0, aspect_ratio: float = 0) -> Ma
     return matrix;
 }
 
+get_orthographic_size :: () -> Point2 {
+    size := koda.orthographic_size_override;
+    if !size.x then size.x = koda.width;
+    if !size.y then size.y = koda.height;
+    return size;
+}
+
+set_orthographic_size :: (size: Point2) {
+    koda.orthographic_size_override = size;
+}
+
+set_orthographic_size_scope :: (size: Point2) #expand {
+    old_size := koda.orthographic_size_override;
+    `defer set_orthographic_size(old_size);
+
+    set_orthographic_size(size);
+}
+
 get_orthographic_matrix :: () -> Matrix4 {
+    size := get_orthographic_size();
+
     left := 0.0;
-    right := cast(float) koda.width;
-    top := cast(float) ifx koda.height < 0 then -koda.height else 0;
-    bottom := cast(float) ifx koda.height > 0 then koda.height else 0;
+    right := cast(float) size.x;
+    top := cast(float) ifx size.y < 0 then -size.y else 0;
+    bottom := cast(float) ifx size.y > 0 then size.y else 0;
     z_far := -1.0;
     z_near := 1.0;
 
