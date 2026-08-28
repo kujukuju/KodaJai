@@ -36,7 +36,7 @@ get_window :: () -> *GLFWwindow {
     return koda.window;
 }
 
-create_window :: (title: *u8, width: s32, height: s32, multisample: int = 0) {
+create_window :: (title: *u8, width: s32, height: s32, multisample: int = 0, visible := true) {
     if !koda.initialized {
         print("Cannot create window before initializing.\n");
         return;
@@ -81,6 +81,14 @@ create_window :: (title: *u8, width: s32, height: s32, multisample: int = 0) {
         glEnable(GL_MULTISAMPLE);
     }
 
+    if visible {
+        glfwWindowHint(GLFW_VISIBLE, GLFW_TRUE);
+    } else {
+        glfwWindowHint(GLFW_VISIBLE, GLFW_FALSE);
+        glfwWindowHint(GLFW_FOCUSED, GLFW_FALSE);
+        glfwWindowHint(GLFW_FOCUS_ON_SHOW, GLFW_FALSE);
+    }
+
     #if OS == .MACOS {
         glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GLFW_TRUE);
         // Koda uses one size for window-space input, UI, render textures, and the screen viewport.
@@ -108,6 +116,12 @@ create_window :: (title: *u8, width: s32, height: s32, multisample: int = 0) {
         }
         exit(-1);
         return;
+    }
+
+    if !visible {
+        window_visible := glfwGetWindowAttrib(koda.window, GLFW_VISIBLE);
+        assert(window_visible == GLFW_FALSE, "Hidden window was created visible.\n");
+        print("Created hidden window.\n");
     }
 
     glfwSetWindowPos(koda.window, cast(s32) (monitor_width - width) / 2, cast(s32) (monitor_height - height) / 2);
