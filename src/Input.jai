@@ -211,7 +211,25 @@ Input :: struct {
 }
 
 get_input :: () -> Input {
-    return input;
+    result := input;
+    if result.char_input || controller_input_blocked_until_release {
+        result.controller_active = false;
+        result.controller_left = .{};
+        result.controller_left_projected = .{};
+        result.controller_right = .{};
+        result.controller_right_projected = .{};
+        result.triggers[0] = -1;
+        result.triggers[1] = -1;
+        memset(result.trigger_activations.data, 0, size_of(type_of(result.trigger_activations)));
+        result.trigger_deactivations[0] = -1;
+        result.trigger_deactivations[1] = -1;
+        memset(result.trigger_buttons.data, 0, size_of(type_of(result.trigger_buttons)));
+        memset(result.buttons.data, 0, size_of(type_of(result.buttons)));
+        memset(result.released_buttons.data, 0, size_of(type_of(result.released_buttons)));
+        result.controller_left_trigger = 0;
+        result.controller_right_trigger = 0;
+    }
+    return result;
 }
 
 mouse_left_clicked :: (maximum_drag_distance: float) -> bool {
@@ -318,6 +336,12 @@ update_inputs :: ($update_features: InputFeature = .All) {
                 input.controller_active = true;
             }
         }
+    }
+
+    if controller_input_blocked_until_release && !controller_input_is_down() {
+        controller_input_blocked_until_release = false;
+        input.controller_active = false;
+        memset(input.released_buttons.data, 0, size_of(type_of(input.released_buttons)));
     }
 
     #if update_features & .MouseMove {
@@ -492,12 +516,51 @@ set_trigger_activation_distance :: (distance: float) {
 }
 
 set_char_input :: (char_input: bool) {
+    if input.char_input == char_input return;
+
+    if char_input {
+        input.char_input_keys = input.keys;
+        for * state: input.char_input_keys state.* &= ~KodaInputState.START;
+        memset(input.keys.data, 0, size_of(type_of(input.keys)));
+    } else {
+        input.keys = input.char_input_keys;
+        for * state: input.keys state.* &= ~KodaInputState.START;
+        memset(input.char_input_keys.data, 0, size_of(type_of(input.char_input_keys)));
+
+        for * state: input.buttons state.* &= ~KodaInputState.START;
+        for * state: input.trigger_buttons state.* &= ~KodaInputState.START;
+        input.mouse_left &= ~KodaInputState.START;
+        input.mouse_right &= ~KodaInputState.START;
+        input.mouse_middle &= ~KodaInputState.START;
+        for * state: input.mouse_buttons state.* &= ~KodaInputState.START;
+
+        memset(input.released_buttons.data, 0, size_of(type_of(input.released_buttons)));
+        input.released_mouse_left = false;
+        input.released_mouse_right = false;
+        input.released_mouse_middle = false;
+        input.scroll_delta_x = 0;
+        input.scroll_delta_y = 0;
+        input.controller_active = false;
+        controller_input_blocked_until_release = controller_input_is_down();
+    }
+
     input.char_input = char_input;
 }
 
 #scope_module
 
 input: Input;
+controller_input_blocked_until_release: bool;
+
+controller_input_is_down :: () -> bool {
+    for state: input.buttons {
+        if state & .DOWN return true;
+    }
+    for state: input.trigger_buttons {
+        if state & .DOWN return true;
+    }
+    return length(input.controller_left) > 0 || length(input.controller_right) > 0;
+}
 
 initialize_mouse_position :: (window: *GLFWwindow) {
     glfwGetCursorPos(window, *raw_mouse_x, *raw_mouse_y);
