@@ -1,5 +1,6 @@
 
-rounded_rect_shader := #run create_shader(ROUNDED_RECT_VERTEX_SHADER, ROUNDED_RECT_FRAGMENT_SHADER);
+rounded_rect_shader: Shader;
+rounded_rect_shader_prelim := #run create_prelim_shader(ROUNDED_RECT_VERTEX_SHADER, ROUNDED_RECT_FRAGMENT_SHADER);
 
 #scope_module
 

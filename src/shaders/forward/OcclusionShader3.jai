@@ -1,5 +1,6 @@
 
-occlusion_shader3 := #run create_shader(OCCLUSION_VERTEX_SHADER3, OCCLUSION_FRAGMENT_SHADER3);
+occlusion_shader3: Shader;
+occlusion_shader3_prelim := #run create_prelim_shader(OCCLUSION_VERTEX_SHADER3, OCCLUSION_FRAGMENT_SHADER3);
 
 #scope_module
 

@@ -1,5 +1,6 @@
 
-capsule_line_shader3 := #run create_shader(CAPSULE_LINE_VERTEX_SHADER3, CAPSULE_LINE_FRAGMENT_SHADER3);
+capsule_line_shader3: Shader;
+capsule_line_shader3_prelim := #run create_prelim_shader(CAPSULE_LINE_VERTEX_SHADER3, CAPSULE_LINE_FRAGMENT_SHADER3);
 
 #scope_module
 

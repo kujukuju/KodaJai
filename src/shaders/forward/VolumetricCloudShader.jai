@@ -1,5 +1,6 @@
 
-volumetric_cloud_shader := #run create_shader(VOLUMETRIC_CLOUD_VERTEX_SHADER3, VOLUMETRIC_CLOUD_FRAGMENT_SHADER3);
+volumetric_cloud_shader: Shader;
+volumetric_cloud_shader_prelim := #run create_prelim_shader(VOLUMETRIC_CLOUD_VERTEX_SHADER3, VOLUMETRIC_CLOUD_FRAGMENT_SHADER3);
 
 #scope_module
 

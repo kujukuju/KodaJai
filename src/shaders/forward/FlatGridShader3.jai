@@ -1,5 +1,6 @@
 
-flat_grid_shader3 := #run create_shader(FLAT_GRID_VERTEX_SHADER3, FLAT_GRID_FRAGMENT_SHADER3);
+flat_grid_shader3: Shader;
+flat_grid_shader3_prelim := #run create_prelim_shader(FLAT_GRID_VERTEX_SHADER3, FLAT_GRID_FRAGMENT_SHADER3);
 
 #scope_module
 

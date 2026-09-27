@@ -1,5 +1,6 @@
 
-blur_shader := #run create_shader(BLUR_VERTEX_SHADER, BLUR_FRAGMENT_SHADER);
+blur_shader: Shader;
+blur_shader_prelim := #run create_prelim_shader(BLUR_VERTEX_SHADER, BLUR_FRAGMENT_SHADER);
 
 #scope_module
 

@@ -1,5 +1,6 @@
 
-texture_shader3 := #run create_shader(TEXTURE_VERTEX_SHADER3, TEXTURE_FRAGMENT_SHADER3);
+texture_shader3: Shader;
+texture_shader3_prelim := #run create_prelim_shader(TEXTURE_VERTEX_SHADER3, TEXTURE_FRAGMENT_SHADER3);
 
 #scope_module
 

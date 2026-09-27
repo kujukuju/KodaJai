@@ -1,5 +1,6 @@
 
-skinned_animation_double_shader3 := #run create_shader(SKINNED_ANIMATION_DOUBLE_VERTEX_SHADER3, SKINNED_ANIMATION_DOUBLE_FRAGMENT_SHADER3);
+skinned_animation_double_shader3: Shader;
+skinned_animation_double_shader3_prelim := #run create_prelim_shader(SKINNED_ANIMATION_DOUBLE_VERTEX_SHADER3, SKINNED_ANIMATION_DOUBLE_FRAGMENT_SHADER3);
 
 #scope_module
 

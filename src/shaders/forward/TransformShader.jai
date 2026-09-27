@@ -1,5 +1,6 @@
 
-transform_shader := #run create_shader(TRANSFORM_VERTEX_SHADER, TRANSFORM_FRAGMENT_SHADER);
+transform_shader: Shader;
+transform_shader_prelim := #run create_prelim_shader(TRANSFORM_VERTEX_SHADER, TRANSFORM_FRAGMENT_SHADER);
 
 #scope_module
 

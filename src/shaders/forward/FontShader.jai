@@ -1,5 +1,6 @@
 
-font_shader := #run create_shader(FONT_VERTEX_SHADER, FONT_FRAGMENT_SHADER);
+font_shader: Shader;
+font_shader_prelim := #run create_prelim_shader(FONT_VERTEX_SHADER, FONT_FRAGMENT_SHADER);
 
 #scope_module
 

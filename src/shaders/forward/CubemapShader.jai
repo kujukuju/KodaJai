@@ -1,5 +1,6 @@
 
-cubemap_shader := #run create_shader(CUBEMAP_VERTEX_SHADER, CUBEMAP_FRAGMENT_SHADER);
+cubemap_shader: Shader;
+cubemap_shader_prelim := #run create_prelim_shader(CUBEMAP_VERTEX_SHADER, CUBEMAP_FRAGMENT_SHADER);
 
 #scope_module
 

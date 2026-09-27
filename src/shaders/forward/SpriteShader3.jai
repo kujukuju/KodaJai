@@ -1,5 +1,6 @@
 
-sprite_shader3 := #run create_shader(SPRITE3_VERTEX_SHADER, SPRITE3_FRAGMENT_SHADER);
+sprite_shader3: Shader;
+sprite_shader3_prelim := #run create_prelim_shader(SPRITE3_VERTEX_SHADER, SPRITE3_FRAGMENT_SHADER);
 
 #scope_module
 

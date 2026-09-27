@@ -1,5 +1,6 @@
 
-default_shape_color_shader3 := #run create_shader(DEFAULT_SHAPE_COLOR_VERTEX_SHADER3, DEFAULT_SHAPE_COLOR_FRAGMENT_SHADER3);
+default_shape_color_shader3: Shader;
+default_shape_color_shader3_prelim := #run create_prelim_shader(DEFAULT_SHAPE_COLOR_VERTEX_SHADER3, DEFAULT_SHAPE_COLOR_FRAGMENT_SHADER3);
 
 #scope_module
 

@@ -1,5 +1,6 @@
 
-torus_shader3 := #run create_shader(TORUS_VERTEX_SHADER3, TORUS_FRAGMENT_SHADER3);
+torus_shader3: Shader;
+torus_shader3_prelim := #run create_prelim_shader(TORUS_VERTEX_SHADER3, TORUS_FRAGMENT_SHADER3);
 
 #scope_module
 

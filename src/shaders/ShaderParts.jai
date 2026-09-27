@@ -76,7 +76,6 @@ create_shader :: (prelim: PreliminaryShader) -> Shader {
     #if HOT_LOAD_SHADERS {
         shader.watch_files = prelim.watch_files;
     }
-    print("Creating shader %: %\n", prelim.name, shader.fragment_parts);
     return shader;
 }
 

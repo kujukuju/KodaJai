@@ -1,5 +1,6 @@
 
-default_instanced_shader3 := #run create_shader(DEFAULT_INSTANCED_VERTEX_SHADER3, DEFAULT_INSTANCED_FRAGMENT_SHADER3);
+default_instanced_shader3: Shader;
+default_instanced_shader3_prelim := #run create_prelim_shader(DEFAULT_INSTANCED_VERTEX_SHADER3, DEFAULT_INSTANCED_FRAGMENT_SHADER3);
 
 #scope_module
 

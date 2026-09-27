@@ -1,5 +1,6 @@
 
-infinite_grid_shader3 := #run create_shader(INFINITE_GRID_VERTEX_SHADER3, INFINITE_GRID_FRAGMENT_SHADER3);
+infinite_grid_shader3: Shader;
+infinite_grid_shader3_prelim := #run create_prelim_shader(INFINITE_GRID_VERTEX_SHADER3, INFINITE_GRID_FRAGMENT_SHADER3);
 
 INFINITE_GRID_VERTEX_SHADER3 :: #string DONE
 #version 330 core

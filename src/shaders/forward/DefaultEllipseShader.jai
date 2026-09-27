@@ -1,5 +1,6 @@
 
-default_ellipse_shader := #run create_shader(DEFAULT_ELLIPSE_VERTEX_SHADER, DEFAULT_ELLIPSE_FRAGMENT_SHADER);
+default_ellipse_shader: Shader;
+default_ellipse_shader_prelim := #run create_prelim_shader(DEFAULT_ELLIPSE_VERTEX_SHADER, DEFAULT_ELLIPSE_FRAGMENT_SHADER);
 
 #scope_module
 

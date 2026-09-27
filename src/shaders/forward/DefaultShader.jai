@@ -1,5 +1,6 @@
 
-default_shader := #run create_shader(DEFAULT_VERTEX_SHADER, DEFAULT_FRAGMENT_SHADER);
+default_shader: Shader;
+default_shader_prelim := #run create_prelim_shader(DEFAULT_VERTEX_SHADER, DEFAULT_FRAGMENT_SHADER);
 
 #scope_module
 

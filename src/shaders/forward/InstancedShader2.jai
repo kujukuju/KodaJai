@@ -1,5 +1,6 @@
 
-instanced_shader2 := #run create_shader(INSTANCED_VERTEX_SHADER2, INSTANCED_FRAGMENT_SHADER2);
+instanced_shader2: Shader;
+instanced_shader2_prelim := #run create_prelim_shader(INSTANCED_VERTEX_SHADER2, INSTANCED_FRAGMENT_SHADER2);
 
 #scope_module
 
