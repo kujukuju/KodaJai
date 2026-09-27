@@ -22,8 +22,8 @@ ResolvedShaderPart :: struct {
 }
 
 free :: (resolved_part: ResolvedShaderPart) {
-    array_free(sections);
-    array_free(injections);
+    array_free(resolved_part.sections);
+    array_free(resolved_part.injections);
 }
 
 get_location_name :: (location: Source_Code_Location) -> string {

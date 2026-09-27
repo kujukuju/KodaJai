@@ -16,6 +16,7 @@ Shader :: struct {
         watch_files: [] string;
         last_dependencies: [] string;
         last_dependency_names: [] string;
+        hotload_owned_parts: bool;
     }
 }
 
@@ -117,15 +118,19 @@ initialize_shader :: (shader: *Shader, resolved_dependencies: [] string, depende
     }
 
     #if HOT_LOAD_SHADERS {
-        array_free(shader.last_dependencies);
-        array_free(shader.last_dependency_names);
-        shader.last_dependencies = array_copy(resolved_dependencies);
-        shader.last_dependency_names = array_copy(dependency_names);
-
-        // memory leak yay
-        for *resolved_dependency: shader.last_dependencies {
+        new_dependencies := array_copy(resolved_dependencies);
+        for *resolved_dependency: new_dependencies {
             resolved_dependency.* = copy_string(resolved_dependency.*);
         }
+        new_dependency_names := array_copy(dependency_names);
+
+        for resolved_dependency: shader.last_dependencies {
+            if resolved_dependency.count free(resolved_dependency.data);
+        }
+        array_free(shader.last_dependencies);
+        array_free(shader.last_dependency_names);
+        shader.last_dependencies = new_dependencies;
+        shader.last_dependency_names = new_dependency_names;
 
         watch_shader(shader.watch_files, shader);
     }
@@ -231,6 +236,7 @@ initialize_shader :: (shader: *Shader, resolved_dependencies: [] string, depende
                 }
             }
 
+            glDeleteShader(shader_object);
             return 0, false;
         }
 
@@ -504,11 +510,31 @@ destroy :: (shader: *Shader) {
     destroy(shader.uniforms);
     shader.uniforms = .{};
     for part: shader.vertex_parts {
+        #if HOT_LOAD_SHADERS {
+            if shader.hotload_owned_parts {
+                for section: part.sections {
+                    if section.count free(section.data);
+                }
+                for injection: part.injections {
+                    if injection.count free(injection.data);
+                }
+            }
+        }
         free(part);
     }
     array_free(shader.vertex_parts);
     shader.vertex_parts = .[];
     for part: shader.fragment_parts {
+        #if HOT_LOAD_SHADERS {
+            if shader.hotload_owned_parts {
+                for section: part.sections {
+                    if section.count free(section.data);
+                }
+                for injection: part.injections {
+                    if injection.count free(injection.data);
+                }
+            }
+        }
         free(part);
     }
     array_free(shader.fragment_parts);
@@ -517,6 +543,16 @@ destroy :: (shader: *Shader) {
     shader.output_channels = .[];
     array_free(shader.uniform_locations);
     shader.uniform_locations = .[];
+    #if HOT_LOAD_SHADERS {
+        for dependency: shader.last_dependencies {
+            if dependency.count free(dependency.data);
+        }
+        array_free(shader.last_dependencies);
+        shader.last_dependencies = .[];
+        array_free(shader.last_dependency_names);
+        shader.last_dependency_names = .[];
+        shader.hotload_owned_parts = false;
+    }
     // the strings are expected to be constant more or less
     // so... should they go in the struct definition?
 }
@@ -915,10 +951,9 @@ use_shader :: (shader: *Shader) {
             }
         }
 
-        // we leak memory everywhere
-
         for shader: changed_shaders {
             external_shader := load_external_shader(shader.name, shader.watch_files);
+            defer destroy(*external_shader);
 
             print("Shader changed. %\n", shader.name);
 
@@ -931,7 +966,34 @@ use_shader :: (shader: *Shader) {
 
             print("Swapping shader. %\n", shader.name);
 
+            if shader.program glDeleteProgram(shader.program);
+            if shader.hotload_owned_parts {
+                for part: shader.vertex_parts {
+                    for section: part.sections {
+                        if section.count free(section.data);
+                    }
+                    for injection: part.injections {
+                        if injection.count free(injection.data);
+                    }
+                    free(part);
+                }
+                array_free(shader.vertex_parts);
+                for part: shader.fragment_parts {
+                    for section: part.sections {
+                        if section.count free(section.data);
+                    }
+                    for injection: part.injections {
+                        if injection.count free(injection.data);
+                    }
+                    free(part);
+                }
+                array_free(shader.fragment_parts);
+            }
+            array_free(shader.output_channels);
+            array_free(shader.uniform_locations);
+
             shader.program = external_shader.program;
+            external_shader.program = 0;
 
             shader.vertex_parts = array_copy(external_shader.vertex_parts);
             for *vertex_part, vertex_index: shader.vertex_parts {
@@ -965,6 +1027,7 @@ use_shader :: (shader: *Shader) {
 
             shader.has_vertex_shader = external_shader.has_vertex_shader;
             shader.has_fragment_shader = external_shader.has_fragment_shader;
+            shader.hotload_owned_parts = true;
         }
     }
 
