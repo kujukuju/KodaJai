@@ -245,6 +245,7 @@ update_inputs :: ($update_features: InputFeature = .All) {
 
     // TODO all this update feature shit is gonna have to be redone and reorganized at some poitn
 
+    gamepad_polled := false;
     for joystick: GLFW_JOYSTICK_1..GLFW_JOYSTICK_LAST {
         if !glfwJoystickPresent(xx joystick) {
             continue;
@@ -258,6 +259,7 @@ update_inputs :: ($update_features: InputFeature = .All) {
         if !glfwGetGamepadState(xx joystick, *state) {
             continue;
         }
+        gamepad_polled = true;
 
         #if update_features & .ControllerButtons {
             for index: 0..KODA_BUTTON_COUNT - 1 {
@@ -335,6 +337,29 @@ update_inputs :: ($update_features: InputFeature = .All) {
             if length_left > 0.5 || length_right > 0.5 {
                 input.controller_active = true;
             }
+        }
+    }
+
+    if !gamepad_polled {
+        // Unplugging must not leave held actions or console-release blocking latched.
+        input.controller_active = false;
+        #if update_features & .ControllerButtons {
+            memset(input.buttons.data, 0, size_of(type_of(input.buttons)));
+            memset(input.released_buttons.data, 0, size_of(type_of(input.released_buttons)));
+            memset(input.trigger_buttons.data, 0, size_of(type_of(input.trigger_buttons)));
+            memset(input.trigger_activations.data, 0, size_of(type_of(input.trigger_activations)));
+            input.triggers[0] = -1;
+            input.triggers[1] = -1;
+            input.trigger_deactivations[0] = -1;
+            input.trigger_deactivations[1] = -1;
+            input.controller_left_trigger = 0;
+            input.controller_right_trigger = 0;
+        }
+        #if update_features & .ControllerMove {
+            input.controller_left = .{};
+            input.controller_left_projected = .{};
+            input.controller_right = .{};
+            input.controller_right_projected = .{};
         }
     }
 
