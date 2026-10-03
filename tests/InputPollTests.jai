@@ -268,6 +268,41 @@ test_console_release :: () {
     check_held(true);
 }
 
+test_trigger_modality :: () {
+    scenario = "held right trigger after mouse takeover";
+    reset_fixture();
+    connect_neutral(GLFW_JOYSTICK_1);
+    mock_states[GLFW_JOYSTICK_1].axes[GLFW_GAMEPAD_AXIS_RIGHT_TRIGGER] = 0;
+    update_inputs(~.MouseMove);
+    check(input.controller_active && get_input().controller_active, "half-held RT activates controller modality");
+    check(input.triggers[KodaTrigger.RIGHT] == 0 && input.trigger_activations[KodaTrigger.RIGHT] == 0, "half-held RT records its raw value and activation peak");
+    check(input.trigger_buttons[KodaTrigger.RIGHT] == (.DOWN | .START), "initial RT activation has a fresh start edge");
+
+    mock_mouse_buttons[GLFW_MOUSE_BUTTON_LEFT] = GLFW_PRESS;
+    update_inputs(.MouseMove);
+    update_inputs(~.MouseMove);
+    check(input.mouse_left == (.DOWN | .START), "real mouse press takes over while RT is held");
+    check(!input.controller_active && !get_input().controller_active, "mouse press switches to mouse modality");
+    mock_mouse_buttons[GLFW_MOUSE_BUTTON_LEFT] = GLFW_RELEASE;
+    update_inputs(~.MouseMove);
+    check(!input.controller_active && !get_input().controller_active, "unchanged held RT does not steal mouse modality");
+    check(input.trigger_buttons[KodaTrigger.RIGHT] == .DOWN && input.trigger_activations[KodaTrigger.RIGHT] == 0, "unchanged held RT preserves its peak without another start edge");
+
+    mock_states[GLFW_JOYSTICK_1].axes[GLFW_GAMEPAD_AXIS_RIGHT_TRIGGER] = 0.5;
+    update_inputs(~.MouseMove);
+    check(input.controller_active && get_input().controller_active, "RT increase beyond its activation peak restores controller modality");
+    check(input.triggers[KodaTrigger.RIGHT] == 0.5 && input.trigger_activations[KodaTrigger.RIGHT] == 0.5, "RT increase updates the raw value and activation peak");
+    check(input.trigger_buttons[KodaTrigger.RIGHT] == .DOWN, "RT increase does not generate a second start edge");
+
+    mock_states[GLFW_JOYSTICK_1].axes[GLFW_GAMEPAD_AXIS_RIGHT_TRIGGER] = -1;
+    update_inputs(~.MouseMove);
+    check(input.triggers[KodaTrigger.RIGHT] == -1 && input.trigger_buttons[KodaTrigger.RIGHT] == .NONE, "RT release clears the held state and raw value");
+    check(input.trigger_deactivations[KodaTrigger.RIGHT] == -1 && !controller_input_is_down(), "RT release records neutral deactivation and leaves no held controller input");
+    check(input.controller_active, "RT release preserves last-device controller modality");
+    update_inputs(~.MouseMove);
+    check(input.trigger_buttons[KodaTrigger.RIGHT] == .NONE && !controller_input_is_down(), "neutral RT remains released on the next poll");
+}
+
 test_feature_masks :: ($first: InputFeature, $second: InputFeature) {
     scenario = tprint("isolated masks % then %", first, second);
     reset_fixture();
@@ -300,8 +335,9 @@ main :: () {
         }
     }
     test_console_release();
+    test_trigger_modality();
     test_feature_masks(.ControllerButtons, .ControllerMove);
     test_feature_masks(.ControllerMove, .ControllerButtons);
-    print("Input poll tests: % checks, % failures; real Input.jai, both client masks, first/last joystick, absent/non-gamepad/failed poll, reconnect, releases, console gate, keyboard/mouse preservation.\n", checks, failures);
+    print("Input poll tests: % checks, % failures; real Input.jai, both client masks, first/last joystick, absent/non-gamepad/failed poll, reconnect, releases, console gate, trigger modality, keyboard/mouse preservation.\n", checks, failures);
     if failures > 0 exit(1);
 }

@@ -296,6 +296,7 @@ update_inputs :: ($update_features: InputFeature = .All) {
                 } else if input.trigger_buttons[i] && input.triggers[i] > input.trigger_activations[i] {
                     // increase activation value
                     input.trigger_activations[i] = input.triggers[i];
+                    input.controller_active = true;
                 } else if input.trigger_buttons[i] && (input.triggers[i] < input.trigger_activations[i] - trigger_activation_distance || input.triggers[i] == -1) {
                     // deactivate
                     input.trigger_buttons[i] = KodaInputState.NONE;
