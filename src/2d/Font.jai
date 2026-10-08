@@ -206,6 +206,10 @@ load_characters :: (font: *Font, bytes: [] u8, pixel_height: int, character_set:
     }
 
     for character: character_set {
+        // Earlier fonts own these glyphs; avoid rendering fallback pixels we would discard.
+        if table_contains(*font.characters, character) {
+            continue;
+        }
         if !FT_Get_Char_Index(ft_face, character) {
             continue;
         }
@@ -221,10 +225,6 @@ load_characters :: (font: *Font, bytes: [] u8, pixel_height: int, character_set:
         assert(!error, "FreeType failed to render the glyph. % %\n", character, error);
         if error {
             return false;
-        }
-
-        if table_contains(*font.characters, character) {
-            continue;
         }
 
         glyph_width := cast(int) ft_face.glyph.bitmap.width;
