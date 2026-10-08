@@ -151,7 +151,7 @@ create_window :: (title: *u8, width: s32, height: s32, multisample: int = 0, vis
     glfwSetScrollCallback(koda.window, scroll_callback);
     glfwSetWindowSizeCallback(koda.window, size_callback);
     glfwSetWindowFocusCallback(koda.window, focus_callback);
-    window_focused = true;
+    focus_callback(koda.window, glfwGetWindowAttrib(koda.window, GLFW_FOCUSED));
 
 
     glfwSetCharCallback(koda.window, char_input_callback);
@@ -1324,7 +1324,11 @@ focus_callback :: (window: *GLFWwindow, focused: s32) #c_call {
     push_context new_context {
         window_focused = !!focused;
         if !window_focused {
+            controller_input_blocked_until_release = true;
+            controller_release_pending_features = .ControllerButtons | .ControllerMove;
             invalidate_mouse_position();
+        } else {
+            initialize_mouse_position(window);
         }
     }
 }

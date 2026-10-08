@@ -212,7 +212,7 @@ Input :: struct {
 
 get_input :: () -> Input {
     result := input;
-    if result.char_input || controller_input_blocked_until_release {
+    if !get_focused() || result.char_input || controller_input_blocked_until_release {
         result.controller_active = false;
         result.controller_left = .{};
         result.controller_left_projected = .{};
@@ -233,7 +233,7 @@ get_input :: () -> Input {
 }
 
 mouse_left_clicked :: (maximum_drag_distance: float) -> bool {
-    if !input.released_mouse_left || !input.mouse_left_release_tracked {
+    if !get_focused() || !input.released_mouse_left || !input.mouse_left_release_tracked {
         return false;
     }
 
@@ -246,6 +246,7 @@ update_inputs :: ($update_features: InputFeature = .All) {
     // TODO all this update feature shit is gonna have to be redone and reorganized at some poitn
 
     gamepad_polled := false;
+    // TODO: Define multi-pad selection/handover; this loop still shares one controller history.
     for joystick: GLFW_JOYSTICK_1..GLFW_JOYSTICK_LAST {
         if !glfwJoystickPresent(xx joystick) {
             continue;
@@ -364,32 +365,54 @@ update_inputs :: ($update_features: InputFeature = .All) {
         }
     }
 
-    if controller_input_blocked_until_release && !controller_input_is_down() {
-        controller_input_blocked_until_release = false;
-        input.controller_active = false;
-        memset(input.released_buttons.data, 0, size_of(type_of(input.released_buttons)));
+    if !get_focused() {
+        controller_input_blocked_until_release = true;
+        controller_release_pending_features = .ControllerButtons | .ControllerMove;
+    } else {
+        controller_release_pending_features &= ~update_features;
+        if controller_input_blocked_until_release && !controller_release_pending_features && !controller_input_is_down() {
+            controller_input_blocked_until_release = false;
+            input.controller_active = false;
+            memset(input.released_buttons.data, 0, size_of(type_of(input.released_buttons)));
+        }
     }
 
     #if update_features & .MouseMove {
         last_raw_mouse_x := raw_mouse_x;
         last_raw_mouse_y := raw_mouse_y;
         glfwGetCursorPos(koda.window, *raw_mouse_x, *raw_mouse_y);
-        input.mouse_delta_x = raw_mouse_x - last_raw_mouse_x;
-        input.mouse_delta_y = raw_mouse_y - last_raw_mouse_y;
+        input.mouse_delta_x = ifx get_focused() then raw_mouse_x - last_raw_mouse_x else 0;
+        input.mouse_delta_y = ifx get_focused() then raw_mouse_y - last_raw_mouse_y else 0;
         input.mouse = xy(xx raw_mouse_x, xx raw_mouse_y);
     }
 
     #if update_features & .MouseScroll {
         input.scroll_delta_x = accumulated_scroll[0];
         input.scroll_delta_y = accumulated_scroll[1];
+        if input.scroll_delta_x || input.scroll_delta_y input.controller_active = false;
         accumulated_scroll[0] = 0;
         accumulated_scroll[1] = 0;
     }
 
     // TODO probably need a more generic way to clear all inputs when not captured
     #if update_features & .MouseButtons {
+        // Sticky presses are consumed on read; the dedicated fields share this sample.
+        for i: 0..GLFW_MOUSE_BUTTON_LAST {
+            input.mouse_buttons[i] &= ~KodaInputState.START;
+            button_state := glfwGetMouseButton(koda.window, cast(s32) i);
+            if button_state && !input.mouse_buttons[i] {
+                input.mouse_buttons[i] |= KodaInputState.START;
+            }
+
+            if button_state {
+                input.mouse_buttons[i] |= KodaInputState.DOWN;
+            } else {
+                input.mouse_buttons[i] &= ~KodaInputState.DOWN;
+            }
+        }
+
         input.mouse_left &= ~KodaInputState.START;
-        mouse_left := glfwGetMouseButton(koda.window, GLFW_MOUSE_BUTTON_LEFT);
+        mouse_left := !!(input.mouse_buttons[GLFW_MOUSE_BUTTON_LEFT] & .DOWN);
         input.released_mouse_left = input.mouse_left && !mouse_left;
         if mouse_left && !input.mouse_left {
             input.controller_active = false;
@@ -404,7 +427,7 @@ update_inputs :: ($update_features: InputFeature = .All) {
         }
 
         input.mouse_right &= ~KodaInputState.START;
-        mouse_right := glfwGetMouseButton(koda.window, GLFW_MOUSE_BUTTON_RIGHT);
+        mouse_right := !!(input.mouse_buttons[GLFW_MOUSE_BUTTON_RIGHT] & .DOWN);
         input.released_mouse_right = input.mouse_right && !mouse_right;
         if mouse_right && !input.mouse_right {
             input.controller_active = false;
@@ -420,7 +443,7 @@ update_inputs :: ($update_features: InputFeature = .All) {
         }
 
         input.mouse_middle &= ~KodaInputState.START;
-        mouse_middle := glfwGetMouseButton(koda.window, GLFW_MOUSE_BUTTON_MIDDLE);
+        mouse_middle := !!(input.mouse_buttons[GLFW_MOUSE_BUTTON_MIDDLE] & .DOWN);
         input.released_mouse_middle = input.mouse_middle && !mouse_middle;
         if mouse_middle && !input.mouse_middle {
             input.controller_active = false;
@@ -434,30 +457,13 @@ update_inputs :: ($update_features: InputFeature = .All) {
         } else {
             input.mouse_middle &= ~KodaInputState.DOWN;
         }
-
-        for i: 0..GLFW_MOUSE_BUTTON_LAST {
-            if input.mouse_buttons[i] {
-                input.mouse_buttons[i] &= ~KodaInputState.START;
-            }
-
-            button_state := glfwGetMouseButton(koda.window, cast(s32) i);
-            if button_state && !input.mouse_buttons[i] {
-                input.mouse_buttons[i] |= KodaInputState.START;
-            }
-
-            if button_state {
-                input.mouse_buttons[i] |= KodaInputState.DOWN;
-            } else {
-                input.mouse_buttons[i] &= ~KodaInputState.DOWN;
-            }
-        }
     }
 
     #if update_features & .Keys {
         input.char_input_buffer, input.char_input_back_buffer = input.char_input_back_buffer, input.char_input_buffer;
         memset(input.char_input_back_buffer.data, 0, size_of(type_of(input.char_input_back_buffer)));
 
-        // normal keys
+        // Both key views use one GLFW sample so character input cannot lose sticky presses.
         for key_code, index: glfw_key_map {
             key_value := glfwGetKey(koda.window, key_code);
             key_down := cast(bool) (key_value & GLFW_PRESS);
@@ -479,14 +485,8 @@ update_inputs :: ($update_features: InputFeature = .All) {
             } else if key_up {
                 input.keys[index] &= ~KodaInputState.DOWN;
             }
-        }
 
-        // char input keys
-        for key_code, index: glfw_key_map {
-            key_value := glfwGetKey(koda.window, key_code);
-            key_down := cast(bool) (key_value & GLFW_PRESS);
-            key_up := !key_down;
-            key_down = key_down && input.char_input;
+            key_down = cast(bool) (key_value & GLFW_PRESS) && input.char_input;
 
             // clear the start value
             input.char_input_keys[index] &= ~KodaInputState.START;
@@ -544,6 +544,9 @@ set_trigger_activation_distance :: (distance: float) {
 set_char_input :: (char_input: bool) {
     if input.char_input == char_input return;
 
+    mouse_left_tracking = false;
+    input.mouse_left_release_tracked = false;
+
     if char_input {
         input.char_input_keys = input.keys;
         for * state: input.char_input_keys state.* &= ~KodaInputState.START;
@@ -567,7 +570,10 @@ set_char_input :: (char_input: bool) {
         input.scroll_delta_x = 0;
         input.scroll_delta_y = 0;
         input.controller_active = false;
-        controller_input_blocked_until_release = controller_input_is_down();
+        controller_input_blocked_until_release ||= !get_focused() || controller_input_is_down();
+        if controller_input_blocked_until_release {
+            controller_release_pending_features = .ControllerButtons | .ControllerMove;
+        }
     }
 
     input.char_input = char_input;
@@ -577,6 +583,8 @@ set_char_input :: (char_input: bool) {
 
 input: Input;
 controller_input_blocked_until_release: bool;
+// Mouse-only polls must not rearm from controller fields last sampled before focus loss.
+controller_release_pending_features: InputFeature;
 
 controller_input_is_down :: () -> bool {
     for state: input.buttons {
@@ -584,6 +592,10 @@ controller_input_is_down :: () -> bool {
     }
     for state: input.trigger_buttons {
         if state & .DOWN return true;
+    }
+    // Trigger hysteresis can release the digital button while the trigger is still squeezed.
+    for trigger: input.triggers {
+        if trigger > -1 + trigger_activation_distance return true;
     }
     return length(input.controller_left) > 0 || length(input.controller_right) > 0;
 }
@@ -594,10 +606,16 @@ initialize_mouse_position :: (window: *GLFWwindow) {
     mouse_position[1] = raw_mouse_y;
     mouse_position_valid = true;
     input.mouse = xy(xx raw_mouse_x, xx raw_mouse_y);
+    input.mouse_delta_x = 0;
+    input.mouse_delta_y = 0;
 }
 
 invalidate_mouse_position :: () {
     mouse_position_valid = false;
+    mouse_left_tracking = false;
+    input.mouse_left_release_tracked = false;
+    input.mouse_delta_x = 0;
+    input.mouse_delta_y = 0;
 }
 
 resolve_mouse_capture :: () {

@@ -4,6 +4,7 @@
 #import "Basic";
 #import "Math";
 #import "File";
+#import "String";
 #import "JaiMath";
 #import "JaiGLFW";
 
@@ -14,15 +15,20 @@ mock_gamepad: [GLFW_JOYSTICK_LAST + 1] bool;
 mock_valid: [GLFW_JOYSTICK_LAST + 1] bool;
 mock_states: [GLFW_JOYSTICK_LAST + 1] GLFWgamepadstate;
 mock_keys: [GLFW_KEY_LAST + 1] s32;
+mock_sticky_keys: [GLFW_KEY_LAST + 1] bool;
+mock_key_calls: [GLFW_KEY_LAST + 1] int;
 mock_mouse_buttons: [GLFW_MOUSE_BUTTON_LAST + 1] s32;
+mock_sticky_mouse_buttons: [GLFW_MOUSE_BUTTON_LAST + 1] bool;
+mock_mouse_button_calls: [GLFW_MOUSE_BUTTON_LAST + 1] int;
 mock_cursor: [2] float64;
 mock_state_calls: int;
-mock_focused: bool = true;
+mock_window_focused: bool = true;
+window_focused: bool = true;
 
 koda: struct { window: *GLFWwindow; };
 mouse_capture: bool;
 mouse_boundary_enabled: bool;
-get_focused :: () -> bool { return mock_focused; }
+
 // Same enum sizing helper as src/Utilities.jai, without loading graphics utilities.
 enum_count :: ($t: Type) -> s64 { return enum_highest_value(t) + 1; }
 
@@ -43,16 +49,49 @@ glfwGetCursorPos :: (window: *GLFWwindow, x: *float64, y: *float64) {
     y.* = mock_cursor[1];
 }
 glfwGetMouseButton :: (window: *GLFWwindow, button: s32) -> s32 {
+    mock_mouse_button_calls[button] += 1;
+    if mock_sticky_mouse_buttons[button] {
+        mock_sticky_mouse_buttons[button] = false;
+        return GLFW_PRESS;
+    }
     return mock_mouse_buttons[button];
 }
 glfwGetKey :: (window: *GLFWwindow, key: s32) -> s32 {
+    mock_key_calls[key] += 1;
+    if mock_sticky_keys[key] {
+        mock_sticky_keys[key] = false;
+        return GLFW_PRESS;
+    }
     return mock_keys[key];
+}
+glfwGetWindowAttrib :: (window: *GLFWwindow, attribute: s32) -> s32 {
+    assert(attribute == GLFW_FOCUSED);
+    return cast(s32) mock_window_focused;
 }
 glfwSetWindowShouldClose :: (window: *GLFWwindow, value: s32) {
     assert(false, "Input poll tests must not request window shutdown.");
 }
 
 #insert #run read_entire_file(tprint("%../src/Input.jai", #filepath));
+
+// Compile the real focus owner without loading unrelated window/graphics machinery.
+#insert #run -> string {
+    source := read_entire_file(tprint("%../src/Window.jai", #filepath));
+    getter_start := find_index_from_left(source, "get_focused :: (");
+    getter_end := find_index_from_left(source, "request_focus :: (", getter_start);
+    callback_start := find_index_from_left(source, "focus_callback :: (");
+    callback_end := find_index_from_left(source, "time_slice_ms ::", callback_start);
+    registration_text := "glfwSetWindowFocusCallback(koda.window, focus_callback);";
+    registration := find_index_from_left(source, registration_text);
+    initial_start := registration + registration_text.count;
+    initial_end := find_index_from_left(source, #char ";", initial_start);
+    assert(getter_start >= 0 && getter_end > getter_start && callback_start >= 0 && callback_end > callback_start);
+    assert(registration >= 0 && initial_start > registration && initial_end > initial_start);
+    return tprint("%\n%\ninitialize_window_focus_fixture :: () { % }\n",
+        slice(source, getter_start, getter_end - getter_start),
+        slice(source, callback_start, callback_end - callback_start),
+        slice(source, initial_start, initial_end - initial_start + 1));
+};
 
 checks: int;
 failures: int;
@@ -68,15 +107,21 @@ check :: (condition: bool, message: string) {
 reset_fixture :: () {
     input = .{};
     controller_input_blocked_until_release = false;
+    controller_release_pending_features = .None;
     memset(mock_present.data, 0, size_of(type_of(mock_present)));
     memset(mock_gamepad.data, 0, size_of(type_of(mock_gamepad)));
     memset(mock_valid.data, 0, size_of(type_of(mock_valid)));
     memset(mock_states.data, 0, size_of(type_of(mock_states)));
     memset(mock_keys.data, 0, size_of(type_of(mock_keys)));
+    memset(mock_sticky_keys.data, 0, size_of(type_of(mock_sticky_keys)));
+    memset(mock_key_calls.data, 0, size_of(type_of(mock_key_calls)));
     memset(mock_mouse_buttons.data, 0, size_of(type_of(mock_mouse_buttons)));
+    memset(mock_sticky_mouse_buttons.data, 0, size_of(type_of(mock_sticky_mouse_buttons)));
+    memset(mock_mouse_button_calls.data, 0, size_of(type_of(mock_mouse_button_calls)));
     mock_cursor = .[300, 400];
     mock_state_calls = 0;
-    mock_focused = true;
+    mock_window_focused = true;
+    window_focused = true;
     raw_mouse_x = 0;
     raw_mouse_y = 0;
     accumulated_scroll = .[0, 0];
@@ -187,15 +232,16 @@ test_disconnect :: (joystick: int, failure_mode: int, neutral_reconnect: bool) {
     input.mouse_left = .DOWN;
     input.mouse_buttons[GLFW_MOUSE_BUTTON_LEFT] = .DOWN;
     mock_mouse_buttons[GLFW_MOUSE_BUTTON_LEFT] = GLFW_PRESS;
-    input.mouse_left_start = .{20, 30};
-    input.mouse_left_maximum_drag_distance_squared = 81;
-    input.released_mouse_left_maximum_drag_distance_squared = 49;
-    input.mouse_left_release_tracked = true;
     input.controller_left_trigger = 0.7;
     input.controller_right_trigger = 0.9;
     for *released: input.released_buttons released.* = true;
     set_char_input(true);
     set_char_input(false);
+    // This scenario checks disconnect preservation, not character-input gesture cancellation.
+    input.mouse_left_start = .{20, 30};
+    input.mouse_left_maximum_drag_distance_squared = 81;
+    input.released_mouse_left_maximum_drag_distance_squared = 49;
+    input.mouse_left_release_tracked = true;
     update_inputs(.ControllerButtons | .ControllerMove);
     check(controller_input_blocked_until_release, "closing console with held controller arms release gate");
     check(input.controller_active && !get_input().controller_active, "held poll reactivates persisted owner while public console gate masks it");
@@ -326,6 +372,249 @@ test_feature_masks :: ($first: InputFeature, $second: InputFeature) {
     check_disconnected();
 }
 
+test_focus_controller :: ($first: InputFeature, $second: InputFeature) {
+    scenario = tprint("focus/rearm masks % then %", first, second);
+    reset_fixture();
+    connect_held(GLFW_JOYSTICK_1);
+    update_inputs(~.MouseMove);
+    focus_callback(null, GLFW_FALSE);
+    check(!get_focused() && !get_input().controller_active, "focus callback immediately masks held controller activity");
+    check_neutral(get_input());
+
+    connect_neutral(GLFW_JOYSTICK_1);
+    update_inputs(first);
+    update_inputs(second);
+    check(controller_input_blocked_until_release, "neutral background polling cannot rearm controller input");
+    connect_held(GLFW_JOYSTICK_1);
+    update_inputs(first);
+    update_inputs(second);
+    check(!get_input().controller_active, "background controller press cannot claim public modality");
+    check_neutral(get_input());
+
+    focus_callback(null, GLFW_TRUE);
+    check_neutral(get_input());
+    update_inputs(first);
+    update_inputs(second);
+    check(controller_input_blocked_until_release, "held controls stay blocked after refocus");
+    check_neutral(get_input());
+    connect_neutral(GLFW_JOYSTICK_1);
+    update_inputs(first);
+    check(controller_input_blocked_until_release, "partial poll preserves unrefreshed held controls");
+    update_inputs(second);
+    check(!controller_input_blocked_until_release && !get_input().controller_active, "focused neutral poll rearms without controller takeover");
+    check_neutral(get_input());
+    connect_held(GLFW_JOYSTICK_1);
+    update_inputs(~.MouseMove);
+    check_held(true);
+    check(get_input().buttons[KodaButton.A] == (.DOWN | .START), "fresh post-neutral press reaches public input");
+}
+
+test_focus_stale_neutral :: ($first: InputFeature, $second: InputFeature) {
+    scenario = tprint("focus stale-neutral masks % then %", first, second);
+    reset_fixture();
+    connect_neutral(GLFW_JOYSTICK_1);
+    update_inputs(~.MouseMove);
+    focus_callback(null, GLFW_FALSE);
+    focus_callback(null, GLFW_TRUE);
+    // Both focus events may arrive in one event batch before any controller poll.
+    #if first & .ControllerButtons {
+        mock_states[GLFW_JOYSTICK_1].axes[GLFW_GAMEPAD_AXIS_LEFT_X] = 0.8;
+    } else {
+        mock_states[GLFW_JOYSTICK_1].buttons[KodaButton.A] = GLFW_PRESS;
+    }
+    update_inputs(first);
+    check(controller_input_blocked_until_release, "stale neutral fields cannot rearm after a partial first poll");
+    update_inputs(second);
+    check(controller_input_blocked_until_release, "newly sampled held control still requires neutral");
+    check_neutral(get_input());
+    connect_neutral(GLFW_JOYSTICK_1);
+    update_inputs(first);
+    update_inputs(second);
+    check(!controller_input_blocked_until_release, "fresh neutral samples rearm after split polls");
+}
+
+test_focus_disconnect :: () {
+    scenario = "unfocused disconnect/reconnect";
+    reset_fixture();
+    connect_held(GLFW_JOYSTICK_1);
+    update_inputs(~.MouseMove);
+    focus_callback(null, GLFW_FALSE);
+    mock_present[GLFW_JOYSTICK_1] = false;
+    update_inputs(.MouseMove);
+    update_inputs(~.MouseMove);
+    check(controller_input_blocked_until_release, "background disconnect does not bypass the focus gate");
+    connect_held(GLFW_JOYSTICK_1);
+    focus_callback(null, GLFW_TRUE);
+    update_inputs(.MouseMove);
+    update_inputs(~.MouseMove);
+    check(controller_input_blocked_until_release, "held reconnect across focus remains blocked");
+    check_neutral(get_input());
+    mock_present[GLFW_JOYSTICK_1] = false;
+    update_inputs(~.MouseMove);
+    check_disconnected();
+    connect_held(GLFW_JOYSTICK_1);
+    update_inputs(~.MouseMove);
+    check_held(true);
+}
+
+test_focus_trigger_neutral :: () {
+    scenario = "focus gate requires trigger neutral, not only hysteresis release";
+    reset_fixture();
+    connect_neutral(GLFW_JOYSTICK_1);
+    mock_states[GLFW_JOYSTICK_1].axes[GLFW_GAMEPAD_AXIS_RIGHT_TRIGGER] = 1;
+    update_inputs(~.MouseMove);
+    focus_callback(null, GLFW_FALSE);
+    focus_callback(null, GLFW_TRUE);
+    mock_states[GLFW_JOYSTICK_1].axes[GLFW_GAMEPAD_AXIS_RIGHT_TRIGGER] = 0.5;
+    update_inputs(~.MouseMove);
+    check(input.trigger_buttons[KodaTrigger.RIGHT] == .NONE, "existing trigger hysteresis still releases the digital button");
+    check(controller_input_blocked_until_release, "partially held raw trigger cannot rearm focus input");
+    check_neutral(get_input());
+    mock_states[GLFW_JOYSTICK_1].axes[GLFW_GAMEPAD_AXIS_RIGHT_TRIGGER] = -0.9;
+    update_inputs(~.MouseMove);
+    check(!controller_input_blocked_until_release, "trigger inside resting activation margin allows neutral rearm");
+}
+
+test_mouse_ownership :: (transition: int, release_before_transition: bool) {
+    scenario = tprint("mouse ownership transition %, pending release %", transition, release_before_transition);
+    reset_fixture();
+    initialize_mouse_position(null);
+    if transition == 1 set_char_input(true);
+    mouse_button_callback(null, GLFW_MOUSE_BUTTON_LEFT, GLFW_PRESS, 0);
+    mock_mouse_buttons[GLFW_MOUSE_BUTTON_LEFT] = GLFW_PRESS;
+    update_inputs(.MouseButtons);
+    check(mouse_left_tracking, "focused press begins tracked gesture");
+    if release_before_transition {
+        mouse_button_callback(null, GLFW_MOUSE_BUTTON_LEFT, GLFW_RELEASE, 0);
+        mock_mouse_buttons[GLFW_MOUSE_BUTTON_LEFT] = GLFW_RELEASE;
+        update_inputs(.MouseButtons);
+        check(mouse_left_clicked(16), "ordinary click qualifies before ownership changes");
+    }
+    if transition == {
+        case 0; set_char_input(true);
+        case 1; set_char_input(false);
+        case 2;
+            focus_callback(null, GLFW_FALSE);
+            focus_callback(null, GLFW_TRUE);
+    }
+    check(!mouse_left_tracking && !input.mouse_left_release_tracked, "ownership transition cancels held and completed click tracking");
+    check(!mouse_left_clicked(16), "pending click cannot cross ownership transition");
+    if !release_before_transition {
+        mouse_button_callback(null, GLFW_MOUSE_BUTTON_LEFT, GLFW_RELEASE, 0);
+        mock_mouse_buttons[GLFW_MOUSE_BUTTON_LEFT] = GLFW_RELEASE;
+        update_inputs(.MouseButtons);
+        check(!mouse_left_clicked(16), "old held press cannot become a click in the new owner");
+    }
+    mouse_button_callback(null, GLFW_MOUSE_BUTTON_LEFT, GLFW_PRESS, 0);
+    mock_mouse_buttons[GLFW_MOUSE_BUTTON_LEFT] = GLFW_PRESS;
+    update_inputs(.MouseButtons);
+    mouse_button_callback(null, GLFW_MOUSE_BUTTON_LEFT, GLFW_RELEASE, 0);
+    mock_mouse_buttons[GLFW_MOUSE_BUTTON_LEFT] = GLFW_RELEASE;
+    update_inputs(.MouseButtons);
+    check(mouse_left_clicked(16), "fresh press/release still clicks after cancellation");
+}
+
+test_focus_mouse_rebase :: () {
+    scenario = "focus mouse rebase";
+    reset_fixture();
+    initialize_mouse_position(null);
+    input.mouse_delta_x = 12;
+    input.mouse_delta_y = -9;
+    focus_callback(null, GLFW_FALSE);
+    mock_cursor = .[900, 700];
+    focus_callback(null, GLFW_TRUE);
+    check(input.mouse_delta_x == 0 && input.mouse_delta_y == 0, "focus gain clears already-published mouse deltas");
+    update_inputs(.MouseMove);
+    check(input.mouse == Vector2.{900, 700}, "focus rebase retains actual pointer location");
+    check(input.mouse_delta_x == 0 && input.mouse_delta_y == 0, "first focused poll does not publish background displacement");
+    mock_cursor = .[907, 697];
+    mouse_callback(null, 907, 697);
+    update_inputs(.MouseMove);
+    check(input.mouse_delta_x == 7 && input.mouse_delta_y == -3, "real motion after refocus is not discarded");
+}
+
+test_initial_focus :: () {
+    scenario = "initial window focus attribute";
+    reset_fixture();
+    mock_window_focused = false;
+    initialize_window_focus_fixture();
+    check(!get_focused(), "hidden/unfocused creation uses the GLFW focus attribute");
+    connect_held(GLFW_JOYSTICK_1);
+    update_inputs(~.MouseMove);
+    check(!get_input().controller_active && controller_input_blocked_until_release, "initially unfocused window blocks controller input without a focus event");
+    check_neutral(get_input());
+    mock_window_focused = true;
+    initialize_window_focus_fixture();
+    check(get_focused(), "focused creation also uses the actual GLFW attribute");
+}
+
+test_sticky_keys :: (char_input: bool) {
+    scenario = tprint("sticky key sampling, character input %", char_input);
+    reset_fixture();
+    set_char_input(char_input);
+    for key: glfw_key_map mock_sticky_keys[key] = true;
+    update_inputs(.MouseMove);
+    for key: glfw_key_map check(mock_key_calls[key] == 0 && mock_sticky_keys[key], "mouse-only poll does not consume a pending sticky key");
+    update_inputs(.Keys);
+    for key, index: glfw_key_map {
+        check(mock_key_calls[key] == 1, tprint("key % is sampled exactly once", key));
+        state := ifx char_input then input.char_input_keys[index] else input.keys[index];
+        other := ifx char_input then input.keys[index] else input.char_input_keys[index];
+        check(state == (.DOWN | .START) && other == .NONE, tprint("sticky key % reaches only its current owner", key));
+    }
+    update_inputs(.Keys);
+    for key, index: glfw_key_map {
+        check(mock_key_calls[key] == 2, tprint("released key % is sampled once on the next poll", key));
+        check(input.keys[index] == .NONE && input.char_input_keys[index] == .NONE, tprint("sticky key % releases without another start", key));
+        check(input.released_keys[index] == !char_input, tprint("key % release belongs only to the normal-key path", key));
+    }
+}
+
+test_sticky_mouse :: () {
+    scenario = "sticky mouse sampled once for dedicated and generic fields";
+    reset_fixture();
+    for *sticky: mock_sticky_mouse_buttons sticky.* = true;
+    update_inputs(.MouseMove);
+    for calls: mock_mouse_button_calls check(calls == 0, "mouse-move-only poll does not consume sticky buttons");
+    update_inputs(.MouseButtons);
+    for state, index: input.mouse_buttons {
+        check(mock_mouse_button_calls[index] == 1, tprint("mouse button % is sampled exactly once", index));
+        check(state == (.DOWN | .START), tprint("generic mouse button % receives the sticky start", index));
+    }
+    check(input.mouse_left == input.mouse_buttons[GLFW_MOUSE_BUTTON_LEFT], "left dedicated/generic snapshots agree");
+    check(input.mouse_right == input.mouse_buttons[GLFW_MOUSE_BUTTON_RIGHT], "right dedicated/generic snapshots agree");
+    check(input.mouse_middle == input.mouse_buttons[GLFW_MOUSE_BUTTON_MIDDLE], "middle dedicated/generic snapshots agree");
+    update_inputs(.MouseButtons);
+    for state, index: input.mouse_buttons {
+        check(mock_mouse_button_calls[index] == 2 && state == .NONE, tprint("mouse button % releases on one subsequent sample", index));
+    }
+    check(input.released_mouse_left && input.released_mouse_right && input.released_mouse_middle, "dedicated mouse releases still fire once");
+}
+
+test_wheel_modality :: (horizontal: bool) {
+    scenario = tprint("wheel takeover, horizontal %", horizontal);
+    reset_fixture();
+    connect_neutral(GLFW_JOYSTICK_1);
+    mock_states[GLFW_JOYSTICK_1].buttons[KodaButton.A] = GLFW_PRESS;
+    update_inputs(~.MouseMove);
+    connect_neutral(GLFW_JOYSTICK_1);
+    update_inputs(~.MouseMove);
+    check(input.controller_active, "released controller remains the last active device");
+    if horizontal scroll_callback(null, 2, 0);
+    else scroll_callback(null, 0, -3);
+    update_inputs(.MouseMove);
+    check(input.controller_active, "unrequested scroll remains pending without changing modality");
+    update_inputs(~.MouseMove);
+    check(!input.controller_active && !get_input().controller_active, "fresh wheel input claims mouse modality");
+    if horizontal check(input.scroll_delta_x == 2 && input.scroll_delta_y == 0, "horizontal wheel delta is retained");
+    else check(input.scroll_delta_x == 0 && input.scroll_delta_y == -3, "vertical wheel delta is retained");
+    update_inputs(~.MouseMove);
+    check(input.scroll_delta_x == 0 && input.scroll_delta_y == 0 && !input.controller_active, "wheel is consumed once and mouse modality persists");
+    mock_states[GLFW_JOYSTICK_1].buttons[KodaButton.A] = GLFW_PRESS;
+    update_inputs(~.MouseMove);
+    check(input.controller_active, "fresh controller button still restores controller modality");
+}
+
 #scope_export
 main :: () {
     for joystick: int.[GLFW_JOYSTICK_1, GLFW_JOYSTICK_LAST] {
@@ -338,6 +627,26 @@ main :: () {
     test_trigger_modality();
     test_feature_masks(.ControllerButtons, .ControllerMove);
     test_feature_masks(.ControllerMove, .ControllerButtons);
-    print("Input poll tests: % checks, % failures; real Input.jai, both client masks, first/last joystick, absent/non-gamepad/failed poll, reconnect, releases, console gate, trigger modality, keyboard/mouse preservation.\n", checks, failures);
+    test_focus_controller(.MouseMove, ~.MouseMove);
+    test_focus_controller(.ControllerButtons, .ControllerMove);
+    test_focus_controller(.ControllerMove, .ControllerButtons);
+    test_focus_stale_neutral(.MouseMove, ~.MouseMove);
+    test_focus_stale_neutral(.ControllerButtons, .ControllerMove);
+    test_focus_stale_neutral(.ControllerMove, .ControllerButtons);
+    test_focus_disconnect();
+    test_focus_trigger_neutral();
+    for transition: 0..2 {
+        test_mouse_ownership(transition, false);
+        test_mouse_ownership(transition, true);
+    }
+    test_focus_mouse_rebase();
+    test_initial_focus();
+    test_sticky_keys(false);
+    test_sticky_keys(true);
+    test_sticky_mouse();
+    test_wheel_modality(false);
+    test_wheel_modality(true);
+    // Multi-pad selection/handover and held digital/stick modality policy remain deferred.
+    print("Input poll tests: % checks, % failures; real input/focus owners, split masks, disconnect/reconnect, console/focus neutral gates, click cancellation, mouse rebase, initial focus, sticky sampling, trigger/wheel modality.\n", checks, failures);
     if failures > 0 exit(1);
 }
