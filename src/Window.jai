@@ -26,6 +26,13 @@ koda_init :: () {
         exit(-1);
     }
 
+    #if OS == .MACOS {
+        // Same Xbox Series controller layout as the bundled GLFW mappings for firmware 05.01/05.05.
+        if !glfwUpdateGamepadMappings("030000005e040000130b000009050000,Xbox Series Controller,a:b0,b:b1,back:b10,dpdown:h0.4,dpleft:h0.8,dpright:h0.2,dpup:h0.1,guide:b12,leftshoulder:b6,leftstick:b13,lefttrigger:a5,leftx:a0,lefty:a1,rightshoulder:b7,rightstick:b14,righttrigger:a4,rightx:a2,righty:a3,start:b11,x:b3,y:b4,platform:Mac OS X,") {
+            print("Could not load the macOS Xbox Series gamepad mapping.\n");
+        }
+    }
+
     init_default_shaders();
     parallel_init();
 
