@@ -108,6 +108,7 @@ reset_fixture :: () {
     input = .{};
     controller_input_blocked_until_release = false;
     controller_release_pending_features = .None;
+    controller_modality_preferred = false;
     memset(mock_present.data, 0, size_of(type_of(mock_present)));
     memset(mock_gamepad.data, 0, size_of(type_of(mock_gamepad)));
     memset(mock_valid.data, 0, size_of(type_of(mock_valid)));
@@ -615,6 +616,98 @@ test_wheel_modality :: (horizontal: bool) {
     check(input.controller_active, "fresh controller button still restores controller modality");
 }
 
+test_preferred_controller_modality :: () {
+    scenario = "preferred controller modality (Steam Deck)";
+    reset_fixture();
+    connect_neutral(GLFW_JOYSTICK_1);
+    update_inputs(~.MouseMove);
+    check(!input.controller_active, "desktop default starts in keyboard/mouse modality");
+
+    set_controller_modality_preferred(true);
+    check(input.controller_active && get_input().controller_active, "preference starts in controller modality before any press");
+    update_inputs(.MouseMove);
+    update_inputs(~.MouseMove);
+    check(input.controller_active && get_input().controller_active, "neutral connected pad keeps preferred modality");
+    check_neutral(get_input());
+
+    mock_keys[GLFW_KEY_SPACE] = GLFW_PRESS;
+    update_inputs(~.MouseMove);
+    check(!input.controller_active, "keyboard press still takes over");
+    mock_keys[GLFW_KEY_SPACE] = GLFW_RELEASE;
+    mock_states[GLFW_JOYSTICK_1].buttons[KodaButton.A] = GLFW_PRESS;
+    update_inputs(~.MouseMove);
+    check(input.controller_active, "pad press restores controller modality");
+    connect_neutral(GLFW_JOYSTICK_1);
+    mock_mouse_buttons[GLFW_MOUSE_BUTTON_LEFT] = GLFW_PRESS;
+    update_inputs(.MouseMove);
+    update_inputs(~.MouseMove);
+    check(!input.controller_active, "mouse press still takes over");
+    mock_mouse_buttons[GLFW_MOUSE_BUTTON_LEFT] = GLFW_RELEASE;
+    update_inputs(~.MouseMove);
+
+    // Suspend, overlay or focus loss: the neutral rearm returns to the pad, not to keyboard prompts.
+    focus_callback(null, GLFW_FALSE);
+    update_inputs(~.MouseMove);
+    check(!get_input().controller_active && controller_input_blocked_until_release, "focus loss still masks the pad");
+    focus_callback(null, GLFW_TRUE);
+    update_inputs(.MouseMove);
+    update_inputs(~.MouseMove);
+    check(!controller_input_blocked_until_release && input.controller_active && get_input().controller_active, "neutral rearm restores preferred modality");
+    check_neutral(get_input());
+
+    focus_callback(null, GLFW_FALSE);
+    update_inputs(~.MouseMove);
+    mock_present[GLFW_JOYSTICK_1] = false;
+    focus_callback(null, GLFW_TRUE);
+    update_inputs(~.MouseMove);
+    check(!controller_input_blocked_until_release && !input.controller_active, "rearm without a connected pad is not controller modality");
+    connect_neutral(GLFW_JOYSTICK_1);
+    update_inputs(~.MouseMove);
+    check(!input.controller_active, "reconnect waits for a press, as on desktop");
+
+    set_controller_modality_preferred(false);
+    check(!input.controller_active, "clearing the preference returns to keyboard/mouse modality");
+}
+
+test_char_input_controller_buttons :: () {
+    scenario = "pad buttons for the character-input owner";
+    reset_fixture();
+    connect_neutral(GLFW_JOYSTICK_1);
+    update_inputs(~.MouseMove);
+    mock_states[GLFW_JOYSTICK_1].buttons[KodaButton.B] = GLFW_PRESS;
+    update_inputs(~.MouseMove);
+    buttons := get_char_input_controller_buttons();
+    check(buttons[KodaButton.B] == .NONE, "pad buttons are not duplicated outside character input");
+
+    connect_neutral(GLFW_JOYSTICK_1);
+    update_inputs(~.MouseMove);
+    set_char_input(true);
+    mock_states[GLFW_JOYSTICK_1].buttons[KodaButton.B] = GLFW_PRESS;
+    update_inputs(~.MouseMove);
+    buttons = get_char_input_controller_buttons();
+    check(buttons[KodaButton.B] == (.DOWN | .START), "character input owner sees a fresh pad B");
+    check(get_input().buttons[KodaButton.B] == .NONE && !get_input().controller_active, "gameplay input stays masked during character input");
+    update_inputs(~.MouseMove);
+    buttons = get_char_input_controller_buttons();
+    check(buttons[KodaButton.B] == .DOWN, "held B has a single start edge");
+
+    focus_callback(null, GLFW_FALSE);
+    buttons = get_char_input_controller_buttons();
+    check(buttons[KodaButton.B] == .NONE, "unfocused window hides pad buttons from character input");
+    focus_callback(null, GLFW_TRUE);
+    connect_neutral(GLFW_JOYSTICK_1);
+    update_inputs(~.MouseMove);
+    mock_states[GLFW_JOYSTICK_1].buttons[KodaButton.A] = GLFW_PRESS;
+    update_inputs(~.MouseMove);
+    buttons = get_char_input_controller_buttons();
+    check(buttons[KodaButton.A] == (.DOWN | .START), "pad rearms for character input after a neutral refocus");
+
+    set_char_input(false);
+    check(controller_input_blocked_until_release, "closing with a held pad button arms the release gate");
+    buttons = get_char_input_controller_buttons();
+    check(buttons[KodaButton.A] == .NONE, "closed character input exposes no pad buttons");
+}
+
 #scope_export
 main :: () {
     for joystick: int.[GLFW_JOYSTICK_1, GLFW_JOYSTICK_LAST] {
@@ -646,6 +739,8 @@ main :: () {
     test_sticky_mouse();
     test_wheel_modality(false);
     test_wheel_modality(true);
+    test_preferred_controller_modality();
+    test_char_input_controller_buttons();
     // Multi-pad selection/handover and held digital/stick modality policy remain deferred.
     print("Input poll tests: % checks, % failures; real input/focus owners, split masks, disconnect/reconnect, console/focus neutral gates, click cancellation, mouse rebase, initial focus, sticky sampling, trigger/wheel modality.\n", checks, failures);
     if failures > 0 exit(1);

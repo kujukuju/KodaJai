@@ -372,7 +372,7 @@ update_inputs :: ($update_features: InputFeature = .All) {
         controller_release_pending_features &= ~update_features;
         if controller_input_blocked_until_release && !controller_release_pending_features && !controller_input_is_down() {
             controller_input_blocked_until_release = false;
-            input.controller_active = false;
+            input.controller_active = controller_modality_preferred && gamepad_polled;
             memset(input.released_buttons.data, 0, size_of(type_of(input.released_buttons)));
         }
     }
@@ -541,6 +541,23 @@ set_trigger_activation_distance :: (distance: float) {
     trigger_activation_distance = distance;
 }
 
+// A handheld whose built-in pad is the primary device (Steam Deck): a connected pad
+// owns modality at startup and after a neutral rearm. Keyboard keys, mouse buttons
+// and the wheel still take over exactly as on desktop.
+set_controller_modality_preferred :: (preferred: bool) {
+    controller_modality_preferred = preferred;
+    input.controller_active = preferred;
+}
+
+// Character input hides the pad from get_input(). The text owner may still read
+// focused, rearmed pad buttons, so a controller player can close it or ask Steam
+// for an on-screen keyboard.
+get_char_input_controller_buttons :: () -> [KODA_BUTTON_COUNT] KodaInputState {
+    buttons: [KODA_BUTTON_COUNT] KodaInputState;
+    if !input.char_input || !get_focused() || controller_input_blocked_until_release return buttons;
+    return input.buttons;
+}
+
 set_char_input :: (char_input: bool) {
     if input.char_input == char_input return;
 
@@ -583,6 +600,7 @@ set_char_input :: (char_input: bool) {
 
 input: Input;
 controller_input_blocked_until_release: bool;
+controller_modality_preferred: bool;
 // Mouse-only polls must not rearm from controller fields last sampled before focus loss.
 controller_release_pending_features: InputFeature;
 
