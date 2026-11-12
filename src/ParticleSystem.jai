@@ -290,6 +290,9 @@ particle_system_add_particle :: (system: *ParticleSystem($PG, $PC, $update_funct
 
             system.particles_gpu[system.limit_replace_index] = particle_gpu;
             system.particles_cpu[system.limit_replace_index] = particle_cpu;
+            // A system without an update function uploads only [last_uploaded_index, count).
+            // The replaced slot is behind that, so the next upload has to start at it.
+            system.last_uploaded_index = min(system.last_uploaded_index, system.limit_replace_index);
 
             system.limit_replace_index = (system.limit_replace_index + 1) % limit;
 
