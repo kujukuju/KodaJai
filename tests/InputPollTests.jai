@@ -14,6 +14,7 @@ mock_present: [GLFW_JOYSTICK_LAST + 1] bool;
 mock_gamepad: [GLFW_JOYSTICK_LAST + 1] bool;
 mock_valid: [GLFW_JOYSTICK_LAST + 1] bool;
 mock_states: [GLFW_JOYSTICK_LAST + 1] GLFWgamepadstate;
+mock_guids: [GLFW_JOYSTICK_LAST + 1] string;
 mock_keys: [GLFW_KEY_LAST + 1] s32;
 mock_sticky_keys: [GLFW_KEY_LAST + 1] bool;
 mock_key_calls: [GLFW_KEY_LAST + 1] int;
@@ -43,6 +44,10 @@ glfwGetGamepadState :: (joystick: s32, state: *GLFWgamepadstate) -> s32 {
     mock_state_calls += 1;
     state.* = mock_states[joystick];
     return cast(s32) mock_valid[joystick];
+}
+glfwGetJoystickGUID :: (joystick: s32) -> *u8 {
+    // Literals are zero terminated, as GLFW's GUID strings are.
+    return ifx mock_guids[joystick] then mock_guids[joystick].data else null;
 }
 glfwGetCursorPos :: (window: *GLFWwindow, x: *float64, y: *float64) {
     x.* = mock_cursor[0];
@@ -113,6 +118,8 @@ reset_fixture :: () {
     memset(mock_gamepad.data, 0, size_of(type_of(mock_gamepad)));
     memset(mock_valid.data, 0, size_of(type_of(mock_valid)));
     memset(mock_states.data, 0, size_of(type_of(mock_states)));
+    for *guid: mock_guids guid.* = "";
+    identified_joystick = -1;
     memset(mock_keys.data, 0, size_of(type_of(mock_keys)));
     memset(mock_sticky_keys.data, 0, size_of(type_of(mock_sticky_keys)));
     memset(mock_key_calls.data, 0, size_of(type_of(mock_key_calls)));
@@ -709,6 +716,103 @@ test_char_input_controller_buttons :: () {
 }
 
 #scope_export
+// The prompts name the pad in use: a PlayStation pad behind a virtual XInput pad
+// (DS4Windows, DSX) is named once it is pressed, and stays named until it disconnects.
+test_controller_identity :: () {
+    scenario = "controller identity";
+    reset_fixture();
+    XINPUT :: "78696e70757401000000000000000000";
+    DUALSENSE :: "030000004c050000e60c000000000000";
+    connect_neutral(0);
+    connect_neutral(1);
+    mock_guids[0] = XINPUT;
+    mock_guids[1] = DUALSENSE;
+
+    update_inputs();
+    check(input.controller_vendor == 0 && input.controller_product == 0, "before a press the first connected pad is named, and XInput has no USB ids");
+
+    mock_states[1].buttons[GLFW_GAMEPAD_BUTTON_Y] = GLFW_PRESS;
+    update_inputs();
+    check(input.controller_vendor == 0x054c && input.controller_product == 0x0ce6, "the pressed DualSense is named");
+
+    mock_states[1].buttons[GLFW_GAMEPAD_BUTTON_Y] = GLFW_RELEASE;
+    update_inputs();
+    check(input.controller_vendor == 0x054c, "the DualSense stays named after release");
+    check(get_input().controller_vendor == 0x054c, "the public input carries the ids");
+
+    mock_states[0].axes[GLFW_GAMEPAD_AXIS_RIGHT_TRIGGER] = 1;
+    update_inputs();
+    check(input.controller_vendor == 0, "a trigger press on the other pad names it");
+    mock_states[0].axes[GLFW_GAMEPAD_AXIS_RIGHT_TRIGGER] = -1;
+
+    mock_states[1].buttons[GLFW_GAMEPAD_BUTTON_A] = GLFW_PRESS;
+    update_inputs();
+    mock_states[1].buttons[GLFW_GAMEPAD_BUTTON_A] = GLFW_RELEASE;
+    mock_present[1] = false;
+    update_inputs();
+    check(input.controller_vendor == 0 && identified_joystick == 0, "a disconnected named pad falls back to the first connected one");
+
+    mock_present[0] = false;
+    update_inputs();
+    check(input.controller_vendor == 0 && input.controller_product == 0 && identified_joystick == -1, "no pad, no ids");
+
+    vendor, product := gamepad_guid_usb_ids("030000004c050000c405000000010000");
+    check(vendor == 0x054c && product == 0x05c4, "the macOS PS4 GUID form parses");
+    vendor, product = gamepad_guid_usb_ids("0300000000000000c405000000000000");
+    check(vendor == 0 && product == 0, "a zero vendor is no ids");
+    vendor, product = gamepad_guid_usb_ids("030000004c05zz00c405000000000000");
+    check(vendor == 0 && product == 0, "a malformed GUID is no ids");
+    vendor, product = gamepad_guid_usb_ids("");
+    check(vendor == 0 && product == 0, "an empty GUID is no ids");
+}
+
+// One pad seen twice (Steam Input's virtual pad and the real one): a tap is one press
+// edge whichever copy reports it first, and a hold is one hold.
+test_merged_pads :: () {
+    for lagging: 0..1 {
+        scenario = tprint("merged pads, joystick % lags", lagging);
+        reset_fixture();
+        connect_neutral(0);
+        connect_neutral(1);
+        Y :: GLFW_GAMEPAD_BUTTON_Y;
+        leading := 1 - lagging;
+
+        mock_states[leading].buttons[Y] = GLFW_PRESS;
+        update_inputs();
+        check(input.buttons[KodaButton.Y] == .START | .DOWN, "the first copy's press is a press edge");
+        mock_states[lagging].buttons[Y] = GLFW_PRESS;
+        update_inputs();
+        check(input.buttons[KodaButton.Y] == .DOWN, "the second copy catching up is not another press");
+        mock_states[leading].buttons[Y] = GLFW_RELEASE;
+        update_inputs();
+        check(input.buttons[KodaButton.Y] == .DOWN && !input.released_buttons[KodaButton.Y], "held while either copy holds it");
+        mock_states[lagging].buttons[Y] = GLFW_RELEASE;
+        update_inputs();
+        check(input.buttons[KodaButton.Y] == .NONE && input.released_buttons[KodaButton.Y], "released once both copies release");
+
+        mock_states[0].buttons[Y] = GLFW_PRESS;
+        mock_states[1].buttons[Y] = GLFW_PRESS;
+        update_inputs();
+        check(input.buttons[KodaButton.Y] == .START | .DOWN, "both copies pressing in one frame is one press edge");
+        mock_states[0].buttons[Y] = GLFW_RELEASE;
+        mock_states[1].buttons[Y] = GLFW_RELEASE;
+        update_inputs();
+
+        mock_states[leading].axes[GLFW_GAMEPAD_AXIS_RIGHT_TRIGGER] = 1;
+        update_inputs();
+        check(input.trigger_buttons[KodaTrigger.RIGHT] == .START | .DOWN, "a trigger on either copy is a trigger press");
+        mock_states[lagging].axes[GLFW_GAMEPAD_AXIS_RIGHT_TRIGGER] = 1;
+        update_inputs();
+        check(input.trigger_buttons[KodaTrigger.RIGHT] == .DOWN, "the trigger stays one press");
+
+        mock_states[leading].axes[GLFW_GAMEPAD_AXIS_LEFT_X] = 0.9;
+        mock_states[lagging].axes[GLFW_GAMEPAD_AXIS_LEFT_X] = 0.1;
+        mock_states[lagging].axes[GLFW_GAMEPAD_AXIS_LEFT_Y] = 0.1;
+        update_inputs();
+        check(input.controller_left.x > 0.5 && abs(input.controller_left.y) < 0.01, "the stick pushed furthest is used whole");
+    }
+}
+
 main :: () {
     for joystick: int.[GLFW_JOYSTICK_1, GLFW_JOYSTICK_LAST] {
         for failure_mode: 0..2 {
@@ -741,7 +845,9 @@ main :: () {
     test_wheel_modality(true);
     test_preferred_controller_modality();
     test_char_input_controller_buttons();
-    // Multi-pad selection/handover and held digital/stick modality policy remain deferred.
-    print("Input poll tests: % checks, % failures; real input/focus owners, split masks, disconnect/reconnect, console/focus neutral gates, click cancellation, mouse rebase, initial focus, sticky sampling, trigger/wheel modality.\n", checks, failures);
+    test_controller_identity();
+    test_merged_pads();
+    // Held digital/stick modality policy remains deferred.
+    print("Input poll tests: % checks, % failures; real input/focus owners, split masks, disconnect/reconnect, console/focus neutral gates, click cancellation, mouse rebase, initial focus, sticky sampling, trigger/wheel modality, controller identity, merged pads.\n", checks, failures);
     if failures > 0 exit(1);
 }

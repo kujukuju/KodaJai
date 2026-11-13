@@ -183,6 +183,11 @@ Input :: struct {
     released_buttons: [KODA_BUTTON_COUNT] bool;
     controller_left_trigger: float;
     controller_right_trigger: float;
+    // USB vendor and product of the gamepad in use (the last one pressed, else the first
+    // one connected), read from its GLFW GUID. Zero when the GUID carries none, as an
+    // XInput pad's does. The game names buttons from these (PlayStation prompts).
+    controller_vendor: u16;
+    controller_product: u16;
     mouse_left: KodaInputState;
     released_mouse_left: bool;
     mouse_left_start: Vector2;
@@ -246,7 +251,15 @@ update_inputs :: ($update_features: InputFeature = .All) {
     // TODO all this update feature shit is gonna have to be redone and reorganized at some poitn
 
     gamepad_polled := false;
-    // TODO: Define multi-pad selection/handover; this loop still shares one controller history.
+    first_polled_joystick: s32 = -1;
+    identified_joystick_polled := false;
+    // Every connected pad is merged into one state before presses are found. One pad is
+    // often seen twice (Steam Input's or DS4Windows' virtual pad and the real one); read
+    // one after the other, the second cleared the press edge the first had just set, so
+    // taps were lost while holds still worked.
+    merged: GLFWgamepadstate;
+    merged.axes[GLFW_GAMEPAD_AXIS_LEFT_TRIGGER] = -1;
+    merged.axes[GLFW_GAMEPAD_AXIS_RIGHT_TRIGGER] = -1;
     for joystick: GLFW_JOYSTICK_1..GLFW_JOYSTICK_LAST {
         if !glfwJoystickPresent(xx joystick) {
             continue;
@@ -261,6 +274,32 @@ update_inputs :: ($update_features: InputFeature = .All) {
             continue;
         }
         gamepad_polled = true;
+
+        // The pad named by the prompts: the last one pressed, kept until it disconnects.
+        pad_pressed := state.axes[GLFW_GAMEPAD_AXIS_LEFT_TRIGGER] > 0 || state.axes[GLFW_GAMEPAD_AXIS_RIGHT_TRIGGER] > 0;
+        for state.buttons pad_pressed ||= it == GLFW_PRESS;
+        if pad_pressed identified_joystick = xx joystick;
+        if first_polled_joystick < 0 first_polled_joystick = xx joystick;
+        identified_joystick_polled ||= joystick == identified_joystick;
+
+        // A button is down on any pad; a trigger is as far in as any pad has it; each
+        // stick comes whole from the pad pushing it furthest.
+        for button, index: state.buttons if button == GLFW_PRESS merged.buttons[index] = GLFW_PRESS;
+        for axis: int.[GLFW_GAMEPAD_AXIS_LEFT_TRIGGER, GLFW_GAMEPAD_AXIS_RIGHT_TRIGGER] merged.axes[axis] = max(merged.axes[axis], state.axes[axis]);
+        for x_axis: int.[GLFW_GAMEPAD_AXIS_LEFT_X, GLFW_GAMEPAD_AXIS_RIGHT_X] {
+            x := state.axes[x_axis];
+            y := state.axes[x_axis + 1];
+            merged_x := merged.axes[x_axis];
+            merged_y := merged.axes[x_axis + 1];
+            if x * x + y * y > merged_x * merged_x + merged_y * merged_y {
+                merged.axes[x_axis] = x;
+                merged.axes[x_axis + 1] = y;
+            }
+        }
+    }
+
+    if gamepad_polled {
+        state := merged;
 
         #if update_features & .ControllerButtons {
             for index: 0..KODA_BUTTON_COUNT - 1 {
@@ -341,6 +380,12 @@ update_inputs :: ($update_features: InputFeature = .All) {
             }
         }
     }
+
+    if !identified_joystick_polled identified_joystick = first_polled_joystick;
+    input.controller_vendor = 0;
+    input.controller_product = 0;
+    guid := ifx identified_joystick >= 0 then glfwGetJoystickGUID(identified_joystick) else null;
+    if guid input.controller_vendor, input.controller_product = gamepad_guid_usb_ids(to_string(guid));
 
     if !gamepad_polled {
         // Unplugging must not leave held actions or console-release blocking latched.
@@ -736,6 +781,33 @@ mouse_left_tracking: bool;
 joystick_padding := 0.2;
 
 trigger_activation_distance: float = 0.2;
+
+// The joystick whose USB ids Input.controller_vendor/product report; -1 when none.
+identified_joystick: s32 = -1;
+
+// An SDL-style GUID (the form GLFW reports) as 32 hex characters: bus, CRC, vendor,
+// zero, product, zero, version, ... each 16 bits little endian. Any other form (an
+// XInput pad's, a name hash) has no USB ids, and returns zeros.
+gamepad_guid_usb_ids :: (guid: string) -> vendor: u16, product: u16 {
+    if guid.count != 32 return 0, 0;
+    word :: (guid: string, index: int) -> int {
+        value := 0;
+        for character: 0..3 {
+            c := guid[index * 4 + (character ^ 2)];
+            digit := -1;
+            if c >= #char "0" && c <= #char "9" digit = c - #char "0";
+            if c >= #char "a" && c <= #char "f" digit = c - #char "a" + 10;
+            if c >= #char "A" && c <= #char "F" digit = c - #char "A" + 10;
+            if digit < 0 return -1;
+            value = value * 16 + digit;
+        }
+        return value;
+    }
+    vendor := word(guid, 2);
+    product := word(guid, 4);
+    if vendor <= 0 || product < 0 || word(guid, 3) != 0 || word(guid, 5) != 0 return 0, 0;
+    return xx vendor, xx product;
+}
 
 abort_shortcut := false;
 
