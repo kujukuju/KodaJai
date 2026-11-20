@@ -311,14 +311,17 @@ koda_should_exit :: (swap_buffer_hook: () = null, swap_buffer_hook_render: () = 
     // don't swap buffers when entering the loop since you might have drawn to it already
     if koda.time_tracker.last_loop_time > 0 {
         if swap_buffer_hook {
+            koda_frame_step = .SwapHook;
             swap_buffer_hook();
         }
+        koda_frame_step = .Swap;
         swap_buffers();
     }
 
     time := seconds_since_init();
 
     // sleep if desired
+    koda_frame_step = .Sleep;
     manual_vsync := !get_fullscreen() && can_vsync_wait();
     if vsync_enabled && manual_vsync {
         // we'll manually control vsync if it's not full screen mode
@@ -367,7 +370,9 @@ koda_should_exit :: (swap_buffer_hook: () = null, swap_buffer_hook_render: () = 
     koda.time_tracker.last_loop_time = time;
 
     // TODO is this the right place for this?
+    koda_frame_step = .PollEvents;
     glfwPollEvents();
+    koda_frame_step = .None;
 
     // if mouse_boundary_enabled {
     //     mouse_x: float64;
@@ -1287,6 +1292,18 @@ end_render_target :: () {
     set_viewport(koda.width, koda.height);
     koda.render_flipped = false;
 }
+
+// Which step of koda_should_exit the main thread is in, for a watchdog on another thread to tell
+// a stalled swap (the driver) from a stalled frame sleep or window event wait (alt-tab, a dragged
+// or resized window). One byte, written by the main thread only.
+Koda_Frame_Step :: enum u8 {
+    None;
+    SwapHook;
+    Swap;
+    Sleep;
+    PollEvents;
+}
+koda_frame_step: Koda_Frame_Step;
 
 #scope_module
 
