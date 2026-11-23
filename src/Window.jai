@@ -15,6 +15,16 @@
     NoHotPatch :: () #c_call {}
 }
 
+#if OS == .MACOS {
+// A fatal error for a player with no console, as MessageBoxA on Windows: macOS's own alert,
+// which needs no window. Blocks until OK is pressed; the strings are never released, the game
+// exits after it.
+koda_error_box_macos :: (title: string, message: string) {
+    Mac :: #import "macOS";
+    Mac.CFUserNotificationDisplayNotice(0, 0, null, null, null, Mac.cfstring_from_string(title), Mac.cfstring_from_string(message), null);
+}
+}
+
 koda_init :: () {
     glfwSetErrorCallback(error_callback);
     if !glfwInit() {
@@ -22,6 +32,8 @@ koda_init :: () {
         #if OS == .WINDOWS {
             Windows :: #import "Windows";
             Windows.MessageBoxA(null, "Could not initialize glfw. Update your graphics drivers!", "Fat Goblins | OpenGL Error", Windows.MB_OK | Windows.MB_ICONERROR);
+        } else #if OS == .MACOS {
+            koda_error_box_macos("Fat Goblins | OpenGL Error", "Could not initialize glfw.");
         }
         exit(-1);
     }
@@ -120,6 +132,8 @@ create_window :: (title: *u8, width: s32, height: s32, multisample: int = 0, vis
         #if OS == .WINDOWS {
             Windows :: #import "Windows";
             Windows.MessageBoxA(null, "Could not create window. Update your graphics drivers!" , "Fat Goblins | OpenGL Error", Windows.MB_OK | Windows.MB_ICONERROR);
+        } else #if OS == .MACOS {
+            koda_error_box_macos("Fat Goblins | OpenGL Error", "Could not create window.");
         }
         exit(-1);
         return;
