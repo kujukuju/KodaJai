@@ -213,7 +213,12 @@ update_texture :: (texture: *Texture, image: Image) {
         glBindTextureTemporary(GL_TEXTURE_2D, texture.buffer);
         glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, xx texture.width, xx texture.height, get_gl_format(texture.format), GL_UNSIGNED_BYTE, image.pixels.data);
     } else {
-        glTextureSubImage2D(texture.buffer, 0, 0, 0, xx texture.width, xx texture.height, get_gl_format(texture.format), GL_UNSIGNED_BYTE, image.pixels.data);
+        if glTextureSubImage2D {
+            glTextureSubImage2D(texture.buffer, 0, 0, 0, xx texture.width, xx texture.height, get_gl_format(texture.format), GL_UNSIGNED_BYTE, image.pixels.data);
+        } else {
+            glBindTextureTemporary(GL_TEXTURE_2D, texture.buffer);
+            glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, xx texture.width, xx texture.height, get_gl_format(texture.format), GL_UNSIGNED_BYTE, image.pixels.data);
+        }
     }
 }
 

@@ -158,7 +158,12 @@ update_texture :: (texture: *TextureArray, bytes: [] u8) {
         glBindTextureTemporary(GL_TEXTURE_2D_ARRAY, texture.buffer);
         glTexSubImage3D(GL_TEXTURE_2D_ARRAY, 0, 0, 0, 0, xx texture.width, xx texture.height, xx depth, gl_format, gl_type, bytes.data);
     } else {
-        glTextureSubImage3D(texture.buffer, 0, 0, 0, 0, xx texture.width, xx texture.height, xx depth, gl_format, gl_type, bytes.data);
+        if glTextureSubImage3D {
+            glTextureSubImage3D(texture.buffer, 0, 0, 0, 0, xx texture.width, xx texture.height, xx depth, gl_format, gl_type, bytes.data);
+        } else {
+            glBindTextureTemporary(GL_TEXTURE_2D_ARRAY, texture.buffer);
+            glTexSubImage3D(GL_TEXTURE_2D_ARRAY, 0, 0, 0, 0, xx texture.width, xx texture.height, xx depth, gl_format, gl_type, bytes.data);
+        }
     }
 }
 
@@ -174,7 +179,12 @@ update_texture_layer :: (texture: *TextureArray, layer: int, bytes: [] u8) {
         glBindTextureTemporary(GL_TEXTURE_2D_ARRAY, texture.buffer);
         glTexSubImage3D(GL_TEXTURE_2D_ARRAY, 0, 0, 0, xx layer, xx texture.width, xx texture.height, 1, gl_format, gl_type, bytes.data);
     } else {
-        glTextureSubImage3D(texture.buffer, 0, 0, 0, xx layer, xx texture.width, xx texture.height, 1, gl_format, gl_type, bytes.data);
+        if glTextureSubImage3D {
+            glTextureSubImage3D(texture.buffer, 0, 0, 0, xx layer, xx texture.width, xx texture.height, 1, gl_format, gl_type, bytes.data);
+        } else {
+            glBindTextureTemporary(GL_TEXTURE_2D_ARRAY, texture.buffer);
+            glTexSubImage3D(GL_TEXTURE_2D_ARRAY, 0, 0, 0, xx layer, xx texture.width, xx texture.height, 1, gl_format, gl_type, bytes.data);
+        }
     }
 }
 

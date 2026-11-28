@@ -151,7 +151,12 @@ update_texture :: (texture: *Texture3, bytes: [] u8) {
         glBindTextureTemporary(GL_TEXTURE_3D, texture.buffer);
         glTexSubImage3D(GL_TEXTURE_3D, 0, 0, 0, 0, xx texture.width, xx texture.height, xx depth, gl_format, gl_type, bytes.data);
     } else {
-        glTextureSubImage3D(texture.buffer, 0, 0, 0, 0, xx texture.width, xx texture.height, xx depth, gl_format, gl_type, bytes.data);
+        if glTextureSubImage3D {
+            glTextureSubImage3D(texture.buffer, 0, 0, 0, 0, xx texture.width, xx texture.height, xx depth, gl_format, gl_type, bytes.data);
+        } else {
+            glBindTextureTemporary(GL_TEXTURE_3D, texture.buffer);
+            glTexSubImage3D(GL_TEXTURE_3D, 0, 0, 0, 0, xx texture.width, xx texture.height, xx depth, gl_format, gl_type, bytes.data);
+        }
     }
 }
 
